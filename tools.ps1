@@ -221,7 +221,14 @@ $labelPort.Add_Click({
         Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
     }
 })
-
+$labelHostname.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($labelHostname.Text)
+        Write-Host "`nNombre del equipo copiado al portapapeles: $($labelHostname.Text)"
+    })
+$labelipADress.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($labelipADress.Text)
+        Write-Host "`nIP's copiadas al equipo: $($labelipADress.Text)"
+    })
 # Obtener las direcciones IP y los adaptadores
 $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
     Where-Object { $_.OperationalStatus -eq 'Up' } |
@@ -317,36 +324,30 @@ $chkSqlServer.Add_CheckedChanged({
 
 
 ##-------------------- FUNCIONES                                                          -------#
-
 function Check-SqlServerInstallation {
     $sqlInstalled = Get-WmiObject -Query "SELECT * FROM Win32_Product WHERE Name LIKE 'Microsoft SQL Server%'" | Select-Object -First 1
     return $sqlInstalled
 }
-
 function Execute-SqlQuery {
     param (
         [string]$server,
         [string]$database,
         [string]$query
     )
-
     try {
         # Cadena de conexión
         $connectionString = "Server=$server;Database=$database;User Id=sa;Password=$($global:password);"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
         $connection.Open()
-
         # Ejecutar consulta
         $command = $connection.CreateCommand()
         $command.CommandText = $query
         $reader = $command.ExecuteReader()
-
         # Obtener los nombres de las columnas
         $columns = @()
         for ($i = 0; $i -lt $reader.FieldCount; $i++) {
             $columns += $reader.GetName($i)
         }
-
         # Leer los resultados
         $results = @()
         while ($reader.Read()) {
@@ -356,17 +357,14 @@ function Execute-SqlQuery {
             }
             $results += $row
         }
-
         # Cerrar la conexión y liberar recursos
         $connection.Close()
         $connection.Dispose()
-
         return $results
     } catch {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
-
 function Show-ResultsConsole {
     param (
         [string]$query
@@ -383,7 +381,6 @@ function Show-ResultsConsole {
             foreach ($col in $columns) {
                 $columnWidths[$col] = $col.Length
             }
-
             # Mostrar los encabezados
             $header = ""
             foreach ($col in $columns) {
@@ -391,7 +388,6 @@ function Show-ResultsConsole {
             }
             Write-Host $header
             Write-Host ("-" * $header.Length)
-
             # Mostrar las filas de resultados
             foreach ($row in $results) {
                 $rowText = ""
@@ -407,7 +403,7 @@ function Show-ResultsConsole {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
-
+#------------------------ download&run 1.0
 function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath) {
     # Validar si el archivo o aplicación ya existe
     if (!(Test-Path -Path $validationPath)) {
@@ -417,14 +413,12 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
             [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Warning
         )
-
         # Si el usuario selecciona "No", salir de la función
         if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
             Write-Host "`nEl usuario canceló la operación."  -ForegroundColor Red
             return
         }
     }
-
     # Verificar si el archivo ZIP ya existe
     if (Test-Path -Path $zipPath) {
         $response = [System.Windows.Forms.MessageBox]::Show(
@@ -432,7 +426,6 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
             "Archivo ya descargado",
             [System.Windows.Forms.MessageBoxButtons]::YesNoCancel
         )
-
         if ($response -eq [System.Windows.Forms.DialogResult]::Yes) {
             Remove-Item -Path $zipPath -Force
             Remove-Item -Path $extractPath -Recurse -Force
@@ -455,17 +448,13 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
             return  # Aquí se termina la ejecución si el usuario cancela
         }
     }
-
     # Proceder con la descarga si no fue cancelada
     Write-Host "`nDescargando desde: $url"
-    
     # Obtener el tamaño total del archivo antes de la descarga
     $response = Invoke-WebRequest -Uri $url -Method Head
     $totalSize = $response.Headers["Content-Length"]
     $totalSizeKB = [math]::round($totalSize / 1KB, 2)
-
     Write-Host "`nTamaño total: $totalSizeKB KB"
-
     # Descargar el archivo con barra de progreso
     $downloaded = 0
     $request = Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
@@ -473,12 +462,9 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         $downloaded += $chunk.Length
         $downloadedKB = [math]::round($downloaded / 1KB, 2)
         $progress = [math]::round(($downloaded / $totalSize) * 100, 2)
-        
         Write-Progress -PercentComplete $progress -Status "Descargando..." -Activity "Progreso de la descarga" -CurrentOperation "$downloadedKB KB de $totalSizeKB KB descargados"
     }
-
     Write-Host "`nDescarga completada."
-
     # Crear directorio de extracción si no existe
     if (!(Test-Path -Path $extractPath)) {
         New-Item -ItemType Directory -Path $extractPath | Out-Null
@@ -490,7 +476,6 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
     } catch {
         Write-Host "`nError al descomprimir el archivo: $_"
     }
-
     $exePath = Join-Path -Path $extractPath -ChildPath $exeName
     if (Test-Path -Path $exePath) {
         Write-Host "`nEjecutando $exeName..."
@@ -512,10 +497,8 @@ $restoreColorOnLeave = {
     param($sender, $eventArgs)
     $sender.BackColor = [System.Drawing.Color]::White
 }
-
 ##-------------------------------------------------------------------------------BOTONES#
-
-    $btnProfiler.Add_Click({
+$btnProfiler.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $ProfilerUrl = "https://codeplexarchive.org/codeplex/browse/ExpressProfiler/releases/4/ExpressProfiler22wAddinSigned.zip"
         $ProfilerZipPath = "C:\Temp\ExpressProfiler22wAddinSigned.zip"
@@ -527,8 +510,7 @@ $restoreColorOnLeave = {
         if ($disableControls) {        Enable-Controls -parentControl $form    }
         }
     )
-
-    $btnPrinterTool.Add_Click({
+$btnPrinterTool.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $PrinterToolUrl = "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip"
         $PrinterToolZipPath = "C:\Temp\RPT-RPI-Printer-Tool-1.zip"
@@ -538,8 +520,7 @@ $restoreColorOnLeave = {
 
         DownloadAndRun -url $PrinterToolUrl -zipPath $PrinterToolZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
     })
-
-    $btnDatabase.Add_Click({
+$btnDatabase.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $DatabaseUrl = "https://fishcodelib.com/files/DatabaseNet4.zip"
         $DatabaseZipPath = "C:\Temp\DatabaseNet4.zip"
@@ -549,8 +530,7 @@ $restoreColorOnLeave = {
 
         DownloadAndRun -url $DatabaseUrl -zipPath $DatabaseZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
     })
-
-    $btnSQLManager.Add_Click({
+$btnSQLManager.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
             Write-Host "`nEjecutando SQL Server Configuration Manager..."
@@ -561,8 +541,7 @@ $restoreColorOnLeave = {
             [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
-
-    $btnSQLManagement.Add_Click({
+$btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
             Write-Host "`nEjecutando SQL Server Management Studio..."
@@ -573,8 +552,7 @@ $restoreColorOnLeave = {
             [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
-
-    $btnClearAnyDesk.Add_Click({
+$btnClearAnyDesk.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         # Mostrar cuadro de confirmación
         $confirmationResult = [System.Windows.Forms.MessageBox]::Show(
@@ -636,8 +614,7 @@ $restoreColorOnLeave = {
             Write-Host "`nRenovación de AnyDesk cancelada por el usuario."
         }
     })
-
-    $buttonShowPrinters.Add_Click({
+$buttonShowPrinters.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
             $printers = Get-WmiObject -Query "SELECT * FROM Win32_Printer" | ForEach-Object {
@@ -669,8 +646,7 @@ $restoreColorOnLeave = {
             Write-Host "`nError al obtener impresoras: $_"
         }
     })
-
-    $btnClearPrintJobs.Add_Click({
+$btnClearPrintJobs.Add_Click({
             Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
 
@@ -691,8 +667,7 @@ $restoreColorOnLeave = {
             [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al intentar limpiar las impresoras o reiniciar el servicio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
-
-    $btnAplicacionesNS.Add_Click({
+$btnAplicacionesNS.Add_Click({
             Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
 
     # Proceso 1: Buscar y analizar archivos .ini 
@@ -806,18 +781,6 @@ $restoreColorOnLeave = {
                 Write-Host "`nArchivo no encontrado: $restCardPath" -ForegroundColor Red
             }
         })
-
-
-    $labelHostname.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($labelHostname.Text)
-        Write-Host "`nNombre del equipo copiado al portapapeles: $($labelHostname.Text)"
-    })
-
-    $labelipADress.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($labelipADress.Text)
-        Write-Host "`nIP's copiadas al equipo: $($labelipADress.Text)"
-    })
-
 $btnInstallSQLManagement.Add_Click({
     $response = [System.Windows.Forms.MessageBox]::Show(
         "¿Desea proceder con la instalación de SQL Server Management Studio 2014 Express?",
@@ -872,8 +835,6 @@ $btnInstallSQLManagement.Add_Click({
         Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
     }
 })
-
-
 $btnReviewPivot.Add_Click({
     try {
         if (-not $global:server -or -not $global:database -or -not $global:password) {
@@ -904,8 +865,7 @@ $btnReviewPivot.Add_Click({
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
-
-    $btnConnectDb.Add_Click({
+$btnConnectDb.Add_Click({
         # Crear el formulario para pedir los datos de conexión
         $connectionForm = New-Object System.Windows.Forms.Form
         $connectionForm.Text = "Conexión a SQL Server"
@@ -1043,9 +1003,7 @@ $btnReviewPivot.Add_Click({
     $global:database
     $global:password
     $global:connection  # Variable global para la conexión
-
-
-    $btnOK.Add_Click({
+$btnOK.Add_Click({
         try {
             # Cadena de conexión
             $connectionString = "Server=$($txtServer.Text);Database=$($txtDatabase.Text);User Id=sa;Password=$($txtPassword.Text);"

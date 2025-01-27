@@ -8,10 +8,11 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 # Crear el formulario
-    $form = New-Object System.Windows.Forms.Form
+$form = New-Object System.Windows.Forms.Form
 # título con versión
 # URL del archivo remoto
-    $url = "https://raw.githubusercontent.com/water0ff/dztools/7f6f13dc05583f28c7573b6148026c26ea20371f/tools.ps1"
+$url = "https://raw.githubusercontent.com/water0ff/dztools/7f6f13dc05583f28c7573b6148026c26ea20371f/tools.ps1"
+
 try {
     $response = Invoke-WebRequest -Uri $url -Method Head -ErrorAction Stop
     $lastModified = $response.Headers["Last-Modified"]
@@ -26,21 +27,15 @@ try {
     Write-Host "Error al acceder a la URL: $_" -ForegroundColor Red
     $version = (Get-Date).ToString("yy.MM.dd.HHmm")  # Usar la fecha actual en caso de error
 }
-    $form.Text = "Daniel Tools v$version"
-    $form.Size = New-Object System.Drawing.Size(500, 460)
-    $form.StartPosition = "CenterScreen"
-    $form.BackColor = [System.Drawing.Color]::White
-    $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-    $form.MaximizeBox = $false
-    $form.MinimizeBox = $false
 
-# Mostrar versión en la consola con diseño más profesional
+# Título del formulario
+$form.Text = "Daniel Tools v$version"
+
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
 Write-Host "              Versión: v$version               " -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor DarkCyan
 
-# Mostrar mensaje de derechos
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
 Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
 

@@ -14,15 +14,21 @@ Add-Type -AssemblyName System.Drawing
     $url = "https://raw.githubusercontent.com/water0ff/dztools/7f6f13dc05583f28c7573b6148026c26ea20371f/tools.ps1"
 
 # Obtener los encabezados de la respuesta HTTP para extraer la fecha de modificación
-    $response = Invoke-WebRequest -Uri $url -Method Head
+# Intentar obtener los encabezados de la respuesta HTTP
+try {
+    $response = Invoke-WebRequest -Uri $url -Method Head -ErrorAction Stop
     $lastModified = $response.Headers["Last-Modified"]
     if ($lastModified) {
-    # Intentar convertir $lastModified a DateTime y luego formatearlo
-    $version = [datetime]::Parse($lastModified).ToString("yy.MM.dd.HHmm")
+        # Intentar convertir $lastModified a DateTime y luego formatearlo
+        $version = [datetime]::Parse($lastModified).ToString("yy.MM.dd.HHmm")
     } else {
         # Si no se puede obtener la fecha de modificación, usar la fecha actual
         $version = (Get-Date).ToString("yy.MM.dd.HHmm")
     }
+} catch {
+    Write-Host "Error al acceder a la URL: $_" -ForegroundColor Red
+    $version = (Get-Date).ToString("yy.MM.dd.HHmm")  # Usar la fecha actual en caso de error
+}
     $form.Text = "Daniel Tools v$version"
     $form.Size = New-Object System.Drawing.Size(500, 460)
     $form.StartPosition = "CenterScreen"

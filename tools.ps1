@@ -881,7 +881,6 @@ $btnReviewPivot.Add_Click({
     }
 })
 $btnFechaRevEstaciones.Add_Click({
-Write-Host "`ntest: $($_.Exception.Message)" -ForegroundColor Red
     try {
         if (-not $global:server -or -not $global:database -or -not $global:password) {
             Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
@@ -889,8 +888,8 @@ Write-Host "`ntest: $($_.Exception.Message)" -ForegroundColor Red
         }
         # Consultas SQL
         $query1 = "SELECT e.FECHAREV, 
-                   CONVERT(varchar, b.fecha, 23) AS UltimaUso,  -- Convertir fecha a formato solo de fecha
-                   b.estacion as Estacion 
+                    b.estacion as Estacion, 
+                   CONVERT(varchar, b.fecha 23) AS UltimaUso,  -- Convertir fecha a formato solo de fecha
             FROM bitacorasistema b
             INNER JOIN (
                 SELECT estacion, MAX(fecha) AS max_fecha
@@ -910,7 +909,7 @@ Write-Host "`nSELECT e.FECHAREV, `
             FROM bitacorasistema b `
             INNER JOIN (SELECT estacion, MAX(fecha) AS max_fecha FROM bitacorasistema GROUP BY estacion) latest_bitacora `
             ON b.estacion = latest_bitacora.estacion AND b.fecha = latest_bitacora.max_fecha `
-            INNER JOIN estaciones e ON b.estacion = e.idestacion ORDER BY b.fecha DESC;" -ForegroundColor white
+            INNER JOIN estaciones e ON b.estacion = e.idestacion ORDER BY b.fecha DESC;`n" -ForegroundColor Yellow
                     Show-ResultsConsole -query $query1
     } catch {
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red

@@ -887,9 +887,9 @@ $btnFechaRevEstaciones.Add_Click({
             return
         }
         # Consultas SQL
-        $query1 = "SELECT e.FECHAREV, 
-                    b.estacion as Estacion, 
-                   CONVERT(varchar, b.fecha 23) AS UltimaUso
+$query1 = "SELECT e.FECHAREV, 
+                   b.estacion as Estacion, 
+                   CONVERT(varchar, b.fecha, 23) AS UltimaUso
             FROM bitacorasistema b
             INNER JOIN (
                 SELECT estacion, MAX(fecha) AS max_fecha

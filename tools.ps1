@@ -183,8 +183,6 @@ $tabControl.TabPages.Add($tabProSql)
     $labelHostname.BackColor = [System.Drawing.Color]::White
     $labelHostname.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
     $labelHostname.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
-    $labelHostname.Add_MouseEnter($changeColorOnHover)
-    $labelHostname.Add_MouseLeave($restoreColorOnLeave)
     $toolTipHostname = New-Object System.Windows.Forms.ToolTip
     $toolTipHostname.SetToolTip($labelHostname, "Haz clic para copiar el Hostname al portapapeles.")
 # Crear el Label para mostrar el puerto
@@ -197,8 +195,6 @@ $tabControl.TabPages.Add($tabProSql)
     $labelPort.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
     $toolTip = New-Object System.Windows.Forms.ToolTip
     $toolTip.SetToolTip($labelPort, "Haz clic para copiar el Puerto al portapapeles.")
-    $labelPort.Add_MouseEnter($changeColorOnHover)
-    $labelPort.Add_MouseLeave($restoreColorOnLeave)
 # Crear el Label para mostrar las IPs y adaptadores
     $labelipADress = New-Object System.Windows.Forms.Label
     $labelipADress.Size = New-Object System.Drawing.Size(480, 100)  # Tamaño inicial
@@ -207,8 +203,6 @@ $tabControl.TabPages.Add($tabProSql)
     $labelipADress.BackColor = [System.Drawing.Color]::White
     $labelipADress.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
     $labelipADress.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
-    $labelipADress.Add_MouseEnter($changeColorOnHover)
-    $labelipADress.Add_MouseLeave($restoreColorOnLeave)
 # Crear el ToolTip
     $toolTip.SetToolTip($labelipADress, "Haz clic para copiar las IPs al portapapeles.")
 #Funcion para copiar el puerto al portapapeles
@@ -497,6 +491,12 @@ $restoreColorOnLeave = {
     param($sender, $eventArgs)
     $sender.BackColor = [System.Drawing.Color]::White
 }
+    $labelHostname.Add_MouseEnter($changeColorOnHover)
+    $labelHostname.Add_MouseLeave($restoreColorOnLeave)
+    $labelPort.Add_MouseEnter($changeColorOnHover)
+    $labelPort.Add_MouseLeave($restoreColorOnLeave)
+    $labelipADress.Add_MouseEnter($changeColorOnHover)
+    $labelipADress.Add_MouseLeave($restoreColorOnLeave)
 ##-------------------------------------------------------------------------------BOTONES#
 $btnProfiler.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green

@@ -902,6 +902,8 @@ Write-Host "`ntest: $($_.Exception.Message)" -ForegroundColor Red
                     ORDER BY b.fecha desc;"
         # Ejecutar y analizar la primera consulta
         $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
+                    Write-Host "`nSELECT e.FECHAREV, b.estacion as Estacion, b.fecha as UltimaUso FROM bitacorasistema b INNER JOIN (SELECT estacion, MAX(fecha) AS max_fecha FROM bitacorasistema GROUP BY estacion) latest_bitacora ON b.estacion = latest_bitacora.estacion AND b.fecha = latest_bitacora.max_fecha INNER JOIN estaciones e ON b.estacion = e.idestacion ORDER BY b.fecha desc;" -ForegroundColor white
+                    Show-ResultsConsole -query $query1
     } catch {
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }

@@ -881,6 +881,7 @@ $btnReviewPivot.Add_Click({
     }
 })
 $btnFechaRevEstaciones.Add_Click({
+        Write-Host "`ntest: $($_.Exception.Message)" -ForegroundColor Red
     try {
         if (-not $global:server -or -not $global:database -or -not $global:password) {
             Write-Host "`nNo hay una conexión válida." -ForegroundColor Red

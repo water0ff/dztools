@@ -9,18 +9,18 @@ Add-Type -AssemblyName System.Drawing
 
 # Crear el formulario
     $form = New-Object System.Windows.Forms.Form
-# título con versión
+# tÃ­tulo con versiÃ³n
 # URL del archivo remoto
-    $url = "http://parroquiales.com/dz/tools.ps1"
+    $url = "https://raw.githubusercontent.com/water0ff/dztools/7f6f13dc05583f28c7573b6148026c26ea20371f/tools.ps1"
 
-# Obtener los encabezados de la respuesta HTTP para extraer la fecha de modificación
+# Obtener los encabezados de la respuesta HTTP para extraer la fecha de modificaciÃ³n
     $response = Invoke-WebRequest -Uri $url -Method Head
     $lastModified = $response.Headers["Last-Modified"]
     if ($lastModified) {
     # Intentar convertir $lastModified a DateTime y luego formatearlo
     $version = [datetime]::Parse($lastModified).ToString("yy.MM.dd.HHmm")
     } else {
-        # Si no se puede obtener la fecha de modificación, usar la fecha actual
+        # Si no se puede obtener la fecha de modificaciÃ³n, usar la fecha actual
         $version = (Get-Date).ToString("yy.MM.dd.HHmm")
     }
     $form.Text = "Daniel Tools v$version"
@@ -31,15 +31,15 @@ Add-Type -AssemblyName System.Drawing
     $form.MaximizeBox = $false
     $form.MinimizeBox = $false
 
-# Mostrar versión en la consola con diseño más profesional
+# Mostrar versiÃ³n en la consola con diseÃ±o mÃ¡s profesional
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
-Write-Host "              Versión: v$version               " -ForegroundColor Green
+Write-Host "              VersiÃ³n: v$version               " -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor DarkCyan
 
 # Mostrar mensaje de derechos
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
-Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
+Write-Host "Para reportar errores o sugerencias, contacte vÃ­a Teams." -ForegroundColor Cyan
 
 # Crear un estilo base para los botones
     $buttonStyle = New-Object System.Windows.Forms.Button
@@ -49,14 +49,14 @@ Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -Foregroun
     $buttonStyle.ForeColor = [System.Drawing.Color]::Black
     $buttonStyle.Font = New-Object System.Drawing.Font("Arial", 10, [System.Drawing.FontStyle]::Regular)
 
-# Crear las pestañas (TabControl)
+# Crear las pestaÃ±as (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
     $tabControl.Location = New-Object System.Drawing.Point(0,0)
     $tabControl.BackColor = [System.Drawing.Color]::LightGray
 
 
-# Crear las tres pestañas (Aplicaciones, Consultas y Pro)
+# Crear las tres pestaÃ±as (Aplicaciones, Consultas y Pro)
 $tabAplicaciones = New-Object System.Windows.Forms.TabPage
 $tabAplicaciones.Text = "Aplicaciones"
     #$tabConsultas = New-Object System.Windows.Forms.TabPage
@@ -64,12 +64,12 @@ $tabAplicaciones.Text = "Aplicaciones"
 $tabProSql = New-Object System.Windows.Forms.TabPage
 $tabProSql.Text = "Pro"
 
-# Añadir las pestañas al TabControl
+# AÃ±adir las pestaÃ±as al TabControl
 $tabControl.TabPages.Add($tabAplicaciones)
     #$tabControl.TabPages.Add($tabConsultas)
 $tabControl.TabPages.Add($tabProSql)
 
-# Crear los botones dentro de la pestaña de "Aplicaciones"
+# Crear los botones dentro de la pestaÃ±a de "Aplicaciones"
     $btnInstallSQLManagement = New-Object System.Windows.Forms.Button
     $btnInstallSQLManagement.Text = "Instalar Management2014"
     $btnInstallSQLManagement.Size = $buttonStyle.Size
@@ -136,7 +136,7 @@ $tabControl.TabPages.Add($tabProSql)
     $chkSqlServer.Text = "Instalar SQL Tools (opcional)"
     $chkSqlServer.Size = New-Object System.Drawing.Size(290, 30)
     $chkSqlServer.Location = New-Object System.Drawing.Point(10, 10)
-# Crear el Botón para conectar a la base de datos
+# Crear el BotÃ³n para conectar a la base de datos
     $btnConnectDb = New-Object System.Windows.Forms.Button
     $btnConnectDb.Text = "Conectar a BDD"
     $btnConnectDb.Size = $buttonStyle.Size
@@ -148,25 +148,25 @@ $tabControl.TabPages.Add($tabProSql)
     $btnDisconnectDb.Size = $buttonStyle.Size
     $btnDisconnectDb.Location = New-Object System.Drawing.Point(240, 40)
     $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
-# Crear el Botón para revisar Pivot Table
+# Crear el BotÃ³n para revisar Pivot Table
     $btnReviewPivot = New-Object System.Windows.Forms.Button
     $btnReviewPivot.Text = "Revisar Pivot Table"
     $btnReviewPivot.Size = $buttonStyle.Size
     $btnReviewPivot.Location = New-Object System.Drawing.Point(10, 110)
     $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
-# Label para mostrar conexión a la base de datos
+# Label para mostrar conexiÃ³n a la base de datos
     $lblConnectionStatus = New-Object System.Windows.Forms.Label
     $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
     $lblConnectionStatus.Size = New-Object System.Drawing.Size(290, 30)
     $lblConnectionStatus.Location = New-Object System.Drawing.Point(10, 250)
     $lblConnectionStatus.ForeColor = [System.Drawing.Color]::RED
-# Agregar controles a la pestaña Pro
+# Agregar controles a la pestaÃ±a Pro
     $tabProSql.Controls.Add($chkSqlServer)  # Agregar el CheckBox
-    $tabProSql.Controls.Add($btnReviewPivot)  # Agregar el Botón para revisar Pivot Table
-    $tabProSql.Controls.Add($lblConnectionStatus)  # Agregar el Label de estado de conexión
-    $tabProSql.Controls.Add($btnConnectDb)  # Agregar el Botón para conectar
+    $tabProSql.Controls.Add($btnReviewPivot)  # Agregar el BotÃ³n para revisar Pivot Table
+    $tabProSql.Controls.Add($lblConnectionStatus)  # Agregar el Label de estado de conexiÃ³n
+    $tabProSql.Controls.Add($btnConnectDb)  # Agregar el BotÃ³n para conectar
     $tabProSql.Controls.Add($btnDisconnectDb)
-# Crear el botón "Salir" fuera de las pestañas
+# Crear el botÃ³n "Salir" fuera de las pestaÃ±as
     $btnExit = New-Object System.Windows.Forms.Button
     $btnExit.Text = "Salir"
     $btnExit.Size = $buttonStyle.Size
@@ -174,7 +174,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnExit.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $btnExit.BackColor = [System.Drawing.Color]::DarkGray
     $btnExit.ForeColor = [System.Drawing.Color]::White
-# Crear el Label para mostrar el nombre del equipo fuera de las pestañas
+# Crear el Label para mostrar el nombre del equipo fuera de las pestaÃ±as
     $labelHostname = New-Object System.Windows.Forms.Label
     $labelHostname.Text = [System.Net.Dns]::GetHostName()
     $labelHostname.Size = New-Object System.Drawing.Size(240, 35)
@@ -200,7 +200,7 @@ $tabControl.TabPages.Add($tabProSql)
     $labelPort.Add_MouseLeave($restoreColorOnLeave)
 # Crear el Label para mostrar las IPs y adaptadores
     $labelipADress = New-Object System.Windows.Forms.Label
-    $labelipADress.Size = New-Object System.Drawing.Size(480, 100)  # Tamaño inicial
+    $labelipADress.Size = New-Object System.Drawing.Size(480, 100)  # TamaÃ±o inicial
     $labelipADress.Location = New-Object System.Drawing.Point(2, 390)
     $labelipADress.TextAlign = [System.Drawing.ContentAlignment]::TopLeft
     $labelipADress.BackColor = [System.Drawing.Color]::White
@@ -212,22 +212,22 @@ $tabControl.TabPages.Add($tabProSql)
     $toolTip.SetToolTip($labelipADress, "Haz clic para copiar las IPs al portapapeles.")
 #Funcion para copiar el puerto al portapapeles
 $labelPort.Add_Click({
-    if ($labelPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
-        $port = $matches[0]  # Extraer el número del texto
+    if ($labelPort.Text -match "\d+") {  # Asegurarse de que el texto es un nÃºmero
+        $port = $matches[0]  # Extraer el nÃºmero del texto
         [System.Windows.Forms.Clipboard]::SetText($port)
         Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
     } else {
-        Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
+        Write-Host "El texto del Label del puerto no contiene un nÃºmero vÃ¡lido para copiar." -ForegroundColor Red
     }
 })
 
-# Función para manejar MouseEnter y cambiar el color
+# FunciÃ³n para manejar MouseEnter y cambiar el color
 $changeColorOnHover = {
     param($sender, $eventArgs)
     $sender.BackColor = [System.Drawing.Color]::Orange
 }
 
-# Función para manejar MouseLeave y restaurar el color
+# FunciÃ³n para manejar MouseLeave y restaurar el color
 $restoreColorOnLeave = {
     param($sender, $eventArgs)
     $sender.BackColor = [System.Drawing.Color]::White
@@ -268,13 +268,13 @@ if ($ipsWithAdapters.Count -gt 0) {
     $labelipADress.Text = "No se encontraron direcciones IP"
 }
 
-# Configuración dinámica del tamaño del Label según la cantidad de líneas
+# ConfiguraciÃ³n dinÃ¡mica del tamaÃ±o del Label segÃºn la cantidad de lÃ­neas
 $lineHeight = 11
 $maxLines = $labelipADress.Text.Split("`n").Count
 $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
 $labelipADress.Size = New-Object System.Drawing.Size(480, $labelHeight)
 
-# Ajustar la altura del formulario según el Label de IPs
+# Ajustar la altura del formulario segÃºn el Label de IPs
 $formHeight = $form.Size.Height + $labelHeight - 26
 $form.Size = New-Object System.Drawing.Size($form.Size.Width, $formHeight)
 
@@ -286,18 +286,18 @@ $form.Size = New-Object System.Drawing.Size($form.Size.Width, $formHeight)
     $form.Controls.Add($btnExit)
 
 
-# Acción para el CheckBox, si el usuario lo marca manualmente
+# AcciÃ³n para el CheckBox, si el usuario lo marca manualmente
 $chkSqlServer.Add_CheckedChanged({
     if ($chkSqlServer.Checked) {
-        # Confirmación con MsgBox
-        $result = [System.Windows.Forms.MessageBox]::Show("¿Estás seguro que deseas instalar las herramientas de SQL Server?", "Confirmar instalación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+        # ConfirmaciÃ³n con MsgBox
+        $result = [System.Windows.Forms.MessageBox]::Show("Â¿EstÃ¡s seguro que deseas instalar las herramientas de SQL Server?", "Confirmar instalaciÃ³n", [System.Windows.Forms.MessageBoxButtons]::YesNo)
         if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
             Write-Host "`nInstalando herramientas de SQL Server..."
             $chkSqlServer.Enabled = $false
             $installedSql = Check-SqlServerInstallation
             if ($installedSql) {
                 $chkSqlServer.Checked = $true
-                $chkSqlServer.Enabled = $false  # Deshabilitar la edición si SQL Server está instalado
+                $chkSqlServer.Enabled = $false  # Deshabilitar la ediciÃ³n si SQL Server estÃ¡ instalado
             } else {
                 $chkSqlServer.Checked = $false
             }
@@ -306,13 +306,13 @@ $chkSqlServer.Add_CheckedChanged({
         } else {
             # Desmarcar el checkbox si el usuario cancela
             $chkSqlServer.Checked = $false
-            Write-Host "`nInstalación cancelada."
+            Write-Host "`nInstalaciÃ³n cancelada."
         }
     } else {
         # Si el usuario desmarca el checkbox, se habilita para futuras instalaciones
         $chkSqlServer.Enabled = $true
     }
-    # Habilitar el botón de Conectar a BDD solo si las herramientas SQL Server están habilitadas
+    # Habilitar el botÃ³n de Conectar a BDD solo si las herramientas SQL Server estÃ¡n habilitadas
     $btnConnectDb.Enabled = $chkSqlServer.Checked
 })
 
@@ -323,7 +323,7 @@ $chkSqlServer.Add_CheckedChanged({
         if ($tcpPort -and $tcpPort.TcpPort) {
             $labelPort.Text = "Puerto SQL en instancia NationalSoft: $($tcpPort.TcpPort)"
         } else {
-            $labelPort.Text = "No se encontró puerto o instancia."
+            $labelPort.Text = "No se encontrÃ³ puerto o instancia."
         }
 
 
@@ -342,7 +342,7 @@ function Execute-SqlQuery {
     )
 
     try {
-        # Cadena de conexión
+        # Cadena de conexiÃ³n
         $connectionString = "Server=$server;Database=$database;User Id=sa;Password=$($global:password);"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
         $connection.Open()
@@ -368,7 +368,7 @@ function Execute-SqlQuery {
             $results += $row
         }
 
-        # Cerrar la conexión y liberar recursos
+        # Cerrar la conexiÃ³n y liberar recursos
         $connection.Close()
         $connection.Dispose()
 
@@ -420,18 +420,18 @@ function Show-ResultsConsole {
 }
 
 function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath) {
-    # Validar si el archivo o aplicación ya existe
+    # Validar si el archivo o aplicaciÃ³n ya existe
     if (!(Test-Path -Path $validationPath)) {
         $response = [System.Windows.Forms.MessageBox]::Show(
-            "El archivo o aplicación no se encontró en '$validationPath'. ¿Desea descargarlo?",
+            "El archivo o aplicaciÃ³n no se encontrÃ³ en '$validationPath'. Â¿Desea descargarlo?",
             "Archivo no encontrado",
             [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Warning
         )
 
-        # Si el usuario selecciona "No", salir de la función
+        # Si el usuario selecciona "No", salir de la funciÃ³n
         if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
-            Write-Host "`nEl usuario canceló la operación."  -ForegroundColor Red
+            Write-Host "`nEl usuario cancelÃ³ la operaciÃ³n."  -ForegroundColor Red
             return
         }
     }
@@ -439,7 +439,7 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
     # Verificar si el archivo ZIP ya existe
     if (Test-Path -Path $zipPath) {
         $response = [System.Windows.Forms.MessageBox]::Show(
-            "Archivo encontrado. ¿Lo desea eliminar y volver a descargar?",
+            "Archivo encontrado. Â¿Lo desea eliminar y volver a descargar?",
             "Archivo ya descargado",
             [System.Windows.Forms.MessageBoxButtons]::YesNoCancel
         )
@@ -453,29 +453,29 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
             $exePath = Join-Path -Path $extractPath -ChildPath $exeName
             if (Test-Path -Path $exePath) {
                 Write-Host "`nEjecutando el archivo ya descargado..."
-                Start-Process -FilePath $exePath #-Wait   # Se quitó para ver si se usaban múltiples apps.
-                Write-Host "`n$exeName se está ejecutando."
+                Start-Process -FilePath $exePath #-Wait   # Se quitÃ³ para ver si se usaban mÃºltiples apps.
+                Write-Host "`n$exeName se estÃ¡ ejecutando."
                 return
             } else {
                 Write-Host "`nNo se pudo encontrar el archivo ejecutable."
                 return
             }
         } elseif ($response -eq [System.Windows.Forms.DialogResult]::Cancel) {
-            # Si selecciona "Cancelar", no hacer nada y decir que el usuario canceló
-            Write-Host "`nEl usuario canceló la operación."
-            return  # Aquí se termina la ejecución si el usuario cancela
+            # Si selecciona "Cancelar", no hacer nada y decir que el usuario cancelÃ³
+            Write-Host "`nEl usuario cancelÃ³ la operaciÃ³n."
+            return  # AquÃ­ se termina la ejecuciÃ³n si el usuario cancela
         }
     }
 
     # Proceder con la descarga si no fue cancelada
     Write-Host "`nDescargando desde: $url"
     
-    # Obtener el tamaño total del archivo antes de la descarga
+    # Obtener el tamaÃ±o total del archivo antes de la descarga
     $response = Invoke-WebRequest -Uri $url -Method Head
     $totalSize = $response.Headers["Content-Length"]
     $totalSizeKB = [math]::round($totalSize / 1KB, 2)
 
-    Write-Host "`nTamaño total: $totalSizeKB KB"
+    Write-Host "`nTamaÃ±o total: $totalSizeKB KB"
 
     # Descargar el archivo con barra de progreso
     $downloaded = 0
@@ -490,14 +490,14 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
 
     Write-Host "`nDescarga completada."
 
-    # Crear directorio de extracción si no existe
+    # Crear directorio de extracciÃ³n si no existe
     if (!(Test-Path -Path $extractPath)) {
         New-Item -ItemType Directory -Path $extractPath | Out-Null
     }
     Write-Host "`nExtrayendo archivos..."
     try {
         Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-        Write-Host "`nArchivos extraídos correctamente."
+        Write-Host "`nArchivos extraÃ­dos correctamente."
     } catch {
         Write-Host "`nError al descomprimir el archivo: $_"
     }
@@ -506,7 +506,7 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
     if (Test-Path -Path $exePath) {
         Write-Host "`nEjecutando $exeName..."
         Start-Process -FilePath $exePath #-Wait
-        Write-Host "`n$exeName se está ejecutando."
+        Write-Host "`n$exeName se estÃ¡ ejecutando."
     } else {
         Write-Host "`nNo se pudo encontrar el archivo ejecutable."
     }
@@ -575,14 +575,14 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
 
     $btnClearAnyDesk.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-        # Mostrar cuadro de confirmación
+        # Mostrar cuadro de confirmaciÃ³n
         $confirmationResult = [System.Windows.Forms.MessageBox]::Show(
-            "¿Estás seguro de renovar AnyDesk?", 
-            "Confirmar Renovación", 
+            "Â¿EstÃ¡s seguro de renovar AnyDesk?", 
+            "Confirmar RenovaciÃ³n", 
             [System.Windows.Forms.MessageBoxButtons]::YesNo, 
             [System.Windows.Forms.MessageBoxIcon]::Question
         )
-        # Si el usuario selecciona "Sí"
+        # Si el usuario selecciona "SÃ­"
         if ($confirmationResult -eq [System.Windows.Forms.DialogResult]::Yes) {
             $filesToDelete = @(
                 "C:\ProgramData\AnyDesk\system.conf",
@@ -624,15 +624,15 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
 
             # Mostrar el resultado
             if ($errors.Count -eq 0) {
-                [System.Windows.Forms.MessageBox]::Show("$deletedFilesCount archivo(s) eliminado(s) correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                [System.Windows.Forms.MessageBox]::Show("$deletedFilesCount archivo(s) eliminado(s) correctamente.", "Ã‰xito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
             }
             else {
-                [System.Windows.Forms.MessageBox]::Show("Se encontraron errores. Revisa la consola para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                [System.Windows.Forms.MessageBox]::Show("Se encontraron errores. Revisa la consola para mÃ¡s detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             }
         }
         else {
             # Si el usuario selecciona "No", simplemente no hace nada
-            Write-Host "`nRenovación de AnyDesk cancelada por el usuario."
+            Write-Host "`nRenovaciÃ³n de AnyDesk cancelada por el usuario."
         }
     })
 
@@ -646,7 +646,7 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
                     Name = $printer.Name.Substring(0, [Math]::Min(24, $printer.Name.Length))
                     PortName = $printer.PortName.Substring(0, [Math]::Min(19, $printer.PortName.Length))
                     DriverName = $printer.DriverName.Substring(0, [Math]::Min(19, $printer.DriverName.Length))
-                    IsShared = if ($isShared) { "Sí" } else { "No" }
+                    IsShared = if ($isShared) { "SÃ­" } else { "No" }
                 }
             }
 
@@ -673,21 +673,21 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
             Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
 
-            # Ejecutar el script para limpiar los trabajos de impresión y reiniciar la cola de impresión
+            # Ejecutar el script para limpiar los trabajos de impresiÃ³n y reiniciar la cola de impresiÃ³n
             Get-Printer | ForEach-Object { 
                 Get-PrintJob -PrinterName $_.Name | Remove-PrintJob 
             }
         
-            # Reiniciar el servicio de la cola de impresión
+            # Reiniciar el servicio de la cola de impresiÃ³n
                 Stop-Service -Name Spooler -Force
                 Start-Service -Name Spooler
         
-            # Mensaje de confirmación
-            [System.Windows.Forms.MessageBox]::Show("Los trabajos de impresión han sido eliminados y el servicio de cola de impresión se ha reiniciado.", "Operación Exitosa", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            # Mensaje de confirmaciÃ³n
+            [System.Windows.Forms.MessageBox]::Show("Los trabajos de impresiÃ³n han sido eliminados y el servicio de cola de impresiÃ³n se ha reiniciado.", "OperaciÃ³n Exitosa", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         }
         catch {
             # Manejar cualquier error que ocurra
-            [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al intentar limpiar las impresoras o reiniciar el servicio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            [System.Windows.Forms.MessageBox]::Show("OcurriÃ³ un error al intentar limpiar las impresoras o reiniciar el servicio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
 
@@ -717,7 +717,7 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
             } elseif ($authType -eq "1") {
                 $authUser = "Usuario: Windows"
             } else {
-                $authUser = "Autenticación desconocida"
+                $authUser = "AutenticaciÃ³n desconocida"
             }
 
             Write-Host "  DataSource:" -ForegroundColor Cyan
@@ -731,7 +731,7 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
             if (Test-Path $inisPath) {
                 $iniFiles = Get-ChildItem -Path $inisPath -Filter "*.ini"
                 if ($iniFiles.Count -gt 1) {
-                    Write-Host "`nEstá utilizando multiempresas, revisa los INIS en la carpeta: $inisPath" -ForegroundColor Red
+                    Write-Host "`nEstÃ¡ utilizando multiempresas, revisa los INIS en la carpeta: $inisPath" -ForegroundColor Red
                 } elseif ($iniFiles.Count -eq 1) {
                     $firstIniContent = Get-Content $iniFiles[0].FullName
                     $firstDataSource = ($firstIniContent | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
@@ -778,7 +778,7 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
                     } elseif ($authType -eq "1") {
                         $authUser = "Usuario: Windows"
                     } else {
-                        $authUser = "Autenticación desconocida"
+                        $authUser = "AutenticaciÃ³n desconocida"
                     }
 
                     Write-Host "  DataSource:" -ForegroundColor Cyan
@@ -819,29 +819,29 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
 
 $btnInstallSQLManagement.Add_Click({
     $response = [System.Windows.Forms.MessageBox]::Show(
-        "¿Desea proceder con la instalación de SQL Server Management Studio 2014 Express?",
-        "Advertencia de instalación",
+        "Â¿Desea proceder con la instalaciÃ³n de SQL Server Management Studio 2014 Express?",
+        "Advertencia de instalaciÃ³n",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Warning
     )
 
     if ($response -eq [System.Windows.Forms.DialogResult]::No) {
-        Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+        Write-Host "`nEl usuario cancelÃ³ la instalaciÃ³n." -ForegroundColor Red
         return
     }
 
-    Write-Host "`nVerificando si Chocolatey está instalado..." -ForegroundColor Yellow
+    Write-Host "`nVerificando si Chocolatey estÃ¡ instalado..." -ForegroundColor Yellow
 
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-        Write-Host "`nChocolatey no está instalado. Instalándolo ahora..." -ForegroundColor Cyan
+        Write-Host "`nChocolatey no estÃ¡ instalado. InstalÃ¡ndolo ahora..." -ForegroundColor Cyan
         try {
             Set-ExecutionPolicy Bypass -Scope Process -Force
             [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
             iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
-            Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
+            Write-Host "`nChocolatey se instalÃ³ correctamente." -ForegroundColor Green
             [System.Windows.Forms.MessageBox]::Show(
-                "Chocolatey se instaló correctamente. Por favor, reinicie PowerShell antes de continuar.",
+                "Chocolatey se instalÃ³ correctamente. Por favor, reinicie PowerShell antes de continuar.",
                 "Reinicio requerido",
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Information
@@ -850,15 +850,15 @@ $btnInstallSQLManagement.Add_Click({
         } catch {
             Write-Host "`nError al instalar Chocolatey: $_" -ForegroundColor Red
             [System.Windows.Forms.MessageBox]::Show(
-                "Error al instalar Chocolatey. Por favor, inténtelo manualmente.",
-                "Error de instalación",
+                "Error al instalar Chocolatey. Por favor, intÃ©ntelo manualmente.",
+                "Error de instalaciÃ³n",
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Error
             )
             return
         }
     } else {
-        Write-Host "`nChocolatey ya está instalado." -ForegroundColor Green
+        Write-Host "`nChocolatey ya estÃ¡ instalado." -ForegroundColor Green
     }
 
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
@@ -866,9 +866,9 @@ $btnInstallSQLManagement.Add_Click({
     try {
         Write-Host "`nInstalando SQL Server Management Studio 2014 Express usando Chocolatey..." -ForegroundColor Cyan
         Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express --confirm --yes' -NoNewWindow -Wait
-        Write-Host "`nInstalación completa." -ForegroundColor Green
+        Write-Host "`nInstalaciÃ³n completa." -ForegroundColor Green
     } catch {
-        Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
+        Write-Host "`nOcurriÃ³ un error durante la instalaciÃ³n: $_" -ForegroundColor Red
     }
 })
 
@@ -876,7 +876,7 @@ $btnInstallSQLManagement.Add_Click({
 $btnReviewPivot.Add_Click({
     try {
         if (-not $global:server -or -not $global:database -or -not $global:password) {
-            Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
+            Write-Host "`nNo hay una conexiÃ³n vÃ¡lida." -ForegroundColor Red
             return
         }
 
@@ -905,9 +905,9 @@ $btnReviewPivot.Add_Click({
 })
 
     $btnConnectDb.Add_Click({
-        # Crear el formulario para pedir los datos de conexión
+        # Crear el formulario para pedir los datos de conexiÃ³n
         $connectionForm = New-Object System.Windows.Forms.Form
-        $connectionForm.Text = "Conexión a SQL Server"
+        $connectionForm.Text = "ConexiÃ³n a SQL Server"
         $connectionForm.Size = New-Object System.Drawing.Size(400, 200)
         $connectionForm.StartPosition = "CenterScreen"
         $connectionForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
@@ -916,7 +916,7 @@ $btnReviewPivot.Add_Click({
 
         # Crear las etiquetas y cajas de texto
         $labelProfile = New-Object System.Windows.Forms.Label
-        $labelProfile.Text = "Perfil de conexión"
+        $labelProfile.Text = "Perfil de conexiÃ³n"
         $labelProfile.Location = New-Object System.Drawing.Point(10, 20)
         $labelProfile.Size = New-Object System.Drawing.Size(100, 20)
 
@@ -948,12 +948,12 @@ $btnReviewPivot.Add_Click({
                 }
             }
 
-        # Agregar opción "Personalizado" si no existe ya en la lista
+        # Agregar opciÃ³n "Personalizado" si no existe ya en la lista
         if (-not $cmbProfiles.Items.Contains("Personalizado")) {
             $cmbProfiles.Items.Add("Personalizado")
         }
 
-        # Crear las demás etiquetas y campos de texto
+        # Crear las demÃ¡s etiquetas y campos de texto
         $labelServer = New-Object System.Windows.Forms.Label
         $labelServer.Text = "Servidor SQL"
         $labelServer.Location = New-Object System.Drawing.Point(10, 50)
@@ -973,7 +973,7 @@ $btnReviewPivot.Add_Click({
         $txtDatabase.Size = New-Object System.Drawing.Size(250, 20)
 
         $labelPassword = New-Object System.Windows.Forms.Label
-        $labelPassword.Text = "Contraseña"
+        $labelPassword.Text = "ContraseÃ±a"
         $labelPassword.Location = New-Object System.Drawing.Point(10, 110)
         $labelPassword.Size = New-Object System.Drawing.Size(100, 20)
 
@@ -982,7 +982,7 @@ $btnReviewPivot.Add_Click({
         $txtPassword.Size = New-Object System.Drawing.Size(250, 20)
         $txtPassword.UseSystemPasswordChar = $true
 
-    # Habilitar el botón "Conectar" si la contraseña tiene al menos un carácter
+    # Habilitar el botÃ³n "Conectar" si la contraseÃ±a tiene al menos un carÃ¡cter
     $txtPassword.Add_TextChanged({
         if ($txtPassword.Text.Length -ge 1) {
             $btnOK.Enabled = $true
@@ -991,7 +991,7 @@ $btnReviewPivot.Add_Click({
         }
     })
 
-        # Manejar selección del ComboBox
+        # Manejar selecciÃ³n del ComboBox
         $cmbProfiles.Add_SelectedIndexChanged({
             if ($cmbProfiles.SelectedItem -eq "Personalizado") {
                 $txtServer.Clear()
@@ -1029,39 +1029,39 @@ $btnReviewPivot.Add_Click({
             }
         })
 
-        # Crear el botón para conectar
+        # Crear el botÃ³n para conectar
         $btnOK = New-Object System.Windows.Forms.Button
         $btnOK.Text = "Conectar"
         $btnOK.Size = New-Object System.Drawing.Size(100, 30)
-        $btnOK.Location = New-Object System.Drawing.Point(150, 140)  # Ajusta la posición según necesites
-        $btnOK.Enabled = $false  # Deshabilitar el botón inicialmente
+        $btnOK.Location = New-Object System.Drawing.Point(150, 140)  # Ajusta la posiciÃ³n segÃºn necesites
+        $btnOK.Enabled = $false  # Deshabilitar el botÃ³n inicialmente
 
 
-    # Variables globales para guardar la información de conexión
+    # Variables globales para guardar la informaciÃ³n de conexiÃ³n
     $global:server
     $global:database
     $global:password
-    $global:connection  # Variable global para la conexión
+    $global:connection  # Variable global para la conexiÃ³n
 
 
     $btnOK.Add_Click({
         try {
-            # Cadena de conexión
+            # Cadena de conexiÃ³n
             $connectionString = "Server=$($txtServer.Text);Database=$($txtDatabase.Text);User Id=sa;Password=$($txtPassword.Text);"
-            $global:connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)  # Asignar la conexión a la variable global
+            $global:connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)  # Asignar la conexiÃ³n a la variable global
             $global:connection.Open()
 
-            Write-Host "`nConexión exitosa" -ForegroundColor Green
+            Write-Host "`nConexiÃ³n exitosa" -ForegroundColor Green
 
-            # Guardar la información de conexión en variables globales
+            # Guardar la informaciÃ³n de conexiÃ³n en variables globales
             $global:server = $txtServer.Text
             $global:database = $txtDatabase.Text
             $global:password = $txtPassword.Text
 
-            # Cerrar la ventana de conexión
+            # Cerrar la ventana de conexiÃ³n
             $connectionForm.Close()
 
-            # Actualizar el texto del label de conexión
+            # Actualizar el texto del label de conexiÃ³n
             $lblConnectionStatus.Text = "Conectado a BDD: $($txtDatabase.Text)"
             $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
             $lblConnectionStatus.Font = New-Object System.Drawing.Font($lblConnectionStatus.Font, [System.Drawing.FontStyle]::Bold)
@@ -1073,8 +1073,8 @@ $btnReviewPivot.Add_Click({
             $btnDisconnectDb.Enabled = $true
 
         } catch {
-            Write-Host "`nError de conexión: $_" -ForegroundColor Red
-            $lblConnectionStatus.Text = "Conexión fallida"
+            Write-Host "`nError de conexiÃ³n: $_" -ForegroundColor Red
+            $lblConnectionStatus.Text = "ConexiÃ³n fallida"
         }
     })
 
@@ -1094,15 +1094,15 @@ $btnReviewPivot.Add_Click({
 
 $btnDisconnectDb.Add_Click({
     try {
-        # Cerrar la conexión
+        # Cerrar la conexiÃ³n
         $global:connection.Close()
-        Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
+        Write-Host "`nDesconexiÃ³n exitosa" -ForegroundColor Yellow
 
         # Restaurar el label al estado original
         $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
         $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Red
 
-        # Habilitar el botón de conectar y deshabilitar el de desconectar
+        # Habilitar el botÃ³n de conectar y deshabilitar el de desconectar
         $btnConnectDb.Enabled = $true
         $btnDisconnectDb.Enabled = $false
         $btnReviewPivot.Enabled = $false

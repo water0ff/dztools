@@ -910,8 +910,7 @@ Write-Host "`nSELECT e.FECHAREV, `
             FROM bitacorasistema b `
             INNER JOIN (SELECT estacion, MAX(fecha) AS max_fecha FROM bitacorasistema GROUP BY estacion) latest_bitacora `
             ON b.estacion = latest_bitacora.estacion AND b.fecha = latest_bitacora.max_fecha `
-            INNER JOIN estaciones e ON b.estacion = e.idestacion `
-            ORDER BY b.fecha DESC;" -ForegroundColor white
+            INNER JOIN estaciones e ON b.estacion = e.idestacion ORDER BY b.fecha DESC;" -ForegroundColor white
                     Show-ResultsConsole -query $query1
     } catch {
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red

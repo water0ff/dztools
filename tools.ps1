@@ -14,10 +14,13 @@ $form = New-Object System.Windows.Forms.Form
 $url = "https://raw.githubusercontent.com/water0ff/dztools/7f6f13dc05583f28c7573b6148026c26ea20371f/tools.ps1"
 
 try {
+    # Obtener la respuesta HTTP del archivo remoto
     $response = Invoke-WebRequest -Uri $url -Method Head -ErrorAction Stop
+    # Acceder a la fecha de última modificación
     $lastModified = $response.Headers["Last-Modified"]
+    
     if ($lastModified) {
-        # Intentar convertir $lastModified a DateTime y luego formatearlo
+        # Intentar convertir la fecha de última modificación a DateTime y formatearla
         $version = [datetime]::Parse($lastModified).ToString("yy.MM.dd.HHmm")
     } else {
         # Si no se puede obtener la fecha de modificación, usar la fecha actual
@@ -25,11 +28,18 @@ try {
     }
 } catch {
     Write-Host "Error al acceder a la URL: $_" -ForegroundColor Red
-    $version = (Get-Date).ToString("yy.MM.dd.HHmm")  # Usar la fecha actual en caso de error
+    # Si hay un error, usa la fecha actual como versión
+    $version = (Get-Date).ToString("yy.MM.dd.HHmm")
 }
 
 # Título del formulario
 $form.Text = "Daniel Tools v$version"
+$form.Size = New-Object System.Drawing.Size(500, 460)
+$form.StartPosition = "CenterScreen"
+$form.BackColor = [System.Drawing.Color]::White
+$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+$form.MaximizeBox = $false
+$form.MinimizeBox = $false
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green

@@ -12,9 +12,6 @@ Add-Type -AssemblyName System.Drawing
 # título con versión
 # URL del archivo remoto
     $url = "https://raw.githubusercontent.com/water0ff/dztools/7f6f13dc05583f28c7573b6148026c26ea20371f/tools.ps1"
-
-# Obtener los encabezados de la respuesta HTTP para extraer la fecha de modificación
-# Intentar obtener los encabezados de la respuesta HTTP
 try {
     $response = Invoke-WebRequest -Uri $url -Method Head -ErrorAction Stop
     $lastModified = $response.Headers["Last-Modified"]

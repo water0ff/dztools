@@ -162,6 +162,12 @@ $tabControl.TabPages.Add($tabProSql)
     $btnReviewPivot.Size = $buttonStyle.Size
     $btnReviewPivot.Location = New-Object System.Drawing.Point(10, 110)
     $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
+# Crear el Botón para revisar Pivot Table
+    $btnFechaRevEstaciones = New-Object System.Windows.Forms.Button
+    $btnFechaRevEstaciones.Text = "Fecha de revisiones"
+    $btnFechaRevEstaciones.Size = $buttonStyle.Size
+    $btnFechaRevEstaciones.Location = New-Object System.Drawing.Point(10, 150)
+    $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
 # Label para mostrar conexión a la base de datos
     $lblConnectionStatus = New-Object System.Windows.Forms.Label
     $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
@@ -171,6 +177,7 @@ $tabControl.TabPages.Add($tabProSql)
 # Agregar controles a la pestaña Pro
     $tabProSql.Controls.Add($chkSqlServer)  # Agregar el CheckBox
     $tabProSql.Controls.Add($btnReviewPivot)  # Agregar el Botón para revisar Pivot Table
+    $tabProSql.Controls.Add($btnFechaRevEstaciones)  
     $tabProSql.Controls.Add($lblConnectionStatus)  # Agregar el Label de estado de conexión
     $tabProSql.Controls.Add($btnConnectDb)  # Agregar el Botón para conectar
     $tabProSql.Controls.Add($btnDisconnectDb)
@@ -873,6 +880,35 @@ $btnReviewPivot.Add_Click({
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
+$btnReviewPivot.Add_Click({
+    try {
+        if (-not $global:server -or -not $global:database -or -not $global:password) {
+            Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
+            return
+        }
+
+        # Consultas SQL
+        $query1 = "SELECT e.FECHAREV, b.estacion as Estacion, b.fecha as UltimaUso
+                    FROM bitacorasistema b
+                    INNER JOIN (
+                        SELECT estacion, MAX(fecha) AS max_fecha
+                        FROM bitacorasistema
+                        GROUP BY estacion
+                    ) latest_bitacora
+                    ON b.estacion = latest_bitacora.estacion 
+                    AND b.fecha = latest_bitacora.max_fecha
+                    INNER JOIN estaciones e
+                    ON b.estacion = e.idestacion
+                    ORDER BY b.fecha desc;"
+        
+        # Ejecutar y analizar la primera consulta
+        $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
+
+    } catch {
+        Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
+    }
+})
+
 $btnConnectDb.Add_Click({
         # Crear el formulario para pedir los datos de conexión
         $connectionForm = New-Object System.Windows.Forms.Form
@@ -1036,6 +1072,7 @@ $btnOK.Add_Click({
 
             # Habilitar o deshabilitar botones cuando hay conexiones existosas
             $btnReviewPivot.Enabled = $true
+            $btnFechaRevEstaciones.Enabled = $true
             $btnConnectDb.Enabled = $false
             $btnDisconnectDb.Enabled = $true
 
@@ -1072,6 +1109,7 @@ $btnDisconnectDb.Add_Click({
         # Habilitar el botón de conectar y deshabilitar el de desconectar
         $btnConnectDb.Enabled = $true
         $btnDisconnectDb.Enabled = $false
+        $btnFechaRevEstaciones.Enabled = $false
         $btnReviewPivot.Enabled = $false
     } catch {
         Write-Host "`nError al desconectar: $_" -ForegroundColor Red

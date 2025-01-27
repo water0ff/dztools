@@ -221,18 +221,6 @@ $labelPort.Add_Click({
     }
 })
 
-# Función para manejar MouseEnter y cambiar el color
-$changeColorOnHover = {
-    param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::Orange
-}
-
-# Función para manejar MouseLeave y restaurar el color
-$restoreColorOnLeave = {
-    param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::White
-}
-
 # Obtener las direcciones IP y los adaptadores
 $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
     Where-Object { $_.OperationalStatus -eq 'Up' } |
@@ -510,6 +498,18 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
     } else {
         Write-Host "`nNo se pudo encontrar el archivo ejecutable."
     }
+}
+
+# Función para manejar MouseEnter y cambiar el color
+$changeColorOnHover = {
+    param($sender, $eventArgs)
+    $sender.BackColor = [System.Drawing.Color]::Orange
+}
+
+# Función para manejar MouseLeave y restaurar el color
+$restoreColorOnLeave = {
+    param($sender, $eventArgs)
+    $sender.BackColor = [System.Drawing.Color]::White
 }
 
 ##-------------------------------------------------------------------------------BOTONES#
@@ -1117,6 +1117,7 @@ $btnExit.Add_Click({
 })
 
 
+$form.Refresh()
 
 # Mostrar el formulario principal
 $form.ShowDialog()

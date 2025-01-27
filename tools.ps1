@@ -194,6 +194,7 @@ $tabControl.TabPages.Add($tabProSql)
     $labelPort.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     $labelPort.BackColor = [System.Drawing.Color]::White
     $labelPort.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
+    $labelPort.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
     $toolTip = New-Object System.Windows.Forms.ToolTip
     $toolTip.SetToolTip($labelPort, "Haz clic para copiar el Puerto al portapapeles.")
     $labelPort.Add_MouseEnter($changeColorOnHover)

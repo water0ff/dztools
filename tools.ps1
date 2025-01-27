@@ -881,13 +881,12 @@ $btnReviewPivot.Add_Click({
     }
 })
 $btnFechaRevEstaciones.Add_Click({
-        Write-Host "`ntest: $($_.Exception.Message)" -ForegroundColor Red
+Write-Host "`ntest: $($_.Exception.Message)" -ForegroundColor Red
     try {
         if (-not $global:server -or -not $global:database -or -not $global:password) {
             Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
             return
         }
-
         # Consultas SQL
         $query1 = "SELECT e.FECHAREV, b.estacion as Estacion, b.fecha as UltimaUso
                     FROM bitacorasistema b
@@ -901,15 +900,12 @@ $btnFechaRevEstaciones.Add_Click({
                     INNER JOIN estaciones e
                     ON b.estacion = e.idestacion
                     ORDER BY b.fecha desc;"
-        
         # Ejecutar y analizar la primera consulta
         $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
-
     } catch {
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
-
 $btnConnectDb.Add_Click({
         # Crear el formulario para pedir los datos de conexión
         $connectionForm = New-Object System.Windows.Forms.Form

@@ -265,6 +265,8 @@ if ($ipsWithAdapters.Count -gt 0) {
 
 
 
+
+
 # Función para obtener adaptadores y sus estados (modificada)
 function Get-NetworkAdapterStatus {
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -308,8 +310,9 @@ function Set-NetworkCategory {
         $label.Text = "$($label.Text.Split(' - ')[0]) - Público"  # Actualizar el texto de la etiqueta
     }
 
-    # Mostrar el mensaje con el estado anterior y nuevo
-    [System.Windows.Forms.MessageBox]::Show("Categoría anterior: $previousCategory`nCategoría nueva: $category", "Cambio de categoría", [System.Windows.Forms.MessageBoxButtons]::OK)
+    # Mostrar el cambio en consola con categorías en español
+    Write-Host "Categoría anterior: $previousCategory"
+    Write-Host "Categoría nueva: $category"
 }
 
 # Crear la etiqueta para mostrar los adaptadores y su estado
@@ -351,7 +354,7 @@ foreach ($adapter in $networkAdapters) {
         # Asegurarse de que se maneje el idioma correctamente
         $category = if ($adapter.NetworkCategory -eq "Private") { "Público" } else { "Privado" }
         
-        # Mostrar el mensaje con el idioma correcto
+        # Confirmar el cambio y llamar a la función de cambio
         $result = [System.Windows.Forms.MessageBox]::Show("¿Deseas cambiar el estado a $category?", "Confirmar cambio", [System.Windows.Forms.MessageBoxButtons]::YesNo)
         
         if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -367,12 +370,13 @@ foreach ($adapter in $networkAdapters) {
 }
 
 # Agregar los controles al formulario
-    $form.Controls.Add($tabControl)
-    $form.Controls.Add($labelHostname)
-    $form.Controls.Add($labelPort)
-    $form.Controls.Add($labelipADress)
-    $form.Controls.Add($lblPerfilDeRed)
-    $form.Controls.Add($btnExit)
+$form.Controls.Add($tabControl)
+$form.Controls.Add($labelHostname)
+$form.Controls.Add($labelPort)
+$form.Controls.Add($labelipADress)
+$form.Controls.Add($lblPerfilDeRed)
+$form.Controls.Add($btnExit)
+
 
 
 

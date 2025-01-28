@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250128.0937"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250128.1040"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -253,61 +253,43 @@ if ($ipsWithAdapters.Count -gt 0) {
 }
 
 # Configuración dinámica del tamaño del Label según la cantidad de líneas
-$lineHeight = 11
-$maxLines = $labelipADress.Text.Split("`n").Count
-$labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
-$labelipADress.Size = New-Object System.Drawing.Size(240, $labelHeight)
-
+    $lineHeight = 11
+    $maxLines = $labelipADress.Text.Split("`n").Count
+    $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
+    $labelipADress.Size = New-Object System.Drawing.Size(240, $labelHeight)
 # Ajustar la altura del formulario según el Label de IPs
     $formHeight = $form.Size.Height + $labelHeight - 26
     $form.Size = New-Object System.Drawing.Size($form.Size.Width, $formHeight)
-# Función para obtener adaptadores y sus estados
+# Función para obtener adaptadores y sus estados (modificada)
     function Get-NetworkAdapterStatus {
-        $adapters = Get-NetIPAddress | Where-Object { $_.AddressFamily -eq 'IPv4' -and $_.IPAddress -notlike '127.*' }
+        $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
         $profiles = Get-NetConnectionProfile
-    
+        
         $adapterStatus = @()
         foreach ($adapter in $adapters) {
-            $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.InterfaceIndex }
+            $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
             $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
             $adapterStatus += [PSCustomObject]@{
-                IPAddress       = $adapter.IPAddress
+                AdapterName    = $adapter.Name
                 NetworkCategory = $networkCategory
             }
         }
         return $adapterStatus
     }
-# Obtener adaptadores de red con estado 'Up'
-    $adaptadoresUp = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
-# Si hay adaptadores 'Up', obtener sus direcciones IP
-    if ($adaptadoresUp) {
-        $ipAddresses = ""
-        foreach ($adapter in $adaptadoresUp) {
-            # Obtener las direcciones IP asociadas a cada adaptador
-            $adapterIPs = (Get-NetIPAddress -InterfaceIndex $adapter.ifIndex | Where-Object { $_.AddressFamily -eq 'IPv4' }).IPAddress
-            foreach ($ip in $adapterIPs) {
-                $ipAddresses += "$($adapter.Name) - $ip`r`n"
-            }
-        }
-        # Mostrar las direcciones IP en el label
-        $labelipADress.Text = $ipAddresses
-    } else {
-        $labelipADress.Text = "No hay adaptadores activos (UP)."
-    }
-# Crear una etiqueta para mostrar las IPs y sus estados
+# Crear la etiqueta para mostrar los adaptadores y su estado
     $lblPerfilDeRed = New-Object System.Windows.Forms.Label
     $lblPerfilDeRed.Text = "Estado de los Adaptadores:"
     $lblPerfilDeRed.Size = New-Object System.Drawing.Size(236, 35)
     $lblPerfilDeRed.Location = New-Object System.Drawing.Point(245, 390)
-# Llenar el contenido de la etiqueta con las IPs y sus estados
+# Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
     $networkAdapters = Get-NetworkAdapterStatus
     $adapterInfo = ""
     foreach ($adapter in $networkAdapters) {
         if ($adapter.NetworkCategory -ne "Private") {
-            $adapterInfo += "IP: $($adapter.IPAddress) - Estado: $($adapter.NetworkCategory)`n"
+            $adapterInfo += "$($adapter.AdapterName) - Público`n"
             $lblPerfilDeRed.ForeColor = [System.Drawing.Color]::Red
         } else {
-            $adapterInfo += "IP: $($adapter.IPAddress) - Estado: $($adapter.NetworkCategory)`n"
+            $adapterInfo += "$($adapter.AdapterName) - Privado`n"
             $lblPerfilDeRed.ForeColor = [System.Drawing.Color]::Green
         }
     }

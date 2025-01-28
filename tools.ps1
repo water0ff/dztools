@@ -304,7 +304,7 @@ function Get-NetworkAdapterStatus {
 $lblPerfilDeRed = New-Object System.Windows.Forms.Label
 $lblPerfilDeRed.Text = "Estado de los Adaptadores:"
 $lblPerfilDeRed.Size = New-Object System.Drawing.Size(236, 35)
-$lblPerfilDeRed.Location = New-Object System.Drawing.Point(245, 350)
+$lblPerfilDeRed.Location = New-Object System.Drawing.Point(245, 390)
 
 # Llenar el contenido de la etiqueta con las IPs y sus estados
 $networkAdapters = Get-NetworkAdapterStatus

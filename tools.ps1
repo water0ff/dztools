@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250128.1149"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250128.1155"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -293,6 +293,9 @@ if ($ipsWithAdapters.Count -gt 0) {
         if ($category -eq "Privado") {
             Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Private
             Write-Host "Estado cambiado a Privado."
+            $color = [System.Drawing.Color]::Green
+            $label.Text = $text
+            $label.ForeColor = $color
         } elseif ($category -eq "Público") {
             Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Public
             Write-Host "Estado cambiado a Público."

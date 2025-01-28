@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250128.1216"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250128.1236"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -266,24 +266,6 @@ if ($ipsWithAdapters.Count -gt 0) {
 
 
 
-# Función para obtener adaptadores y sus estados (modificada)
-function Get-NetworkAdapterStatus {
-    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
-    $profiles = Get-NetConnectionProfile
-
-    $adapterStatus = @()
-    foreach ($adapter in $adapters) {
-        $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
-        $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
-        $adapterStatus += [PSCustomObject]@{
-            AdapterName     = $adapter.Name
-            NetworkCategory = $networkCategory
-            InterfaceIndex  = $adapter.ifIndex  # Guardar el InterfaceIndex para identificar el adaptador
-        }
-    }
-    return $adapterStatus
-}
-
 # Función para cambiar el estado de la red
 function Set-NetworkCategory {
     param (
@@ -342,7 +324,10 @@ foreach ($adapter in $networkAdapters) {
 
     # Evento para manejar el clic
     $label.Add_Click({
+        # Asegurarse de que se maneje el idioma correctamente
         $category = if ($adapter.NetworkCategory -eq "Private") { "Público" } else { "Privado" }
+        
+        # Mostrar el mensaje con el idioma correcto
         $result = [System.Windows.Forms.MessageBox]::Show("¿Deseas cambiar el estado a $category?", "Confirmar cambio", [System.Windows.Forms.MessageBoxButtons]::YesNo)
         
         if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -364,6 +349,7 @@ foreach ($adapter in $networkAdapters) {
     $form.Controls.Add($labelipADress)
     $form.Controls.Add($lblPerfilDeRed)
     $form.Controls.Add($btnExit)
+
 
 # Acción para el CheckBox, si el usuario lo marca manualmente
 $chkSqlServer.Add_CheckedChanged({

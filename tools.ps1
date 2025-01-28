@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250128.1249"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250128.1312"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -266,22 +266,23 @@ if ($ipsWithAdapters.Count -gt 0) {
 
 
 # Función para obtener adaptadores y sus estados (modificada)
-    function Get-NetworkAdapterStatus {
-        $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
-        $profiles = Get-NetConnectionProfile
-    
-        $adapterStatus = @()
-        foreach ($adapter in $adapters) {
-            $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
-            $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
-            $adapterStatus += [PSCustomObject]@{
-                AdapterName     = $adapter.Name
-                NetworkCategory = $networkCategory
-                InterfaceIndex  = $adapter.ifIndex  # Guardar el InterfaceIndex para identificar el adaptador
-            }
+function Get-NetworkAdapterStatus {
+    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+    $profiles = Get-NetConnectionProfile
+
+    $adapterStatus = @()
+    foreach ($adapter in $adapters) {
+        $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
+        $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
+        $adapterStatus += [PSCustomObject]@{
+            AdapterName     = $adapter.Name
+            NetworkCategory = $networkCategory
+            InterfaceIndex  = $adapter.ifIndex  # Guardar el InterfaceIndex para identificar el adaptador
         }
-        return $adapterStatus
     }
+    return $adapterStatus
+}
+
 # Función para cambiar el estado de la red
 function Set-NetworkCategory {
     param (
@@ -289,6 +290,10 @@ function Set-NetworkCategory {
         [int]$interfaceIndex,
         [System.Windows.Forms.Label]$label
     )
+
+    # Obtener el estado anterior
+    $profile = Get-NetConnectionProfile | Where-Object { $_.InterfaceIndex -eq $interfaceIndex }
+    $previousCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
 
     # Cambiar el tipo de red
     if ($category -eq "Privado") {
@@ -302,6 +307,9 @@ function Set-NetworkCategory {
         $label.ForeColor = [System.Drawing.Color]::Red
         $label.Text = "$($label.Text.Split(' - ')[0]) - Público"  # Actualizar el texto de la etiqueta
     }
+
+    # Mostrar el mensaje con el estado anterior y nuevo
+    [System.Windows.Forms.MessageBox]::Show("Categoría anterior: $previousCategory`nCategoría nueva: $category", "Cambio de categoría", [System.Windows.Forms.MessageBoxButtons]::OK)
 }
 
 # Crear la etiqueta para mostrar los adaptadores y su estado
@@ -365,6 +373,7 @@ foreach ($adapter in $networkAdapters) {
     $form.Controls.Add($labelipADress)
     $form.Controls.Add($lblPerfilDeRed)
     $form.Controls.Add($btnExit)
+
 
 
 # Acción para el CheckBox, si el usuario lo marca manualmente

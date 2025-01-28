@@ -4,46 +4,40 @@ if (!(Test-Path -Path "C:\Temp")) {
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
 }
 
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
 
 # Crear el formulario
 $form = New-Object System.Windows.Forms.Form
-# título con versión
-# URL del archivo remoto
-$url = "https://raw.githubusercontent.com/water0ff/dztools/7f6f13dc05583f28c7573b6148026c26ea20371f/tools.ps1"
-
-try {
-    # Obtener la respuesta HTTP del archivo remoto
-    $response = Invoke-WebRequest -Uri $url -Method Head -ErrorAction Stop
-    # Acceder a la fecha de última modificación
-    $lastModified = $response.Headers["Last-Modified"]
-    
-    if ($lastModified) {
-        # Intentar convertir la fecha de última modificación a DateTime y formatearla
-        $version = [datetime]::Parse($lastModified).ToString("yy.MM.dd.HHmm")
-    } else {
-        # Si no se puede obtener la fecha de modificación, usar la fecha actual
-        $version = (Get-Date).ToString("yy.MM.dd.HHmm")
-    }
-} catch {
-    Write-Host "Error al acceder a la URL: $_" -ForegroundColor Red
-    # Si hay un error, usa la fecha actual como versión
-    $version = (Get-Date).ToString("yy.MM.dd.HHmm")
-}
-
-# Título del formulario
-$form.Text = "Daniel Tools v$version"
 $form.Size = New-Object System.Drawing.Size(500, 460)
 $form.StartPosition = "CenterScreen"
 $form.BackColor = [System.Drawing.Color]::White
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
+# Crear un TextBox para ingresar la versión manualmente
+$txtVersion = New-Object System.Windows.Forms.TextBox
+$txtVersion.Size = New-Object System.Drawing.Size(100, 30)
+$txtVersion.Location = New-Object System.Drawing.Point(10, 10)
+$txtVersion.Text = "Alfa 250128.0926"  # Valor predeterminado para la versión
+$form.Controls.Add($txtVersion)
+
+# Crear el botón para actualizar el título con la versión
+$btnUpdateTitle = New-Object System.Windows.Forms.Button
+$btnUpdateTitle.Text = "Actualizar Título"
+$btnUpdateTitle.Size = New-Object System.Drawing.Size(120, 30)
+$btnUpdateTitle.Location = New-Object System.Drawing.Point(120, 10)
+$btnUpdateTitle.Add_Click({
+    # Obtener la versión ingresada en el TextBox
+    $version = $txtVersion.Text
+    # Actualizar el título del formulario con la versión ingresada
+    $form.Text = "Daniel Tools v$version"
+})
+$form.Controls.Add($btnUpdateTitle)
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
-Write-Host "              Versión: v$version               " -ForegroundColor Green
+Write-Host "              Versión: v$($txtVersion.Text)               " -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor DarkCyan
 
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan

@@ -105,6 +105,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnAplicacionesNS = New-Object System.Windows.Forms.Button
     $btnAplicacionesNS.Text = "Aplicaciones National Soft"
     $btnAplicacionesNS.Size = $buttonStyle.Size
+    $btnAplicacionesNS.BackColor = [System.Drawing.Color]::FromArgb(255, 200, 150)  # Naranja tenue (RGB: 200, 150, 100)
     $btnAplicacionesNS.Location = New-Object System.Drawing.Point(240, 170)
 #Agregar botones a la de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)

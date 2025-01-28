@@ -16,25 +16,12 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-$txtVersion = New-Object System.Windows.Forms.TextBox
-                                    $txtVersion.Text = "Alfa 250128.0926"  # Valor predeterminado para la versión
-
-# Crear el botón para actualizar el título con la versión
-$btnUpdateTitle = New-Object System.Windows.Forms.Button
-$btnUpdateTitle.Text = "Actualizar Título"
-$btnUpdateTitle.Size = New-Object System.Drawing.Size(120, 30)
-$btnUpdateTitle.Location = New-Object System.Drawing.Point(120, 10)
-$btnUpdateTitle.Add_Click({
-    # Obtener la versión ingresada en el TextBox
-    $version = $txtVersion.Text
-    # Actualizar el título del formulario con la versión ingresada
-    $form.Text = "Daniel Tools v$version"
-})
-$form.Controls.Add($btnUpdateTitle)
+                                                                $version = "Alfa 250128.0926"  # Valor predeterminado para la versión
+$form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
-Write-Host "              Versión: v$($txtVersion.Text)               " -ForegroundColor Green
+Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor DarkCyan
 
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan

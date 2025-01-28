@@ -260,6 +260,11 @@ if ($ipsWithAdapters.Count -gt 0) {
 # Ajustar la altura del formulario según el Label de IPs
     $formHeight = $form.Size.Height + $labelHeight - 26
     $form.Size = New-Object System.Drawing.Size($form.Size.Width, $formHeight)
+
+
+
+
+
 # Función para obtener adaptadores y sus estados (modificada)
     function Get-NetworkAdapterStatus {
         $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -301,6 +306,8 @@ if ($ipsWithAdapters.Count -gt 0) {
 # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
     $networkAdapters = Get-NetworkAdapterStatus
     $adapterInfo = ""
+# Usamos un contador para ubicar los labels
+    $index = 0
     
     foreach ($adapter in $networkAdapters) {
         $text = ""
@@ -319,7 +326,7 @@ if ($ipsWithAdapters.Count -gt 0) {
         $label.ForeColor = $color
         $label.Cursor = [System.Windows.Forms.Cursors]::Hand
         $label.Size = New-Object System.Drawing.Size(236, 20)
-        $label.Location = New-Object System.Drawing.Point(0, 20 * $networkAdapters.IndexOf($adapter))  # Colocar los labels uno debajo del otro
+        $label.Location = New-Object System.Drawing.Point(0, 20 * $index)  # Colocar los labels uno debajo del otro
     
         # Evento para manejar el clic
         $label.Add_Click({
@@ -333,7 +340,11 @@ if ($ipsWithAdapters.Count -gt 0) {
     
         $adapterInfo += $label.Text + "`n"
         $form.Controls.Add($label)
+    
+        # Incrementar el índice para la siguiente posición del label
+        $index++
     }
+
 # Agregar los controles al formulario
     $form.Controls.Add($tabControl)
     $form.Controls.Add($labelHostname)

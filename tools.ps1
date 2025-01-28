@@ -212,7 +212,7 @@ $tabControl.TabPages.Add($tabProSql)
     $toolTip.SetToolTip($labelPort, "Haz clic para copiar el Puerto al portapapeles.")
 # Crear el Label para mostrar las IPs y adaptadores
     $labelipADress = New-Object System.Windows.Forms.Label
-    $labelipADress.Size = New-Object System.Drawing.Size(480, 100)  # Tamaño inicial
+    $labelipADress.Size = New-Object System.Drawing.Size(240, 100)  # Tamaño inicial
     $labelipADress.Location = New-Object System.Drawing.Point(2, 390)
     $labelipADress.TextAlign = [System.Drawing.ContentAlignment]::TopLeft
     $labelipADress.BackColor = [System.Drawing.Color]::White
@@ -283,11 +283,49 @@ $labelipADress.Size = New-Object System.Drawing.Size(480, $labelHeight)
 $formHeight = $form.Size.Height + $labelHeight - 26
 $form.Size = New-Object System.Drawing.Size($form.Size.Width, $formHeight)
 
+# Función para obtener adaptadores y sus estados
+function Get-NetworkAdapterStatus {
+    $adapters = Get-NetIPAddress | Where-Object { $_.AddressFamily -eq 'IPv4' -and $_.IPAddress -notlike '127.*' }
+    $profiles = Get-NetConnectionProfile
+
+    $adapterStatus = @()
+    foreach ($adapter in $adapters) {
+        $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.InterfaceIndex }
+        $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
+        $adapterStatus += [PSCustomObject]@{
+            IPAddress       = $adapter.IPAddress
+            NetworkCategory = $networkCategory
+        }
+    }
+    return $adapterStatus
+}
+
+# Crear una etiqueta para mostrar las IPs y sus estados
+$lblPerfilDeRed = New-Object System.Windows.Forms.Label
+$lblPerfilDeRed.Text = "Estado de los Adaptadores:"
+$lblPerfilDeRed.Size = New-Object System.Drawing.Size(236, 35)
+$lblPerfilDeRed.Location = New-Object System.Drawing.Point(245, 350)
+
+# Llenar el contenido de la etiqueta con las IPs y sus estados
+$networkAdapters = Get-NetworkAdapterStatus
+$adapterInfo = ""
+foreach ($adapter in $networkAdapters) {
+    if ($adapter.NetworkCategory -ne "Private") {
+        $adapterInfo += "IP: $($adapter.IPAddress) - Estado: $($adapter.NetworkCategory)`n"
+        $lblPerfilDeRed.ForeColor = [System.Drawing.Color]::Red
+    } else {
+        $adapterInfo += "IP: $($adapter.IPAddress) - Estado: $($adapter.NetworkCategory)`n"
+        $lblPerfilDeRed.ForeColor = [System.Drawing.Color]::Green
+    }
+}
+$lblPerfilDeRed.Text = $adapterInfo
+
 # Agregar los controles al formulario
     $form.Controls.Add($tabControl)
     $form.Controls.Add($labelHostname)
     $form.Controls.Add($labelPort)
     $form.Controls.Add($labelipADress)
+    $form.Controls.Add($lblPerfilDeRed)
     $form.Controls.Add($btnExit)
 
 

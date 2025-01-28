@@ -326,7 +326,7 @@ if ($ipsWithAdapters.Count -gt 0) {
         $label.ForeColor = $color
         $label.Cursor = [System.Windows.Forms.Cursors]::Hand
         $label.Size = New-Object System.Drawing.Size(236, 20)
-        $label.Location = New-Object System.Drawing.Point(0, 20 * $index)  # Colocar los labels uno debajo del otro
+        $label.Location = New-Object System.Drawing.Point(245, 390 * $index)  # Colocar los labels uno debajo del otro
     
         # Evento para manejar el clic
         $label.Add_Click({

@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250128.1330"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250128.1342"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -332,11 +332,12 @@ foreach ($adapter in $networkAdapters) {
     $text = ""
     $color = [System.Drawing.Color]::Green
 
-    if ($adapter.NetworkCategory -ne "Private") {
+    if ($adapter.NetworkCategory -eq "Private") {
+        $text = "$($adapter.AdapterName) - Privado"
+        $color = [System.Drawing.Color]::Green
+    } elseif ($adapter.NetworkCategory -eq "Public") {
         $text = "$($adapter.AdapterName) - Público"
         $color = [System.Drawing.Color]::Red
-    } else {
-        $text = "$($adapter.AdapterName) - Privado"
     }
 
     # Crear un Label con la palabra "Público" o "Privado" clickeable
@@ -355,6 +356,7 @@ foreach ($adapter in $networkAdapters) {
         $category = if ($adapter.NetworkCategory -eq "Private") { "Público" } else { "Privado" }
         
         # Confirmar el cambio y llamar a la función de cambio
+        Write-Host "Deseas cambiar el estado a $category?"  # Mostrar en consola la solicitud
         $result = [System.Windows.Forms.MessageBox]::Show("¿Deseas cambiar el estado a $category?", "Confirmar cambio", [System.Windows.Forms.MessageBoxButtons]::YesNo)
         
         if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -370,12 +372,13 @@ foreach ($adapter in $networkAdapters) {
 }
 
 # Agregar los controles al formulario
-$form.Controls.Add($tabControl)
-$form.Controls.Add($labelHostname)
-$form.Controls.Add($labelPort)
-$form.Controls.Add($labelipADress)
-$form.Controls.Add($lblPerfilDeRed)
-$form.Controls.Add($btnExit)
+    $form.Controls.Add($tabControl)
+    $form.Controls.Add($labelHostname)
+    $form.Controls.Add($labelPort)
+    $form.Controls.Add($labelipADress)
+    $form.Controls.Add($lblPerfilDeRed)
+    $form.Controls.Add($btnExit)
+
 
 
 

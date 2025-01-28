@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250128.1210"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250128.1216"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -266,95 +266,96 @@ if ($ipsWithAdapters.Count -gt 0) {
 
 
 
-
 # Función para obtener adaptadores y sus estados (modificada)
-    function Get-NetworkAdapterStatus {
-        $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
-        $profiles = Get-NetConnectionProfile
-    
-        $adapterStatus = @()
-        foreach ($adapter in $adapters) {
-            $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
-            $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
-            $adapterStatus += [PSCustomObject]@{
-                AdapterName     = $adapter.Name
-                NetworkCategory = $networkCategory
-                InterfaceIndex  = $adapter.ifIndex  # Guardar el InterfaceIndex para identificar el adaptador
-            }
+function Get-NetworkAdapterStatus {
+    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+    $profiles = Get-NetConnectionProfile
+
+    $adapterStatus = @()
+    foreach ($adapter in $adapters) {
+        $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
+        $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
+        $adapterStatus += [PSCustomObject]@{
+            AdapterName     = $adapter.Name
+            NetworkCategory = $networkCategory
+            InterfaceIndex  = $adapter.ifIndex  # Guardar el InterfaceIndex para identificar el adaptador
         }
-        return $adapterStatus
     }
+    return $adapterStatus
+}
 
 # Función para cambiar el estado de la red
-    function Set-NetworkCategory {
-        param (
-            [string]$category,
-            [int]$interfaceIndex
-        )
-    
-        # Cambiar el tipo de red
-        if ($category -eq "Privado") {
-            Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Private
-            Write-Host "Estado cambiado a Privado."
-            $color = [System.Drawing.Color]::Green
-            $label.Text = $text
-            $label.ForeColor = $color
-        } elseif ($category -eq "Público") {
-            Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Public
-            Write-Host "Estado cambiado a Público."
-        }
+function Set-NetworkCategory {
+    param (
+        [string]$category,
+        [int]$interfaceIndex,
+        [System.Windows.Forms.Label]$label
+    )
+
+    # Cambiar el tipo de red
+    if ($category -eq "Privado") {
+        Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Private
+        Write-Host "Estado cambiado a Privado."
+        $label.ForeColor = [System.Drawing.Color]::Green
+        $label.Text = "$($label.Text.Split(' - ')[0]) - Privado"  # Actualizar el texto de la etiqueta
+    } elseif ($category -eq "Público") {
+        Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Public
+        Write-Host "Estado cambiado a Público."
+        $label.ForeColor = [System.Drawing.Color]::Red
+        $label.Text = "$($label.Text.Split(' - ')[0]) - Público"  # Actualizar el texto de la etiqueta
     }
+}
 
 # Crear la etiqueta para mostrar los adaptadores y su estado
-    $lblPerfilDeRed = New-Object System.Windows.Forms.Label
-    $lblPerfilDeRed.Text = "Estado de los Adaptadores:"
-    $lblPerfilDeRed.Size = New-Object System.Drawing.Size(236, 35)
-    $lblPerfilDeRed.Location = New-Object System.Drawing.Point(245, 390)
+$lblPerfilDeRed = New-Object System.Windows.Forms.Label
+$lblPerfilDeRed.Text = "Estado de los Adaptadores:"
+$lblPerfilDeRed.Size = New-Object System.Drawing.Size(236, 35)
+$lblPerfilDeRed.Location = New-Object System.Drawing.Point(245, 390)
 
 # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
-    $networkAdapters = Get-NetworkAdapterStatus
-    $adapterInfo = ""
+$networkAdapters = Get-NetworkAdapterStatus
+$adapterInfo = ""
 
 # Usamos un contador para ubicar los labels
-    $index = 0
-    
-    foreach ($adapter in $networkAdapters) {
-        $text = ""
-        $color = [System.Drawing.Color]::Green
-    
-        if ($adapter.NetworkCategory -ne "Private") {
-            $text = "$($adapter.AdapterName) - Público"
-            $color = [System.Drawing.Color]::Red
-        } else {
-            $text = "$($adapter.AdapterName) - Privado"
-        }
-    
-        # Crear un Label con la palabra "Público" o "Privado" clickeable
-        $label = New-Object System.Windows.Forms.Label
-        $label.Text = $text
-        $label.ForeColor = $color
-        $label.Cursor = [System.Windows.Forms.Cursors]::Hand
-        $label.Size = New-Object System.Drawing.Size(236, 20)
-        
-        # Ajustar la ubicación para las etiquetas
-$label.Location = New-Object System.Drawing.Point(245, (390 + (30 * $index)))  # Ajustar el desplazamiento de acuerdo con el índice
-    
-        # Evento para manejar el clic
-        $label.Add_Click({
-            $category = if ($adapter.NetworkCategory -eq "Private") { "Público" } else { "Privado" }
-            $result = [System.Windows.Forms.MessageBox]::Show("¿Deseas cambiar el estado a $category?", "Confirmar cambio", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-            
-            if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-                Set-NetworkCategory -category $category -interfaceIndex $adapter.InterfaceIndex
-            }
-        })
-    
-        $adapterInfo += $label.Text + "`n"
-        $form.Controls.Add($label)
-    
-        # Incrementar el índice para la siguiente posición del label
-        $index++
+$index = 0
+
+foreach ($adapter in $networkAdapters) {
+    $text = ""
+    $color = [System.Drawing.Color]::Green
+
+    if ($adapter.NetworkCategory -ne "Private") {
+        $text = "$($adapter.AdapterName) - Público"
+        $color = [System.Drawing.Color]::Red
+    } else {
+        $text = "$($adapter.AdapterName) - Privado"
     }
+
+    # Crear un Label con la palabra "Público" o "Privado" clickeable
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = $text
+    $label.ForeColor = $color
+    $label.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $label.Size = New-Object System.Drawing.Size(236, 20)
+    
+    # Ajustar la ubicación para las etiquetas
+    $label.Location = New-Object System.Drawing.Point(245, (390 + (30 * $index)))  # Ajustar el desplazamiento de acuerdo con el índice
+
+    # Evento para manejar el clic
+    $label.Add_Click({
+        $category = if ($adapter.NetworkCategory -eq "Private") { "Público" } else { "Privado" }
+        $result = [System.Windows.Forms.MessageBox]::Show("¿Deseas cambiar el estado a $category?", "Confirmar cambio", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+        
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Set-NetworkCategory -category $category -interfaceIndex $adapter.InterfaceIndex -label $label
+        }
+    })
+
+    $adapterInfo += $label.Text + "`n"
+    $form.Controls.Add($label)
+
+    # Incrementar el índice para la siguiente posición del label
+    $index++
+}
 
 # Agregar los controles al formulario
     $form.Controls.Add($tabControl)
@@ -363,8 +364,6 @@ $label.Location = New-Object System.Drawing.Point(245, (390 + (30 * $index)))  #
     $form.Controls.Add($labelipADress)
     $form.Controls.Add($lblPerfilDeRed)
     $form.Controls.Add($btnExit)
-
-
 
 # Acción para el CheckBox, si el usuario lo marca manualmente
 $chkSqlServer.Add_CheckedChanged({

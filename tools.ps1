@@ -277,7 +277,7 @@ if ($ipsWithAdapters.Count -gt 0) {
 $lineHeight = 11
 $maxLines = $labelipADress.Text.Split("`n").Count
 $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
-$labelipADress.Size = New-Object System.Drawing.Size(480, $labelHeight)
+$labelipADress.Size = New-Object System.Drawing.Size(240, $labelHeight)
 
 # Ajustar la altura del formulario según el Label de IPs
 $formHeight = $form.Size.Height + $labelHeight - 26

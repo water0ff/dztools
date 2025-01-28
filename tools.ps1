@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250128.1155"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250128.1201"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -329,7 +329,7 @@ if ($ipsWithAdapters.Count -gt 0) {
         $label.ForeColor = $color
         $label.Cursor = [System.Windows.Forms.Cursors]::Hand
         $label.Size = New-Object System.Drawing.Size(236, 20)
-        $label.Location = New-Object System.Drawing.Point(245, 390 * $index)  # Colocar los labels uno debajo del otro
+        $label.Location = New-Object System.Drawing.Point(245, 390 + (30 * $index))  # Ajustar el desplazamiento de acuerdo con el índice
     
         # Evento para manejar el clic
         $label.Add_Click({

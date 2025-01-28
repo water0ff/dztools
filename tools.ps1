@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250128.1040"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250128.1146"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -264,17 +264,34 @@ if ($ipsWithAdapters.Count -gt 0) {
     function Get-NetworkAdapterStatus {
         $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
         $profiles = Get-NetConnectionProfile
-        
+    
         $adapterStatus = @()
         foreach ($adapter in $adapters) {
             $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
             $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
             $adapterStatus += [PSCustomObject]@{
-                AdapterName    = $adapter.Name
+                AdapterName     = $adapter.Name
                 NetworkCategory = $networkCategory
+                InterfaceIndex  = $adapter.ifIndex  # Guardar el InterfaceIndex para identificar el adaptador
             }
         }
         return $adapterStatus
+    }
+# Función para cambiar el estado de la red
+    function Set-NetworkCategory {
+        param (
+            [string]$category,
+            [int]$interfaceIndex
+        )
+    
+        # Cambiar el tipo de red
+        if ($category -eq "Privado") {
+            Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Private
+            Write-Host "Estado cambiado a Privado."
+        } elseif ($category -eq "Público") {
+            Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Public
+            Write-Host "Estado cambiado a Público."
+        }
     }
 # Crear la etiqueta para mostrar los adaptadores y su estado
     $lblPerfilDeRed = New-Object System.Windows.Forms.Label
@@ -284,16 +301,39 @@ if ($ipsWithAdapters.Count -gt 0) {
 # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
     $networkAdapters = Get-NetworkAdapterStatus
     $adapterInfo = ""
+    
     foreach ($adapter in $networkAdapters) {
+        $text = ""
+        $color = [System.Drawing.Color]::Green
+    
         if ($adapter.NetworkCategory -ne "Private") {
-            $adapterInfo += "$($adapter.AdapterName) - Público`n"
-            $lblPerfilDeRed.ForeColor = [System.Drawing.Color]::Red
+            $text = "$($adapter.AdapterName) - Público"
+            $color = [System.Drawing.Color]::Red
         } else {
-            $adapterInfo += "$($adapter.AdapterName) - Privado`n"
-            $lblPerfilDeRed.ForeColor = [System.Drawing.Color]::Green
+            $text = "$($adapter.AdapterName) - Privado"
         }
+    
+        # Crear un Label con la palabra "Público" o "Privado" clickeable
+        $label = New-Object System.Windows.Forms.Label
+        $label.Text = $text
+        $label.ForeColor = $color
+        $label.Cursor = [System.Windows.Forms.Cursors]::Hand
+        $label.Size = New-Object System.Drawing.Size(236, 20)
+        $label.Location = New-Object System.Drawing.Point(0, 20 * $networkAdapters.IndexOf($adapter))  # Colocar los labels uno debajo del otro
+    
+        # Evento para manejar el clic
+        $label.Add_Click({
+            $category = if ($adapter.NetworkCategory -eq "Private") { "Público" } else { "Privado" }
+            $result = [System.Windows.Forms.MessageBox]::Show("¿Deseas cambiar el estado a $category?", "Confirmar cambio", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+            
+            if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                Set-NetworkCategory -category $category -interfaceIndex $adapter.InterfaceIndex
+            }
+        })
+    
+        $adapterInfo += $label.Text + "`n"
+        $form.Controls.Add($label)
     }
-    $lblPerfilDeRed.Text = $adapterInfo
 # Agregar los controles al formulario
     $form.Controls.Add($tabControl)
     $form.Controls.Add($labelHostname)

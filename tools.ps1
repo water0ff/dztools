@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250128.1201"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250128.1208"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -265,6 +265,8 @@ if ($ipsWithAdapters.Count -gt 0) {
 
 
 
+
+
 # Función para obtener adaptadores y sus estados (modificada)
     function Get-NetworkAdapterStatus {
         $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -282,6 +284,7 @@ if ($ipsWithAdapters.Count -gt 0) {
         }
         return $adapterStatus
     }
+
 # Función para cambiar el estado de la red
     function Set-NetworkCategory {
         param (
@@ -301,14 +304,17 @@ if ($ipsWithAdapters.Count -gt 0) {
             Write-Host "Estado cambiado a Público."
         }
     }
+
 # Crear la etiqueta para mostrar los adaptadores y su estado
     $lblPerfilDeRed = New-Object System.Windows.Forms.Label
     $lblPerfilDeRed.Text = "Estado de los Adaptadores:"
     $lblPerfilDeRed.Size = New-Object System.Drawing.Size(236, 35)
     $lblPerfilDeRed.Location = New-Object System.Drawing.Point(245, 390)
+
 # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
     $networkAdapters = Get-NetworkAdapterStatus
     $adapterInfo = ""
+
 # Usamos un contador para ubicar los labels
     $index = 0
     
@@ -329,6 +335,8 @@ if ($ipsWithAdapters.Count -gt 0) {
         $label.ForeColor = $color
         $label.Cursor = [System.Windows.Forms.Cursors]::Hand
         $label.Size = New-Object System.Drawing.Size(236, 20)
+        
+        # Ajustar la ubicación para las etiquetas
         $label.Location = New-Object System.Drawing.Point(245, 390 + (30 * $index))  # Ajustar el desplazamiento de acuerdo con el índice
     
         # Evento para manejar el clic
@@ -355,6 +363,7 @@ if ($ipsWithAdapters.Count -gt 0) {
     $form.Controls.Add($labelipADress)
     $form.Controls.Add($lblPerfilDeRed)
     $form.Controls.Add($btnExit)
+
 
 
 # Acción para el CheckBox, si el usuario lo marca manualmente

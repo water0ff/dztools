@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250128.1312"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250128.1330"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -376,6 +376,7 @@ $form.Controls.Add($labelPort)
 $form.Controls.Add($labelipADress)
 $form.Controls.Add($lblPerfilDeRed)
 $form.Controls.Add($btnExit)
+
 
 
 

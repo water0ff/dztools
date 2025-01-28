@@ -17,10 +17,7 @@ $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
 $txtVersion = New-Object System.Windows.Forms.TextBox
-$txtVersion.Size = New-Object System.Drawing.Size(100, 30)
-$txtVersion.Location = New-Object System.Drawing.Point(10, 10)
-$txtVersion.Text = "Alfa 250128.0926"  # Valor predeterminado para la versión
-$form.Controls.Add($txtVersion)
+                                    $txtVersion.Text = "Alfa 250128.0926"  # Valor predeterminado para la versión
 
 # Crear el botón para actualizar el título con la versión
 $btnUpdateTitle = New-Object System.Windows.Forms.Button

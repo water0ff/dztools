@@ -3,10 +3,8 @@ if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
 }
-
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName System.Drawing
-
+ Add-Type -AssemblyName System.Windows.Forms
+ Add-Type -AssemblyName System.Drawing
 # Crear el formulario
 $form = New-Object System.Windows.Forms.Form
 $form.Size = New-Object System.Drawing.Size(500, 460)
@@ -18,15 +16,12 @@ $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
                                                                 $version = "Alfa 250129.1155"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
-
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
 Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor DarkCyan
-
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
 Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
-
 # Crear un estilo base para los botones
     $buttonStyle = New-Object System.Windows.Forms.Button
     $buttonStyle.Size = New-Object System.Drawing.Size(220, 35)
@@ -34,14 +29,11 @@ Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -Foregrou
     $buttonStyle.BackColor = [System.Drawing.Color]::LightGray
     $buttonStyle.ForeColor = [System.Drawing.Color]::Black
     $buttonStyle.Font = New-Object System.Drawing.Font("Arial", 10, [System.Drawing.FontStyle]::Regular)
-
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
     $tabControl.Location = New-Object System.Drawing.Point(0,0)
     $tabControl.BackColor = [System.Drawing.Color]::LightGray
-
-
 # Crear las tres pestañas (Aplicaciones, Consultas y Pro)
 $tabAplicaciones = New-Object System.Windows.Forms.TabPage
 $tabAplicaciones.Text = "Aplicaciones"
@@ -49,12 +41,10 @@ $tabAplicaciones.Text = "Aplicaciones"
     #$tabConsultas.Text = "Consultas"
 $tabProSql = New-Object System.Windows.Forms.TabPage
 $tabProSql.Text = "Pro"
-
 # Añadir las pestañas al TabControl
 $tabControl.TabPages.Add($tabAplicaciones)
     #$tabControl.TabPages.Add($tabConsultas)
 $tabControl.TabPages.Add($tabProSql)
-
 # Crear los botones dentro de la pestaña de "Aplicaciones"
     $btnInstallSQLManagement = New-Object System.Windows.Forms.Button
     $btnInstallSQLManagement.Text = "Instalar Management2014"
@@ -239,7 +229,6 @@ $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetwo
             }
         }
     }
-
 # Construir el texto para mostrar todas las IPs y adaptadores
 if ($ipsWithAdapters.Count -gt 0) {
     # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
@@ -266,18 +255,10 @@ if ($ipsWithAdapters.Count -gt 0) {
 # Ajustar la altura del formulario según el Label de IPs
     $formHeight = $form.Size.Height + $labelHeight - 26
     $form.Size = New-Object System.Drawing.Size($form.Size.Width, $formHeight)
-
-
-
-
-
-
-
 # Función para obtener adaptadores y sus estados (modificada)
 function Get-NetworkAdapterStatus {
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
     $profiles = Get-NetConnectionProfile
-
     $adapterStatus = @()
     foreach ($adapter in $adapters) {
         $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
@@ -290,7 +271,6 @@ function Get-NetworkAdapterStatus {
     }
     return $adapterStatus
 }
-
 # Función para cambiar el estado de la red
 function Set-NetworkCategory {
     param (
@@ -298,11 +278,9 @@ function Set-NetworkCategory {
         [int]$interfaceIndex,
         [System.Windows.Forms.Label]$label
     )
-
     # Obtener el estado anterior
     $profile = Get-NetConnectionProfile | Where-Object { $_.InterfaceIndex -eq $interfaceIndex }
     $previousCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
-
     # Cambiar el tipo de red
     if ($category -eq "Privado") {
         Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Private
@@ -315,25 +293,20 @@ function Set-NetworkCategory {
         $label.ForeColor = [System.Drawing.Color]::Red
         $label.Text = "$($label.Text.Split(' - ')[0]) - Público"  # Actualizar el texto de la etiqueta
     }
-
     # Mostrar el cambio en consola con categorías en español
     Write-Host "Categoría anterior: $previousCategory"
     Write-Host "Categoría nueva: $category"
 }
-
 # Crear la etiqueta para mostrar los adaptadores y su estado
 $lblPerfilDeRed = New-Object System.Windows.Forms.Label
 $lblPerfilDeRed.Text = "Estado de los Adaptadores:"
 $lblPerfilDeRed.Size = New-Object System.Drawing.Size(236, 35)
 $lblPerfilDeRed.Location = New-Object System.Drawing.Point(245, 390)
-
 # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
 $networkAdapters = Get-NetworkAdapterStatus
 $adapterInfo = ""
-
 # Usamos un contador para ubicar los labels
 $index = 0
-
 foreach ($adapter in $networkAdapters) {
     $text = ""
     $color = [System.Drawing.Color]::Green
@@ -345,17 +318,14 @@ foreach ($adapter in $networkAdapters) {
         $text = "$($adapter.AdapterName) - Público"
         $color = [System.Drawing.Color]::Red
     }
-
     # Crear un Label con la palabra "Público" o "Privado" clickeable
     $label = New-Object System.Windows.Forms.Label
     $label.Text = $text
     $label.ForeColor = $color
     $label.Cursor = [System.Windows.Forms.Cursors]::Hand
     $label.Size = New-Object System.Drawing.Size(236, 20)
-    
     # Ajustar la ubicación para las etiquetas
     $label.Location = New-Object System.Drawing.Point(245, (390 + (30 * $index)))  # Ajustar el desplazamiento de acuerdo con el índice
-
     # Evento para manejar el clic
     $label.Add_Click({
         # Asegurarse de que se maneje el idioma correctamente
@@ -369,14 +339,11 @@ foreach ($adapter in $networkAdapters) {
             Set-NetworkCategory -category $category -interfaceIndex $adapter.InterfaceIndex -label $label
         }
     })
-
     $adapterInfo += $label.Text + "`n"
     $form.Controls.Add($label)
-
     # Incrementar el índice para la siguiente posición del label
     $index++
 }
-
 # Agregar los controles al formulario
     $form.Controls.Add($tabControl)
     $form.Controls.Add($labelHostname)
@@ -384,12 +351,6 @@ foreach ($adapter in $networkAdapters) {
     $form.Controls.Add($labelipADress)
     $form.Controls.Add($lblPerfilDeRed)
     $form.Controls.Add($btnExit)
-
-
-
-
-
-
 # Acción para el CheckBox, si el usuario lo marca manualmente
 $chkSqlServer.Add_CheckedChanged({
     if ($chkSqlServer.Checked) {
@@ -419,7 +380,6 @@ $chkSqlServer.Add_CheckedChanged({
     # Habilitar el botón de Conectar a BDD solo si las herramientas SQL Server están habilitadas
     $btnConnectDb.Enabled = $chkSqlServer.Checked
 })
-
 # Obtener el puerto de SQL Server desde el registro
         $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
         $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
@@ -429,8 +389,6 @@ $chkSqlServer.Add_CheckedChanged({
         } else {
             $labelPort.Text = "No se encontró puerto o instancia."
         }
-
-
 ##-------------------- FUNCIONES                                                          -------#
 function Check-SqlServerInstallation {
     $sqlInstalled = Get-WmiObject -Query "SELECT * FROM Win32_Product WHERE Name LIKE 'Microsoft SQL Server%'" | Select-Object -First 1
@@ -477,7 +435,6 @@ function Show-ResultsConsole {
     param (
         [string]$query
     )
-
     try {
         # Ejecutar la consulta y obtener los resultados
         $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
@@ -593,13 +550,11 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         Write-Host "`nNo se pudo encontrar el archivo ejecutable."
     }
 }
-
 # Función para manejar MouseEnter y cambiar el color
 $changeColorOnHover = {
     param($sender, $eventArgs)
     $sender.BackColor = [System.Drawing.Color]::Orange
 }
-
 # Función para manejar MouseLeave y restaurar el color
 $restoreColorOnLeave = {
     param($sender, $eventArgs)
@@ -783,7 +738,6 @@ $btnClearPrintJobs.Add_Click({
     })
 $btnAplicacionesNS.Add_Click({
             Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-
     # Proceso 1: Buscar y analizar archivos .ini 
     # Proceso 1: Buscar y analizar archivos .ini 
     $pathsToCheck = @(
@@ -791,7 +745,6 @@ $btnAplicacionesNS.Add_Click({
         "C:\NationalSoft\Softrestaurant10.0\restaurant.ini",
         "C:\NationalSoft\NationalSoftHoteles3.0\nshoteles.ini"
     )
-
     foreach ($path in $pathsToCheck) {
         if (Test-Path $path) {
             Write-Host "`nArchivo encontrado: $path" -ForegroundColor Green
@@ -1062,7 +1015,6 @@ $btnConnectDb.Add_Click({
         if (-not $cmbProfiles.Items.Contains("Personalizado")) {
             $cmbProfiles.Items.Add("Personalizado")
         }
-
         # Crear las demás etiquetas y campos de texto
         $labelServer = New-Object System.Windows.Forms.Label
         $labelServer.Text = "Servidor SQL"
@@ -1100,7 +1052,6 @@ $btnConnectDb.Add_Click({
             $btnOK.Enabled = $false
         }
     })
-
         # Manejar selección del ComboBox
         $cmbProfiles.Add_SelectedIndexChanged({
             if ($cmbProfiles.SelectedItem -eq "Personalizado") {
@@ -1145,8 +1096,6 @@ $btnConnectDb.Add_Click({
         $btnOK.Size = New-Object System.Drawing.Size(100, 30)
         $btnOK.Location = New-Object System.Drawing.Point(150, 140)  # Ajusta la posición según necesites
         $btnOK.Enabled = $false  # Deshabilitar el botón inicialmente
-
-
     # Variables globales para guardar la información de conexión
     $global:server
     $global:database
@@ -1186,7 +1135,6 @@ $btnOK.Add_Click({
             $lblConnectionStatus.Text = "Conexión fallida"
         }
     })
-
         # Agregar los controles al formulario
         $connectionForm.Controls.Add($labelProfile)
         $connectionForm.Controls.Add($cmbProfiles)
@@ -1197,10 +1145,8 @@ $btnOK.Add_Click({
         $connectionForm.Controls.Add($labelPassword)
         $connectionForm.Controls.Add($txtPassword)
         $connectionForm.Controls.Add($btnOK)
-
         $connectionForm.ShowDialog()
     })
-
 $btnDisconnectDb.Add_Click({
     try {
         # Cerrar la conexión
@@ -1312,23 +1258,19 @@ $btnRespaldarRestcard.Add_Click({
         Write-Host "`nRealizando respaldo para la base de datos: $baseDeDatosRestcard"
         Write-Host "En el servidor: $hostnameRestcard"
         Write-Host "Con el usuario: $usuarioRestcard"
-
         # Preguntar la ruta donde guardar el respaldo
         $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
         $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
         if ($folderDialog.ShowDialog() -eq "OK") {
             # Obtener la ruta seleccionada
             $folderPath = $folderDialog.SelectedPath
-
             # Crear la ruta con el timestamp
             $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
             $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
             $rutaLog = "$folderPath\logrestcard_$timestamp.txt"
-
             # Ejecutar el comando mysqldump para hacer el respaldo usando las variables del formulario
             $comando = "mysqldump -u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard > `"$rutaRespaldo`" 2> `"$rutaLog`""
             Invoke-Expression $comando
-
             # Leer el contenido del log antes de mostrar el mensaje de éxito
             if (Test-Path $rutaLog) {
                 $logContenido = Get-Content $rutaLog
@@ -1350,18 +1292,15 @@ $btnRespaldarRestcard.Add_Click({
             $formRespaldarRestcard.Close()  # Cerrar la segunda ventana después de completar el respaldo
         }
     })
-
     # Crear botón para salir
     $btnSalir = New-Object System.Windows.Forms.Button
     $btnSalir.Text = "Salir"
     $btnSalir.Location = New-Object System.Drawing.Point(220, 140)
     $btnSalir.Size = New-Object System.Drawing.Size(100, 30)
-
     # Evento de clic para el botón de salir
     $btnSalir.Add_Click({
         $formRespaldarRestcard.Close()
     })
-
     # Agregar controles a la segunda ventana
     $formRespaldarRestcard.Controls.Add($lblUsuarioRestcard)
     $formRespaldarRestcard.Controls.Add($txtUsuarioRestcard)
@@ -1374,17 +1313,13 @@ $btnRespaldarRestcard.Add_Click({
     $formRespaldarRestcard.Controls.Add($chkLlenarDatos)  # Agregar checkbox
     $formRespaldarRestcard.Controls.Add($btnRespaldar)
     $formRespaldarRestcard.Controls.Add($btnSalir)
-
     # Mostrar la segunda ventana
     $formRespaldarRestcard.ShowDialog()
-})
-
+    })
 $btnExit.Add_Click({
     $form.Dispose()
     $form.Close()
 })
-
 $form.Refresh()
-
 # Mostrar el formulario principal
 $form.ShowDialog()

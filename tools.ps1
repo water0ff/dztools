@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.1100"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.1111"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -1296,7 +1296,7 @@ $btnRespaldarRestcard.Add_Click({
     $btnRespaldar = New-Object System.Windows.Forms.Button
     $btnRespaldar.Text = "Respaldar"
     $btnRespaldar.Location = New-Object System.Drawing.Point(20, 180)
-    $btnRespaldar.Size = $buttonStyle.Size
+    $btnRespaldar.Size = New-Object System.Drawing.Size($buttonStyle.Size.Width / 2, $buttonStyle.Size.Height / 2)
 # Evento de clic para el botón de respaldo
                     $btnRespaldar.Add_Click({
                         # Obtener los valores del formulario
@@ -1335,20 +1335,21 @@ $btnRespaldarRestcard.Add_Click({
                             # Leer el contenido del log antes de mostrar el mensaje de éxito
                             if (Test-Path $rutaLog) {
                                 $logContenido = Get-Content $rutaLog
-                                if ($logContenido -eq "") {
-                                    # Si el log está vacío, indicar el tamaño del respaldo
+                                if ($logContenido.Length -le 5) {
+                                    # Si el log tiene 5 caracteres o menos (sin errores significativos), considerar que el respaldo fue correcto
                                     $respaldoTamaño = (Get-Item $rutaRespaldo).Length
                                     Write-Host "Respaldo realizado correctamente. Tamaño del respaldo: $($respaldoTamaño / 1MB) MB" -ForegroundColor Green
                                     [System.Windows.Forms.MessageBox]::Show("Respaldo realizado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
                                 } else {
-                                    # Si hay contenido en el log, indicar que hubo errores
+                                    # Si el log tiene más de 5 caracteres, se consideran errores
                                     Write-Host "Respaldo con errores. Log:" -ForegroundColor Red
                                     Write-Host $logContenido -ForegroundColor Red
-                                    [System.Windows.Forms.MessageBox]::Show("Respaldo con errores. Revisa el log para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                                    [System.Windows.Forms.MessageBox]::Show("Respaldo con errores. Consulte el log para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                                 }
                             } else {
                                 Write-Host "No se generó log." -ForegroundColor Yellow
                             }
+
                     
                             $formRespaldarRestcard.Close()  # Cerrar la segunda ventana después de completar el respaldo
                         }

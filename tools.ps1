@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.1248"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.1259"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1237,6 +1237,10 @@ $btnRespaldarRestcard.Add_Click({
     $btnRespaldar = New-Object System.Windows.Forms.Button
     $btnRespaldar.Text = "Respaldar"
     $btnRespaldar.Location = New-Object System.Drawing.Point(20, 180)
+# Crear botón para salir
+    $btnSalir = New-Object System.Windows.Forms.Button
+    $btnSalir.Text = "Salir"
+    $btnSalir.Location = New-Object System.Drawing.Point(220, 180)
 # Evento de clic para el botón de respaldo
                         $btnRespaldar.Add_Click({
                             # Obtener los valores del formulario
@@ -1290,12 +1294,8 @@ $btnRespaldarRestcard.Add_Click({
                                 } else {
                                     Write-Host "No se generó log." -ForegroundColor Yellow
                                 }
-                            # Crear botón para salir
-                            $btnSalir = New-Object System.Windows.Forms.Button
-                            $btnSalir.Text = "Salir"
-                            $btnSalir.Location = New-Object System.Drawing.Point(220, 180)
-
-    # Evento de clic para el botón de salir
+                                })
+# Evento de clic para el botón de salir
     $btnSalir.Add_Click({
         $formRespaldarRestcard.Close()
     })

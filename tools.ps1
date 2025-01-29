@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.1544"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.1615"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1225,8 +1225,8 @@ $btnRespaldarRestcard.Add_Click({
 
     # Crear el checkbox para llenar los datos por omisión
     $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox
-    $chkLlenarDatos.Text = "Llenar Datos por Omisión"
-    $chkLlenarDatos.Location = New-Object System.Drawing.Point(10, 20)
+    $chkLlenarDatos.Text = "Usar los datos por omisión"
+    $chkLlenarDatos.Location = New-Object System.Drawing.Point(5, 20)
     $chkLlenarDatos.AutoSize = $true
 
     # Evento de cambio de estado del checkbox
@@ -1310,12 +1310,12 @@ $btnRespaldarRestcard.Add_Click({
     })
 
     # Crear botón para salir
-    $btnSalir = New-Object System.Windows.Forms.Button
-    $btnSalir.Text = "Salir"
-    $btnSalir.Size = New-Object System.Drawing.Size(150, 35)
-    $btnSalir.Location = New-Object System.Drawing.Point(220, 140)
+    $btnSalirRestcard = New-Object System.Windows.Forms.Button
+    $btnSalirRestcard.Text = "Salir"
+    $btnSalirRestcard.Size = New-Object System.Drawing.Size(150, 35)
+    $btnSalirRestcard.Location = New-Object System.Drawing.Point(155, 140)
     # Evento de clic para el botón de salir
-    $btnSalir.Add_Click({
+    $btnSalirRestcard.Add_Click({
         $formRespaldarRestcard.Close()
     })
 
@@ -1330,7 +1330,7 @@ $btnRespaldarRestcard.Add_Click({
     $formRespaldarRestcard.Controls.Add($txtHostnameRestcard)
     $formRespaldarRestcard.Controls.Add($chkLlenarDatos)  # Agregar el checkbox en lugar del botón
     $formRespaldarRestcard.Controls.Add($btnRespaldar)
-    $formRespaldarRestcard.Controls.Add($btnSalir)
+    $formRespaldarRestcard.Controls.Add($btnSalirRestcard)
 
     # Mostrar la segunda ventana
     $formRespaldarRestcard.ShowDialog()

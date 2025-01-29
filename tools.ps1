@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.1144"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.1155"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -1221,16 +1221,6 @@ $btnDisconnectDb.Add_Click({
     }
 })
 
-
-
-
-
-
-
-
-
-
-
 # Evento de clic para el botón de respaldo
 $btnRespaldarRestcard.Add_Click({
     Write-Host "`nEn espera de los datos de conexión" -ForegroundColor DarkCyan
@@ -1281,6 +1271,7 @@ $btnRespaldarRestcard.Add_Click({
     $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox
     $chkLlenarDatos.Text = "Llenar Datos por Omisión"
     $chkLlenarDatos.Location = New-Object System.Drawing.Point(20, 10)
+    $chkLlenarDatos.AutoSize = $true
 
     # Evento de cambio para el checkbox
     $chkLlenarDatos.Add_CheckedChanged({

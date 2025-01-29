@@ -1275,18 +1275,21 @@ $btnRespaldarRestcard.Add_Click({
                     # Leer el contenido del log antes de mostrar el mensaje de éxito
                     if (Test-Path $rutaLog) {
                         $logContenido = Get-Content $rutaLog
-                        if ($logContenido -eq "") {
-                            # Si el log está vacío, indicar el tamaño del respaldo
+                        if ($logContenido.Length -le 5) {
+                            # Si el log tiene 5 caracteres o menos (sin errores significativos), considerar que el respaldo fue correcto
                             $respaldoTamaño = (Get-Item $rutaRespaldo).Length
                             Write-Host "Respaldo realizado correctamente. Tamaño del respaldo: $($respaldoTamaño / 1MB) MB" -ForegroundColor Green
+                            [System.Windows.Forms.MessageBox]::Show("Respaldo realizado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
                         } else {
-                            # Si hay contenido en el log, indicar que hubo errores
-                            Write-Host "Se encontraron errores en el respaldo. Log:" -ForegroundColor Red
+                            # Si el log tiene más de 5 caracteres, se consideran errores
+                            Write-Host "Respaldo con errores. Log:" -ForegroundColor Red
                             Write-Host $logContenido -ForegroundColor Red
+                            [System.Windows.Forms.MessageBox]::Show("Respaldo con errores. Consulte el log para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                         }
                     } else {
                         Write-Host "No se generó log." -ForegroundColor Yellow
                     }
+
             
                     # Mostrar el mensaje de éxito en la consola
                     [System.Windows.Forms.MessageBox]::Show("Respaldo realizado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)

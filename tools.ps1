@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.1155"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.1206"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1167,17 +1167,23 @@ $btnDisconnectDb.Add_Click({
     }
 })
 
-# Evento de clic para el botón de respaldo
-$btnRespaldarRestcard.Add_Click({
+
+
+
+
+
+
+# Evento de clic para el botón de restauración
+$btnRestaurarRestcard.Add_Click({
     Write-Host "`nEn espera de los datos de conexión" -ForegroundColor DarkCyan
     # Crear la segunda ventana para ingresar los datos de conexión
-    $formRespaldarRestcard = New-Object System.Windows.Forms.Form
-    $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
-    $formRespaldarRestcard.Size = New-Object System.Drawing.Size(360, 230)  # Reducir tamaño de ventana
-    $formRespaldarRestcard.StartPosition = "CenterScreen"
-    $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-    $formRespaldarRestcard.MaximizeBox = $false
-    $formRespaldarRestcard.MinimizeBox = $false
+    $formRestaurarRestcard = New-Object System.Windows.Forms.Form
+    $formRestaurarRestcard.Text = "Datos de Conexión para Restaurar"
+    $formRestaurarRestcard.Size = New-Object System.Drawing.Size(360, 230)  # Reducir tamaño de ventana
+    $formRestaurarRestcard.StartPosition = "CenterScreen"
+    $formRestaurarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $formRestaurarRestcard.MaximizeBox = $false
+    $formRestaurarRestcard.MinimizeBox = $false
 
     # Etiquetas y controles para ingresar la información de conexión
     $lblUsuarioRestcard = New-Object System.Windows.Forms.Label
@@ -1234,88 +1240,94 @@ $btnRespaldarRestcard.Add_Click({
         }
     })
 
-    # Crear botón para ejecutar el respaldo
-    $btnRespaldar = New-Object System.Windows.Forms.Button
-    $btnRespaldar.Text = "Respaldar"
-    $btnRespaldar.Location = New-Object System.Drawing.Point(20, 140)
-    $btnRespaldar.Size = New-Object System.Drawing.Size(100, 30)
+    # Crear botón para seleccionar archivo de respaldo
+    $btnSeleccionarArchivo = New-Object System.Windows.Forms.Button
+    $btnSeleccionarArchivo.Text = "Seleccionar Respaldo"
+    $btnSeleccionarArchivo.Location = New-Object System.Drawing.Point(20, 140)
+    $btnSeleccionarArchivo.Size = New-Object System.Drawing.Size(120, 30)
 
-    # Evento de clic para el botón de respaldo
-    $btnRespaldar.Add_Click({
+    # Control de archivo de respaldo seleccionado
+    $txtArchivoRespaldo = New-Object System.Windows.Forms.TextBox
+    $txtArchivoRespaldo.Location = New-Object System.Drawing.Point(150, 140)
+    $txtArchivoRespaldo.Width = 170
+    $txtArchivoRespaldo.ReadOnly = $true
+
+    # Evento de clic para seleccionar archivo de respaldo
+    $btnSeleccionarArchivo.Add_Click({
+        $fileDialog = New-Object System.Windows.Forms.OpenFileDialog
+        $fileDialog.Filter = "Archivos SQL (*.sql)|*.sql"
+        if ($fileDialog.ShowDialog() -eq "OK") {
+            $txtArchivoRespaldo.Text = $fileDialog.FileName
+        }
+    })
+
+    # Crear botón para ejecutar la restauración
+    $btnRestaurar = New-Object System.Windows.Forms.Button
+    $btnRestaurar.Text = "Restaurar"
+    $btnRestaurar.Location = New-Object System.Drawing.Point(20, 180)
+    $btnRestaurar.Size = New-Object System.Drawing.Size(100, 30)
+
+    # Evento de clic para el botón de restauración
+    $btnRestaurar.Add_Click({
         # Obtener los valores del formulario
         $usuarioRestcard = $txtUsuarioRestcard.Text
         $baseDeDatosRestcard = $txtBaseDeDatosRestcard.Text
         $passwordRestcard = $txtPasswordRestcard.Text
         $hostnameRestcard = $txtHostnameRestcard.Text
+        $archivoRespaldo = $txtArchivoRespaldo.Text
 
         # Validar que la información no esté vacía
-        if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "") {
+        if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "" -or $archivoRespaldo -eq "") {
             [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
 
         # Mostrar mensaje en la consola con los datos de conexión (sin intentar conectar)
-        Write-Host "`nRealizando respaldo para la base de datos: $baseDeDatosRestcard"
+        Write-Host "`nRestaurando base de datos: $baseDeDatosRestcard"
         Write-Host "En el servidor: $hostnameRestcard"
         Write-Host "Con el usuario: $usuarioRestcard"
-        # Preguntar la ruta donde guardar el respaldo
-        $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
-        $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
-        if ($folderDialog.ShowDialog() -eq "OK") {
-            # Obtener la ruta seleccionada
-            $folderPath = $folderDialog.SelectedPath
-            # Crear la ruta con el timestamp
-            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-            $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
-            $rutaLog = "$folderPath\logrestcard_$timestamp.txt"
-            # Ejecutar el comando mysqldump para hacer el respaldo usando las variables del formulario
-            $comando = "mysqldump -u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard > `"$rutaRespaldo`" 2> `"$rutaLog`""
-            Invoke-Expression $comando
-            # Leer el contenido del log antes de mostrar el mensaje de éxito
-            if (Test-Path $rutaLog) {
-                $logContenido = Get-Content $rutaLog
-                if ($logContenido.Length -le 5) {
-                    # Si el log tiene 5 caracteres o menos (sin errores significativos), considerar que el respaldo fue correcto
-                    $respaldoTamaño = (Get-Item $rutaRespaldo).Length
-                    Write-Host "Respaldo realizado correctamente. Tamaño del respaldo: $($respaldoTamaño / 1MB) MB" -ForegroundColor Green
-                    [System.Windows.Forms.MessageBox]::Show("Respaldo realizado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                } else {
-                    # Si el log tiene más de 5 caracteres, se consideran errores
-                    Write-Host "Respaldo con errores. Log:" -ForegroundColor Red
-                    Write-Host $logContenido -ForegroundColor Red
-                    [System.Windows.Forms.MessageBox]::Show("Respaldo con errores. Consulte el log para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                }
-            } else {
-                Write-Host "No se generó log." -ForegroundColor Yellow
-            }
+        Write-Host "Desde el archivo: $archivoRespaldo"
 
-            $formRespaldarRestcard.Close()  # Cerrar la segunda ventana después de completar el respaldo
-        }
+        # Ejecutar el comando mysql para restaurar la base de datos desde el archivo de respaldo
+        $comandoRestaurar = "mysql -u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard < `"$archivoRespaldo`""
+        Invoke-Expression $comandoRestaurar
+
+        # Mostrar mensaje de éxito
+        [System.Windows.Forms.MessageBox]::Show("Restauración completada correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+
+        $formRestaurarRestcard.Close()  # Cerrar la ventana después de completar la restauración
     })
+
     # Crear botón para salir
     $btnSalir = New-Object System.Windows.Forms.Button
     $btnSalir.Text = "Salir"
-    $btnSalir.Location = New-Object System.Drawing.Point(220, 140)
+    $btnSalir.Location = New-Object System.Drawing.Point(220, 180)
     $btnSalir.Size = New-Object System.Drawing.Size(100, 30)
     # Evento de clic para el botón de salir
     $btnSalir.Add_Click({
-        $formRespaldarRestcard.Close()
+        $formRestaurarRestcard.Close()
     })
+
     # Agregar controles a la segunda ventana
-    $formRespaldarRestcard.Controls.Add($lblUsuarioRestcard)
-    $formRespaldarRestcard.Controls.Add($txtUsuarioRestcard)
-    $formRespaldarRestcard.Controls.Add($lblBaseDeDatosRestcard)
-    $formRespaldarRestcard.Controls.Add($txtBaseDeDatosRestcard)
-    $formRespaldarRestcard.Controls.Add($lblPasswordRestcard)
-    $formRespaldarRestcard.Controls.Add($txtPasswordRestcard)
-    $formRespaldarRestcard.Controls.Add($lblHostnameRestcard)
-    $formRespaldarRestcard.Controls.Add($txtHostnameRestcard)
-    $formRespaldarRestcard.Controls.Add($chkLlenarDatos)  # Agregar checkbox
-    $formRespaldarRestcard.Controls.Add($btnRespaldar)
-    $formRespaldarRestcard.Controls.Add($btnSalir)
+    $formRestaurarRestcard.Controls.Add($lblUsuarioRestcard)
+    $formRestaurarRestcard.Controls.Add($txtUsuarioRestcard)
+    $formRestaurarRestcard.Controls.Add($lblBaseDeDatosRestcard)
+    $formRestaurarRestcard.Controls.Add($txtBaseDeDatosRestcard)
+    $formRestaurarRestcard.Controls.Add($lblPasswordRestcard)
+    $formRestaurarRestcard.Controls.Add($txtPasswordRestcard)
+    $formRestaurarRestcard.Controls.Add($lblHostnameRestcard)
+    $formRestaurarRestcard.Controls.Add($txtHostnameRestcard)
+    $formRestaurarRestcard.Controls.Add($chkLlenarDatos)  # Agregar checkbox
+    $formRestaurarRestcard.Controls.Add($btnSeleccionarArchivo)
+    $formRestaurarRestcard.Controls.Add($txtArchivoRespaldo)
+    $formRestaurarRestcard.Controls.Add($btnRestaurar)
+    $formRestaurarRestcard.Controls.Add($btnSalir)
+
     # Mostrar la segunda ventana
-    $formRespaldarRestcard.ShowDialog()
-    })
+    $formRestaurarRestcard.ShowDialog()
+})
+
+
 $btnExit.Add_Click({
     $form.Dispose()
     $form.Close()

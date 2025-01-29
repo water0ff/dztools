@@ -1215,13 +1215,13 @@ $btnDisconnectDb.Add_Click({
     }
 })
 
-Add-Type -AssemblyName "System.Windows.Forms"
-Add-Type -AssemblyName "System.Drawing"
 
-# Crear la ventana principal (si ya tienes una, puedes omitir esta parte)
-$form = New-Object System.Windows.Forms.Form
-$form.Text = "Formulario Principal"
-$form.Size = New-Object System.Drawing.Size(400, 300)
+
+
+
+
+
+
 
 # Crear el botón de respaldo en la ventana principal
 $btnRespaldarRestcard = New-Object System.Windows.Forms.Button

@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.1444"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.1544"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1183,7 +1183,7 @@ $btnRespaldarRestcard.Add_Click({
     # Crear la segunda ventana para ingresar los datos de conexión
     $formRespaldarRestcard = New-Object System.Windows.Forms.Form
     $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
-    $formRespaldarRestcard.Size = New-Object System.Drawing.Size(400, 250)
+    $formRespaldarRestcard.Size = New-Object System.Drawing.Size(350, 200)
     $formRespaldarRestcard.StartPosition = "CenterScreen"
     $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
     $formRespaldarRestcard.MaximizeBox = $false
@@ -1227,6 +1227,7 @@ $btnRespaldarRestcard.Add_Click({
     $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox
     $chkLlenarDatos.Text = "Llenar Datos por Omisión"
     $chkLlenarDatos.Location = New-Object System.Drawing.Point(10, 20)
+    $chkLlenarDatos.AutoSize = $true
 
     # Evento de cambio de estado del checkbox
     $chkLlenarDatos.Add_CheckedChanged({
@@ -1249,6 +1250,7 @@ $btnRespaldarRestcard.Add_Click({
     $btnRespaldar = New-Object System.Windows.Forms.Button
     $btnRespaldar.Text = "Respaldar"
     $btnRespaldar.Location = New-Object System.Drawing.Point(20, 140)
+    $btnRespaldar.Size = New-Object System.Drawing.Size(150, 35)
 
     # Evento de clic para el botón de respaldo
     $btnRespaldar.Add_Click({
@@ -1310,8 +1312,8 @@ $btnRespaldarRestcard.Add_Click({
     # Crear botón para salir
     $btnSalir = New-Object System.Windows.Forms.Button
     $btnSalir.Text = "Salir"
+    $btnSalir.Size = New-Object System.Drawing.Size(150, 35)
     $btnSalir.Location = New-Object System.Drawing.Point(220, 140)
-
     # Evento de clic para el botón de salir
     $btnSalir.Add_Click({
         $formRespaldarRestcard.Close()

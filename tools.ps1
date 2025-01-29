@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.0931"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.0942"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -1235,6 +1235,11 @@ $btnRespaldarRestcard.Add_Click({
     $formRespaldarRestcard = New-Object System.Windows.Forms.Form
     $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
     $formRespaldarRestcard.Size = New-Object System.Drawing.Size(400, 300)
+    $formRespaldarRestcard.StartPosition = "CenterScreen"
+    #$formRespaldarRestcard.BackColor = [System.Drawing.Color]::White
+    $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $formRespaldarRestcard.MaximizeBox = $false
+    $formRespaldarRestcard.MinimizeBox = $false
 
     # Etiquetas y controles para ingresar la información de conexión
     $lblUsuarioRestcard = New-Object System.Windows.Forms.Label
@@ -1289,13 +1294,24 @@ $btnRespaldarRestcard.Add_Click({
             return
         }
 
+        # Mostrar mensaje en la consola con los datos de conexión
+        Write-Host "Intentando conectar a la base de datos: $baseDeDatosRestcard"
+        Write-Host "En el servidor: $hostnameRestcard"
+        Write-Host "Con el usuario: $usuarioRestcard"
+        Write-Host "Con la contraseña: $passwordRestcard"
+
         # Intentar conectar a la base de datos para validarla
         try {
             $connectionString = "Server=$hostnameRestcard;Database=$baseDeDatosRestcard;User Id=$usuarioRestcard;Password=$passwordRestcard;"
             $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+
+            # Intentar abrir la conexión
             $connection.Open()
 
-            # Si la conexión es exitosa, continuar
+            # Si la conexión es exitosa, mostrar mensaje en consola
+            Write-Host "Conexión exitosa."
+
+            # Cerrar la conexión
             $connection.Close()
 
             # Preguntar la ruta donde guardar el respaldo
@@ -1319,6 +1335,8 @@ $btnRespaldarRestcard.Add_Click({
             }
 
         } catch {
+            # Si la conexión falla, mostrar el error
+            Write-Host "Error al intentar conectar: $_"
             [System.Windows.Forms.MessageBox]::Show("No se pudo conectar a la base de datos. Verifica los datos e intenta nuevamente.", "Error de Conexión", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
@@ -1336,6 +1354,12 @@ $btnRespaldarRestcard.Add_Click({
 
     # Mostrar la segunda ventana
     $formRespaldarRestcard.ShowDialog()
+})
+
+
+$btnExit.Add_Click({
+    $form.Dispose()
+    $form.Close()
 })
 
 $form.Refresh()

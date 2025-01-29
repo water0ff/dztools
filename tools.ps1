@@ -1302,8 +1302,9 @@ $btnRespaldarRestcard.Add_Click({
 
         # Intentar conectar a la base de datos para validarla
         try {
-            $connectionString = "Server=$hostnameRestcard;Database=$baseDeDatosRestcard;User Id=$usuarioRestcard;Password=$passwordRestcard;"
-            $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+            # Cambiar la conexión a MySQL (usamos MySQL.Data.MySqlClient)
+            $connectionString = "Server=$hostnameRestcard;Database=$baseDeDatosRestcard;Uid=$usuarioRestcard;Pwd=$passwordRestcard;"
+            $connection = New-Object MySql.Data.MySqlClient.MySqlConnection($connectionString)
 
             # Intentar abrir la conexión
             $connection.Open()
@@ -1355,7 +1356,6 @@ $btnRespaldarRestcard.Add_Click({
     # Mostrar la segunda ventana
     $formRespaldarRestcard.ShowDialog()
 })
-
 
 $btnExit.Add_Click({
     $form.Dispose()

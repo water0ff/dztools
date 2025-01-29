@@ -1250,7 +1250,7 @@ $btnRespaldarRestcard.Add_Click({
     $btnRespaldar = New-Object System.Windows.Forms.Button
     $btnRespaldar.Text = "Respaldar"
     $btnRespaldar.Location = New-Object System.Drawing.Point(20, 140)
-    $btnRespaldar.Size = New-Object System.Drawing.Size(150, 35)
+    $btnRespaldar.Size = New-Object System.Drawing.Size(140, 25)
 
     # Evento de clic para el botón de respaldo
     $btnRespaldar.Add_Click({
@@ -1312,8 +1312,8 @@ $btnRespaldarRestcard.Add_Click({
     # Crear botón para salir
     $btnSalirRestcard = New-Object System.Windows.Forms.Button
     $btnSalirRestcard.Text = "Salir"
-    $btnSalirRestcard.Size = New-Object System.Drawing.Size(150, 35)
-    $btnSalirRestcard.Location = New-Object System.Drawing.Point(165, 140)
+    $btnSalirRestcard.Size = New-Object System.Drawing.Size(140, 25)
+    $btnSalirRestcard.Location = New-Object System.Drawing.Point(185, 140)
     $btnSalirRestcard.BackColor = [System.Drawing.Color]::DarkGray
     # Evento de clic para el botón de salir
     $btnSalirRestcard.Add_Click({

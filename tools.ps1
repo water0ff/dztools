@@ -1183,7 +1183,7 @@ $btnRespaldarRestcard.Add_Click({
     # Crear la segunda ventana para ingresar los datos de conexión
     $formRespaldarRestcard = New-Object System.Windows.Forms.Form
     $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
-    $formRespaldarRestcard.Size = New-Object System.Drawing.Size(350, 200)
+    $formRespaldarRestcard.Size = New-Object System.Drawing.Size(350, 210)
     $formRespaldarRestcard.StartPosition = "CenterScreen"
     $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
     $formRespaldarRestcard.MaximizeBox = $false
@@ -1313,7 +1313,8 @@ $btnRespaldarRestcard.Add_Click({
     $btnSalirRestcard = New-Object System.Windows.Forms.Button
     $btnSalirRestcard.Text = "Salir"
     $btnSalirRestcard.Size = New-Object System.Drawing.Size(150, 35)
-    $btnSalirRestcard.Location = New-Object System.Drawing.Point(155, 140)
+    $btnSalirRestcard.Location = New-Object System.Drawing.Point(165, 140)
+    $btnSalirRestcard.BackColor = [System.Drawing.Color]::DarkGray
     # Evento de clic para el botón de salir
     $btnSalirRestcard.Add_Click({
         $formRespaldarRestcard.Close()

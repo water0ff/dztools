@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.0920"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.0931"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -147,6 +147,11 @@ $tabControl.TabPages.Add($tabProSql)
     $btnFechaRevEstaciones.Size = $buttonStyle.Size
     $btnFechaRevEstaciones.Location = New-Object System.Drawing.Point(10, 150)
     $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
+# Crear el Botón para respaldar restcard
+    $btnRespaldarRestcard = New-Object System.Windows.Forms.Button
+    $btnRespaldarRestcard.Text = "Respaldar restcard"
+    $btnRespaldarRestcard.Size = $buttonStyle.Size
+    $btnRespaldarRestcard.Location = New-Object System.Drawing.Point(10, 190)
 # Label para mostrar conexión a la base de datos
     $lblConnectionStatus = New-Object System.Windows.Forms.Label
     $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
@@ -156,6 +161,7 @@ $tabControl.TabPages.Add($tabProSql)
 # Agregar controles a la pestaña Pro
     $tabProSql.Controls.Add($chkSqlServer)  # Agregar el CheckBox
     $tabProSql.Controls.Add($btnReviewPivot)  # Agregar el Botón para revisar Pivot Table
+    $tabProSql.Controls.Add($btnRespaldarRestcard)
     $tabProSql.Controls.Add($btnFechaRevEstaciones)  
     $tabProSql.Controls.Add($lblConnectionStatus)  # Agregar el Label de estado de conexión
     $tabProSql.Controls.Add($btnConnectDb)  # Agregar el Botón para conectar
@@ -1222,12 +1228,6 @@ $btnDisconnectDb.Add_Click({
 
 
 
-
-# Crear el botón de respaldo en la ventana principal
-$btnRespaldarRestcard = New-Object System.Windows.Forms.Button
-$btnRespaldarRestcard.Text = "Respaldar Base de Datos"
-$btnRespaldarRestcard.Location = New-Object System.Drawing.Point(10, 10)
-$tabProSql.Controls.Add($btnRespaldarRestcard)
 
 # Evento de clic para el botón de respaldo
 $btnRespaldarRestcard.Add_Click({

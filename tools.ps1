@@ -1174,7 +1174,7 @@ $btnDisconnectDb.Add_Click({
 
 
 # Evento de clic para el botón de respaldo
-$btnRespaldoRestcard.Add_Click({
+$btnRespaldarRestcard.Add_Click({
     Write-Host "`nGenerando respaldo con CREATE DATABASE" -ForegroundColor DarkCyan
     # Crear la segunda ventana para ingresar los datos de conexión
     $formRespaldoRestcard = New-Object System.Windows.Forms.Form

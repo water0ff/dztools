@@ -16,7 +16,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.1026"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.1037"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
@@ -1228,6 +1228,9 @@ $btnDisconnectDb.Add_Click({
 
 
 
+
+
+
 # Evento de clic para el botón de respaldo
 $btnRespaldarRestcard.Add_Click({
     # Crear la segunda ventana para ingresar los datos de conexión
@@ -1277,7 +1280,7 @@ $btnRespaldarRestcard.Add_Click({
     # Crear botón para llenar datos por omisión
     $btnLlenarDatos = New-Object System.Windows.Forms.Button
     $btnLlenarDatos.Text = "Llenar Datos por Omisión"
-    $btnLlenarDatos.Location = New-Object System.Drawing.Point(120, 180)
+    $btnLlenarDatos.Location = New-Object System.Drawing.Point(80, 180)
     
     # Evento de clic para llenar los datos por omisión
     $btnLlenarDatos.Add_Click({
@@ -1290,7 +1293,7 @@ $btnRespaldarRestcard.Add_Click({
     # Crear botón para ejecutar el respaldo
     $btnRespaldar = New-Object System.Windows.Forms.Button
     $btnRespaldar.Text = "Respaldar"
-    $btnRespaldar.Location = New-Object System.Drawing.Point(120, 220)
+    $btnRespaldar.Location = New-Object System.Drawing.Point(20, 180)
 
     # Evento de clic para el botón de respaldo
     $btnRespaldar.Add_Click({
@@ -1328,6 +1331,8 @@ $btnRespaldarRestcard.Add_Click({
             Invoke-Expression $comando
 
             [System.Windows.Forms.MessageBox]::Show("Respaldo realizado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            Write-Host "Respaldo realizado correctamente."
+
             $formRespaldarRestcard.Close()  # Cerrar la segunda ventana después de completar el respaldo
         }
     })
@@ -1335,7 +1340,7 @@ $btnRespaldarRestcard.Add_Click({
     # Crear botón para salir
     $btnSalir = New-Object System.Windows.Forms.Button
     $btnSalir.Text = "Salir"
-    $btnSalir.Location = New-Object System.Drawing.Point(120, 260)
+    $btnSalir.Location = New-Object System.Drawing.Point(140, 180)
 
     # Evento de clic para el botón de salir
     $btnSalir.Add_Click({

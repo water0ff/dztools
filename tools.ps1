@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.1344"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.1444"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1183,16 +1183,11 @@ $btnRespaldarRestcard.Add_Click({
     # Crear la segunda ventana para ingresar los datos de conexión
     $formRespaldarRestcard = New-Object System.Windows.Forms.Form
     $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
-    $formRespaldarRestcard.Size = New-Object System.Drawing.Size(400, 350)
+    $formRespaldarRestcard.Size = New-Object System.Drawing.Size(400, 250)
     $formRespaldarRestcard.StartPosition = "CenterScreen"
     $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
     $formRespaldarRestcard.MaximizeBox = $false
     $formRespaldarRestcard.MinimizeBox = $false
-
-    # Check "Authorize"
-    $chkAuthorize = New-Object System.Windows.Forms.CheckBox
-    $chkAuthorize.Text = "Authorize"
-    $chkAuthorize.Location = New-Object System.Drawing.Point(120, 10)
 
     # Etiquetas y controles para ingresar la información de conexión
     $lblUsuarioRestcard = New-Object System.Windows.Forms.Label
@@ -1205,33 +1200,33 @@ $btnRespaldarRestcard.Add_Click({
 
     $lblBaseDeDatosRestcard = New-Object System.Windows.Forms.Label
     $lblBaseDeDatosRestcard.Text = "Base de Datos:"
-    $lblBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(20, 80)
+    $lblBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(20, 65)
 
     $txtBaseDeDatosRestcard = New-Object System.Windows.Forms.TextBox
-    $txtBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(120, 80)
+    $txtBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(120, 65)
     $txtBaseDeDatosRestcard.Width = 200
 
     $lblPasswordRestcard = New-Object System.Windows.Forms.Label
     $lblPasswordRestcard.Text = "Contraseña:"
-    $lblPasswordRestcard.Location = New-Object System.Drawing.Point(20, 120)
+    $lblPasswordRestcard.Location = New-Object System.Drawing.Point(20, 90)
 
     $txtPasswordRestcard = New-Object System.Windows.Forms.TextBox
-    $txtPasswordRestcard.Location = New-Object System.Drawing.Point(120, 120)
+    $txtPasswordRestcard.Location = New-Object System.Drawing.Point(120, 90)
     $txtPasswordRestcard.Width = 200
     $txtPasswordRestcard.UseSystemPasswordChar = $true
 
     $lblHostnameRestcard = New-Object System.Windows.Forms.Label
     $lblHostnameRestcard.Text = "Hostname:"
-    $lblHostnameRestcard.Location = New-Object System.Drawing.Point(20, 160)
+    $lblHostnameRestcard.Location = New-Object System.Drawing.Point(20, 115)
 
     $txtHostnameRestcard = New-Object System.Windows.Forms.TextBox
-    $txtHostnameRestcard.Location = New-Object System.Drawing.Point(120, 160)
+    $txtHostnameRestcard.Location = New-Object System.Drawing.Point(120, 115)
     $txtHostnameRestcard.Width = 200
 
     # Crear el checkbox para llenar los datos por omisión
     $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox
     $chkLlenarDatos.Text = "Llenar Datos por Omisión"
-    $chkLlenarDatos.Location = New-Object System.Drawing.Point(120, 200)
+    $chkLlenarDatos.Location = New-Object System.Drawing.Point(10, 20)
 
     # Evento de cambio de estado del checkbox
     $chkLlenarDatos.Add_CheckedChanged({
@@ -1253,7 +1248,7 @@ $btnRespaldarRestcard.Add_Click({
     # Crear botón para ejecutar el respaldo
     $btnRespaldar = New-Object System.Windows.Forms.Button
     $btnRespaldar.Text = "Respaldar"
-    $btnRespaldar.Location = New-Object System.Drawing.Point(20, 230)
+    $btnRespaldar.Location = New-Object System.Drawing.Point(20, 140)
 
     # Evento de clic para el botón de respaldo
     $btnRespaldar.Add_Click({
@@ -1315,7 +1310,7 @@ $btnRespaldarRestcard.Add_Click({
     # Crear botón para salir
     $btnSalir = New-Object System.Windows.Forms.Button
     $btnSalir.Text = "Salir"
-    $btnSalir.Location = New-Object System.Drawing.Point(220, 230)
+    $btnSalir.Location = New-Object System.Drawing.Point(220, 140)
 
     # Evento de clic para el botón de salir
     $btnSalir.Add_Click({
@@ -1323,7 +1318,6 @@ $btnRespaldarRestcard.Add_Click({
     })
 
     # Agregar controles a la segunda ventana
-    $formRespaldarRestcard.Controls.Add($chkAuthorize)
     $formRespaldarRestcard.Controls.Add($lblUsuarioRestcard)
     $formRespaldarRestcard.Controls.Add($txtUsuarioRestcard)
     $formRespaldarRestcard.Controls.Add($lblBaseDeDatosRestcard)

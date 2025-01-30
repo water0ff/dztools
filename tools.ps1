@@ -3,10 +3,38 @@ if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
 }
-# Iniciar la captura de la consola
-$logPath = "C:\Temp\log.temp"
-Start-Transcript -Path $logPath -Append
+# Cola para almacenar mensajes de log
+$logQueue = New-Object System.Collections.Queue
 
+# Función para escribir en el log de manera asíncrona
+function Write-Log {
+    param (
+        [string]$message
+    )
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logEntry = "[$timestamp] $message"
+    $logQueue.Enqueue($logEntry)
+}
+
+# Función para escribir la cola en el archivo de log
+function Flush-Log {
+    $logPath = "C:\Temp\log.temp"
+    while ($logQueue.Count -gt 0) {
+        $logEntry = $logQueue.Dequeue()
+        Add-Content -Path $logPath -Value $logEntry
+    }
+}
+
+# Iniciar un temporizador para escribir en el archivo de log cada 5 segundos
+$timer = New-Object System.Timers.Timer
+$timer.Interval = 5000  # 5 segundos
+$timer.AutoReset = $true
+$timer.Add_Elapsed({ Flush-Log })
+$timer.Start()
+
+# Registrar el inicio del programa
+Write-Log "Inicio del programa"
+#####################################################################################
  Add-Type -AssemblyName System.Windows.Forms
  Add-Type -AssemblyName System.Drawing
 # Crear el formulario
@@ -18,7 +46,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250130.1148"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250130.1258"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -27,9 +55,11 @@ Write-Host "=============================================" -ForegroundColor Dark
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
 Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
 
+# Registrar el cierre del programa al salir
 $form.Add_FormClosed({
-    Write-Host "`nPrograma finalizado."
-    Stop-Transcript
+    Write-Log "Fin del programa"
+    Flush-Log  # Asegurarse de que todos los mensajes se escriban antes de salir
+    $timer.Stop()
 })
 # Crear un estilo base para los botones
     $buttonStyle = New-Object System.Windows.Forms.Button

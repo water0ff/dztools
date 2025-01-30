@@ -3,11 +3,19 @@ if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
 }
+# Función para escribir en el log y en la consola
+function Write-LogAndConsole {
+    param (
+        [string]$message,
+        [string]$color = "White"
+    )
+    # Mostrar el mensaje en la consola
+    Write-Host $message -ForegroundColor $color
+    # Escribir el mensaje en el log
+    Write-Log $message
+}
 
-# Cola para almacenar mensajes de log
-$logQueue = New-Object System.Collections.Queue
-
-# Función para escribir en el log de manera asíncrona
+# Función para escribir en el log
 function Write-Log {
     param (
         [string]$message
@@ -17,7 +25,7 @@ function Write-Log {
     $logQueue.Enqueue($logEntry)
 }
 
-# Función para escribir la cola en el archivo de log
+# Función para vaciar la cola de logs en el archivo
 function Flush-Log {
     $logPath = "C:\Temp\tools.log"
     while ($logQueue.Count -gt 0) {
@@ -26,7 +34,7 @@ function Flush-Log {
     }
 }
 
-# Iniciar un temporizador para escribir en el archivo de log cada 5 segundos
+# Iniciar el temporizador para vaciar los logs cada 5 segundos
 $timer = New-Object System.Timers.Timer
 $timer.Interval = 5000  # 5 segundos
 $timer.AutoReset = $true
@@ -34,11 +42,15 @@ $timer.Add_Elapsed({ Flush-Log })
 $timer.Start()
 
 # Registrar el inicio del programa
-Write-Log "Inicio del programa"
+Write-LogAndConsole "Inicio del programa" -color "Green"
 
-# Registrar el cierre del programa al salir
+# Ejemplo de uso en otras partes del código
+Write-LogAndConsole "Comenzando el proceso, por favor espere..." -color "Green"
+Write-LogAndConsole "Impresoras disponibles en el sistema:" -color "Yellow"
+
+# Registrar el cierre del programa
 $form.Add_FormClosed({
-    Write-Log "Fin del programa"
+    Write-LogAndConsole "Fin del programa" -color "Red"
     Flush-Log  # Asegurarse de que todos los mensajes se escriban antes de salir
     $timer.Stop()
     $timer.Dispose()
@@ -55,11 +67,11 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250130.1309"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250130.1310"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
-Write-Host "              Versión: v$($version)               " -ForegroundColor Green
+Write-LogAndConsole "              Versión: v$($version)               " -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor DarkCyan
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
 Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan

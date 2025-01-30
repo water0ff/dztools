@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250130.1005"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250130.1016"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1263,39 +1263,52 @@ $btnRespaldarRestcard.Add_Click({
     $btnRespaldar.Size = New-Object System.Drawing.Size(140, 25)
 
     # Evento de clic para el botón de respaldo
-# Evento de clic para el botón de respaldo
-$btnRespaldar.Add_Click({
-    # Obtener los valores del formulario
-    $usuarioRestcard = $txtUsuarioRestcard.Text
-    $baseDeDatosRestcard = $txtBaseDeDatosRestcard.Text
-    $passwordRestcard = $txtPasswordRestcard.Text
-    $hostnameRestcard = $txtHostnameRestcard.Text
-
-    # Validar que la información no esté vacía
-    if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "") {
-        [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        return
-    }
-
-    # Mostrar mensaje en la consola con los datos de conexión
-    Write-Host "Realizando respaldo para la base de datos: $baseDeDatosRestcard"
-    Write-Host "En el servidor: $hostnameRestcard"
-    Write-Host "Con el usuario: $usuarioRestcard"
-    $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
-    $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
-    if ($folderDialog.ShowDialog() -eq "OK") {
-        # Obtener la ruta seleccionada
-        $folderPath = $folderDialog.SelectedPath
-        # Crear la ruta con el timestamp
-        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-        $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
-        # Ejecutar el comando mysqldump para hacer el respaldo usando las variables del formulario
-        $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`""
-        Start-Process -FilePath "mysqldump" -ArgumentList $argumentos -NoNewWindow -Wait
-        # Leer el contenido del log antes de mostrar el mensaje de éxito
-        $formRespaldarRestcard.Close()  # Cerrar la segunda ventana después de completar el respaldo
-    }
-})
+        $btnRespaldar.Add_Click({
+            # Obtener los valores del formulario
+            $usuarioRestcard = $txtUsuarioRestcard.Text
+            $baseDeDatosRestcard = $txtBaseDeDatosRestcard.Text
+            $passwordRestcard = $txtPasswordRestcard.Text
+            $hostnameRestcard = $txtHostnameRestcard.Text
+        
+            # Validar que la información no esté vacía
+            if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "") {
+                [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                return
+            }
+        
+            # Mostrar mensaje en la consola con los datos de conexión
+            Write-Host "Realizando respaldo para la base de datos: $baseDeDatosRestcard"
+            Write-Host "En el servidor: $hostnameRestcard"
+            Write-Host "Con el usuario: $usuarioRestcard"
+        
+            $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
+            $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
+            if ($folderDialog.ShowDialog() -eq "OK") {
+                # Obtener la ruta seleccionada
+                $folderPath = $folderDialog.SelectedPath
+                # Crear la ruta con el timestamp
+                $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+                $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
+        
+                # Ejecutar el comando mysqldump para hacer el respaldo
+                $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`""
+                $process = Start-Process -FilePath "mysqldump" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
+        
+                # Verificar si el respaldo se realizó correctamente
+                if ($process.ExitCode -eq 0) {
+                    # Obtener el tamaño del archivo generado
+                    $tamañoArchivo = (Get-Item $rutaRespaldo).Length / 1KB
+                    $tamañoArchivo = [math]::Round($tamañoArchivo, 2)
+                    Write-Host "Respaldo completado correctamente. Tamaño del archivo: $tamañoArchivo KB" -ForegroundColor Green
+                } else {
+                    # Mostrar el error en rojo con tabulación
+                    Write-Host "`tError: No se pudo realizar el respaldo. Verifica los datos de conexión y la base de datos." -ForegroundColor Red
+                }
+        
+                # Cerrar la segunda ventana después de completar el respaldo
+                $formRespaldarRestcard.Close()
+            }
+        })
 
     # Crear botón para salir
     $btnSalirRestcard = New-Object System.Windows.Forms.Button

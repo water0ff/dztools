@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250130.0935"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250130.0941"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1276,42 +1276,12 @@ $btnRespaldarRestcard.Add_Click({
             return
         }
 
-        # Mostrar mensaje en la consola con los datos de conexión (sin intentar conectar)
-        Write-Host "nRealizando respaldo para la base de datos: $baseDeDatosRestcard"
+        # Mostrar mensaje en la consola con los datos de conexión
+        Write-Host "Realizando respaldo para la base de datos: $baseDeDatosRestcard"
         Write-Host "En el servidor: $hostnameRestcard"
         Write-Host "Con el usuario: $usuarioRestcard"
-        # Preguntar la ruta donde guardar el respaldo
-        $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
-        $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
-        if ($folderDialog.ShowDialog() -eq "OK") {
-            # Obtener la ruta seleccionada
-            $folderPath = $folderDialog.SelectedPath
-            # Crear la ruta con el timestamp
-            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-            $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
-            $rutaLog = "$folderPath\logrestcard_$timestamp.txt"
-            # Ejecutar el comando mysqldump para hacer el respaldo usando las variables del formulario
-            Start-Process -FilePath "mysqldump" -ArgumentList "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`"" -NoNewWindow -Wait
-            # Leer el contenido del log antes de mostrar el mensaje de éxito
-            if (Test-Path $rutaLog) {
-                $logContenido = Get-Content $rutaLog
-                if ($logContenido.Length -le 5) {
-                    # Si el log tiene 5 caracteres o menos (sin errores significativos), considerar que el respaldo fue correcto
-                    $respaldoTamaño = (Get-Item $rutaRespaldo).Length
-                    Write-Host "Respaldo realizado correctamente. Tamaño del respaldo: $($respaldoTamaño / 1MB) MB" -ForegroundColor Green
-                    [System.Windows.Forms.MessageBox]::Show("Respaldo realizado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                } else {
-                    # Si el log tiene más de 5 caracteres, se consideran errores
-                    Write-Host "Respaldo con errores. Log:" -ForegroundColor Red
-                    Write-Host $logContenido -ForegroundColor Red
-                    [System.Windows.Forms.MessageBox]::Show("Respaldo con errores. Consulte el log para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                }
-            } else {
-                Write-Host "No se generó log." -ForegroundColor Yellow
-            }
 
-            $formRespaldarRestcard.Close()  # Cerrar la segunda ventana después de completar el respaldo
-        }
+        $formRespaldarRestcard.Close()
     })
 
     # Crear botón para salir
@@ -1320,6 +1290,7 @@ $btnRespaldarRestcard.Add_Click({
     $btnSalirRestcard.Size = New-Object System.Drawing.Size(140, 25)
     $btnSalirRestcard.Location = New-Object System.Drawing.Point(185, 140)
     $btnSalirRestcard.BackColor = [System.Drawing.Color]::DarkGray
+
     # Evento de clic para el botón de salir
     $btnSalirRestcard.Add_Click({
         $formRespaldarRestcard.Close()
@@ -1334,7 +1305,7 @@ $btnRespaldarRestcard.Add_Click({
     $formRespaldarRestcard.Controls.Add($txtPasswordRestcard)
     $formRespaldarRestcard.Controls.Add($lblHostnameRestcard)
     $formRespaldarRestcard.Controls.Add($txtHostnameRestcard)
-    $formRespaldarRestcard.Controls.Add($chkLlenarDatos)  # Agregar el checkbox en lugar del botón
+    $formRespaldarRestcard.Controls.Add($chkLlenarDatos)
     $formRespaldarRestcard.Controls.Add($btnRespaldar)
     $formRespaldarRestcard.Controls.Add($btnSalirRestcard)
 

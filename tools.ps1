@@ -15,7 +15,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250130.1332"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250130.1343"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -24,12 +24,6 @@ Write-Host "=============================================" -ForegroundColor Dark
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
 Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
 
-# Registrar el cierre del programa al salir
-$form.Add_FormClosed({
-    Write-Log "Fin del programa"
-    Flush-Log  # Asegurarse de que todos los mensajes se escriban antes de salir
-    $timer.Stop()
-})
 # Crear un estilo base para los botones
     $buttonStyle = New-Object System.Windows.Forms.Button
     $buttonStyle.Size = New-Object System.Drawing.Size(220, 35)

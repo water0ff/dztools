@@ -1177,6 +1177,16 @@ $btnDisconnectDb.Add_Click({
 
 
 
+
+
+
+
+
+
+
+
+
+
 # Evento de clic para el botón de respaldo
 $btnRespaldarRestcard.Add_Click({
     Write-Host "En espera de los datos de conexión" -ForegroundColor DarkCyan

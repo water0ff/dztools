@@ -1,50 +1,8 @@
 # Crear la carpeta 'C:\Temp' si no existe
 if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
-    Write-LogAndConsole "Carpeta 'C:\Temp' creada correctamente."
+    Write-Host "Carpeta 'C:\Temp' creada correctamente."
 }
-# Función para escribir en el log y en la consola
-function Write-LogAndConsole {
-    param (
-        [string]$message,
-        [string]$color = "White"
-    )
-    # Mostrar el mensaje en la consola
-    Write-LogAndConsole $message -ForegroundColor $color
-    # Escribir el mensaje en el log
-    Write-Log $message
-}
-# Función para escribir en el log
-function Write-Log {
-    param (
-        [string]$message
-    )
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logEntry = "[$timestamp] $message"
-    $logQueue.Enqueue($logEntry)
-}
-# Función para vaciar la cola de logs en el archivo
-function Flush-Log {
-    $logPath = "C:\Temp\tools.log"
-    while ($logQueue.Count -gt 0) {
-        $logEntry = $logQueue.Dequeue()
-        Add-Content -Path $logPath -Value $logEntry
-    }
-}
-# Iniciar el temporizador para vaciar los logs cada 5 segundos
-$timer = New-Object System.Timers.Timer
-$timer.Interval = 5000  # 5 segundos
-$timer.AutoReset = $true
-$timer.Add_Elapsed({ Flush-Log })
-$timer.Start()
-
-# Registrar el cierre del programa
-$form.Add_FormClosed({
-    Write-LogAndConsole "Fin del programa" -color "Red"
-    Flush-Log  # Asegurarse de que todos los mensajes se escriban antes de salir
-    $timer.Stop()
-    $timer.Dispose()
-})
 #####################################################################################
  Add-Type -AssemblyName System.Windows.Forms
  Add-Type -AssemblyName System.Drawing
@@ -57,11 +15,11 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250130.1321"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250130.1332"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
-Write-LogAndConsole "              Versión: v$($version)               " -ForegroundColor Green
+Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 Write-Host "=============================================" -ForegroundColor DarkCyan
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
 Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
@@ -250,18 +208,18 @@ $labelPort.Add_Click({
     if ($labelPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
         $port = $matches[0]  # Extraer el número del texto
         [System.Windows.Forms.Clipboard]::SetText($port)
-        Write-LogAndConsole "Puerto copiado al portapapeles: $port" -ForegroundColor Green
+        Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
     } else {
-        Write-LogAndConsole "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
+        Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
     }
 })
 $labelHostname.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($labelHostname.Text)
-        Write-LogAndConsole "`nNombre del equipo copiado al portapapeles: $($labelHostname.Text)"
+        Write-Host "`nNombre del equipo copiado al portapapeles: $($labelHostname.Text)"
     })
 $labelipADress.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($labelipADress.Text)
-        Write-LogAndConsole "`nIP's copiadas al equipo: $($labelipADress.Text)"
+        Write-Host "`nIP's copiadas al equipo: $($labelipADress.Text)"
     })
 # Obtener las direcciones IP y los adaptadores
 $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
@@ -334,18 +292,18 @@ function Set-NetworkCategory {
     # Cambiar el tipo de red
     if ($category -eq "Privado") {
         Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Private
-        Write-LogAndConsole "Estado cambiado a Privado."
+        Write-Host "Estado cambiado a Privado."
         $label.ForeColor = [System.Drawing.Color]::Green
         $label.Text = "$($label.Text.Split(' - ')[0]) - Privado"  # Actualizar el texto de la etiqueta
     } elseif ($category -eq "Público") {
         Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Public
-        Write-LogAndConsole "Estado cambiado a Público."
+        Write-Host "Estado cambiado a Público."
         $label.ForeColor = [System.Drawing.Color]::Red
         $label.Text = "$($label.Text.Split(' - ')[0]) - Público"  # Actualizar el texto de la etiqueta
     }
     # Mostrar el cambio en consola con categorías en español
-    Write-LogAndConsole "Categoría anterior: $previousCategory"
-    Write-LogAndConsole "Categoría nueva: $category"
+    Write-Host "Categoría anterior: $previousCategory"
+    Write-Host "Categoría nueva: $category"
 }
 # Crear la etiqueta para mostrar los adaptadores y su estado
 $lblPerfilDeRed = New-Object System.Windows.Forms.Label
@@ -382,7 +340,7 @@ foreach ($adapter in $networkAdapters) {
         $category = if ($adapter.NetworkCategory -eq "Private") { "Público" } else { "Privado" }
         
         # Confirmar el cambio y llamar a la función de cambio
-        Write-LogAndConsole "Deseas cambiar el estado a $category?"  # Mostrar en consola la solicitud
+        Write-Host "Deseas cambiar el estado a $category?"  # Mostrar en consola la solicitud
         $result = [System.Windows.Forms.MessageBox]::Show("¿Deseas cambiar el estado a $category?", "Confirmar cambio", [System.Windows.Forms.MessageBoxButtons]::YesNo)
         
         if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -407,7 +365,7 @@ $chkSqlServer.Add_CheckedChanged({
         # Confirmación con MsgBox
         $result = [System.Windows.Forms.MessageBox]::Show("¿Estás seguro que deseas instalar las herramientas de SQL Server?", "Confirmar instalación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
         if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-            Write-LogAndConsole "`nInstalando herramientas de SQL Server..."
+            Write-Host "`nInstalando herramientas de SQL Server..."
             $chkSqlServer.Enabled = $false
             $installedSql = Check-SqlServerInstallation
             if ($installedSql) {
@@ -417,11 +375,11 @@ $chkSqlServer.Add_CheckedChanged({
                 $chkSqlServer.Checked = $false
             }
             Install-Module -Name SqlServer -Force -Scope CurrentUser -AllowClobber
-            Write-LogAndConsole "`nHerramientas de SQL Server instaladas."
+            Write-Host "`nHerramientas de SQL Server instaladas."
         } else {
             # Desmarcar el checkbox si el usuario cancela
             $chkSqlServer.Checked = $false
-            Write-LogAndConsole "`nInstalación cancelada."
+            Write-Host "`nInstalación cancelada."
         }
     } else {
         # Si el usuario desmarca el checkbox, se habilita para futuras instalaciones
@@ -478,7 +436,7 @@ function Execute-SqlQuery {
         $connection.Dispose()
         return $results
     } catch {
-        Write-LogAndConsole "`nError al ejecutar la consulta: $_" -ForegroundColor Red
+        Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
 function Show-ResultsConsole {
@@ -501,21 +459,21 @@ function Show-ResultsConsole {
             foreach ($col in $columns) {
                 $header += $col.PadRight($columnWidths[$col] + 4)
             }
-            Write-LogAndConsole $header
-            Write-LogAndConsole ("-" * $header.Length)
+            Write-Host $header
+            Write-Host ("-" * $header.Length)
             # Mostrar las filas de resultados
             foreach ($row in $results) {
                 $rowText = ""
                 foreach ($col in $columns) {
                     $rowText += ($row[$col].ToString()).PadRight($columnWidths[$col] + 4)
                 }
-                Write-LogAndConsole $rowText
+                Write-Host $rowText
             }
         } else {
-            Write-LogAndConsole "`nNo se encontraron resultados." -ForegroundColor Yellow
+            Write-Host "`nNo se encontraron resultados." -ForegroundColor Yellow
         }
     } catch {
-        Write-LogAndConsole "`nError al ejecutar la consulta: $_" -ForegroundColor Red
+        Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
 #------------------------ download&run 1.0
@@ -530,7 +488,7 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         )
         # Si el usuario selecciona "No", salir de la función
         if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
-            Write-LogAndConsole "`nEl usuario canceló la operación."  -ForegroundColor Red
+            Write-Host "`nEl usuario canceló la operación."  -ForegroundColor Red
             return
         }
     }
@@ -544,32 +502,32 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         if ($response -eq [System.Windows.Forms.DialogResult]::Yes) {
             Remove-Item -Path $zipPath -Force
             Remove-Item -Path $extractPath -Recurse -Force
-            Write-LogAndConsole "`tEliminando archivos anteriores..."
+            Write-Host "`tEliminando archivos anteriores..."
         } elseif ($response -eq [System.Windows.Forms.DialogResult]::No) {
             # Si selecciona "No", abrir el programa sin eliminar archivos
             $exePath = Join-Path -Path $extractPath -ChildPath $exeName
             if (Test-Path -Path $exePath) {
-                Write-LogAndConsole "`tEjecutando el archivo ya descargado..."
+                Write-Host "`tEjecutando el archivo ya descargado..."
                 Start-Process -FilePath $exePath #-Wait   # Se quitó para ver si se usaban múltiples apps.
-                Write-LogAndConsole "`t$exeName se está ejecutando."
+                Write-Host "`t$exeName se está ejecutando."
                 return
             } else {
-                Write-LogAndConsole "`tNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
+                Write-Host "`tNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
                 return
             }
         } elseif ($response -eq [System.Windows.Forms.DialogResult]::Cancel) {
             # Si selecciona "Cancelar", no hacer nada y decir que el usuario canceló
-            Write-LogAndConsole "`nEl usuario canceló la operación."  -ForegroundColor Red
+            Write-Host "`nEl usuario canceló la operación."  -ForegroundColor Red
             return  # Aquí se termina la ejecución si el usuario cancela
         }
     }
     # Proceder con la descarga si no fue cancelada
-    Write-LogAndConsole "`tDescargando desde: $url"
+    Write-Host "`tDescargando desde: $url"
     # Obtener el tamaño total del archivo antes de la descarga
     $response = Invoke-WebRequest -Uri $url -Method Head
     $totalSize = $response.Headers["Content-Length"]
     $totalSizeKB = [math]::round($totalSize / 1KB, 2)
-    Write-LogAndConsole "`tTamaño total: $totalSizeKB KB" -ForegroundColor Yellow
+    Write-Host "`tTamaño total: $totalSizeKB KB" -ForegroundColor Yellow
     # Descargar el archivo con barra de progreso
     $downloaded = 0
     $request = Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
@@ -579,25 +537,25 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         $progress = [math]::round(($downloaded / $totalSize) * 100, 2)
         Write-Progress -PercentComplete $progress -Status "Descargando..." -Activity "Progreso de la descarga" -CurrentOperation "$downloadedKB KB de $totalSizeKB KB descargados"
     }
-    Write-LogAndConsole "`tDescarga completada."  -ForegroundColor Green
+    Write-Host "`tDescarga completada."  -ForegroundColor Green
     # Crear directorio de extracción si no existe
     if (!(Test-Path -Path $extractPath)) {
         New-Item -ItemType Directory -Path $extractPath | Out-Null
     }
-    Write-LogAndConsole "`tExtrayendo archivos..."
+    Write-Host "`tExtrayendo archivos..."
     try {
         Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-        Write-LogAndConsole "`tArchivos extraídos correctamente."  -ForegroundColor Green
+        Write-Host "`tArchivos extraídos correctamente."  -ForegroundColor Green
     } catch {
-        Write-LogAndConsole "`tError al descomprimir el archivo: $_"   -ForegroundColor Red
+        Write-Host "`tError al descomprimir el archivo: $_"   -ForegroundColor Red
     }
     $exePath = Join-Path -Path $extractPath -ChildPath $exeName
     if (Test-Path -Path $exePath) {
-        Write-LogAndConsole "`tEjecutando $exeName..."
+        Write-Host "`tEjecutando $exeName..."
         Start-Process -FilePath $exePath #-Wait
-        Write-LogAndConsole "`n$exeName se está ejecutando."
+        Write-Host "`n$exeName se está ejecutando."
     } else {
-        Write-LogAndConsole "`nNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
+        Write-Host "`nNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
     }
 }
 # Función para manejar MouseEnter y cambiar el color
@@ -618,7 +576,7 @@ $restoreColorOnLeave = {
     $labelipADress.Add_MouseLeave($restoreColorOnLeave)
 ##-------------------------------------------------------------------------------BOTONES#
 $btnProfiler.Add_Click({
-        Write-LogAndConsole "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+        Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $ProfilerUrl = "https://codeplexarchive.org/codeplex/browse/ExpressProfiler/releases/4/ExpressProfiler22wAddinSigned.zip"
         $ProfilerZipPath = "C:\Temp\ExpressProfiler22wAddinSigned.zip"
         $ExtractPath = "C:\Temp\ExpressProfiler2"
@@ -630,7 +588,7 @@ $btnProfiler.Add_Click({
         }
     )
 $btnPrinterTool.Add_Click({
-        Write-LogAndConsole "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+        Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $PrinterToolUrl = "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip"
         $PrinterToolZipPath = "C:\Temp\RPT-RPI-Printer-Tool-1.zip"
         $ExtractPath = "C:\Temp\RPT-RPI-Printer-Tool-1"
@@ -640,7 +598,7 @@ $btnPrinterTool.Add_Click({
         DownloadAndRun -url $PrinterToolUrl -zipPath $PrinterToolZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
     })
 $btnDatabase.Add_Click({
-        Write-LogAndConsole "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+        Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $DatabaseUrl = "https://fishcodelib.com/files/DatabaseNet4.zip"
         $DatabaseZipPath = "C:\Temp\DatabaseNet4.zip"
         $ExtractPath = "C:\Temp\Database4"
@@ -650,29 +608,29 @@ $btnDatabase.Add_Click({
         DownloadAndRun -url $DatabaseUrl -zipPath $DatabaseZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
     })
 $btnSQLManager.Add_Click({
-        Write-LogAndConsole "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+        Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
-            Write-LogAndConsole "`tEjecutando SQL Server Configuration Manager..."
+            Write-Host "`tEjecutando SQL Server Configuration Manager..."
             Start-Process "SQLServerManager12.msc"
         }
         catch {
-            Write-LogAndConsole "`tError al ejecutar SQL Server Configuration Manager: $_"  -ForegroundColor Red
+            Write-Host "`tError al ejecutar SQL Server Configuration Manager: $_"  -ForegroundColor Red
             [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
 $btnSQLManagement.Add_Click({
-        Write-LogAndConsole "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+        Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
-            Write-LogAndConsole "`tEjecutando SQL Server Management Studio..."
+            Write-Host "`tEjecutando SQL Server Management Studio..."
             Start-Process "ssms.exe"
         }
         catch {
-            Write-LogAndConsole "`tError al ejecutar SQL Server Management Studio: $_"  -ForegroundColor Red
+            Write-Host "`tError al ejecutar SQL Server Management Studio: $_"  -ForegroundColor Red
             [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
 $btnClearAnyDesk.Add_Click({
-        Write-LogAndConsole "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+        Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         # Mostrar cuadro de confirmación
         $confirmationResult = [System.Windows.Forms.MessageBox]::Show(
             "¿Estás seguro de renovar AnyDesk?", 
@@ -694,12 +652,12 @@ $btnClearAnyDesk.Add_Click({
 
             # Intentar cerrar el proceso AnyDesk
             try {
-                Write-LogAndConsole "`nCerrando el proceso AnyDesk..."
+                Write-Host "`nCerrando el proceso AnyDesk..."
                 Stop-Process -Name "AnyDesk" -Force -ErrorAction Stop
-                Write-LogAndConsole "`nAnyDesk ha sido cerrado correctamente."
+                Write-Host "`nAnyDesk ha sido cerrado correctamente."
             }
             catch {
-                Write-LogAndConsole "`nError al cerrar el proceso AnyDesk: $_"
+                Write-Host "`nError al cerrar el proceso AnyDesk: $_"
                 $errors += "No se pudo cerrar el proceso AnyDesk."
             }
 
@@ -708,15 +666,15 @@ $btnClearAnyDesk.Add_Click({
                 try {
                     if (Test-Path $file) {
                         Remove-Item -Path $file -Force -ErrorAction Stop
-                        Write-LogAndConsole "`nArchivo eliminado: $file"
+                        Write-Host "`nArchivo eliminado: $file"
                         $deletedFilesCount++
                     }
                     else {
-                        Write-LogAndConsole "`nArchivo no encontrado: $file"
+                        Write-Host "`nArchivo no encontrado: $file"
                     }
                 }
                 catch {
-                    Write-LogAndConsole "`nError al eliminar el archivo."
+                    Write-Host "`nError al eliminar el archivo."
                 }
             }
 
@@ -730,11 +688,11 @@ $btnClearAnyDesk.Add_Click({
         }
         else {
             # Si el usuario selecciona "No", simplemente no hace nada
-            Write-LogAndConsole "`nRenovación de AnyDesk cancelada por el usuario."
+            Write-Host "`nRenovación de AnyDesk cancelada por el usuario."
         }
     })
 $buttonShowPrinters.Add_Click({
-        Write-LogAndConsole "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+        Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
             $printers = Get-WmiObject -Query "SELECT * FROM Win32_Printer" | ForEach-Object {
                 $printer = $_
@@ -747,26 +705,26 @@ $buttonShowPrinters.Add_Click({
                 }
             }
 
-            Write-LogAndConsole "`nImpresoras disponibles en el sistema:"
+            Write-Host "`nImpresoras disponibles en el sistema:"
         
             # Si hay impresoras, las mostramos en una tabla bien formateada
             if ($printers.Count -gt 0) {
-                Write-LogAndConsole ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "Nombre", "Puerto", "Driver", "Compartida")
-                Write-LogAndConsole ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "------", "------", "------", "---------")
+                Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "Nombre", "Puerto", "Driver", "Compartida")
+                Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "------", "------", "------", "---------")
             
                 $printers | ForEach-Object { 
-                    Write-LogAndConsole ("{0,-25} {1,-20} {2,-20} {3,-10}" -f $_.Name, $_.PortName, $_.DriverName, $_.IsShared)
+                    Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f $_.Name, $_.PortName, $_.DriverName, $_.IsShared)
                 }
             } else {
-                Write-LogAndConsole "`nNo se encontraron impresoras."
+                Write-Host "`nNo se encontraron impresoras."
             }
         
         } catch {
-            Write-LogAndConsole "`nError al obtener impresoras: $_"
+            Write-Host "`nError al obtener impresoras: $_"
         }
     })
 $btnClearPrintJobs.Add_Click({
-            Write-LogAndConsole "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+            Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
 
             # Ejecutar el script para limpiar los trabajos de impresión y reiniciar la cola de impresión
@@ -787,7 +745,7 @@ $btnClearPrintJobs.Add_Click({
         }
     })
 $btnAplicacionesNS.Add_Click({
-            Write-LogAndConsole "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+            Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
     # Proceso 1: Buscar y analizar archivos .ini 
     # Proceso 1: Buscar y analizar archivos .ini 
     $pathsToCheck = @(
@@ -797,7 +755,7 @@ $btnAplicacionesNS.Add_Click({
     )
     foreach ($path in $pathsToCheck) {
         if (Test-Path $path) {
-            Write-LogAndConsole "`nArchivo encontrado: $path" -ForegroundColor Green
+            Write-Host "`nArchivo encontrado: $path" -ForegroundColor Green
             $content = Get-Content $path
 
             # Obtener solo la primera coincidencia de DataSource y Catalog
@@ -813,18 +771,18 @@ $btnAplicacionesNS.Add_Click({
                 $authUser = "Autenticación desconocida"
             }
 
-            Write-LogAndConsole "  DataSource:" -ForegroundColor Cyan
-            Write-LogAndConsole "    $dataSource" -ForegroundColor White
-            Write-LogAndConsole "  Catalog:" -ForegroundColor Cyan
-            Write-LogAndConsole "    $catalog" -ForegroundColor White
-            Write-LogAndConsole "  $authUser" -ForegroundColor Cyan
+            Write-Host "  DataSource:" -ForegroundColor Cyan
+            Write-Host "    $dataSource" -ForegroundColor White
+            Write-Host "  Catalog:" -ForegroundColor Cyan
+            Write-Host "    $catalog" -ForegroundColor White
+            Write-Host "  $authUser" -ForegroundColor Cyan
 
             # Revisar subcarpeta INIS
             $inisPath = [System.IO.Path]::Combine((Get-Item $path).DirectoryName, "INIS")
             if (Test-Path $inisPath) {
                 $iniFiles = Get-ChildItem -Path $inisPath -Filter "*.ini"
                 if ($iniFiles.Count -gt 1) {
-                    Write-LogAndConsole "`nEstá utilizando multiempresas, revisa los INIS en la carpeta: $inisPath" -ForegroundColor Red
+                    Write-Host "`nEstá utilizando multiempresas, revisa los INIS en la carpeta: $inisPath" -ForegroundColor Red
                 } elseif ($iniFiles.Count -eq 1) {
                     $firstIniContent = Get-Content $iniFiles[0].FullName
                     $firstDataSource = ($firstIniContent | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
@@ -832,34 +790,34 @@ $btnAplicacionesNS.Add_Click({
 
                     # Comparar con los datos de los archivos encontrados previamente
                     if ($dataSource -eq $firstDataSource -and $catalog -eq $firstCatalog) {
-                        Write-LogAndConsole "`nLos INIs apuntan al mismo servidor." -ForegroundColor Green
+                        Write-Host "`nLos INIs apuntan al mismo servidor." -ForegroundColor Green
                     } else {
-                        Write-LogAndConsole "`nLos INIs tienen incongruencias, revisa los INIS en la carpeta: $inisPath" -ForegroundColor Red
-                        Write-LogAndConsole "  DataSource del INI original:" -ForegroundColor Cyan
-                        Write-LogAndConsole "    $dataSource" -ForegroundColor White
-                        Write-LogAndConsole "  Catalog del INI original:" -ForegroundColor Cyan
-                        Write-LogAndConsole "    $catalog" -ForegroundColor White
-                        Write-LogAndConsole "  DataSource del INI encontrado:" -ForegroundColor Cyan
-                        Write-LogAndConsole "    $firstDataSource" -ForegroundColor White
-                        Write-LogAndConsole "  Catalog del INI encontrado:" -ForegroundColor Cyan
-                        Write-LogAndConsole "    $firstCatalog" -ForegroundColor White
+                        Write-Host "`nLos INIs tienen incongruencias, revisa los INIS en la carpeta: $inisPath" -ForegroundColor Red
+                        Write-Host "  DataSource del INI original:" -ForegroundColor Cyan
+                        Write-Host "    $dataSource" -ForegroundColor White
+                        Write-Host "  Catalog del INI original:" -ForegroundColor Cyan
+                        Write-Host "    $catalog" -ForegroundColor White
+                        Write-Host "  DataSource del INI encontrado:" -ForegroundColor Cyan
+                        Write-Host "    $firstDataSource" -ForegroundColor White
+                        Write-Host "  Catalog del INI encontrado:" -ForegroundColor Cyan
+                        Write-Host "    $firstCatalog" -ForegroundColor White
                     }
                 }
             }
         } else {
-            Write-LogAndConsole "`nArchivo no encontrado: $path" -ForegroundColor Red
+            Write-Host "`nArchivo no encontrado: $path" -ForegroundColor Red
         }
     }
             # Proceso 2: Detectar y validar archivo checadorsql.ini
             $checadorsqlPath = "C:\NationalSoft\OnTheMinute4.5\checadorsql.ini"
             if (Test-Path $checadorsqlPath) {
-                Write-LogAndConsole "`nArchivo encontrado: $checadorsqlPath" -ForegroundColor Green
+                Write-Host "`nArchivo encontrado: $checadorsqlPath" -ForegroundColor Green
                 $checadorsqlContent = Get-Content $checadorsqlPath
 
                 $provider = ($checadorsqlContent | Select-String -Pattern "^Provider=(.*)" | ForEach-Object { $_.Matches.Groups[1].Value }).Trim()
 
                 if ($provider -eq "SQLOLEDB.1") {
-                    Write-LogAndConsole "`nEl proveedor es SQL. Ejecutando Proceso 1." -ForegroundColor White
+                    Write-Host "`nEl proveedor es SQL. Ejecutando Proceso 1." -ForegroundColor White
 
                     # Ejecutar Proceso 1 en caso de proveedor SQL
                     $dataSource = $checadorsqlContent | Select-String -Pattern "^DataSource=(.*)" | ForEach-Object { $_.Matches.Groups[1].Value }
@@ -874,28 +832,28 @@ $btnAplicacionesNS.Add_Click({
                         $authUser = "Autenticación desconocida"
                     }
 
-                    Write-LogAndConsole "  DataSource:" -ForegroundColor Cyan
-                    Write-LogAndConsole "    $dataSource" -ForegroundColor White
-                    Write-LogAndConsole "  Catalog:" -ForegroundColor Cyan
-                    Write-LogAndConsole "    $catalog" -ForegroundColor White
-                    Write-LogAndConsole "  $authUser" -ForegroundColor Cyan
+                    Write-Host "  DataSource:" -ForegroundColor Cyan
+                    Write-Host "    $dataSource" -ForegroundColor White
+                    Write-Host "  Catalog:" -ForegroundColor Cyan
+                    Write-Host "    $catalog" -ForegroundColor White
+                    Write-Host "  $authUser" -ForegroundColor Cyan
 
                 } elseif ($provider -eq "VFPOLEDB.1") {
                     $dataSource = $checadorsqlContent | Select-String -Pattern "^DataSource=(.*)" | ForEach-Object { $_.Matches.Groups[1].Value }
-                    Write-LogAndConsole "`nEl proveedor es DBF. Ruta de datos: $dataSource" -ForegroundColor White
+                    Write-Host "`nEl proveedor es DBF. Ruta de datos: $dataSource" -ForegroundColor White
                 } else {
-                    Write-LogAndConsole "`nProveedor desconocido en checadorsql.ini" -ForegroundColor Red
+                    Write-Host "`nProveedor desconocido en checadorsql.ini" -ForegroundColor Red
                 }
             } else {
-                Write-LogAndConsole "`nArchivo no encontrado: $checadorsqlPath" -ForegroundColor Red
+                Write-Host "`nArchivo no encontrado: $checadorsqlPath" -ForegroundColor Red
             }
 
             # Proceso 3: Detectar si existe RestCard.ini
             $restCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
             if (Test-Path $restCardPath) {
-                Write-LogAndConsole "`nArchivo encontrado: $restCardPath" -ForegroundColor Green
+                Write-Host "`nArchivo encontrado: $restCardPath" -ForegroundColor Green
             } else {
-                Write-LogAndConsole "`nArchivo no encontrado: $restCardPath" -ForegroundColor Red
+                Write-Host "`nArchivo no encontrado: $restCardPath" -ForegroundColor Red
             }
         })
 $btnInstallSQLManagement.Add_Click({
@@ -907,20 +865,20 @@ $btnInstallSQLManagement.Add_Click({
     )
 
     if ($response -eq [System.Windows.Forms.DialogResult]::No) {
-        Write-LogAndConsole "`nEl usuario canceló la instalación." -ForegroundColor Red
+        Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
         return
     }
 
-    Write-LogAndConsole "`nVerificando si Chocolatey está instalado..." -ForegroundColor Yellow
+    Write-Host "`nVerificando si Chocolatey está instalado..." -ForegroundColor Yellow
 
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-        Write-LogAndConsole "`nChocolatey no está instalado. Instalándolo ahora..." -ForegroundColor Cyan
+        Write-Host "`nChocolatey no está instalado. Instalándolo ahora..." -ForegroundColor Cyan
         try {
             Set-ExecutionPolicy Bypass -Scope Process -Force
             [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
             iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
-            Write-LogAndConsole "`nChocolatey se instaló correctamente." -ForegroundColor Green
+            Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
             [System.Windows.Forms.MessageBox]::Show(
                 "Chocolatey se instaló correctamente. Por favor, reinicie PowerShell antes de continuar.",
                 "Reinicio requerido",
@@ -929,7 +887,7 @@ $btnInstallSQLManagement.Add_Click({
             )
             return
         } catch {
-            Write-LogAndConsole "`nError al instalar Chocolatey: $_" -ForegroundColor Red
+            Write-Host "`nError al instalar Chocolatey: $_" -ForegroundColor Red
             [System.Windows.Forms.MessageBox]::Show(
                 "Error al instalar Chocolatey. Por favor, inténtelo manualmente.",
                 "Error de instalación",
@@ -939,23 +897,23 @@ $btnInstallSQLManagement.Add_Click({
             return
         }
     } else {
-        Write-LogAndConsole "`nChocolatey ya está instalado." -ForegroundColor Green
+        Write-Host "`nChocolatey ya está instalado." -ForegroundColor Green
     }
 
-    Write-LogAndConsole "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
 
     try {
-        Write-LogAndConsole "`nInstalando SQL Server Management Studio 2014 Express usando Chocolatey..." -ForegroundColor Cyan
+        Write-Host "`nInstalando SQL Server Management Studio 2014 Express usando Chocolatey..." -ForegroundColor Cyan
         Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express --confirm --yes' -NoNewWindow -Wait
-        Write-LogAndConsole "`nInstalación completa." -ForegroundColor Green
+        Write-Host "`nInstalación completa." -ForegroundColor Green
     } catch {
-        Write-LogAndConsole "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
+        Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
     }
 })
 $btnReviewPivot.Add_Click({
     try {
         if (-not $global:server -or -not $global:database -or -not $global:password) {
-            Write-LogAndConsole "`nNo hay una conexión válida." -ForegroundColor Red
+            Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
             return
         }
 
@@ -968,24 +926,24 @@ $btnReviewPivot.Add_Click({
 
         if ($resultsQuery1.Count -gt 0) {
             # Si hay duplicados, mostrar mensaje en rojo y ejecutar query2
-            Write-LogAndConsole "`nSELECT field, COUNT(*) FROM app_settings GROUP BY field HAVING COUNT(*) > 1;" -ForegroundColor white
-            Write-LogAndConsole "`nSe recomienda correr proceso de limpieza pivot table" -ForegroundColor Red
+            Write-Host "`nSELECT field, COUNT(*) FROM app_settings GROUP BY field HAVING COUNT(*) > 1;" -ForegroundColor white
+            Write-Host "`nSe recomienda correr proceso de limpieza pivot table" -ForegroundColor Red
             # Ejecutar la segunda consulta
             Show-ResultsConsole -query $query2
         } else {
             # Si no hay duplicados, mostrar mensaje en verde
-            Write-LogAndConsole "`nSELECT field, COUNT(*) FROM app_settings GROUP BY field HAVING COUNT(*) > 1;" -ForegroundColor white
-            Write-LogAndConsole "`nNo hay duplicados (pivot table)" -ForegroundColor Green
+            Write-Host "`nSELECT field, COUNT(*) FROM app_settings GROUP BY field HAVING COUNT(*) > 1;" -ForegroundColor white
+            Write-Host "`nNo hay duplicados (pivot table)" -ForegroundColor Green
         }
 
     } catch {
-        Write-LogAndConsole "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
 $btnFechaRevEstaciones.Add_Click({
     try {
         if (-not $global:server -or -not $global:database -or -not $global:password) {
-            Write-LogAndConsole "`nNo hay una conexión válida." -ForegroundColor Red
+            Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
             return
         }
         # Consultas SQL
@@ -1005,7 +963,7 @@ $query1 = "SELECT e.FECHAREV,
             ORDER BY b.fecha DESC;"
         # Ejecutar y analizar la primera consulta
         $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
-Write-LogAndConsole "`nSELECT e.FECHAREV, ` 
+Write-Host "`nSELECT e.FECHAREV, ` 
             b.estacion as Estacion, `
             CONVERT(varchar, b.fecha, 23) AS UltimaUso, `
             FROM bitacorasistema b `
@@ -1014,7 +972,7 @@ Write-LogAndConsole "`nSELECT e.FECHAREV, `
             INNER JOIN estaciones e ON b.estacion = e.idestacion ORDER BY b.fecha DESC;`n" -ForegroundColor Yellow
                     Show-ResultsConsole -query $query1
     } catch {
-        Write-LogAndConsole "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
 $btnConnectDb.Add_Click({
@@ -1158,7 +1116,7 @@ $btnOK.Add_Click({
             $global:connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)  # Asignar la conexión a la variable global
             $global:connection.Open()
 
-            Write-LogAndConsole "`nConexión exitosa" -ForegroundColor Green
+            Write-Host "`nConexión exitosa" -ForegroundColor Green
 
             # Guardar la información de conexión en variables globales
             $global:server = $txtServer.Text
@@ -1181,7 +1139,7 @@ $btnOK.Add_Click({
             $btnDisconnectDb.Enabled = $true
 
         } catch {
-            Write-LogAndConsole "`nError de conexión: $_" -ForegroundColor Red
+            Write-Host "`nError de conexión: $_" -ForegroundColor Red
             $lblConnectionStatus.Text = "Conexión fallida"
         }
     })
@@ -1201,7 +1159,7 @@ $btnDisconnectDb.Add_Click({
     try {
         # Cerrar la conexión
         $global:connection.Close()
-        Write-LogAndConsole "`nDesconexión exitosa" -ForegroundColor Yellow
+        Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
 
         # Restaurar el label al estado original
         $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
@@ -1213,7 +1171,7 @@ $btnDisconnectDb.Add_Click({
         $btnFechaRevEstaciones.Enabled = $false
         $btnReviewPivot.Enabled = $false
     } catch {
-        Write-LogAndConsole "`nError al desconectar: $_" -ForegroundColor Red
+        Write-Host "`nError al desconectar: $_" -ForegroundColor Red
     }
 })
 
@@ -1239,7 +1197,7 @@ $btnDisconnectDb.Add_Click({
 
 # Evento de clic para el botón de respaldo
 $btnRespaldarRestcard.Add_Click({
-    Write-LogAndConsole "En espera de los datos de conexión" -ForegroundColor Gray
+    Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
     # Crear la segunda ventana para ingresar los datos de conexión
     $formRespaldarRestcard = New-Object System.Windows.Forms.Form
     $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
@@ -1328,13 +1286,13 @@ $btnRespaldarRestcard.Add_Click({
                 
                     $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
                     $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
-                    Write-LogAndConsole "Selecciona la carpeta donde guardar el respaldo" -ForegroundColor Yellow
+                    Write-Host "Selecciona la carpeta donde guardar el respaldo" -ForegroundColor Yellow
                     if ($folderDialog.ShowDialog() -eq "OK") {
                         # Obtener la ruta seleccionada
-                        Write-LogAndConsole "Realizando respaldo para la base de datos." -ForegroundColor Green
-                        Write-LogAndConsole "`tBase de datos:`t $baseDeDatosRestcard"
-                        Write-LogAndConsole "`tEn el servidor:`t $hostnameRestcard"
-                        Write-LogAndConsole "`tCon el usuario:`t $usuarioRestcard"
+                        Write-Host "Realizando respaldo para la base de datos." -ForegroundColor Green
+                        Write-Host "`tBase de datos:`t $baseDeDatosRestcard"
+                        Write-Host "`tEn el servidor:`t $hostnameRestcard"
+                        Write-Host "`tCon el usuario:`t $usuarioRestcard"
                         $folderPath = $folderDialog.SelectedPath
                         # Crear la ruta con el timestamp
                         $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
@@ -1349,14 +1307,14 @@ $btnRespaldarRestcard.Add_Click({
                             # Obtener el tamaño del archivo generado
                             $tamañoArchivo = (Get-Item $rutaRespaldo).Length / 1KB
                             $tamañoArchivo = [math]::Round($tamañoArchivo, 2)
-                            Write-LogAndConsole "Respaldo completado correctamente. Tamaño del archivo: $tamañoArchivo KB" -ForegroundColor Green
+                            Write-Host "Respaldo completado correctamente. Tamaño del archivo: $tamañoArchivo KB" -ForegroundColor Green
                         } else {
                             # Mostrar el error en rojo con tabulación
-                            Write-LogAndConsole "`tError: No se pudo realizar el respaldo. Verifica los datos de conexión y la base de datos." -ForegroundColor Red
+                            Write-Host "`tError: No se pudo realizar el respaldo. Verifica los datos de conexión y la base de datos." -ForegroundColor Red
                             # Eliminar el archivo de respaldo si el proceso falló
                             if (Test-Path $rutaRespaldo) {
                                 Remove-Item $rutaRespaldo
-                                Write-LogAndConsole "`tArchivo de respaldo eliminado debido a un error." -ForegroundColor Yellow
+                                Write-Host "`tArchivo de respaldo eliminado debido a un error." -ForegroundColor Yellow
                             }
                         }
                 
@@ -1374,7 +1332,7 @@ $btnRespaldarRestcard.Add_Click({
 
     # Evento de clic para el botón de salir
     $btnSalirRestcard.Add_Click({
-        Write-LogAndConsole "`tSalió sin realizar respaldo." -ForegroundColor Red
+        Write-Host "`tSalió sin realizar respaldo." -ForegroundColor Red
         $formRespaldarRestcard.Close()
     })
 

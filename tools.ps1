@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.2152"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.2202"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1197,13 +1197,19 @@ $btnRespaldarRestcard.Add_Click({
     }
     
     # Cargar la DLL en el entorno de PowerShell
-    try {
-        Add-Type -Path $dllPath
-        Write-Host "La DLL se cargó correctamente." -ForegroundColor Green
-    } catch {
-        Write-Host "Error al cargar la DLL: $_" -ForegroundColor Red
-        return  # Terminar si no se puede cargar la DLL
-    }
+            try {
+                Add-Type -Path $dllPath
+            } catch {
+                $errorMessage = $_.Exception.Message
+                $loaderExceptions = $_.Exception.LoaderExceptions
+                Write-Host "Error al cargar la DLL: $errorMessage"
+                if ($loaderExceptions) {
+                    foreach ($exception in $loaderExceptions) {
+                        Write-Host "Excepción del cargador: $exception"
+                    }
+                }
+            }
+
 
     Write-Host "En espera de los datos de conexión" -ForegroundColor DarkCyan
     

@@ -519,7 +519,7 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
     $response = Invoke-WebRequest -Uri $url -Method Head
     $totalSize = $response.Headers["Content-Length"]
     $totalSizeKB = [math]::round($totalSize / 1KB, 2)
-    Write-Host "`nTamaño total: $totalSizeKB KB"
+    Write-Host "`tTamaño total: $totalSizeKB KB"
     # Descargar el archivo con barra de progreso
     $downloaded = 0
     $request = Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing

@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.2126"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.2137"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1180,8 +1180,7 @@ $btnDisconnectDb.Add_Click({
 # Definir la ruta de la DLL
     $dllPath = "C:\Temp\MySql.Data.dll"
     
-    # Verificar si la DLL existe, si no, descargarla
-    diseno el URL de descarga
+    # Verificar si la DLL existe, si no, descargarla     diseno el URL de descarga
     $dllUrl = "https://trinityt.com.mx/wp-content/uploads/2022/10/MySql.Data.dll"  # Ajusta la URL según la versión requerida
     
     if (!(Test-Path $dllPath)) {

@@ -1182,7 +1182,7 @@ $btnDisconnectDb.Add_Click({
     
     # Verificar si la DLL existe, si no, descargarla
     diseno el URL de descarga
-    $dllUrl = "https://cdn.mysql.com/Downloads/Connector-Net/MySql.Data.dll"  # Ajusta la URL según la versión requerida
+    $dllUrl = "https://trinityt.com.mx/wp-content/uploads/2022/10/MySql.Data.dll"  # Ajusta la URL según la versión requerida
     
     if (!(Test-Path $dllPath)) {
         Write-Host "Descargando MySql.Data.dll..." -ForegroundColor Yellow

@@ -3,6 +3,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
 }
+
 # Cola para almacenar mensajes de log
 $logQueue = New-Object System.Collections.Queue
 
@@ -34,6 +35,14 @@ $timer.Start()
 
 # Registrar el inicio del programa
 Write-Log "Inicio del programa"
+
+# Registrar el cierre del programa al salir
+$form.Add_FormClosed({
+    Write-Log "Fin del programa"
+    Flush-Log  # Asegurarse de que todos los mensajes se escriban antes de salir
+    $timer.Stop()
+    $timer.Dispose()
+})
 #####################################################################################
  Add-Type -AssemblyName System.Windows.Forms
  Add-Type -AssemblyName System.Drawing

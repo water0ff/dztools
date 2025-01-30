@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250130.1016"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250130.1027"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1274,15 +1274,13 @@ $btnRespaldarRestcard.Add_Click({
             if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "") {
                 [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                 return
-            }
-        
-            # Mostrar mensaje en la consola con los datos de conexión
-            Write-Host "Realizando respaldo para la base de datos: $baseDeDatosRestcard"
-            Write-Host "En el servidor: $hostnameRestcard"
-            Write-Host "Con el usuario: $usuarioRestcard"
-        
+            }       
             $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
             $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
+#Mensaje
+            Write-Host "Realizando respaldo para la base de datos:`n`t`t $baseDeDatosRestcard"
+            Write-Host "En el servidor:`t`t $hostnameRestcard"
+            Write-Host "Con el usuario:`t`t $usuarioRestcard"
             if ($folderDialog.ShowDialog() -eq "OK") {
                 # Obtener la ruta seleccionada
                 $folderPath = $folderDialog.SelectedPath

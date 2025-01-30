@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250130.0924"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250130.0935"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1280,23 +1280,18 @@ $btnRespaldarRestcard.Add_Click({
         Write-Host "nRealizando respaldo para la base de datos: $baseDeDatosRestcard"
         Write-Host "En el servidor: $hostnameRestcard"
         Write-Host "Con el usuario: $usuarioRestcard"
-
         # Preguntar la ruta donde guardar el respaldo
         $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
         $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
         if ($folderDialog.ShowDialog() -eq "OK") {
             # Obtener la ruta seleccionada
             $folderPath = $folderDialog.SelectedPath
-
             # Crear la ruta con el timestamp
             $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
             $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
             $rutaLog = "$folderPath\logrestcard_$timestamp.txt"
-
             # Ejecutar el comando mysqldump para hacer el respaldo usando las variables del formulario
-            Start-Process -FilePath "mysqldump" -ArgumentList "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file='$rutaRespaldo'" -NoNewWindow -Wait
-
-
+            Start-Process -FilePath "mysqldump" -ArgumentList "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`"" -NoNewWindow -Wait
             # Leer el contenido del log antes de mostrar el mensaje de éxito
             if (Test-Path $rutaLog) {
                 $logContenido = Get-Content $rutaLog

@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.2137"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.2141"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1177,6 +1177,8 @@ $btnDisconnectDb.Add_Click({
 
 
 
+# Evento de clic para el botón de respaldo
+    $btnRespaldarRestcard.Add_Click({
 # Definir la ruta de la DLL
     $dllPath = "C:\Temp\MySql.Data.dll"
     
@@ -1191,9 +1193,7 @@ $btnDisconnectDb.Add_Click({
     
     # Cargar la DLL en el entorno de PowerShell
     Add-Type -Path $dllPath
-    
-    # Evento de clic para el botón de respaldo
-    $btnRespaldarRestcard.Add_Click({
+
         Write-Host "En espera de los datos de conexión" -ForegroundColor DarkCyan
         
         # Crear la ventana para ingresar datos de conexión

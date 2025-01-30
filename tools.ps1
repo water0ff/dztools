@@ -1179,41 +1179,8 @@ $btnDisconnectDb.Add_Click({
 
 # Evento de clic para el botón de respaldo
 $btnRespaldarRestcard.Add_Click({
-    # Definir la ruta de la DLL
-    $dllPath = "C:\Temp\MySql.Data.dll"
-    
-    # Verificar si la DLL existe, si no, descargarla
-    $dllUrl = "https://trinityt.com.mx/wp-content/uploads/2022/10/MySql.Data.dll"  # Ajusta la URL según la versión requerida
-    
-    if (!(Test-Path $dllPath)) {
-        Write-Host "Descargando MySql.Data.dll..." -ForegroundColor Yellow
-        try {
-            Invoke-WebRequest -Uri $dllUrl -OutFile $dllPath
-            Write-Host "Descarga completada." -ForegroundColor Green
-        } catch {
-            Write-Host "Error al descargar la DLL: $_" -ForegroundColor Red
-            return  # Terminar si no se puede descargar la DLL
-        }
-    }
-    
-    # Cargar la DLL en el entorno de PowerShell
-            try {
-                Add-Type -Path $dllPath
-            } catch {
-                $errorMessage = $_.Exception.Message
-                $loaderExceptions = $_.Exception.LoaderExceptions
-                Write-Host "Error al cargar la DLL: $errorMessage"
-                if ($loaderExceptions) {
-                    foreach ($exception in $loaderExceptions) {
-                        Write-Host "Excepción del cargador: $exception"
-                    }
-                }
-            }
-
-
     Write-Host "En espera de los datos de conexión" -ForegroundColor DarkCyan
-    
-    # Crear la ventana para ingresar datos de conexión
+    # Crear la segunda ventana para ingresar los datos de conexión
     $formRespaldarRestcard = New-Object System.Windows.Forms.Form
     $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
     $formRespaldarRestcard.Size = New-Object System.Drawing.Size(350, 210)
@@ -1221,89 +1188,152 @@ $btnRespaldarRestcard.Add_Click({
     $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
     $formRespaldarRestcard.MaximizeBox = $false
     $formRespaldarRestcard.MinimizeBox = $false
-    
-    # Controles de entrada
-    $txtUsuarioRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 40"; Width = 200 }
-    $txtBaseDeDatosRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 65"; Width = 200 }
-    $txtPasswordRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 90"; Width = 200; UseSystemPasswordChar = $true }
-    $txtHostnameRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 115"; Width = 200 }
-    
-    # Checkbox para datos por omisión
-    $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox -Property @{ Text = "Usar datos por omisión"; Location = "5, 20"; AutoSize = $true }
+
+    # Etiquetas y controles para ingresar la información de conexión
+    $lblUsuarioRestcard = New-Object System.Windows.Forms.Label
+    $lblUsuarioRestcard.Text = "Usuario:"
+    $lblUsuarioRestcard.Location = New-Object System.Drawing.Point(20, 40)
+
+    $txtUsuarioRestcard = New-Object System.Windows.Forms.TextBox
+    $txtUsuarioRestcard.Location = New-Object System.Drawing.Point(120, 40)
+    $txtUsuarioRestcard.Width = 200
+
+    $lblBaseDeDatosRestcard = New-Object System.Windows.Forms.Label
+    $lblBaseDeDatosRestcard.Text = "Base de Datos:"
+    $lblBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(20, 65)
+
+    $txtBaseDeDatosRestcard = New-Object System.Windows.Forms.TextBox
+    $txtBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(120, 65)
+    $txtBaseDeDatosRestcard.Width = 200
+
+    $lblPasswordRestcard = New-Object System.Windows.Forms.Label
+    $lblPasswordRestcard.Text = "Contraseña:"
+    $lblPasswordRestcard.Location = New-Object System.Drawing.Point(20, 90)
+
+    $txtPasswordRestcard = New-Object System.Windows.Forms.TextBox
+    $txtPasswordRestcard.Location = New-Object System.Drawing.Point(120, 90)
+    $txtPasswordRestcard.Width = 200
+    $txtPasswordRestcard.UseSystemPasswordChar = $true
+
+    $lblHostnameRestcard = New-Object System.Windows.Forms.Label
+    $lblHostnameRestcard.Text = "Hostname:"
+    $lblHostnameRestcard.Location = New-Object System.Drawing.Point(20, 115)
+
+    $txtHostnameRestcard = New-Object System.Windows.Forms.TextBox
+    $txtHostnameRestcard.Location = New-Object System.Drawing.Point(120, 115)
+    $txtHostnameRestcard.Width = 200
+
+    # Crear el checkbox para llenar los datos por omisión
+    $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox
+    $chkLlenarDatos.Text = "Usar los datos por omisión"
+    $chkLlenarDatos.Location = New-Object System.Drawing.Point(5, 20)
+    $chkLlenarDatos.AutoSize = $true
+
+    # Evento de cambio de estado del checkbox
     $chkLlenarDatos.Add_CheckedChanged({
         if ($chkLlenarDatos.Checked) {
+            # Llenar los datos por omisión
             $txtUsuarioRestcard.Text = "root"
             $txtBaseDeDatosRestcard.Text = "restcard"
             $txtPasswordRestcard.Text = "national"
             $txtHostnameRestcard.Text = "localhost"
         } else {
+            # Limpiar los campos
             $txtUsuarioRestcard.Clear()
             $txtBaseDeDatosRestcard.Clear()
             $txtPasswordRestcard.Clear()
             $txtHostnameRestcard.Clear()
         }
     })
-    
-    # Botón para ejecutar el respaldo
-    $btnRespaldar = New-Object System.Windows.Forms.Button -Property @{ Text = "Respaldar"; Location = "20, 140"; Size = "140, 25" }
+
+    # Crear botón para ejecutar el respaldo
+    $btnRespaldar = New-Object System.Windows.Forms.Button
+    $btnRespaldar.Text = "Respaldar"
+    $btnRespaldar.Location = New-Object System.Drawing.Point(20, 140)
+    $btnRespaldar.Size = New-Object System.Drawing.Size(140, 25)
+
+    # Evento de clic para el botón de respaldo
     $btnRespaldar.Add_Click({
-        $usuario = $txtUsuarioRestcard.Text
-        $baseDeDatos = $txtBaseDeDatosRestcard.Text
-        $password = $txtPasswordRestcard.Text
-        $hostname = $txtHostnameRestcard.Text
-        
-        if ($usuario -eq "" -or $baseDeDatos -eq "" -or $password -eq "" -or $hostname -eq "") {
+        # Obtener los valores del formulario
+        $usuarioRestcard = $txtUsuarioRestcard.Text
+        $baseDeDatosRestcard = $txtBaseDeDatosRestcard.Text
+        $passwordRestcard = $txtPasswordRestcard.Text
+        $hostnameRestcard = $txtHostnameRestcard.Text
+
+        # Validar que la información no esté vacía
+        if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "") {
             [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
-        
-        Write-Host "Realizando respaldo para la base de datos: $baseDeDatos" -ForegroundColor Cyan
-        Write-Host "Con el usuario: $usuario" -ForegroundColor Cyan
-        
-        # Obtener ruta de respaldo
+
+        # Mostrar mensaje en la consola con los datos de conexión (sin intentar conectar)
+        Write-Host "nRealizando respaldo para la base de datos: $baseDeDatosRestcard"
+        Write-Host "En el servidor: $hostnameRestcard"
+        Write-Host "Con el usuario: $usuarioRestcard"
+
+        # Preguntar la ruta donde guardar el respaldo
         $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
+        $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
         if ($folderDialog.ShowDialog() -eq "OK") {
+            # Obtener la ruta seleccionada
             $folderPath = $folderDialog.SelectedPath
+
+            # Crear la ruta con el timestamp
             $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
             $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
-            
-            # Crear conexión con MySQL
-            $connStr = "server=$hostname;user id=$usuario;password=$password;database=$baseDeDatos"
-            $conn = New-Object MySql.Data.MySqlClient.MySqlConnection($connStr)
-            
-            try {
-                $conn.Open()
-                $cmd = $conn.CreateCommand()
-                $cmd.CommandText = "FLUSH TABLES WITH READ LOCK;"
-                $cmd.ExecuteNonQuery()
-                
-                # Ejecutar mysqldump
-                $dumpCmd = "mysqldump -u $usuario -p$password -h $hostname $baseDeDatos > `"$rutaRespaldo`""
-                Invoke-Expression $dumpCmd
-                
-                Write-Host "Respaldo guardado en: $rutaRespaldo" -ForegroundColor Green
-                [System.Windows.Forms.MessageBox]::Show("Respaldo realizado con éxito.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                
-                # Liberar tablas
-                $cmd.CommandText = "UNLOCK TABLES;"
-                $cmd.ExecuteNonQuery()
-            } catch {
-                Write-Host "Error en la conexión o respaldo: $_" -ForegroundColor Red
-                [System.Windows.Forms.MessageBox]::Show("Error en la conexión o respaldo.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            } finally {
-                $conn.Close()
+            $rutaLog = "$folderPath\logrestcard_$timestamp.txt"
+
+            # Ejecutar el comando mysqldump para hacer el respaldo usando las variables del formulario
+            $comando = "mysqldump -u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard > "$rutaRespaldo" 2> "$rutaLog""
+            Invoke-Expression $comando
+
+            # Leer el contenido del log antes de mostrar el mensaje de éxito
+            if (Test-Path $rutaLog) {
+                $logContenido = Get-Content $rutaLog
+                if ($logContenido.Length -le 5) {
+                    # Si el log tiene 5 caracteres o menos (sin errores significativos), considerar que el respaldo fue correcto
+                    $respaldoTamaño = (Get-Item $rutaRespaldo).Length
+                    Write-Host "Respaldo realizado correctamente. Tamaño del respaldo: $($respaldoTamaño / 1MB) MB" -ForegroundColor Green
+                    [System.Windows.Forms.MessageBox]::Show("Respaldo realizado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                } else {
+                    # Si el log tiene más de 5 caracteres, se consideran errores
+                    Write-Host "Respaldo con errores. Log:" -ForegroundColor Red
+                    Write-Host $logContenido -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show("Respaldo con errores. Consulte el log para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
+            } else {
+                Write-Host "No se generó log." -ForegroundColor Yellow
             }
+
+            $formRespaldarRestcard.Close()  # Cerrar la segunda ventana después de completar el respaldo
         }
     })
-    
-    # Botón para salir
-    $btnSalir = New-Object System.Windows.Forms.Button -Property @{ Text = "Salir"; Size = "140, 25"; Location = "185, 140"; BackColor = [System.Drawing.Color]::DarkGray }
-    $btnSalir.Add_Click({ $formRespaldarRestcard.Close() })
-    
-    # Agregar controles a la ventana
-    $formRespaldarRestcard.Controls.AddRange(@($txtUsuarioRestcard, $txtBaseDeDatosRestcard, $txtPasswordRestcard, $txtHostnameRestcard, $chkLlenarDatos, $btnRespaldar, $btnSalir))
-    
-    # Mostrar la ventana
+
+    # Crear botón para salir
+    $btnSalirRestcard = New-Object System.Windows.Forms.Button
+    $btnSalirRestcard.Text = "Salir"
+    $btnSalirRestcard.Size = New-Object System.Drawing.Size(140, 25)
+    $btnSalirRestcard.Location = New-Object System.Drawing.Point(185, 140)
+    $btnSalirRestcard.BackColor = [System.Drawing.Color]::DarkGray
+    # Evento de clic para el botón de salir
+    $btnSalirRestcard.Add_Click({
+        $formRespaldarRestcard.Close()
+    })
+
+    # Agregar controles a la segunda ventana
+    $formRespaldarRestcard.Controls.Add($lblUsuarioRestcard)
+    $formRespaldarRestcard.Controls.Add($txtUsuarioRestcard)
+    $formRespaldarRestcard.Controls.Add($lblBaseDeDatosRestcard)
+    $formRespaldarRestcard.Controls.Add($txtBaseDeDatosRestcard)
+    $formRespaldarRestcard.Controls.Add($lblPasswordRestcard)
+    $formRespaldarRestcard.Controls.Add($txtPasswordRestcard)
+    $formRespaldarRestcard.Controls.Add($lblHostnameRestcard)
+    $formRespaldarRestcard.Controls.Add($txtHostnameRestcard)
+    $formRespaldarRestcard.Controls.Add($chkLlenarDatos)  # Agregar el checkbox en lugar del botón
+    $formRespaldarRestcard.Controls.Add($btnRespaldar)
+    $formRespaldarRestcard.Controls.Add($btnSalirRestcard)
+
+    # Mostrar la segunda ventana
     $formRespaldarRestcard.ShowDialog()
 })
 

@@ -1294,8 +1294,8 @@ $btnRespaldarRestcard.Add_Click({
             $rutaLog = "$folderPath\logrestcard_$timestamp.txt"
 
             # Ejecutar el comando mysqldump para hacer el respaldo usando las variables del formulario
-            $comando = "mysqldump -u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard > "$rutaRespaldo" 2> "$rutaLog""
-            Invoke-Expression $comando
+            Start-Process -FilePath "mysqldump" -ArgumentList "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file='$rutaRespaldo'" -NoNewWindow -Wait
+
 
             # Leer el contenido del log antes de mostrar el mensaje de éxito
             if (Test-Path $rutaLog) {

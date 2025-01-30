@@ -1189,7 +1189,7 @@ $btnDisconnectDb.Add_Click({
 
 # Evento de clic para el botón de respaldo
 $btnRespaldarRestcard.Add_Click({
-    Write-Host "En espera de los datos de conexión" -ForegroundColor Grey
+    Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
     # Crear la segunda ventana para ingresar los datos de conexión
     $formRespaldarRestcard = New-Object System.Windows.Forms.Form
     $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"

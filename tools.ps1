@@ -18,7 +18,7 @@ function Write-Log {
 
 # Función para escribir la cola en el archivo de log
 function Flush-Log {
-    $logPath = "C:\Temp\log.temp"
+    $logPath = "C:\Temp\tools.log"
     while ($logQueue.Count -gt 0) {
         $logEntry = $logQueue.Dequeue()
         Add-Content -Path $logPath -Value $logEntry

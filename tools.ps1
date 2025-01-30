@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250130.1027"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250130.1038"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1189,7 +1189,7 @@ $btnDisconnectDb.Add_Click({
 
 # Evento de clic para el botón de respaldo
 $btnRespaldarRestcard.Add_Click({
-    Write-Host "En espera de los datos de conexión" -ForegroundColor DarkCyan
+    Write-Host "En espera de los datos de conexión" -ForegroundColor Grey
     # Crear la segunda ventana para ingresar los datos de conexión
     $formRespaldarRestcard = New-Object System.Windows.Forms.Form
     $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
@@ -1277,12 +1277,13 @@ $btnRespaldarRestcard.Add_Click({
             }       
             $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
             $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
-#Mensaje
-            Write-Host "Realizando respaldo para la base de datos:`n`t`t $baseDeDatosRestcard"
-            Write-Host "En el servidor:`t`t $hostnameRestcard"
-            Write-Host "Con el usuario:`t`t $usuarioRestcard"
+            Write-Host "Selecciona la carpeta donde guardar el respaldo" -ForegroundColor Yellow
             if ($folderDialog.ShowDialog() -eq "OK") {
                 # Obtener la ruta seleccionada
+                Write-Host "Realizando respaldo para la base de datos." -ForegroundColor Green
+                Write-Host "`tBase de datos:`t $baseDeDatosRestcard"
+                Write-Host "`tEn el servidor:`t $hostnameRestcard"
+                Write-Host "`tCon el usuario:`t $usuarioRestcard"
                 $folderPath = $folderDialog.SelectedPath
                 # Crear la ruta con el timestamp
                 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
@@ -1317,6 +1318,7 @@ $btnRespaldarRestcard.Add_Click({
 
     # Evento de clic para el botón de salir
     $btnSalirRestcard.Add_Click({
+        Write-Host "`tSalió sin realizar respaldo." -ForegroundColor Red
         $formRespaldarRestcard.Close()
     })
 

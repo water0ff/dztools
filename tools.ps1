@@ -3,6 +3,10 @@ if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
 }
+# Iniciar la captura de la consola
+$logPath = "C:\Temp\log.temp"
+Start-Transcript -Path $logPath -Append
+
  Add-Type -AssemblyName System.Windows.Forms
  Add-Type -AssemblyName System.Drawing
 # Crear el formulario
@@ -22,6 +26,11 @@ Write-Host "              Versión: v$($version)               " -ForegroundColo
 Write-Host "=============================================" -ForegroundColor DarkCyan
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
 Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
+
+$form.Add_FormClosed({
+    Write-Host "`nPrograma finalizado."
+    Stop-Transcript
+})
 # Crear un estilo base para los botones
     $buttonStyle = New-Object System.Windows.Forms.Button
     $buttonStyle.Size = New-Object System.Drawing.Size(220, 35)
@@ -494,27 +503,27 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         if ($response -eq [System.Windows.Forms.DialogResult]::Yes) {
             Remove-Item -Path $zipPath -Force
             Remove-Item -Path $extractPath -Recurse -Force
-            Write-Host "`nEliminando archivos anteriores..."
+            Write-Host "`tEliminando archivos anteriores..."
         } elseif ($response -eq [System.Windows.Forms.DialogResult]::No) {
             # Si selecciona "No", abrir el programa sin eliminar archivos
             $exePath = Join-Path -Path $extractPath -ChildPath $exeName
             if (Test-Path -Path $exePath) {
-                Write-Host "`nEjecutando el archivo ya descargado..."
+                Write-Host "`tEjecutando el archivo ya descargado..."
                 Start-Process -FilePath $exePath #-Wait   # Se quitó para ver si se usaban múltiples apps.
-                Write-Host "`n$exeName se está ejecutando."
+                Write-Host "`t$exeName se está ejecutando."
                 return
             } else {
-                Write-Host "`nNo se pudo encontrar el archivo ejecutable."
+                Write-Host "`tNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
                 return
             }
         } elseif ($response -eq [System.Windows.Forms.DialogResult]::Cancel) {
             # Si selecciona "Cancelar", no hacer nada y decir que el usuario canceló
-            Write-Host "`nEl usuario canceló la operación."
+            Write-Host "`nEl usuario canceló la operación."  -ForegroundColor Red
             return  # Aquí se termina la ejecución si el usuario cancela
         }
     }
     # Proceder con la descarga si no fue cancelada
-    Write-Host "`nDescargando desde: $url"
+    Write-Host "`tDescargando desde: $url"
     # Obtener el tamaño total del archivo antes de la descarga
     $response = Invoke-WebRequest -Uri $url -Method Head
     $totalSize = $response.Headers["Content-Length"]
@@ -529,25 +538,25 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         $progress = [math]::round(($downloaded / $totalSize) * 100, 2)
         Write-Progress -PercentComplete $progress -Status "Descargando..." -Activity "Progreso de la descarga" -CurrentOperation "$downloadedKB KB de $totalSizeKB KB descargados"
     }
-    Write-Host "`nDescarga completada."
+    Write-Host "`tDescarga completada."  -ForegroundColor Green
     # Crear directorio de extracción si no existe
     if (!(Test-Path -Path $extractPath)) {
         New-Item -ItemType Directory -Path $extractPath | Out-Null
     }
-    Write-Host "`nExtrayendo archivos..."
+    Write-Host "`tExtrayendo archivos..."
     try {
         Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-        Write-Host "`nArchivos extraídos correctamente."
+        Write-Host "`tArchivos extraídos correctamente."  -ForegroundColor Green
     } catch {
-        Write-Host "`nError al descomprimir el archivo: $_"
+        Write-Host "`tError al descomprimir el archivo: $_"   -ForegroundColor Red
     }
     $exePath = Join-Path -Path $extractPath -ChildPath $exeName
     if (Test-Path -Path $exePath) {
-        Write-Host "`nEjecutando $exeName..."
+        Write-Host "`tEjecutando $exeName..."
         Start-Process -FilePath $exePath #-Wait
         Write-Host "`n$exeName se está ejecutando."
     } else {
-        Write-Host "`nNo se pudo encontrar el archivo ejecutable."
+        Write-Host "`nNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
     }
 }
 # Función para manejar MouseEnter y cambiar el color
@@ -602,22 +611,22 @@ $btnDatabase.Add_Click({
 $btnSQLManager.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
-            Write-Host "`nEjecutando SQL Server Configuration Manager..."
+            Write-Host "`tEjecutando SQL Server Configuration Manager..."
             Start-Process "SQLServerManager12.msc"
         }
         catch {
-            Write-Host "`nError al ejecutar SQL Server Configuration Manager: $_"
+            Write-Host "`tError al ejecutar SQL Server Configuration Manager: $_"  -ForegroundColor Red
             [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
 $btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
-            Write-Host "`nEjecutando SQL Server Management Studio..."
+            Write-Host "`tEjecutando SQL Server Management Studio..."
             Start-Process "ssms.exe"
         }
         catch {
-            Write-Host "`nError al ejecutar SQL Server Management Studio: $_"
+            Write-Host "`tError al ejecutar SQL Server Management Studio: $_"  -ForegroundColor Red
             [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })

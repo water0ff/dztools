@@ -14,7 +14,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250129.2141"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250129.2152"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1178,118 +1178,128 @@ $btnDisconnectDb.Add_Click({
 
 
 # Evento de clic para el botón de respaldo
-    $btnRespaldarRestcard.Add_Click({
-# Definir la ruta de la DLL
+$btnRespaldarRestcard.Add_Click({
+    # Definir la ruta de la DLL
     $dllPath = "C:\Temp\MySql.Data.dll"
     
-    # Verificar si la DLL existe, si no, descargarla     diseno el URL de descarga
+    # Verificar si la DLL existe, si no, descargarla
     $dllUrl = "https://trinityt.com.mx/wp-content/uploads/2022/10/MySql.Data.dll"  # Ajusta la URL según la versión requerida
     
     if (!(Test-Path $dllPath)) {
         Write-Host "Descargando MySql.Data.dll..." -ForegroundColor Yellow
-        Invoke-WebRequest -Uri $dllUrl -OutFile $dllPath
-        Write-Host "Descarga completada." -ForegroundColor Green
+        try {
+            Invoke-WebRequest -Uri $dllUrl -OutFile $dllPath
+            Write-Host "Descarga completada." -ForegroundColor Green
+        } catch {
+            Write-Host "Error al descargar la DLL: $_" -ForegroundColor Red
+            return  # Terminar si no se puede descargar la DLL
+        }
     }
     
     # Cargar la DLL en el entorno de PowerShell
-    Add-Type -Path $dllPath
+    try {
+        Add-Type -Path $dllPath
+        Write-Host "La DLL se cargó correctamente." -ForegroundColor Green
+    } catch {
+        Write-Host "Error al cargar la DLL: $_" -ForegroundColor Red
+        return  # Terminar si no se puede cargar la DLL
+    }
 
-        Write-Host "En espera de los datos de conexión" -ForegroundColor DarkCyan
-        
-        # Crear la ventana para ingresar datos de conexión
-        $formRespaldarRestcard = New-Object System.Windows.Forms.Form
-        $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
-        $formRespaldarRestcard.Size = New-Object System.Drawing.Size(350, 210)
-        $formRespaldarRestcard.StartPosition = "CenterScreen"
-        $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-        $formRespaldarRestcard.MaximizeBox = $false
-        $formRespaldarRestcard.MinimizeBox = $false
-        
-        # Controles de entrada
-        $txtUsuarioRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 40"; Width = 200 }
-        $txtBaseDeDatosRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 65"; Width = 200 }
-        $txtPasswordRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 90"; Width = 200; UseSystemPasswordChar = $true }
-        $txtHostnameRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 115"; Width = 200 }
-        
-        # Checkbox para datos por omisión
-        $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox -Property @{ Text = "Usar datos por omisión"; Location = "5, 20"; AutoSize = $true }
-        $chkLlenarDatos.Add_CheckedChanged({
-            if ($chkLlenarDatos.Checked) {
-                $txtUsuarioRestcard.Text = "root"
-                $txtBaseDeDatosRestcard.Text = "restcard"
-                $txtPasswordRestcard.Text = "national"
-                $txtHostnameRestcard.Text = "localhost"
-            } else {
-                $txtUsuarioRestcard.Clear()
-                $txtBaseDeDatosRestcard.Clear()
-                $txtPasswordRestcard.Clear()
-                $txtHostnameRestcard.Clear()
-            }
-        })
-        
-        # Botón para ejecutar el respaldo
-        $btnRespaldar = New-Object System.Windows.Forms.Button -Property @{ Text = "Respaldar"; Location = "20, 140"; Size = "140, 25" }
-        $btnRespaldar.Add_Click({
-            $usuario = $txtUsuarioRestcard.Text
-            $baseDeDatos = $txtBaseDeDatosRestcard.Text
-            $password = $txtPasswordRestcard.Text
-            $hostname = $txtHostnameRestcard.Text
-            
-            if ($usuario -eq "" -or $baseDeDatos -eq "" -or $password -eq "" -or $hostname -eq "") {
-                [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                return
-            }
-            
-            Write-Host "Realizando respaldo para la base de datos: $baseDeDatos" -ForegroundColor Cyan
-            Write-Host "Con el usuario: $usuario" -ForegroundColor Cyan
-            
-            # Obtener ruta de respaldo
-            $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
-            if ($folderDialog.ShowDialog() -eq "OK") {
-                $folderPath = $folderDialog.SelectedPath
-                $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-                $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
-                
-                # Crear conexión con MySQL
-                $connStr = "server=$hostname;user id=$usuario;password=$password;database=$baseDeDatos"
-                $conn = New-Object MySql.Data.MySqlClient.MySqlConnection($connStr)
-                
-                try {
-                    $conn.Open()
-                    $cmd = $conn.CreateCommand()
-                    $cmd.CommandText = "FLUSH TABLES WITH READ LOCK;"
-                    $cmd.ExecuteNonQuery()
-                    
-                    # Ejecutar mysqldump
-                    $dumpCmd = "mysqldump -u $usuario -p$password -h $hostname $baseDeDatos > `"$rutaRespaldo`""
-                    Invoke-Expression $dumpCmd
-                    
-                    Write-Host "Respaldo guardado en: $rutaRespaldo" -ForegroundColor Green
-                    [System.Windows.Forms.MessageBox]::Show("Respaldo realizado con éxito.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                    
-                    # Liberar tablas
-                    $cmd.CommandText = "UNLOCK TABLES;"
-                    $cmd.ExecuteNonQuery()
-                } catch {
-                    Write-Host "Error en la conexión o respaldo: $_" -ForegroundColor Red
-                    [System.Windows.Forms.MessageBox]::Show("Error en la conexión o respaldo.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                } finally {
-                    $conn.Close()
-                }
-            }
-        })
-        
-        # Botón para salir
-        $btnSalir = New-Object System.Windows.Forms.Button -Property @{ Text = "Salir"; Size = "140, 25"; Location = "185, 140"; BackColor = [System.Drawing.Color]::DarkGray }
-        $btnSalir.Add_Click({ $formRespaldarRestcard.Close() })
-        
-        # Agregar controles a la ventana
-        $formRespaldarRestcard.Controls.AddRange(@($txtUsuarioRestcard, $txtBaseDeDatosRestcard, $txtPasswordRestcard, $txtHostnameRestcard, $chkLlenarDatos, $btnRespaldar, $btnSalir))
-        
-        # Mostrar la ventana
-        $formRespaldarRestcard.ShowDialog()
+    Write-Host "En espera de los datos de conexión" -ForegroundColor DarkCyan
+    
+    # Crear la ventana para ingresar datos de conexión
+    $formRespaldarRestcard = New-Object System.Windows.Forms.Form
+    $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
+    $formRespaldarRestcard.Size = New-Object System.Drawing.Size(350, 210)
+    $formRespaldarRestcard.StartPosition = "CenterScreen"
+    $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $formRespaldarRestcard.MaximizeBox = $false
+    $formRespaldarRestcard.MinimizeBox = $false
+    
+    # Controles de entrada
+    $txtUsuarioRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 40"; Width = 200 }
+    $txtBaseDeDatosRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 65"; Width = 200 }
+    $txtPasswordRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 90"; Width = 200; UseSystemPasswordChar = $true }
+    $txtHostnameRestcard = New-Object System.Windows.Forms.TextBox -Property @{ Location = "120, 115"; Width = 200 }
+    
+    # Checkbox para datos por omisión
+    $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox -Property @{ Text = "Usar datos por omisión"; Location = "5, 20"; AutoSize = $true }
+    $chkLlenarDatos.Add_CheckedChanged({
+        if ($chkLlenarDatos.Checked) {
+            $txtUsuarioRestcard.Text = "root"
+            $txtBaseDeDatosRestcard.Text = "restcard"
+            $txtPasswordRestcard.Text = "national"
+            $txtHostnameRestcard.Text = "localhost"
+        } else {
+            $txtUsuarioRestcard.Clear()
+            $txtBaseDeDatosRestcard.Clear()
+            $txtPasswordRestcard.Clear()
+            $txtHostnameRestcard.Clear()
+        }
     })
-
+    
+    # Botón para ejecutar el respaldo
+    $btnRespaldar = New-Object System.Windows.Forms.Button -Property @{ Text = "Respaldar"; Location = "20, 140"; Size = "140, 25" }
+    $btnRespaldar.Add_Click({
+        $usuario = $txtUsuarioRestcard.Text
+        $baseDeDatos = $txtBaseDeDatosRestcard.Text
+        $password = $txtPasswordRestcard.Text
+        $hostname = $txtHostnameRestcard.Text
+        
+        if ($usuario -eq "" -or $baseDeDatos -eq "" -or $password -eq "" -or $hostname -eq "") {
+            [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            return
+        }
+        
+        Write-Host "Realizando respaldo para la base de datos: $baseDeDatos" -ForegroundColor Cyan
+        Write-Host "Con el usuario: $usuario" -ForegroundColor Cyan
+        
+        # Obtener ruta de respaldo
+        $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
+        if ($folderDialog.ShowDialog() -eq "OK") {
+            $folderPath = $folderDialog.SelectedPath
+            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+            $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
+            
+            # Crear conexión con MySQL
+            $connStr = "server=$hostname;user id=$usuario;password=$password;database=$baseDeDatos"
+            $conn = New-Object MySql.Data.MySqlClient.MySqlConnection($connStr)
+            
+            try {
+                $conn.Open()
+                $cmd = $conn.CreateCommand()
+                $cmd.CommandText = "FLUSH TABLES WITH READ LOCK;"
+                $cmd.ExecuteNonQuery()
+                
+                # Ejecutar mysqldump
+                $dumpCmd = "mysqldump -u $usuario -p$password -h $hostname $baseDeDatos > `"$rutaRespaldo`""
+                Invoke-Expression $dumpCmd
+                
+                Write-Host "Respaldo guardado en: $rutaRespaldo" -ForegroundColor Green
+                [System.Windows.Forms.MessageBox]::Show("Respaldo realizado con éxito.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                
+                # Liberar tablas
+                $cmd.CommandText = "UNLOCK TABLES;"
+                $cmd.ExecuteNonQuery()
+            } catch {
+                Write-Host "Error en la conexión o respaldo: $_" -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show("Error en la conexión o respaldo.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            } finally {
+                $conn.Close()
+            }
+        }
+    })
+    
+    # Botón para salir
+    $btnSalir = New-Object System.Windows.Forms.Button -Property @{ Text = "Salir"; Size = "140, 25"; Location = "185, 140"; BackColor = [System.Drawing.Color]::DarkGray }
+    $btnSalir.Add_Click({ $formRespaldarRestcard.Close() })
+    
+    # Agregar controles a la ventana
+    $formRespaldarRestcard.Controls.AddRange(@($txtUsuarioRestcard, $txtBaseDeDatosRestcard, $txtPasswordRestcard, $txtHostnameRestcard, $chkLlenarDatos, $btnRespaldar, $btnSalir))
+    
+    # Mostrar la ventana
+    $formRespaldarRestcard.ShowDialog()
+})
 
 $btnExit.Add_Click({
     $form.Dispose()

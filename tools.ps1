@@ -1519,19 +1519,19 @@ $btnConfigurarIPs.Add_Click({
         $ipAssignComboBoxAdapters.Size = New-Object System.Drawing.Size(360, 20)
         $ipAssignComboBoxAdapters.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
         $ipAssignComboBoxAdapters.Text = "Selecciona 1 adaptador de red"
-            # Agregar evento para habilitar botones cuando se selecciona un adaptador
-                $ipAssignComboBoxAdapters.Add_SelectedIndexChanged({
-                    # Verificar si se ha seleccionado un adaptador distinto de la opción por defecto
-                    if ($ipAssignComboBoxAdapters.SelectedIndex -gt 0) {
-                        # Habilitar los botones si se ha seleccionado un adaptador
-                        $ipAssignButtonAssignIP.Enabled = $true
-                        $ipAssignButtonChangeToDhcp.Enabled = $true
-                    } else {
-                        # Deshabilitar los botones si no se ha seleccionado un adaptador
-                        $ipAssignButtonAssignIP.Enabled = $false
-                        $ipAssignButtonChangeToDhcp.Enabled = $false
-                    }
-                })
+                    # Agregar evento para habilitar botones cuando se selecciona un adaptador
+                    $ipAssignComboBoxAdapters.Add_SelectedIndexChanged({
+                        # Verificar si se ha seleccionado un adaptador distinto de la opción por defecto
+                        if ($ipAssignComboBoxAdapters.SelectedItem -ne "") {
+                            # Habilitar los botones si se ha seleccionado un adaptador
+                            $ipAssignButtonAssignIP.Enabled = $true
+                            $ipAssignButtonChangeToDhcp.Enabled = $true
+                        } else {
+                            # Deshabilitar los botones si no se ha seleccionado un adaptador
+                            $ipAssignButtonAssignIP.Enabled = $false
+                            $ipAssignButtonChangeToDhcp.Enabled = $false
+                        }
+                    })
             $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
             foreach ($adapter in $adapters) {
                 $ipAssignComboBoxAdapters.Items.Add($adapter.Name)

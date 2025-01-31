@@ -15,7 +15,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.0909"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250131.0912"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -105,10 +105,6 @@ $tabControl.TabPages.Add($tabProSql)
     $btnConfigurarIPs.Size = $buttonStyle.Size
     $btnConfigurarIPs.Location = New-Object System.Drawing.Point(240, 210)  # Ajusta la posición según necesites
     $btnConfigurarIPs.BackColor = [System.Drawing.Color]::FromArgb(150, 200, 255)  # Color azul claro
-        $btnConfigurarIPs.Add_Click({
-                # Llamar a la función que muestra el formulario de configuración de IPs
-        Show-NewIpForm
-        })
 #Agregar botones a la de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
@@ -1470,19 +1466,14 @@ function Show-NewIpForm {
 
 
 
-# ------------------------------ funcion para impresoras
-$ipAssignFormDemo = New-Object System.Windows.Forms.Form
-$ipAssignFormDemo.Text = "Configuración de IP"
-$ipAssignFormDemo.Size = New-Object System.Drawing.Size(400, 300)
-$ipAssignFormDemo.StartPosition = "CenterScreen"
-$ipAssignFormDemo.Font = $defaultFont
 
-$ipAssignButtonAsignacion = New-Object System.Windows.Forms.Button
-$ipAssignButtonAsignacion.Text = "Asignación de IPs"
-$ipAssignButtonAsignacion.Location = New-Object System.Drawing.Point(10, 20)
-$ipAssignButtonAsignacion.Size = New-Object System.Drawing.Size(120, 30)
-$ipAssignButtonAsignacion.Font = $defaultFont
-$ipAssignButtonAsignacion.Add_Click({
+
+
+
+
+
+# ------------------------------ funcion para impresoras
+$btnConfigurarIPs.Add_Click({
     $ipAssignFormAsignacion = New-Object System.Windows.Forms.Form
     $ipAssignFormAsignacion.Text = "Asignación de IPs"
     $ipAssignFormAsignacion.Size = New-Object System.Drawing.Size(400, 300)
@@ -1709,6 +1700,9 @@ $ipAssignButtonClose.Add_Click({
     Write-Host "Cerrando la aplicación..." -ForegroundColor Yellow
     $ipAssignFormDemo.Close()
 })
+        })
+
+
 
 
 
@@ -1716,8 +1710,6 @@ $btnExit.Add_Click({
     $form.Dispose()
     $form.Close()
 })
-
 $form.Refresh()
-
 # Mostrar el formulario principal
 $form.ShowDialog()

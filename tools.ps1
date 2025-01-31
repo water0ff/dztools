@@ -7,16 +7,17 @@ if (!(Test-Path -Path "C:\Temp")) {
  Add-Type -AssemblyName System.Windows.Forms
  Add-Type -AssemblyName System.Drawing
 # Crear el formulario
-$form = New-Object System.Windows.Forms.Form
-$form.Size = New-Object System.Drawing.Size(500, 460)
-$form.StartPosition = "CenterScreen"
-$form.BackColor = [System.Drawing.Color]::White
-$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-$form.MaximizeBox = $false
-$form.MinimizeBox = $false
+$formPrincipal = New-Object System.Windows.Forms.Form
+$formPrincipal.Size = New-Object System.Drawing.Size(500, 460)
+$formPrincipal.StartPosition = "CenterScreen"
+$formPrincipal.BackColor = [System.Drawing.Color]::White
+$formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+$formPrincipal.MaximizeBox = $false
+$formPrincipal.MinimizeBox = $false
+$defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.0934"  # Valor predeterminado para la versión
-$form.Text = "Daniel Tools v$version"
+                                                                $version = "Alfa 250131.0945"  # Valor predeterminado para la versión
+$formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
 Write-Host "              Versión: v$($version)               " -ForegroundColor Green
@@ -30,7 +31,7 @@ Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -Foregrou
     $buttonStyle.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $buttonStyle.BackColor = [System.Drawing.Color]::LightGray
     $buttonStyle.ForeColor = [System.Drawing.Color]::Black
-    $buttonStyle.Font = New-Object System.Drawing.Font("Arial", 10, [System.Drawing.FontStyle]::Regular)
+    $buttonStyle.Font = defaultFont
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
@@ -262,8 +263,8 @@ if ($ipsWithAdapters.Count -gt 0) {
     $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
     $labelipADress.Size = New-Object System.Drawing.Size(240, $labelHeight)
 # Ajustar la altura del formulario según el Label de IPs
-    $formHeight = $form.Size.Height + $labelHeight - 26
-    $form.Size = New-Object System.Drawing.Size($form.Size.Width, $formHeight)
+    $formHeight = $formPrincipal.Size.Height + $labelHeight - 26
+    $formPrincipal.Size = New-Object System.Drawing.Size($formPrincipal.Size.Width, $formHeight)
 # Función para obtener adaptadores y sus estados (modificada)
 function Get-NetworkAdapterStatus {
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -349,17 +350,17 @@ foreach ($adapter in $networkAdapters) {
         }
     })
     $adapterInfo += $label.Text + "`n"
-    $form.Controls.Add($label)
+    $formPrincipal.Controls.Add($label)
     # Incrementar el índice para la siguiente posición del label
     $index++
 }
 # Agregar los controles al formulario
-    $form.Controls.Add($tabControl)
-    $form.Controls.Add($labelHostname)
-    $form.Controls.Add($labelPort)
-    $form.Controls.Add($labelipADress)
-    $form.Controls.Add($lblPerfilDeRed)
-    $form.Controls.Add($btnExit)
+    $formPrincipal.Controls.Add($tabControl)
+    $formPrincipal.Controls.Add($labelHostname)
+    $formPrincipal.Controls.Add($labelPort)
+    $formPrincipal.Controls.Add($labelipADress)
+    $formPrincipal.Controls.Add($lblPerfilDeRed)
+    $formPrincipal.Controls.Add($btnExit)
 # Acción para el CheckBox, si el usuario lo marca manualmente
 $chkSqlServer.Add_CheckedChanged({
     if ($chkSqlServer.Checked) {
@@ -585,7 +586,7 @@ $btnProfiler.Add_Click({
         $ValidationPath = "C:\Temp\ExpressProfiler2\ExpressProfiler.exe"
 
         DownloadAndRun -url $ProfilerUrl -zipPath $ProfilerZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
-        if ($disableControls) {        Enable-Controls -parentControl $form    }
+        if ($disableControls) {        Enable-Controls -parentControl $formPrincipal    }
         }
     )
 $btnPrinterTool.Add_Click({
@@ -1130,7 +1131,7 @@ $btnOK.Add_Click({
             # Actualizar el texto del label de conexión
             $lblConnectionStatus.Text = "Conectado a BDD: $($txtDatabase.Text)"
             $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-            $lblConnectionStatus.Font = New-Object System.Drawing.Font($lblConnectionStatus.Font, [System.Drawing.FontStyle]::Bold)
+            $lblConnectionStatus.Font = defaultFont
 
 
             # Habilitar o deshabilitar botones cuando hay conexiones existosas
@@ -1690,9 +1691,9 @@ $btnConfigurarIPs.Add_Click({
 
 
 $btnExit.Add_Click({
-    $form.Dispose()
-    $form.Close()
+    $formPrincipal.Dispose()
+    $formPrincipal.Close()
 })
-$form.Refresh()
+$formPrincipal.Refresh()
 # Mostrar el formulario principal
-$form.ShowDialog()
+$formPrincipal.ShowDialog()

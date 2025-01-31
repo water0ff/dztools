@@ -1477,6 +1477,26 @@ function Show-NewIpForm {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ------------------------------ funcion para impresoras
 $btnConfigurarIPs.Add_Click({
         $ipAssignFormAsignacion = New-Object System.Windows.Forms.Form
@@ -1489,9 +1509,6 @@ $btnConfigurarIPs.Add_Click({
         $ipAssignFormAsignacion.MinimizeBox = $false
         $ipAssignFormAsignacion.MaximizeBox = $false
         #interfaz
-        # Deshabilitar los botones al inicio
-            $ipAssignButtonAssignIP.Enabled = $false
-            $ipAssignButtonChangeToDhcp.Enabled = $false
         $ipAssignLabelAdapter = New-Object System.Windows.Forms.Label
         $ipAssignLabelAdapter.Text = "Seleccione el adaptador de red:"
         $ipAssignLabelAdapter.Location = New-Object System.Drawing.Point(10, 20)
@@ -1529,6 +1546,7 @@ $btnConfigurarIPs.Add_Click({
         $ipAssignButtonAssignIP.Text = "Asignar Nueva IP"
         $ipAssignButtonAssignIP.Location = New-Object System.Drawing.Point(10, 120)
         $ipAssignButtonAssignIP.Size = New-Object System.Drawing.Size(120, 30)
+        $ipAssignButtonAssignIP.Enabled = $false
         $ipAssignButtonAssignIP.Add_Click({
             $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
             if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
@@ -1638,6 +1656,7 @@ $btnConfigurarIPs.Add_Click({
         $ipAssignButtonChangeToDhcp.Text = "Cambiar a DHCP"
         $ipAssignButtonChangeToDhcp.Location = New-Object System.Drawing.Point(140, 120)
         $ipAssignButtonChangeToDhcp.Size = New-Object System.Drawing.Size(120, 30)
+        $ipAssignButtonChangeToDhcp.Enabled = $false
         $ipAssignButtonChangeToDhcp.Add_Click({
             $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
             if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {

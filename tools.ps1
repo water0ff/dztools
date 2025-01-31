@@ -1550,7 +1550,7 @@ $btnConfigurarIPs.Add_Click({
         $ipAssignButtonAssignIP.Add_Click({
             $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
             if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
-                Write-Host "Por favor, selecciona un adaptador de red." -ForegroundColor Red
+                Write-Host "`nPor favor, selecciona un adaptador de red." -ForegroundColor Red
                 [System.Windows.Forms.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error")
                 return
             }
@@ -1564,19 +1564,19 @@ $btnConfigurarIPs.Add_Click({
                 $currentGateway = (Get-NetIPConfiguration -InterfaceAlias $selectedAdapter.Name).IPv4DefaultGateway | Select-Object -ExpandProperty NextHop
     
                 if (-not $isDhcp) {
-                    Write-Host "El adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?" -ForegroundColor Yellow
+                    Write-Host "`nEl adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?" -ForegroundColor Yellow
                     $confirmation = [System.Windows.Forms.MessageBox]::Show("El adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
                     if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
                         $newIp = Show-NewIpForm
                         if ($newIp) {
                             $existingIp = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.IPAddress -eq $newIp }
                             if ($existingIp) {
-                                Write-Host "La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name)." -ForegroundColor Red
+                                Write-Host "`nLa dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name)." -ForegroundColor Red
                                 [System.Windows.Forms.MessageBox]::Show("La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name).", "Error")
                             } else {
                                 try {
                                     New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
-                                    Write-Host "Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                    Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                                     [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
     
                                     # Actualizar la lista de IPs asignadas
@@ -1584,14 +1584,14 @@ $btnConfigurarIPs.Add_Click({
                                     $ips = $currentIPs.IPAddress -join ", "
                                     $ipAssignLabelIps.Text = "IPs asignadas: $ips"
                                 } catch {
-                                    Write-Host "Error al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
+                                    Write-Host "`nError al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
                                     [System.Windows.Forms.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)", "Error")
                                 }
                             }
                         }
                     }
                 } else {
-                    Write-Host "¿Desea cambiar a IP fija usando la IP actual ($currentIPAddress)?" -ForegroundColor Yellow
+                    Write-Host "`n¿Desea cambiar a IP fija usando la IP actual ($currentIPAddress)?" -ForegroundColor Yellow
                     $confirmation = [System.Windows.Forms.MessageBox]::Show("¿Desea cambiar a IP fija usando la IP actual ($currentIPAddress)?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
                     if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
                         try {
@@ -1606,7 +1606,7 @@ $btnConfigurarIPs.Add_Click({
                             $dnsServers = @("8.8.8.8", "8.8.4.4")
                             Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ServerAddresses $dnsServers
     
-                            Write-Host "Se cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                            Write-Host "`nSe cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                             [System.Windows.Forms.MessageBox]::Show("Se cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name).", "Éxito")
     
                             # Actualizar la lista de IPs asignadas
@@ -1614,19 +1614,19 @@ $btnConfigurarIPs.Add_Click({
                             $ips = $currentIPs.IPAddress -join ", "
                             $ipAssignLabelIps.Text = "IPs asignadas: $ips"
     
-                            Write-Host "¿Desea agregar una dirección IP adicional?" -ForegroundColor Yellow
+                            Write-Host "`n¿Desea agregar una dirección IP adicional?" -ForegroundColor Yellow
                             $confirmationAdditionalIP = [System.Windows.Forms.MessageBox]::Show("¿Desea agregar una dirección IP adicional?", "IP Adicional", [System.Windows.Forms.MessageBoxButtons]::YesNo)
                             if ($confirmationAdditionalIP -eq [System.Windows.Forms.DialogResult]::Yes) {
                                 $newIp = Show-NewIpForm
                                 if ($newIp) {
                                     $existingIp = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.IPAddress -eq $newIp }
                                     if ($existingIp) {
-                                        Write-Host "La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name)." -ForegroundColor Red
+                                        Write-Host "`nLa dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name)." -ForegroundColor Red
                                         [System.Windows.Forms.MessageBox]::Show("La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name).", "Error")
                                     } else {
                                         try {
                                             New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
-                                            Write-Host "Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                            Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                                             [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
     
                                             # Actualizar la lista de IPs asignadas
@@ -1634,20 +1634,20 @@ $btnConfigurarIPs.Add_Click({
                                             $ips = $currentIPs.IPAddress -join ", "
                                             $ipAssignLabelIps.Text = "IPs asignadas: $ips"
                                         } catch {
-                                            Write-Host "Error al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
+                                            Write-Host "`nError al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
                                             [System.Windows.Forms.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)", "Error")
                                         }
                                     }
                                 }
                             }
                         } catch {
-                            Write-Host "Error al cambiar a IP fija: $($_.Exception.Message)" -ForegroundColor Red
+                            Write-Host "`nError al cambiar a IP fija: $($_.Exception.Message)" -ForegroundColor Red
                             [System.Windows.Forms.MessageBox]::Show("Error al cambiar a IP fija: $($_.Exception.Message)", "Error")
                         }
                     }
                 }
             } else {
-                Write-Host "No se pudo obtener la configuración actual del adaptador." -ForegroundColor Red
+                Write-Host "`nNo se pudo obtener la configuración actual del adaptador." -ForegroundColor Red
                 [System.Windows.Forms.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error")
             }
         })
@@ -1660,7 +1660,7 @@ $btnConfigurarIPs.Add_Click({
         $ipAssignButtonChangeToDhcp.Add_Click({
             $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
             if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
-                Write-Host "Por favor, selecciona un adaptador de red." -ForegroundColor Red
+                Write-Host "`nPor favor, selecciona un adaptador de red." -ForegroundColor Red
                 [System.Windows.Forms.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error")
                 return
             }
@@ -1670,10 +1670,10 @@ $btnConfigurarIPs.Add_Click({
             if ($currentConfig) {
                 $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
                 if ($isDhcp) {
-                    Write-Host "El adaptador ya está en DHCP." -ForegroundColor Yellow
+                    Write-Host "`nEl adaptador ya está en DHCP." -ForegroundColor Yellow
                     [System.Windows.Forms.MessageBox]::Show("El adaptador ya está en DHCP.", "Información")
                 } else {
-                    Write-Host "¿Está seguro de que desea cambiar a DHCP?" -ForegroundColor Yellow
+                    Write-Host "`n¿Está seguro de que desea cambiar a DHCP?" -ForegroundColor Yellow
                     $confirmation = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea cambiar a DHCP?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
                     if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
                         try {
@@ -1683,19 +1683,19 @@ $btnConfigurarIPs.Add_Click({
                             }
                             Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Enabled
                             Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ResetServerAddresses
-                            Write-Host "Se cambió a DHCP en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                            Write-Host "`nSe cambió a DHCP en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                             [System.Windows.Forms.MessageBox]::Show("Se cambió a DHCP en el adaptador $($selectedAdapter.Name).", "Éxito")
     
                             # Actualizar la lista de IPs asignadas
                             $ipAssignLabelIps.Text = "Generando IP por DHCP. Seleccione de nuevo."
                         } catch {
-                            Write-Host "Error al cambiar a DHCP: $($_.Exception.Message)" -ForegroundColor Red
+                            Write-Host "`nError al cambiar a DHCP: $($_.Exception.Message)" -ForegroundColor Red
                             [System.Windows.Forms.MessageBox]::Show("Error al cambiar a DHCP: $($_.Exception.Message)", "Error")
                         }
                     }
                 }
             } else {
-                Write-Host "No se pudo obtener la configuración actual del adaptador." -ForegroundColor Red
+                Write-Host "`nNo se pudo obtener la configuración actual del adaptador." -ForegroundColor Red
                 [System.Windows.Forms.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error")
             }
         })

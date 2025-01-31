@@ -1481,8 +1481,11 @@ function Show-NewIpForm {
 $btnConfigurarIPs.Add_Click({
         $ipAssignFormAsignacion = New-Object System.Windows.Forms.Form
         $ipAssignFormAsignacion.Text = "Asignación de IPs"
-        $ipAssignFormAsignacion.Size = New-Object System.Drawing.Size(400, 300)
+        $ipAssignFormAsignacion.Size = New-Object System.Drawing.Size(400, 200)
         $ipAssignFormAsignacion.StartPosition = "CenterScreen"
+        $ipAssignFormAsignacion.BackColor = [System.Drawing.Color]::White
+        $ipAssignFormAsignacion.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+        $ipAssignFormAsignacion.font = $defaultFont
         $ipAssignFormAsignacion.MinimizeBox = $false
         $ipAssignFormAsignacion.MaximizeBox = $false
         #interfaz

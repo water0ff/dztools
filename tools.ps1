@@ -16,7 +16,7 @@ $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.0945"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250131.0956"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -31,7 +31,7 @@ Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -Foregrou
     $buttonStyle.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $buttonStyle.BackColor = [System.Drawing.Color]::LightGray
     $buttonStyle.ForeColor = [System.Drawing.Color]::Black
-    $buttonStyle.Font = defaultFont
+    $buttonStyle. = $defaultFont
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
@@ -1131,7 +1131,7 @@ $btnOK.Add_Click({
             # Actualizar el texto del label de conexión
             $lblConnectionStatus.Text = "Conectado a BDD: $($txtDatabase.Text)"
             $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-            $lblConnectionStatus.Font = defaultFont
+            $lblConnectionStatus.Font = $defaultFont
 
 
             # Habilitar o deshabilitar botones cuando hay conexiones existosas

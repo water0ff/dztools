@@ -16,7 +16,7 @@ $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.1019"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250131.1027"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1649,9 +1649,7 @@ $btnConfigurarIPs.Add_Click({
                             [System.Windows.Forms.MessageBox]::Show("Se cambió a DHCP en el adaptador $($selectedAdapter.Name).", "Éxito")
     
                             # Actualizar la lista de IPs asignadas
-                            $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
-                            $ips = $currentIPs.IPAddress -join ", "
-                            $ipAssignLabelIps.Text = "IPs asignadas: $ips"
+                            $ipAssignLabelIps.Text = "En espera de la nueva IP, vuelva a seleccionar este adaptador después de un momento."
                         } catch {
                             Write-Host "Error al cambiar a DHCP: $($_.Exception.Message)" -ForegroundColor Red
                             [System.Windows.Forms.MessageBox]::Show("Error al cambiar a DHCP: $($_.Exception.Message)", "Error")

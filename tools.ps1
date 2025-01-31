@@ -1687,7 +1687,7 @@ $btnConfigurarIPs.Add_Click({
                             [System.Windows.Forms.MessageBox]::Show("Se cambió a DHCP en el adaptador $($selectedAdapter.Name).", "Éxito")
     
                             # Actualizar la lista de IPs asignadas
-                            $ipAssignLabelIps.Text = "En espera de la nueva IP, vuelva a seleccionar este adaptador después de un momento."
+                            $ipAssignLabelIps.Text = "Generando IP por DHCP. Seleccione de nuevo."
                         } catch {
                             Write-Host "Error al cambiar a DHCP: $($_.Exception.Message)" -ForegroundColor Red
                             [System.Windows.Forms.MessageBox]::Show("Error al cambiar a DHCP: $($_.Exception.Message)", "Error")

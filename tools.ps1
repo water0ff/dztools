@@ -1131,8 +1131,6 @@ $btnOK.Add_Click({
             # Actualizar el texto del label de conexión
             $lblConnectionStatus.Text = "Conectado a BDD: $($txtDatabase.Text)"
             $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-            $lblConnectionStatus. = $default
-
 
             # Habilitar o deshabilitar botones cuando hay conexiones existosas
             $btnReviewPivot.Enabled = $true

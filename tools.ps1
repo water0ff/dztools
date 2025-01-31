@@ -16,7 +16,7 @@ $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.1027"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250131.1032"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1489,6 +1489,9 @@ $btnConfigurarIPs.Add_Click({
         $ipAssignFormAsignacion.MinimizeBox = $false
         $ipAssignFormAsignacion.MaximizeBox = $false
         #interfaz
+        # Deshabilitar los botones al inicio
+            $ipAssignButtonAssignIP.Enabled = $false
+            $ipAssignButtonChangeToDhcp.Enabled = $false
         $ipAssignLabelAdapter = New-Object System.Windows.Forms.Label
         $ipAssignLabelAdapter.Text = "Seleccione el adaptador de red:"
         $ipAssignLabelAdapter.Location = New-Object System.Drawing.Point(10, 20)
@@ -1499,6 +1502,19 @@ $btnConfigurarIPs.Add_Click({
         $ipAssignComboBoxAdapters.Size = New-Object System.Drawing.Size(360, 20)
         $ipAssignComboBoxAdapters.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
         $ipAssignComboBoxAdapters.Text = "Selecciona 1 adaptador de red"
+            # Agregar evento para habilitar botones cuando se selecciona un adaptador
+                $ipAssignComboBoxAdapters.Add_SelectedIndexChanged({
+                    # Verificar si se ha seleccionado un adaptador distinto de la opción por defecto
+                    if ($ipAssignComboBoxAdapters.SelectedIndex -gt 0) {
+                        # Habilitar los botones si se ha seleccionado un adaptador
+                        $ipAssignButtonAssignIP.Enabled = $true
+                        $ipAssignButtonChangeToDhcp.Enabled = $true
+                    } else {
+                        # Deshabilitar los botones si no se ha seleccionado un adaptador
+                        $ipAssignButtonAssignIP.Enabled = $false
+                        $ipAssignButtonChangeToDhcp.Enabled = $false
+                    }
+                })
             $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
             foreach ($adapter in $adapters) {
                 $ipAssignComboBoxAdapters.Items.Add($adapter.Name)

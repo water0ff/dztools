@@ -15,7 +15,7 @@ $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 $form.MinimizeBox = $false
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.0923"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250131.0934"  # Valor predeterminado para la versión
 $form.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1472,6 +1472,12 @@ function Show-NewIpForm {
 
 
 
+
+
+
+
+
+
 # ------------------------------ funcion para impresoras
 $btnConfigurarIPs.Add_Click({
         $ipAssignFormAsignacion = New-Object System.Windows.Forms.Form
@@ -1680,11 +1686,7 @@ $btnConfigurarIPs.Add_Click({
             }
         })
         $ipAssignFormAsignacion.ShowDialog()
-    })
 })
-
-
-
 
 
 $btnExit.Add_Click({

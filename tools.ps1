@@ -16,7 +16,7 @@ $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.1812"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250131.1912"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -577,6 +577,104 @@ $restoreColorOnLeave = {
     $labelipADress.Add_MouseEnter($changeColorOnHover)
     $labelipADress.Add_MouseLeave($restoreColorOnLeave)
 ##-------------------------------------------------------------------------------BOTONES#
+$btnSQLManagement.Add_Click({
+                    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+                
+                    # Función para buscar versiones de SSMS instaladas
+                    function Get-SSMSVersions {
+                        $ssmsPaths = @()
+                        # Rutas comunes donde SSMS puede estar instalado
+                        $possiblePaths = @(
+                            "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\ssms.exe",
+                            "${env:ProgramFiles}\Microsoft SQL Server Management Studio *\Common7\IDE\ssms.exe"
+                        )
+                
+                        foreach ($path in $possiblePaths) {
+                            $foundPaths = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+                            if ($foundPaths) {
+                                $ssmsPaths += $foundPaths.FullName
+                            }
+                        }
+                
+                        # Búsqueda recursiva en todas las unidades si no se encuentra en las rutas comunes
+                        if ($ssmsPaths.Count -eq 0) {
+                            Write-Host "`tBuscando SSMS en todas las unidades, esto puede tomar un momento..." -ForegroundColor Yellow
+                            $drives = Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root
+                            foreach ($drive in $drives) {
+                                $foundPaths = Get-ChildItem -Path "$drive\*" -Recurse -Filter "ssms.exe" -ErrorAction SilentlyContinue
+                                if ($foundPaths) {
+                                    $ssmsPaths += $foundPaths.FullName
+                                }
+                            }
+                        }
+                
+                        return $ssmsPaths
+                    }
+                
+                    # Obtener las versiones de SSMS instaladas
+                    $ssmsVersions = Get-SSMSVersions
+                
+                    if ($ssmsVersions.Count -eq 0) {
+                        Write-Host "`tNo se encontró ninguna versión de SQL Server Management Studio instalada." -ForegroundColor Red
+                        [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada. Por favor, asegúrese de que SSMS esté instalado correctamente.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                        return
+                    }
+                
+                    # Si solo hay una versión, ejecutarla directamente
+                    if ($ssmsVersions.Count -eq 1) {
+                        try {
+                            Write-Host "`tEjecutando SQL Server Management Studio desde: $($ssmsVersions[0])"
+                            Start-Process -FilePath $ssmsVersions[0]
+                        } catch {
+                            Write-Host "`tError al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
+                            [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                        }
+                    } else {
+                        # Si hay múltiples versiones, mostrar un diálogo para que el usuario elija
+                        $formSelection = New-Object System.Windows.Forms.Form
+                        $formSelection.Text = "Seleccionar versión de SSMS"
+                        $formSelection.Size = New-Object System.Drawing.Size(300, 200)
+                        $formSelection.StartPosition = "CenterScreen"
+                
+                        $label = New-Object System.Windows.Forms.Label
+                        $label.Text = "Seleccione la versión de SSMS que desea ejecutar:"
+                        $label.Location = New-Object System.Drawing.Point(10, 20)
+                        $label.AutoSize = $true
+                        $formSelection.Controls.Add($label)
+                
+                        $comboBox = New-Object System.Windows.Forms.ComboBox
+                        $comboBox.Location = New-Object System.Drawing.Point(10, 50)
+                        $comboBox.Size = New-Object System.Drawing.Size(260, 20)
+                        $comboBox.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+                
+                        foreach ($version in $ssmsVersions) {
+                            $comboBox.Items.Add($version)
+                        }
+                
+                        $comboBox.SelectedIndex = 0
+                        $formSelection.Controls.Add($comboBox)
+                
+                        $buttonOK = New-Object System.Windows.Forms.Button
+                        $buttonOK.Text = "Aceptar"
+                        $buttonOK.Location = New-Object System.Drawing.Point(100, 100)
+                        $buttonOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
+                        $formSelection.AcceptButton = $buttonOK
+                        $formSelection.Controls.Add($buttonOK)
+                
+                        $result = $formSelection.ShowDialog()
+                
+                        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                            $selectedVersion = $comboBox.SelectedItem
+                            try {
+                                Write-Host "`tEjecutando SQL Server Management Studio desde: $selectedVersion"
+                                Start-Process -FilePath $selectedVersion
+                            } catch {
+                                Write-Host "`tError al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
+                                [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                            }
+                        }
+                    }
+})
 $btnProfiler.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $ProfilerUrl = "https://codeplexarchive.org/codeplex/browse/ExpressProfiler/releases/4/ExpressProfiler22wAddinSigned.zip"
@@ -620,94 +718,6 @@ $btnSQLManager.Add_Click({
             [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
-$btnSQLManagement.Add_Click({
-                                Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-                            
-                                # Función para buscar versiones de SSMS instaladas
-                                function Get-SSMSVersions {
-                                    $ssmsPaths = @()
-                                    # Rutas comunes donde SSMS puede estar instalado
-                                    $possiblePaths = @(
-                                        "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 18\Common7\IDE\ssms.exe",
-                                        "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 17\Common7\IDE\ssms.exe",
-                                        "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 16\Common7\IDE\ssms.exe",
-                                        "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 15\Common7\IDE\ssms.exe",
-                                        "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 14\Common7\IDE\ssms.exe"
-                                    )
-                            
-                                    foreach ($path in $possiblePaths) {
-                                        if (Test-Path $path) {
-                                            $ssmsPaths += $path
-                                        }
-                                    }
-                            
-                                    return $ssmsPaths
-                                }
-                            
-                                # Obtener las versiones de SSMS instaladas
-                                $ssmsVersions = Get-SSMSVersions
-                            
-                                if ($ssmsVersions.Count -eq 0) {
-                                    Write-Host "`tNo se encontró ninguna versión de SQL Server Management Studio instalada." -ForegroundColor Red
-                                    [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                                    return
-                                }
-                            
-                                # Si solo hay una versión, ejecutarla directamente
-                                if ($ssmsVersions.Count -eq 1) {
-                                    try {
-                                        Write-Host "`tEjecutando SQL Server Management Studio desde: $($ssmsVersions[0])"
-                                        Start-Process -FilePath $ssmsVersions[0]
-                                    } catch {
-                                        Write-Host "`tError al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
-                                        [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                                    }
-                                } else {
-                                    # Si hay múltiples versiones, mostrar un diálogo para que el usuario elija
-                                    $formSelection = New-Object System.Windows.Forms.Form
-                                    $formSelection.Text = "Seleccionar versión de SSMS"
-                                    $formSelection.Size = New-Object System.Drawing.Size(300, 200)
-                                    $formSelection.StartPosition = "CenterScreen"
-                            
-                                    $label = New-Object System.Windows.Forms.Label
-                                    $label.Text = "Seleccione la versión de SSMS que desea ejecutar:"
-                                    $label.Location = New-Object System.Drawing.Point(10, 20)
-                                    $label.AutoSize = $true
-                                    $formSelection.Controls.Add($label)
-                            
-                                    $comboBox = New-Object System.Windows.Forms.ComboBox
-                                    $comboBox.Location = New-Object System.Drawing.Point(10, 50)
-                                    $comboBox.Size = New-Object System.Drawing.Size(260, 20)
-                                    $comboBox.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-                            
-                                    foreach ($version in $ssmsVersions) {
-                                        $comboBox.Items.Add($version)
-                                    }
-                            
-                                    $comboBox.SelectedIndex = 0
-                                    $formSelection.Controls.Add($comboBox)
-                            
-                                    $buttonOK = New-Object System.Windows.Forms.Button
-                                    $buttonOK.Text = "Aceptar"
-                                    $buttonOK.Location = New-Object System.Drawing.Point(100, 100)
-                                    $buttonOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
-                                    $formSelection.AcceptButton = $buttonOK
-                                    $formSelection.Controls.Add($buttonOK)
-                            
-                                    $result = $formSelection.ShowDialog()
-                            
-                                    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-                                        $selectedVersion = $comboBox.SelectedItem
-                                        try {
-                                            Write-Host "`tEjecutando SQL Server Management Studio desde: $selectedVersion"
-                                            Start-Process -FilePath $selectedVersion
-                                        } catch {
-                                            Write-Host "`tError al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
-                                            [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                                        }
-                                    }
-                                }
-                            })
 $btnClearAnyDesk.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         # Mostrar cuadro de confirmación

@@ -17,7 +17,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                                                        $version = "Alfa 250201.2355"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250201.2356"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -40,7 +40,7 @@ if (!(Test-Path -Path "C:\Temp")) {
         # Pasar esto a los parametros de arriba.
         $buttonStyle = @{
             Size      = New-Object System.Drawing.Size(220, 35)
-            FlatStyle = [System.Windows.Forms.FlatStyle]::System
+            FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
             Font      = $defaultFont
         }
     

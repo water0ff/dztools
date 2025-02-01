@@ -17,7 +17,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                                                        $version = "Alfa 250201.2356"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250201.2357"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -233,7 +233,7 @@ if ($ipsWithAdapters.Count -gt 0) {
     $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
     $lbIpAdress.Size = New-Object System.Drawing.Size(240, $labelHeight)
 # Ajustar la altura del formulario según el Label de IPs
-    $formHeight = $formPrincipal.Size.Height + $labelHeight - 26
+    $formHeight = $formPrincipal.Size.Height + $labelHeight - 16
     $formPrincipal.Size = New-Object System.Drawing.Size($formPrincipal.Size.Width, $formHeight)
 # Función para obtener adaptadores y sus estados (modificada)
 function Get-NetworkAdapterStatus {

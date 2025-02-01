@@ -616,7 +616,7 @@ $btnSQLManagement.Add_Click({
                     $formSelectionSSMS.Size = New-Object System.Drawing.Size(350, 200)
                     $formSelectionSSMS.StartPosition = "CenterScreen"
                     $formSelectionSSMS.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-                    $formSelection.MaximizeBox = $false
+                    $formSelectionSSMS.MaximizeBox = $false
                     $formSelectionSSMS.MinimizeBox = $false
                 
                     # Crear un Label para el mensaje
@@ -644,10 +644,16 @@ $btnSQLManagement.Add_Click({
                     # Crear un botón para aceptar la selección
                     $buttonOKSSMS = New-Object System.Windows.Forms.Button
                     $buttonOKSSMS.Text = "Aceptar"
-                    $buttonOKSSMS.Location = New-Object System.Drawing.Point(100, 100)
+                    $buttonOKSSMS.Location = New-Object System.Drawing.Point(20, 100)
                     $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
+                    $buttonCancelSSMS = New-Object System.Windows.Forms.Button
+                    $buttonCancelSSMS.Text = "Cancelar"
+                    $buttonCancelSSMS.Location = New-Object System.Drawing.Point(120, 100)
+                    $buttonCancelSSMS.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
                     $formSelectionSSMS.AcceptButton = $buttonOKSSMS
                     $formSelectionSSMS.Controls.Add($buttonOKSSMS)
+                    $formSelectionSSMS.CancelButton = $buttonCancelSSMS
+                    $formSelectionSSMS.Controls.Add($buttonCancelSSMS)
                 
                     # Mostrar el formulario y manejar la selección
                     $result = $formSelectionSSMS.ShowDialog()

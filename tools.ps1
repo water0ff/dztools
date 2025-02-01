@@ -36,10 +36,9 @@ Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -Foregrou
 $button_MouseEnter = {
     $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
 }
-
 # Función para restaurar el color del botón al salir el mouse
 $button_MouseLeave = {
-    $this.BackColor = [System.Drawing.Color]::LightGray  # Restaura el color original
+    $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
 }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
@@ -64,6 +63,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnInstallSQLManagement.Location = New-Object System.Drawing.Point(10, 10)
     $btnInstallSQLManagement.Add_MouseEnter($button_MouseEnter)
     $btnInstallSQLManagement.Add_MouseLeave($button_MouseLeave)
+    $btnInstallSQLManagement.Tag = $btnInstallSQLManagement.BackColor
 #Profiler
     $btnProfiler = New-Object System.Windows.Forms.Button
     $btnProfiler.Text = "Ejecutar ExpressProfiler2.0"
@@ -72,6 +72,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnProfiler.BackColor = [System.Drawing.Color]::LightBlue 
     $btnProfiler.ForeColor = [System.Drawing.Color]::Black     
     $btnProfiler.Font = $defaultFont
+    $btnProfiler.Tag = $btnProfiler.BackColor
 #Database
     $btnDatabase = New-Object System.Windows.Forms.Button
     $btnDatabase.Text = "Ejecutar Database4"
@@ -80,6 +81,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnDatabase.BackColor = [System.Drawing.Color]::LightBlue  
     $btnDatabase.ForeColor = [System.Drawing.Color]::Black      
     $btnDatabase.Font = $defaultFont
+    $btnDatabase.Tag = $btnDatabase.BackColor
 #SqlManager
     $btnSQLManager = New-Object System.Windows.Forms.Button
     $btnSQLManager.Text = "Ejecutar Manager"
@@ -88,6 +90,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnSQLManager.BackColor = [System.Drawing.Color]::LightBlue
     $btnSQLManager.ForeColor = [System.Drawing.Color]::Black   
     $btnSQLManager.Font = $defaultFont
+    $btnSQLManager.Tag = $btnSQLManager.BackColor
 #SqlManagement
     $btnSQLManagement = New-Object System.Windows.Forms.Button
     $btnSQLManagement.Text = "Ejecutar Management"
@@ -96,6 +99,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnSQLManagement.BackColor = [System.Drawing.Color]::LightBlue
     $btnSQLManagement.ForeColor = [System.Drawing.Color]::Black  
     $btnSQLManagement.Font = $defaultFont
+    $btnSQLManagement.Tag = $btnSQLManagement.BackColor
 # PrinterTool
     $btnPrinterTool = New-Object System.Windows.Forms.Button
     $btnPrinterTool.Text = "Printer Tools"
@@ -104,34 +108,40 @@ $tabControl.TabPages.Add($tabProSql)
     $btnPrinterTool.BackColor = [System.Drawing.Color]::LightBlue
     $btnPrinterTool.ForeColor = [System.Drawing.Color]::Black    
     $btnPrinterTool.Font = $defaultFont
+    $btnPrinterTool.Tag = $btnPrinterTool.BackColor
 # Anydesk
     $btnClearAnyDesk = New-Object System.Windows.Forms.Button
     $btnClearAnyDesk.Text = "Clear AnyDesk"
     $btnClearAnyDesk.Size = $buttonStyle.Size
     $btnClearAnyDesk.Location = New-Object System.Drawing.Point(240, 10)
     $btnClearAnyDesk.BackColor = [System.Drawing.Color]::FromArgb(255, 76, 76)  # Rojo claro (FF4C4C)
+    $btnClearAnyDesk.Tag = $btnClearAnyDesk.BackColor
 # Impresoras show
     $buttonShowPrinters = New-Object System.Windows.Forms.Button
     $buttonShowPrinters.Text = "Mostrar Impresoras"
     $buttonShowPrinters.Size = $buttonStyle.Size
     $buttonShowPrinters.Location = New-Object System.Drawing.Point(240, 50)
+    $buttonShowPrinters.Tag = $buttonShowPrinters.BackColor
 # cola de impresion
     $btnClearPrintJobs = New-Object System.Windows.Forms.Button
     $btnClearPrintJobs.Text = "Limpiar Impresiones y Reiniciar Cola"
     $btnClearPrintJobs.Size = $buttonStyle.Size
     $btnClearPrintJobs.Location = New-Object System.Drawing.Point(240, 90)
+    $btnClearPrintJobs.Tag = $btnClearPrintJobs.BackColor
 # aplicaciones ns
     $btnAplicacionesNS = New-Object System.Windows.Forms.Button
     $btnAplicacionesNS.Text = "Aplicaciones National Soft"
     $btnAplicacionesNS.Size = $buttonStyle.Size
     $btnAplicacionesNS.Location = New-Object System.Drawing.Point(240, 130)
     $btnAplicacionesNS.BackColor = [System.Drawing.Color]::FromArgb(255, 200, 150)  # Naranja tenue (RGB: 200, 150, 100)
+    $btnAplicacionesNS.Tag = $btnAplicacionesNS.BackColor
 # Crear el botón para la configuración de IPs
     $btnConfigurarIPs = New-Object System.Windows.Forms.Button
     $btnConfigurarIPs.Text = "Configurar IPs"
     $btnConfigurarIPs.Size = $buttonStyle.Size
     $btnConfigurarIPs.Location = New-Object System.Drawing.Point(240, 170)
     $btnConfigurarIPs.BackColor = [System.Drawing.Color]::FromArgb(150, 200, 255)  # Color azul claro
+    $btnConfigurarIPs.Tag = $btnConfigurarIPs.BackColor
 #Agregar botones a la de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)

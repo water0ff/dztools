@@ -16,7 +16,7 @@ $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250201.1407"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250201.1507"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -61,6 +61,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnInstallSQLManagement.Text = "Instalar Management2014"
     $btnInstallSQLManagement.Size = $buttonStyle.Size
     $btnInstallSQLManagement.Location = New-Object System.Drawing.Point(10, 10)
+    $btnInstallSQLManagement.Font = $defaultFont
     $btnInstallSQLManagement.Add_MouseEnter($button_MouseEnter)
     $btnInstallSQLManagement.Add_MouseLeave($button_MouseLeave)
     $btnInstallSQLManagement.Tag = $btnInstallSQLManagement.BackColor
@@ -73,6 +74,8 @@ $tabControl.TabPages.Add($tabProSql)
     $btnProfiler.ForeColor = [System.Drawing.Color]::Black     
     $btnProfiler.Font = $defaultFont
     $btnProfiler.Tag = $btnProfiler.BackColor
+    $btnProfiler.Add_MouseEnter($button_MouseEnter)
+    $btnProfiler.Add_MouseLeave($button_MouseLeave)
 #Database
     $btnDatabase = New-Object System.Windows.Forms.Button
     $btnDatabase.Text = "Ejecutar Database4"
@@ -82,6 +85,8 @@ $tabControl.TabPages.Add($tabProSql)
     $btnDatabase.ForeColor = [System.Drawing.Color]::Black      
     $btnDatabase.Font = $defaultFont
     $btnDatabase.Tag = $btnDatabase.BackColor
+    $btnDatabase.Add_MouseEnter($button_MouseEnter)
+    $btnDatabase.Add_MouseLeave($button_MouseLeave)
 #SqlManager
     $btnSQLManager = New-Object System.Windows.Forms.Button
     $btnSQLManager.Text = "Ejecutar Manager"
@@ -91,6 +96,8 @@ $tabControl.TabPages.Add($tabProSql)
     $btnSQLManager.ForeColor = [System.Drawing.Color]::Black   
     $btnSQLManager.Font = $defaultFont
     $btnSQLManager.Tag = $btnSQLManager.BackColor
+    $btnSQLManager.Add_MouseEnter($button_MouseEnter)
+    $btnSQLManager.Add_MouseLeave($button_MouseLeave)
 #SqlManagement
     $btnSQLManagement = New-Object System.Windows.Forms.Button
     $btnSQLManagement.Text = "Ejecutar Management"
@@ -100,6 +107,8 @@ $tabControl.TabPages.Add($tabProSql)
     $btnSQLManagement.ForeColor = [System.Drawing.Color]::Black  
     $btnSQLManagement.Font = $defaultFont
     $btnSQLManagement.Tag = $btnSQLManagement.BackColor
+    $btnSQLManagement.Add_MouseEnter($button_MouseEnter)
+    $btnSQLManagement.Add_MouseLeave($button_MouseLeave)
 # PrinterTool
     $btnPrinterTool = New-Object System.Windows.Forms.Button
     $btnPrinterTool.Text = "Printer Tools"
@@ -109,39 +118,56 @@ $tabControl.TabPages.Add($tabProSql)
     $btnPrinterTool.ForeColor = [System.Drawing.Color]::Black    
     $btnPrinterTool.Font = $defaultFont
     $btnPrinterTool.Tag = $btnPrinterTool.BackColor
+    $btnPrinterTool.Add_MouseEnter($button_MouseEnter)
+    $btnPrinterTool.Add_MouseLeave($button_MouseLeave)
 # Anydesk
     $btnClearAnyDesk = New-Object System.Windows.Forms.Button
     $btnClearAnyDesk.Text = "Clear AnyDesk"
     $btnClearAnyDesk.Size = $buttonStyle.Size
+    $btnClearAnyDesk.Font = $defaultFont
     $btnClearAnyDesk.Location = New-Object System.Drawing.Point(240, 10)
     $btnClearAnyDesk.BackColor = [System.Drawing.Color]::FromArgb(255, 76, 76)  # Rojo claro (FF4C4C)
     $btnClearAnyDesk.Tag = $btnClearAnyDesk.BackColor
+    $btnClearAnyDesk.Add_MouseEnter($button_MouseEnter)
+    $btnClearAnyDesk.Add_MouseLeave($button_MouseLeave)
 # Impresoras show
     $buttonShowPrinters = New-Object System.Windows.Forms.Button
     $buttonShowPrinters.Text = "Mostrar Impresoras"
     $buttonShowPrinters.Size = $buttonStyle.Size
+    $buttonShowPrinters.Font = $defaultFont
     $buttonShowPrinters.Location = New-Object System.Drawing.Point(240, 50)
     $buttonShowPrinters.Tag = $buttonShowPrinters.BackColor
+    $buttonShowPrinters.Add_MouseEnter($button_MouseEnter)
+    $buttonShowPrinters.Add_MouseLeave($button_MouseLeave)
 # cola de impresion
     $btnClearPrintJobs = New-Object System.Windows.Forms.Button
     $btnClearPrintJobs.Text = "Limpiar Impresiones y Reiniciar Cola"
     $btnClearPrintJobs.Size = $buttonStyle.Size
+    $btnClearPrintJobs.Font = $defaultFont
     $btnClearPrintJobs.Location = New-Object System.Drawing.Point(240, 90)
     $btnClearPrintJobs.Tag = $btnClearPrintJobs.BackColor
+    $btnClearPrintJobs.Add_MouseEnter($button_MouseEnter)
+    $btnClearPrintJobs.Add_MouseLeave($button_MouseLeave)
 # aplicaciones ns
     $btnAplicacionesNS = New-Object System.Windows.Forms.Button
     $btnAplicacionesNS.Text = "Aplicaciones National Soft"
     $btnAplicacionesNS.Size = $buttonStyle.Size
+    $btnAplicacionesNS.Font = $defaultFont
     $btnAplicacionesNS.Location = New-Object System.Drawing.Point(240, 130)
     $btnAplicacionesNS.BackColor = [System.Drawing.Color]::FromArgb(255, 200, 150)  # Naranja tenue (RGB: 200, 150, 100)
     $btnAplicacionesNS.Tag = $btnAplicacionesNS.BackColor
+    $btnAplicacionesNS.Add_MouseEnter($button_MouseEnter)
+    $btnAplicacionesNS.Add_MouseLeave($button_MouseLeave)
 # Crear el botón para la configuración de IPs
     $btnConfigurarIPs = New-Object System.Windows.Forms.Button
     $btnConfigurarIPs.Text = "Configurar IPs"
     $btnConfigurarIPs.Size = $buttonStyle.Size
+    $btnConfigurarIPs.Font = $defaultFont
     $btnConfigurarIPs.Location = New-Object System.Drawing.Point(240, 170)
     $btnConfigurarIPs.BackColor = [System.Drawing.Color]::FromArgb(150, 200, 255)  # Color azul claro
     $btnConfigurarIPs.Tag = $btnConfigurarIPs.BackColor
+    $btnConfigurarIPs.Add_MouseEnter($button_MouseEnter)
+    $btnConfigurarIPs.Add_MouseLeave($button_MouseLeave)
 #Agregar botones a la de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)

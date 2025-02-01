@@ -118,21 +118,6 @@ $tabControl.TabPages.Add($tabProSql)
     $tabProSql.Controls.Add($lblConnectionStatus)
     $tabProSql.Controls.Add($btnConnectDb)
     $tabProSql.Controls.Add($btnDisconnectDb)
-# Label para mostrar conexión a la base de datos
-    $lblConnectionStatus = New-Object System.Windows.Forms.Label
-    $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
-    $lblConnectionStatus.Font = $defaultFont
-    $lblConnectionStatus.Size = New-Object System.Drawing.Size(290, 30)
-    $lblConnectionStatus.Location = New-Object System.Drawing.Point(10, 250)
-    $lblConnectionStatus.ForeColor = [System.Drawing.Color]::RED
-# Agregar controles a la pestaña Pro
-    $tabProSql.Controls.Add($chkSqlServer)  # Agregar el CheckBox
-    $tabProSql.Controls.Add($btnReviewPivot)  # Agregar el Botón para revisar Pivot Table
-    $tabProSql.Controls.Add($btnRespaldarRestcard)
-    $tabProSql.Controls.Add($btnFechaRevEstaciones)  
-    $tabProSql.Controls.Add($lblConnectionStatus)  # Agregar el Label de estado de conexión
-    $tabProSql.Controls.Add($btnConnectDb)  # Agregar el Botón para conectar
-    $tabProSql.Controls.Add($btnDisconnectDb)
 # Crear el botón "Salir" fuera de las pestañas
     $btnExit = New-Object System.Windows.Forms.Button
     $btnExit.Text = "Salir"
@@ -142,6 +127,13 @@ $tabControl.TabPages.Add($tabProSql)
     $btnExit.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $btnExit.BackColor = [System.Drawing.Color]::DarkGray
     $btnExit.ForeColor = [System.Drawing.Color]::White
+# Label para mostrar conexión a la base de datos
+    $lblConnectionStatus = New-Object System.Windows.Forms.Label
+    $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
+    $lblConnectionStatus.Font = $defaultFont
+    $lblConnectionStatus.Size = New-Object System.Drawing.Size(290, 30)
+    $lblConnectionStatus.Location = New-Object System.Drawing.Point(10, 250)
+    $lblConnectionStatus.ForeColor = [System.Drawing.Color]::RED
 # Crear el Label para mostrar el nombre del equipo fuera de las pestañas
     $labelHostname = New-Object System.Windows.Forms.Label
     $labelHostname.Text = [System.Net.Dns]::GetHostName()
@@ -332,6 +324,7 @@ foreach ($adapter in $networkAdapters) {
     $formPrincipal.Controls.Add($labelipADress)
     $formPrincipal.Controls.Add($lblPerfilDeRed)
     $formPrincipal.Controls.Add($btnExit)
+
 # Acción para el CheckBox, si el usuario lo marca manualmente
 $chkSqlServer.Add_CheckedChanged({
     if ($chkSqlServer.Checked) {

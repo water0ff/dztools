@@ -15,6 +15,7 @@ $formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDi
 $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
+$boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 # Crear un TextBox para ingresar la versión manualmente
                                                                 $version = "Alfa 250201.1507"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
@@ -35,10 +36,12 @@ Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -Foregrou
 # Función para cambiar el color del botón al pasar el mouse
 $button_MouseEnter = {
     $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
+    $this.Font = $boldFont
 }
 # Función para restaurar el color del botón al salir el mouse
 $button_MouseLeave = {
     $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
+    $this.Font = $defaultFont
 }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl

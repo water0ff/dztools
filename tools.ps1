@@ -16,7 +16,7 @@ $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250201.1307"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250201.1407"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -32,6 +32,15 @@ Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -Foregrou
     $buttonStyle.BackColor = [System.Drawing.Color]::LightGray
     $buttonStyle.ForeColor = [System.Drawing.Color]::Black
     $buttonStyle.Font = $defaultFont
+# Función para cambiar el color del botón al pasar el mouse
+$button_MouseEnter = {
+    $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
+}
+
+# Función para restaurar el color del botón al salir el mouse
+$button_MouseLeave = {
+    $this.BackColor = [System.Drawing.Color]::LightGray  # Restaura el color original
+}
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
@@ -53,6 +62,8 @@ $tabControl.TabPages.Add($tabProSql)
     $btnInstallSQLManagement.Text = "Instalar Management2014"
     $btnInstallSQLManagement.Size = $buttonStyle.Size
     $btnInstallSQLManagement.Location = New-Object System.Drawing.Point(10, 10)
+    $btnInstallSQLManagement.Add_MouseEnter($button_MouseEnter)
+    $btnInstallSQLManagement.Add_MouseLeave($button_MouseLeave)
 #Profiler
     $btnProfiler = New-Object System.Windows.Forms.Button
     $btnProfiler.Text = "Ejecutar ExpressProfiler2.0"

@@ -17,7 +17,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                                                        $version = "Alfa 250201.2354"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250201.2355"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -27,7 +27,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
 # Crear un único objeto ToolTip para reutilizar
     $toolTip = New-Object System.Windows.Forms.ToolTip
-# Creación maestra de botones, Gracias DeepkSeek :D
+# Creación maestra de botones
     function Create-Button {
         param (
             [string]$Text,

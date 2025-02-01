@@ -16,7 +16,7 @@ $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.2122"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250131.2232"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -576,32 +576,9 @@ $restoreColorOnLeave = {
     $labelPort.Add_MouseLeave($restoreColorOnLeave)
     $labelipADress.Add_MouseEnter($changeColorOnHover)
     $labelipADress.Add_MouseLeave($restoreColorOnLeave)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ##-------------------------------------------------------------------------------BOTONES#
 $btnSQLManagement.Add_Click({
+        Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
                     # Función para buscar versiones de SSMS instaladas
                     function Get-SSMSVersions {
                         $ssmsPaths = @()
@@ -634,54 +611,54 @@ $btnSQLManagement.Add_Click({
                     }
                 
                     # Crear un formulario para seleccionar la versión de SSMS
-                    $formSelection = New-Object System.Windows.Forms.Form
-                    $formSelection.Text = "Seleccionar versión de SSMS"
-                    $formSelection.Size = New-Object System.Drawing.Size(350, 200)
-                    $formSelection.StartPosition = "CenterScreen"
-                    $formSelection.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+                    $formSelectionSSMS = New-Object System.Windows.Forms.Form
+                    $formSelectionSSMS.Text = "Seleccionar versión de SSMS"
+                    $formSelectionSSMS.Size = New-Object System.Drawing.Size(350, 200)
+                    $formSelectionSSMS.StartPosition = "CenterScreen"
+                    $formSelectionSSMS.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
                     $formSelection.MaximizeBox = $false
-                    $formSelection.MinimizeBox = $false
+                    $formSelectionSSMS.MinimizeBox = $false
                 
                     # Crear un Label para el mensaje
-                    $label = New-Object System.Windows.Forms.Label
-                    $label.Text = "Seleccione la versión de SSMS que desea ejecutar:"
-                    $label.Location = New-Object System.Drawing.Point(10, 20)
-                    $label.AutoSize = $true
-                    $formSelection.Controls.Add($label)
+                    $labelSSMS = New-Object System.Windows.Forms.Label
+                    $labelSSMS.Text = "Seleccione la versión de SSMS que desea ejecutar:"
+                    $labelSSMS.Location = New-Object System.Drawing.Point(10, 20)
+                    $labelSSMS.AutoSize = $true
+                    $formSelectionSSMS.Controls.Add($label)
                 
                     # Crear un ComboBox para las versiones de SSMS
-                    $comboBox = New-Object System.Windows.Forms.ComboBox
-                    $comboBox.Location = New-Object System.Drawing.Point(10, 50)
-                    $comboBox.Size = New-Object System.Drawing.Size(310, 20)
-                    $comboBox.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+                    $comboBoxSSMS = New-Object System.Windows.Forms.ComboBox
+                    $comboBoxSSMS.Location = New-Object System.Drawing.Point(10, 50)
+                    $comboBoxSSMS.Size = New-Object System.Drawing.Size(310, 20)
+                    $comboBoxSSMS.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
                 
                     # Agregar las versiones encontradas al ComboBox
                     foreach ($version in $ssmsVersions) {
-                        $comboBox.Items.Add($version)
+                        $comboBoxSSMS.Items.Add($version)
                     }
                 
                     # Seleccionar la primera versión por defecto
-                    $comboBox.SelectedIndex = 0
-                    $formSelection.Controls.Add($comboBox)
+                    $comboBoxSSMS.SelectedIndex = 0
+                    $formSelectionSSMS.Controls.Add($comboBoxSSMS)
                 
                     # Crear un botón para aceptar la selección
-                    $buttonOK = New-Object System.Windows.Forms.Button
-                    $buttonOK.Text = "Aceptar"
-                    $buttonOK.Location = New-Object System.Drawing.Point(100, 100)
-                    $buttonOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
-                    $formSelection.AcceptButton = $buttonOK
-                    $formSelection.Controls.Add($buttonOK)
+                    $buttonOKSSMS = New-Object System.Windows.Forms.Button
+                    $buttonOKSSMS.Text = "Aceptar"
+                    $buttonOKSSMS.Location = New-Object System.Drawing.Point(100, 100)
+                    $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
+                    $formSelectionSSMS.AcceptButton = $buttonOKSSMS
+                    $formSelectionSSMS.Controls.Add($buttonOKSSMS)
                 
                     # Mostrar el formulario y manejar la selección
-                    $result = $formSelection.ShowDialog()
+                    $result = $formSelectionSSMS.ShowDialog()
                 
                     if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-                        $selectedVersion = $comboBox.SelectedItem
+                        $selectedVersion = $comboBoxSSMS.SelectedItem
                         try {
-                            Write-Host "Ejecutando SQL Server Management Studio desde: $selectedVersion" -ForegroundColor Green
+                            Write-Host "`tEjecutando SQL Server Management Studio desde: $selectedVersion" -ForegroundColor Green
                             Start-Process -FilePath $selectedVersion
                         } catch {
-                            Write-Host "Error al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
+                            Write-Host "`tError al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
                             [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                         }
                     }

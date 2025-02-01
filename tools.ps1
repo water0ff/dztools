@@ -17,7 +17,7 @@ $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250201.2219"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250201.2319"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -38,7 +38,7 @@ function Create-Button {
     $buttonStyle = @{
         Size      = New-Object System.Drawing.Size(220, 35)
         FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-        BackColor = [System.Drawing.Color]::LightGray
+        BackColor = [System.Drawing.Color]::White
         ForeColor = [System.Drawing.Color]::Black
         Font      = $defaultFont
     }
@@ -93,7 +93,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 170))
     $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 210))
     $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 10)) -BackColor ([System.Drawing.Color]::FromArgb(255, 76, 76))
-    $buttonShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 50))
+    $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 50))
     $btnClearPrintJobs = Create-Button -Text "Limpiar Impresiones y Reiniciar Cola" -Location (New-Object System.Drawing.Point(240, 90))
     $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 130)) -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150))
     $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(240, 170)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
@@ -119,39 +119,39 @@ $tabControl.TabPages.Add($tabProSql)
     $lblConnectionStatus.Location = New-Object System.Drawing.Point(10, 250)
     $lblConnectionStatus.ForeColor = [System.Drawing.Color]::RED
 # Crear el Label para mostrar el nombre del equipo fuera de las pestañas
-    $labelHostname = New-Object System.Windows.Forms.Label
-    $labelHostname.Text = [System.Net.Dns]::GetHostName()
-    $labelHostname.Size = New-Object System.Drawing.Size(240, 35)
-    $labelHostname.Font = $defaultFont
-    $labelHostname.Location = New-Object System.Drawing.Point(2, 350)
-    $labelHostname.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-    $labelHostname.BackColor = [System.Drawing.Color]::White
-    $labelHostname.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-    $labelHostname.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
+    $lblHostname = New-Object System.Windows.Forms.Label
+    $lblHostname.Text = [System.Net.Dns]::GetHostName()
+    $lblHostname.Size = New-Object System.Drawing.Size(240, 35)
+    $lblHostname.Font = $defaultFont
+    $lblHostname.Location = New-Object System.Drawing.Point(2, 350)
+    $lblHostname.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $lblHostname.BackColor = [System.Drawing.Color]::White
+    $lblHostname.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
+    $lblHostname.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
     $toolTipHostname = New-Object System.Windows.Forms.ToolTip
-    $toolTipHostname.SetToolTip($labelHostname, "Haz clic para copiar el Hostname al portapapeles.")
+    $toolTipHostname.SetToolTip($lblHostname, "Haz clic para copiar el Hostname al portapapeles.")
 # Crear el Label para mostrar el puerto
-    $labelPort = New-Object System.Windows.Forms.Label
-    $labelPort.Size = New-Object System.Drawing.Size(236, 35)
-    $labelPort.Font = $defaultFont
-    $labelPort.Location = New-Object System.Drawing.Point(245, 350)  # Alineado a la derecha del hostname
-    $labelPort.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-    $labelPort.BackColor = [System.Drawing.Color]::White
-    $labelPort.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-    $labelPort.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
+    $lblPort = New-Object System.Windows.Forms.Label
+    $lblPort.Size = New-Object System.Drawing.Size(236, 35)
+    $lblPort.Font = $defaultFont
+    $lblPort.Location = New-Object System.Drawing.Point(245, 350)  # Alineado a la derecha del hostname
+    $lblPort.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $lblPort.BackColor = [System.Drawing.Color]::White
+    $lblPort.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
+    $lblPort.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
     $toolTip = New-Object System.Windows.Forms.ToolTip
-    $toolTip.SetToolTip($labelPort, "Haz clic para copiar el Puerto al portapapeles.")
+    $toolTip.SetToolTip($lblPort, "Haz clic para copiar el Puerto al portapapeles.")
 # Crear el Label para mostrar las IPs y adaptadores
-    $labelipADress = New-Object System.Windows.Forms.Label
-    $labelipADress.Size = New-Object System.Drawing.Size(240, 100)  # Tamaño inicial
-    $labelipADress.Font = $defaultFont
-    $labelipADress.Location = New-Object System.Drawing.Point(2, 390)
-    $labelipADress.TextAlign = [System.Drawing.ContentAlignment]::TopLeft
-    $labelipADress.BackColor = [System.Drawing.Color]::White
-    $labelipADress.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-    $labelipADress.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
+    $lbIpAdress = New-Object System.Windows.Forms.Label
+    $lbIpAdress.Size = New-Object System.Drawing.Size(240, 100)  # Tamaño inicial
+    $lbIpAdress.Font = $defaultFont
+    $lbIpAdress.Location = New-Object System.Drawing.Point(2, 390)
+    $lbIpAdress.TextAlign = [System.Drawing.ContentAlignment]::TopLeft
+    $lbIpAdress.BackColor = [System.Drawing.Color]::White
+    $lbIpAdress.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
+    $lbIpAdress.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
 # Crear el ToolTip
-    $toolTip.SetToolTip($labelipADress, "Haz clic para copiar las IPs al portapapeles.")
+    $toolTip.SetToolTip($lbIpAdress, "Haz clic para copiar las IPs al portapapeles.")
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
@@ -160,7 +160,7 @@ $tabControl.TabPages.Add($tabProSql)
     $tabAplicaciones.Controls.Add($btnSQLManagement)
     $tabAplicaciones.Controls.Add($btnClearPrintJobs)
     $tabAplicaciones.Controls.Add($btnClearAnyDesk)
-    $tabAplicaciones.Controls.Add($buttonShowPrinters)
+    $tabAplicaciones.Controls.Add($btnShowPrinters)
     $tabAplicaciones.Controls.Add($btnPrinterTool)
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
@@ -173,8 +173,8 @@ $tabControl.TabPages.Add($tabProSql)
     $tabProSql.Controls.Add($btnConnectDb)
     $tabProSql.Controls.Add($btnDisconnectDb)
 #Funcion para copiar el puerto al portapapeles
-$labelPort.Add_Click({
-    if ($labelPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
+$lblPort.Add_Click({
+    if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
         $port = $matches[0]  # Extraer el número del texto
         [System.Windows.Forms.Clipboard]::SetText($port)
         Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
@@ -182,13 +182,13 @@ $labelPort.Add_Click({
         Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
     }
 })
-$labelHostname.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($labelHostname.Text)
-        Write-Host "`nNombre del equipo copiado al portapapeles: $($labelHostname.Text)"
+$lblHostname.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
+        Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
     })
-$labelipADress.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($labelipADress.Text)
-        Write-Host "`nIP's copiadas al equipo: $($labelipADress.Text)"
+$lbIpAdress.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($lbIpAdress.Text)
+        Write-Host "`nIP's copiadas al equipo: $($lbIpAdress.Text)"
     })
 # Obtener las direcciones IP y los adaptadores
 $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
@@ -219,16 +219,16 @@ if ($ipsWithAdapters.Count -gt 0) {
         "Adaptador: $($_.AdapterName)`nIP: $($_.IPAddress)`n"
     }) -join "`n"
     # Asignar el texto al label
-    $labelipADress.Text = "$ipsTextForLabel"
+    $lbIpAdress.Text = "$ipsTextForLabel"
 } else {
-    $labelipADress.Text = "No se encontraron direcciones IP"
+    $lbIpAdress.Text = "No se encontraron direcciones IP"
 }
 
 # Configuración dinámica del tamaño del Label según la cantidad de líneas
     $lineHeight = 11
-    $maxLines = $labelipADress.Text.Split("`n").Count
+    $maxLines = $lbIpAdress.Text.Split("`n").Count
     $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
-    $labelipADress.Size = New-Object System.Drawing.Size(240, $labelHeight)
+    $lbIpAdress.Size = New-Object System.Drawing.Size(240, $labelHeight)
 # Ajustar la altura del formulario según el Label de IPs
     $formHeight = $formPrincipal.Size.Height + $labelHeight - 26
     $formPrincipal.Size = New-Object System.Drawing.Size($formPrincipal.Size.Width, $formHeight)
@@ -323,9 +323,9 @@ foreach ($adapter in $networkAdapters) {
 }
 # Agregar los controles al formulario
     $formPrincipal.Controls.Add($tabControl)
-    $formPrincipal.Controls.Add($labelHostname)
-    $formPrincipal.Controls.Add($labelPort)
-    $formPrincipal.Controls.Add($labelipADress)
+    $formPrincipal.Controls.Add($lblHostname)
+    $formPrincipal.Controls.Add($lblPort)
+    $formPrincipal.Controls.Add($lbIpAdress)
     $formPrincipal.Controls.Add($lblPerfilDeRed)
     $formPrincipal.Controls.Add($btnExit)
 
@@ -363,9 +363,9 @@ $chkSqlServer.Add_CheckedChanged({
         $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
 
         if ($tcpPort -and $tcpPort.TcpPort) {
-            $labelPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
+            $lblPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
         } else {
-            $labelPort.Text = "No se encontró puerto o instancia."
+            $lblPort.Text = "No se encontró puerto o instancia."
         }
 ##-------------------- FUNCIONES                                                          -------#
 function Check-SqlServerInstallation {
@@ -538,12 +538,12 @@ $restoreColorOnLeave = {
     param($sender, $eventArgs)
     $sender.BackColor = [System.Drawing.Color]::White
 }
-    $labelHostname.Add_MouseEnter($changeColorOnHover)
-    $labelHostname.Add_MouseLeave($restoreColorOnLeave)
-    $labelPort.Add_MouseEnter($changeColorOnHover)
-    $labelPort.Add_MouseLeave($restoreColorOnLeave)
-    $labelipADress.Add_MouseEnter($changeColorOnHover)
-    $labelipADress.Add_MouseLeave($restoreColorOnLeave)
+    $lblHostname.Add_MouseEnter($changeColorOnHover)
+    $lblHostname.Add_MouseLeave($restoreColorOnLeave)
+    $lblPort.Add_MouseEnter($changeColorOnHover)
+    $lblPort.Add_MouseLeave($restoreColorOnLeave)
+    $lbIpAdress.Add_MouseEnter($changeColorOnHover)
+    $lbIpAdress.Add_MouseLeave($restoreColorOnLeave)
 ##-------------------------------------------------------------------------------BOTONES#
 $btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
@@ -749,7 +749,7 @@ $btnClearAnyDesk.Add_Click({
             Write-Host "`nRenovación de AnyDesk cancelada por el usuario."
         }
     })
-$buttonShowPrinters.Add_Click({
+$btnShowPrinters.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
             $printers = Get-WmiObject -Query "SELECT * FROM Win32_Printer" | ForEach-Object {

@@ -98,6 +98,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnReviewPivot = Create-Button -Text "Revisar Pivot Table" -Location (New-Object System.Drawing.Point(10, 110)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 150)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 190)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 310)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
@@ -118,15 +119,11 @@ $tabControl.TabPages.Add($tabProSql)
     $tabProSql.Controls.Add($lblConnectionStatus)
     $tabProSql.Controls.Add($btnConnectDb)
     $tabProSql.Controls.Add($btnDisconnectDb)
-# Crear el botón "Salir" fuera de las pestañas
-    $btnExit = New-Object System.Windows.Forms.Button
-    $btnExit.Text = "Salir"
-    $btnExit.Size = $buttonStyle.Size
-    $btnExit.Font = $defaultFont
-    $btnExit.Location = New-Object System.Drawing.Point(120, 310)
-    $btnExit.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $btnExit.BackColor = [System.Drawing.Color]::DarkGray
-    $btnExit.ForeColor = [System.Drawing.Color]::White
+# Crear el CheckBox
+    $chkSqlServer = New-Object System.Windows.Forms.CheckBox
+    $chkSqlServer.Text = "Instalar SQL Tools (opcional)"
+    $chkSqlServer.Size = New-Object System.Drawing.Size(290, 30)
+    $chkSqlServer.Location = New-Object System.Drawing.Point(10, 10)
 # Label para mostrar conexión a la base de datos
     $lblConnectionStatus = New-Object System.Windows.Forms.Label
     $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"

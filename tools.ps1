@@ -17,7 +17,7 @@ $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250201.2007"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250201.2199"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -95,31 +95,14 @@ $tabControl.TabPages.Add($tabProSql)
     $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(240, 170)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 40)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 40)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
     $btnReviewPivot = Create-Button -Text "Revisar Pivot Table" -Location (New-Object System.Drawing.Point(10, 110)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
     $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 150)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
     $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 190)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 310)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
-# Agregar botones a la pestaña de aplicaciones
-    $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
-    $tabAplicaciones.Controls.Add($btnProfiler)
-    $tabAplicaciones.Controls.Add($btnDatabase)
-    $tabAplicaciones.Controls.Add($btnSQLManager)
-    $tabAplicaciones.Controls.Add($btnSQLManagement)
-    $tabAplicaciones.Controls.Add($btnClearPrintJobs)
-    $tabAplicaciones.Controls.Add($btnClearAnyDesk)
-    $tabAplicaciones.Controls.Add($buttonShowPrinters)
-    $tabAplicaciones.Controls.Add($btnPrinterTool)
-    $tabAplicaciones.Controls.Add($btnAplicacionesNS)
-    $tabAplicaciones.Controls.Add($btnConfigurarIPs)
-# Agregar controles a la pestaña Pro
-    $tabProSql.Controls.Add($chkSqlServer)
-    $tabProSql.Controls.Add($btnReviewPivot)
-    $tabProSql.Controls.Add($btnRespaldarRestcard)
-    $tabProSql.Controls.Add($btnFechaRevEstaciones)
-    $tabProSql.Controls.Add($lblConnectionStatus)
-    $tabProSql.Controls.Add($btnConnectDb)
-    $tabProSql.Controls.Add($btnDisconnectDb)
-# Crear el CheckBox
+# Crear el CheckBox chkSqlServer
     $chkSqlServer = New-Object System.Windows.Forms.CheckBox
     $chkSqlServer.Text = "Instalar SQL Tools (opcional)"
     $chkSqlServer.Size = New-Object System.Drawing.Size(290, 30)
@@ -165,6 +148,26 @@ $tabControl.TabPages.Add($tabProSql)
     $labelipADress.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
 # Crear el ToolTip
     $toolTip.SetToolTip($labelipADress, "Haz clic para copiar las IPs al portapapeles.")
+# Agregar botones a la pestaña de aplicaciones
+    $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
+    $tabAplicaciones.Controls.Add($btnProfiler)
+    $tabAplicaciones.Controls.Add($btnDatabase)
+    $tabAplicaciones.Controls.Add($btnSQLManager)
+    $tabAplicaciones.Controls.Add($btnSQLManagement)
+    $tabAplicaciones.Controls.Add($btnClearPrintJobs)
+    $tabAplicaciones.Controls.Add($btnClearAnyDesk)
+    $tabAplicaciones.Controls.Add($buttonShowPrinters)
+    $tabAplicaciones.Controls.Add($btnPrinterTool)
+    $tabAplicaciones.Controls.Add($btnAplicacionesNS)
+    $tabAplicaciones.Controls.Add($btnConfigurarIPs)
+# Agregar controles a la pestaña Pro
+    $tabProSql.Controls.Add($chkSqlServer)
+    $tabProSql.Controls.Add($btnReviewPivot)
+    $tabProSql.Controls.Add($btnRespaldarRestcard)
+    $tabProSql.Controls.Add($btnFechaRevEstaciones)
+    $tabProSql.Controls.Add($lblConnectionStatus)
+    $tabProSql.Controls.Add($btnConnectDb)
+    $tabProSql.Controls.Add($btnDisconnectDb)
 #Funcion para copiar el puerto al portapapeles
 $labelPort.Add_Click({
     if ($labelPort.Text -match "\d+") {  # Asegurarse de que el texto es un número

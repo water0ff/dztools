@@ -16,7 +16,7 @@ $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.2342"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250131.2352"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -669,11 +669,12 @@ $btnSQLManagement.Add_Click({
                             Write-Host "`tError al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
                             [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                         }
-                        else
+                    }
+                                           else
                         {
                             Write-Host "`tEl usuario canceló la acción." -ForegroundColor Red
                         }
-                    }
+ 
 })
 $btnProfiler.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green

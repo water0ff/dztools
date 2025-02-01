@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250201.2357"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250201.2358"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -200,6 +200,13 @@ $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetwo
             }
         }
     }
+
+
+
+
+
+
+
 # Construir el texto para mostrar todas las IPs y adaptadores
 if ($ipsWithAdapters.Count -gt 0) {
     # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
@@ -217,14 +224,13 @@ if ($ipsWithAdapters.Count -gt 0) {
 } else {
     $lbIpAdress.Text = "No se encontraron direcciones IP"
 }
-
 # Configuración dinámica del tamaño del Label según la cantidad de líneas
-    $lineHeight = 11
+    $lineHeight = 13
     $maxLines = $lbIpAdress.Text.Split("`n").Count
     $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
     $lbIpAdress.Size = New-Object System.Drawing.Size(240, $labelHeight)
 # Ajustar la altura del formulario según el Label de IPs
-    $formHeight = $formPrincipal.Size.Height + $labelHeight - 16
+    $formHeight = $formPrincipal.Size.Height + $labelHeight - 20
     $formPrincipal.Size = New-Object System.Drawing.Size($formPrincipal.Size.Width, $formHeight)
 # Función para obtener adaptadores y sus estados (modificada)
 function Get-NetworkAdapterStatus {
@@ -1475,9 +1481,7 @@ function Show-NewIpForm {
     $ipAssignButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $ipAssignForm.AcceptButton = $ipAssignButton
     $ipAssignForm.Controls.Add($ipAssignButton)
-
     $result = $ipAssignForm.ShowDialog()
-
     if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         $octet1 = [int]$ipAssignTextBox1.Text
         $octet2 = [int]$ipAssignTextBox2.Text
@@ -1507,46 +1511,6 @@ function Show-NewIpForm {
         return $null
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ------------------------------ funcion para impresoras
 $btnConfigurarIPs.Add_Click({
         $ipAssignFormAsignacion = New-Object System.Windows.Forms.Form
@@ -1772,8 +1736,6 @@ $btnConfigurarIPs.Add_Click({
         })
         $ipAssignFormAsignacion.ShowDialog()
 })
-
-
 $btnExit.Add_Click({
     $formPrincipal.Dispose()
     $formPrincipal.Close()

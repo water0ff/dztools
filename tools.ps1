@@ -17,7 +17,7 @@ $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250201.1507"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250201.1707"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -164,9 +164,9 @@ $tabControl.TabPages.Add($tabProSql)
 # Crear el botón para la configuración de IPs
     $btnConfigurarIPs = New-Object System.Windows.Forms.Button
     $btnConfigurarIPs.Text = "Configurar IPs"
+    $btnConfigurarIPs.Location = New-Object System.Drawing.Point(240, 170)
     $btnConfigurarIPs.Size = $buttonStyle.Size
     $btnConfigurarIPs.Font = $defaultFont
-    $btnConfigurarIPs.Location = New-Object System.Drawing.Point(240, 170)
     $btnConfigurarIPs.BackColor = [System.Drawing.Color]::FromArgb(150, 200, 255)  # Color azul claro
     $btnConfigurarIPs.Tag = $btnConfigurarIPs.BackColor
     $btnConfigurarIPs.Add_MouseEnter($button_MouseEnter)
@@ -192,34 +192,55 @@ $tabControl.TabPages.Add($tabProSql)
     $btnConnectDb = New-Object System.Windows.Forms.Button
     $btnConnectDb.Text = "Conectar a BDD"
     $btnConnectDb.Size = $buttonStyle.Size
+    $btnConnectDb.Font = $defaultFont
+    $btnConnectDb.Tag = $btnConfigurarIPs.BackColor
+    $btnConnectDb.Add_MouseEnter($button_MouseEnter)
+    $btnConnectDb.Add_MouseLeave($button_MouseLeave)
     $btnConnectDb.Location = New-Object System.Drawing.Point(10, 40)
     $btnConnectDb.Enabled = $true
 #2
     $btnDisconnectDb = New-Object System.Windows.Forms.Button
     $btnDisconnectDb.Text = "Desconectar de BDD"
     $btnDisconnectDb.Size = $buttonStyle.Size
+    $btnDisconnectDb.Font = $defaultFont
+    $btnDisconnectDb.Tag = $btnConfigurarIPs.BackColor
+    $btnDisconnectDb.Add_MouseEnter($button_MouseEnter)
+    $btnDisconnectDb.Add_MouseLeave($button_MouseLeave)
     $btnDisconnectDb.Location = New-Object System.Drawing.Point(240, 40)
     $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
 # Crear el Botón para revisar Pivot Table
     $btnReviewPivot = New-Object System.Windows.Forms.Button
     $btnReviewPivot.Text = "Revisar Pivot Table"
     $btnReviewPivot.Size = $buttonStyle.Size
+    $btnReviewPivot.Font = $defaultFont
+    $btnReviewPivot.Tag = $btnConfigurarIPs.BackColor
+    $btnReviewPivot.Add_MouseEnter($button_MouseEnter)
+    $btnReviewPivot.Add_MouseLeave($button_MouseLeave)
     $btnReviewPivot.Location = New-Object System.Drawing.Point(10, 110)
     $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
 # Crear el Botón para revisar Fecha de revisiones
     $btnFechaRevEstaciones = New-Object System.Windows.Forms.Button
     $btnFechaRevEstaciones.Text = "Fecha de revisiones"
     $btnFechaRevEstaciones.Size = $buttonStyle.Size
+    $btnFechaRevEstaciones.Font = $defaultFont
+    $btnFechaRevEstaciones.Tag = $btnConfigurarIPs.BackColor
+    $btnFechaRevEstaciones.Add_MouseEnter($button_MouseEnter)
+    $btnFechaRevEstaciones.Add_MouseLeave($button_MouseLeave)
     $btnFechaRevEstaciones.Location = New-Object System.Drawing.Point(10, 150)
     $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
 # Crear el Botón para respaldar restcard
     $btnRespaldarRestcard = New-Object System.Windows.Forms.Button
     $btnRespaldarRestcard.Text = "Respaldar restcard"
     $btnRespaldarRestcard.Size = $buttonStyle.Size
+    $btnRespaldarRestcard.Font = $defaultFont
+    $btnRespaldarRestcard.Tag = $btnConfigurarIPs.BackColor
+    $btnRespaldarRestcard.Add_MouseEnter($button_MouseEnter)
+    $btnRespaldarRestcard.Add_MouseLeave($button_MouseLeave)
     $btnRespaldarRestcard.Location = New-Object System.Drawing.Point(10, 190)
 # Label para mostrar conexión a la base de datos
     $lblConnectionStatus = New-Object System.Windows.Forms.Label
     $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
+    $lblConnectionStatus.Font = $defaultFont
     $lblConnectionStatus.Size = New-Object System.Drawing.Size(290, 30)
     $lblConnectionStatus.Location = New-Object System.Drawing.Point(10, 250)
     $lblConnectionStatus.ForeColor = [System.Drawing.Color]::RED
@@ -235,6 +256,7 @@ $tabControl.TabPages.Add($tabProSql)
     $btnExit = New-Object System.Windows.Forms.Button
     $btnExit.Text = "Salir"
     $btnExit.Size = $buttonStyle.Size
+    $btnExit.Font = $defaultFont
     $btnExit.Location = New-Object System.Drawing.Point(120, 310)
     $btnExit.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $btnExit.BackColor = [System.Drawing.Color]::DarkGray
@@ -243,6 +265,7 @@ $tabControl.TabPages.Add($tabProSql)
     $labelHostname = New-Object System.Windows.Forms.Label
     $labelHostname.Text = [System.Net.Dns]::GetHostName()
     $labelHostname.Size = New-Object System.Drawing.Size(240, 35)
+    $labelHostname.Font = $defaultFont
     $labelHostname.Location = New-Object System.Drawing.Point(2, 350)
     $labelHostname.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     $labelHostname.BackColor = [System.Drawing.Color]::White
@@ -253,6 +276,7 @@ $tabControl.TabPages.Add($tabProSql)
 # Crear el Label para mostrar el puerto
     $labelPort = New-Object System.Windows.Forms.Label
     $labelPort.Size = New-Object System.Drawing.Size(236, 35)
+    $labelPort.Font = $defaultFont
     $labelPort.Location = New-Object System.Drawing.Point(245, 350)  # Alineado a la derecha del hostname
     $labelPort.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     $labelPort.BackColor = [System.Drawing.Color]::White
@@ -263,6 +287,7 @@ $tabControl.TabPages.Add($tabProSql)
 # Crear el Label para mostrar las IPs y adaptadores
     $labelipADress = New-Object System.Windows.Forms.Label
     $labelipADress.Size = New-Object System.Drawing.Size(240, 100)  # Tamaño inicial
+    $labelipADress.Font = $defaultFont
     $labelipADress.Location = New-Object System.Drawing.Point(2, 390)
     $labelipADress.TextAlign = [System.Drawing.ContentAlignment]::TopLeft
     $labelipADress.BackColor = [System.Drawing.Color]::White

@@ -4,92 +4,90 @@ if (!(Test-Path -Path "C:\Temp")) {
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
 }
 #####################################################################################
- Add-Type -AssemblyName System.Windows.Forms
- Add-Type -AssemblyName System.Drawing
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
 # Crear el formulario
-$formPrincipal = New-Object System.Windows.Forms.Form
-$formPrincipal.Size = New-Object System.Drawing.Size(500, 460)
-$formPrincipal.StartPosition = "CenterScreen"
-$formPrincipal.BackColor = [System.Drawing.Color]::White
-$formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-$formPrincipal.MaximizeBox = $false
-$formPrincipal.MinimizeBox = $false
-$defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
-$boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+    $formPrincipal = New-Object System.Windows.Forms.Form
+    $formPrincipal.Size = New-Object System.Drawing.Size(500, 460)
+    $formPrincipal.StartPosition = "CenterScreen"
+    $formPrincipal.BackColor = [System.Drawing.Color]::White
+    $formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $formPrincipal.MaximizeBox = $false
+    $formPrincipal.MinimizeBox = $false
+    $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
+    $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250201.2341"  # Valor predeterminado para la versión
-$formPrincipal.Text = "Daniel Tools v$version"
-Write-Host "`n=============================================" -ForegroundColor DarkCyan
-Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
-Write-Host "              Versión: v$($version)               " -ForegroundColor Green
-Write-Host "=============================================" -ForegroundColor DarkCyan
-Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
-Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
+                                                                                                        $version = "Alfa 250201.2352"  # Valor predeterminado para la versión
+    $formPrincipal.Text = "Daniel Tools v$version"
+    Write-Host "`n=============================================" -ForegroundColor DarkCyan
+    Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
+    Write-Host "              Versión: v$($version)               " -ForegroundColor Green
+    Write-Host "=============================================" -ForegroundColor DarkCyan
+    Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
+    Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
+# Crear un único objeto ToolTip para reutilizar
+    $toolTip = New-Object System.Windows.Forms.ToolTip
 # Creación maestra de botones, Gracias DeepkSeek :D
-function Create-Button {
-    param (
-        [string]$Text,
-        [System.Drawing.Point]$Location,
-        [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
-        [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-        [string]$ToolTip = $null  # Nuevo parámetro para el ToolTip
-    )
-
-    # Pasar esto a los parametros de arriba.
-    $buttonStyle = @{
-        Size      = New-Object System.Drawing.Size(220, 35)
-        FlatStyle = [System.Windows.Forms.FlatStyle]::System
-        Font      = $defaultFont
+    function Create-Button {
+        param (
+            [string]$Text,
+            [System.Drawing.Point]$Location,
+            [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
+            [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
+            [string]$ToolTipText = $null  # Nuevo parámetro para el ToolTip
+        )
+    
+        # Pasar esto a los parametros de arriba.
+        $buttonStyle = @{
+            Size      = New-Object System.Drawing.Size(220, 35)
+            FlatStyle = [System.Windows.Forms.FlatStyle]::System
+            Font      = $defaultFont
+        }
+    
+        # Eventos de mouse (definidos dentro de la función)
+        $button_MouseEnter = {
+            $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
+            $this.Font = $boldFont
+        }
+    
+        $button_MouseLeave = {
+            $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
+            $this.Font = $defaultFont
+        }
+    
+        # Crear el botón
+        $button = New-Object System.Windows.Forms.Button
+        $button.Text = $Text
+        $button.Size = $buttonStyle.Size
+        $button.Location = $Location
+        $button.BackColor = $BackColor
+        $button.ForeColor = $ForeColor
+        $button.Font = $buttonStyle.Font
+        $button.FlatStyle = $buttonStyle.FlatStyle
+        $button.Tag = $BackColor  # Almacena el color original en Tag
+        $button.Add_MouseEnter($button_MouseEnter)
+        $button.Add_MouseLeave($button_MouseLeave)
+    
+        # Agregar ToolTip si se proporciona
+        if ($ToolTipText) {
+            $toolTip.SetToolTip($button, $ToolTipText)
+        }
+    
+        return $button
     }
-
-    # Eventos de mouse (definidos dentro de la función)
-    $button_MouseEnter = {
-        $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
-        $this.Font = $boldFont
-    }
-
-    $button_MouseLeave = {
-        $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
-        $this.Font = $defaultFont
-    }
-
-    # Crear el botón
-    $button = New-Object System.Windows.Forms.Button
-    $button.Text = $Text
-    $button.Size = $buttonStyle.Size
-    $button.Location = $Location
-    $button.BackColor = $BackColor
-    $button.ForeColor = $ForeColor
-    $button.Font = $buttonStyle.Font
-    $button.FlatStyle = $buttonStyle.FlatStyle
-    $button.Tag = $BackColor  # Almacena el color original en Tag
-    $button.Add_MouseEnter($button_MouseEnter)
-    $button.Add_MouseLeave($button_MouseLeave)
-
-    # Agregar ToolTip si se proporciona
-    if ($ToolTip) {
-        $toolTip = New-Object System.Windows.Forms.ToolTip
-        $toolTip.SetToolTip($button, $ToolTip)
-    }
-
-    return $button
-}
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
     $tabControl.Location = New-Object System.Drawing.Point(0,0)
     $tabControl.BackColor = [System.Drawing.Color]::LightGray
 # Crear las tres pestañas (Aplicaciones, Consultas y Pro)
-$tabAplicaciones = New-Object System.Windows.Forms.TabPage
-$tabAplicaciones.Text = "Aplicaciones"
-    #$tabConsultas = New-Object System.Windows.Forms.TabPage
-    #$tabConsultas.Text = "Consultas"
-$tabProSql = New-Object System.Windows.Forms.TabPage
-$tabProSql.Text = "Pro"
+    $tabAplicaciones = New-Object System.Windows.Forms.TabPage
+    $tabAplicaciones.Text = "Aplicaciones"
+    $tabProSql = New-Object System.Windows.Forms.TabPage
+    $tabProSql.Text = "Pro"
 # Añadir las pestañas al TabControl
-$tabControl.TabPages.Add($tabAplicaciones)
-    #$tabControl.TabPages.Add($tabConsultas)
-$tabControl.TabPages.Add($tabProSql)
+    $tabControl.TabPages.Add($tabAplicaciones)
+    $tabControl.TabPages.Add($tabProSql)
 # Crear los botones utilizando la función
     $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 10)) -ToolTip "Instalación mediante choco de SQL Management 2014."
     $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 50)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."

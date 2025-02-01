@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250201.2358"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250201.2359"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -225,7 +225,7 @@ if ($ipsWithAdapters.Count -gt 0) {
     $lbIpAdress.Text = "No se encontraron direcciones IP"
 }
 # Configuración dinámica del tamaño del Label según la cantidad de líneas
-    $lineHeight = 13
+    $lineHeight = 15
     $maxLines = $lbIpAdress.Text.Split("`n").Count
     $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
     $lbIpAdress.Size = New-Object System.Drawing.Size(240, $labelHeight)
@@ -550,13 +550,11 @@ $btnSQLManagement.Add_Click({
                     # Función para buscar versiones de SSMS instaladas
                     function Get-SSMSVersions {
                         $ssmsPaths = @()
-                
                         # Rutas comunes donde SSMS puede estar instalado
                         $possiblePaths = @(
                             "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",  # SSMS 2014 y versiones anteriores
                             "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"  # SSMS 2016 y versiones posteriores
                         )
-                
                         # Buscar en las rutas posibles
                         foreach ($path in $possiblePaths) {
                             $foundPaths = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
@@ -566,18 +564,14 @@ $btnSQLManagement.Add_Click({
                                 }
                             }
                         }
-                
                         return $ssmsPaths
                     }
-                
                     # Obtener las versiones de SSMS instaladas
                     $ssmsVersions = Get-SSMSVersions
-                
                     if ($ssmsVersions.Count -eq 0) {
                         [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                         return
                     }
-                
                     # Crear un formulario para seleccionar la versión de SSMS
                     $formSelectionSSMS = New-Object System.Windows.Forms.Form
                     $formSelectionSSMS.Text = "Seleccionar versión de SSMS"
@@ -586,29 +580,24 @@ $btnSQLManagement.Add_Click({
                     $formSelectionSSMS.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
                     $formSelectionSSMS.MaximizeBox = $false
                     $formSelectionSSMS.MinimizeBox = $false
-                
                     # Crear un Label para el mensaje
                     $labelSSMS = New-Object System.Windows.Forms.Label
                     $labelSSMS.Text = "Seleccione la versión de SSMS que desea ejecutar:"
                     $labelSSMS.Location = New-Object System.Drawing.Point(10, 20)
                     $labelSSMS.AutoSize = $true
                     $formSelectionSSMS.Controls.Add($label)
-                
                     # Crear un ComboBox para las versiones de SSMS
                     $comboBoxSSMS = New-Object System.Windows.Forms.ComboBox
                     $comboBoxSSMS.Location = New-Object System.Drawing.Point(10, 50)
                     $comboBoxSSMS.Size = New-Object System.Drawing.Size(310, 20)
                     $comboBoxSSMS.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-                
                     # Agregar las versiones encontradas al ComboBox
                     foreach ($version in $ssmsVersions) {
                         $comboBoxSSMS.Items.Add($version)
                     }
-                
                     # Seleccionar la primera versión por defecto
                     $comboBoxSSMS.SelectedIndex = 0
                     $formSelectionSSMS.Controls.Add($comboBoxSSMS)
-                
                     # Crear un botón para aceptar la selección
                     $buttonOKSSMS = New-Object System.Windows.Forms.Button
                     $buttonOKSSMS.Text = "Aceptar"
@@ -624,11 +613,9 @@ $btnSQLManagement.Add_Click({
                     $formSelectionSSMS.Controls.Add($buttonOKSSMS)
                     $formSelectionSSMS.CancelButton = $buttonCancelSSMS
                     $formSelectionSSMS.Controls.Add($buttonCancelSSMS)
-                
                     # Mostrar el formulario y manejar la selección
                     $result = $formSelectionSSMS.ShowDialog()
-                
-                    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
                         $selectedVersion = $comboBoxSSMS.SelectedItem
                         try {
                             Write-Host "`tEjecutando SQL Server Management Studio desde: $selectedVersion" -ForegroundColor Green
@@ -642,8 +629,7 @@ $btnSQLManagement.Add_Click({
                         {
                             Write-Host "`tEl usuario canceló la acción." -ForegroundColor Red
                         }
- 
-})
+ })
 $btnProfiler.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $ProfilerUrl = "https://codeplexarchive.org/codeplex/browse/ExpressProfiler/releases/4/ExpressProfiler22wAddinSigned.zip"

@@ -16,7 +16,7 @@ $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.2352"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250201.1307"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -58,6 +58,9 @@ $tabControl.TabPages.Add($tabProSql)
     $btnProfiler.Text = "Ejecutar ExpressProfiler2.0"
     $btnProfiler.Size = $buttonStyle.Size
     $btnProfiler.Location = New-Object System.Drawing.Point(10, 50)
+    $btnProfiler.BackColor = [System.Drawing.Color]::LightBlue  # Color para ejecutar aplicaciones
+    $btnProfiler.ForeColor = [System.Drawing.Color]::Black      # Texto en negro
+    $btnProfiler.Font = $defaultFont
 #Database
     $btnDatabase = New-Object System.Windows.Forms.Button
     $btnDatabase.Text = "Ejecutar Database4"
@@ -644,12 +647,12 @@ $btnSQLManagement.Add_Click({
                     # Crear un botón para aceptar la selección
                     $buttonOKSSMS = New-Object System.Windows.Forms.Button
                     $buttonOKSSMS.Text = "Aceptar"
-                    $buttonOKSSMS.Size = $buttonStyle.Size
+                    $buttonOKSSMS.Size = New-Object System.Drawing.Size(120, 35)
                     $buttonOKSSMS.Location = New-Object System.Drawing.Point(20, 100)
                     $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
                     $buttonCancelSSMS = New-Object System.Windows.Forms.Button
                     $buttonCancelSSMS.Text = "Cancelar"
-                    $buttonCancelSSMS.Size = $buttonStyle.Size
+                    $buttonCancelSSMS.Size = New-Object System.Drawing.Size(120, 35)
                     $buttonCancelSSMS.Location = New-Object System.Drawing.Point(120, 100)
                     $buttonCancelSSMS.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
                     $formSelectionSSMS.AcceptButton = $buttonOKSSMS

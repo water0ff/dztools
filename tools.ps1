@@ -144,8 +144,8 @@ $tabControl.TabPages.Add($tabProSql)
     $lblPort.BackColor = [System.Drawing.Color]::White
     $lblPort.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
     $lblPort.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
-    $toolTip = New-Object System.Windows.Forms.ToolTip
-    $toolTip.SetToolTip($lblPort, "Haz clic para copiar el Puerto al portapapeles.")
+    $toolTip2 = New-Object System.Windows.Forms.ToolTip
+    $toolTip2.SetToolTip($lblPort, "Haz clic para copiar el Puerto al portapapeles.")
 # Crear el Label para mostrar las IPs y adaptadores
     $lbIpAdress = New-Object System.Windows.Forms.Label
     $lbIpAdress.Size = New-Object System.Drawing.Size(240, 100)  # Tamaño inicial
@@ -156,7 +156,7 @@ $tabControl.TabPages.Add($tabProSql)
     $lbIpAdress.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
     $lbIpAdress.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
 # Crear el ToolTip
-    $toolTip.SetToolTip($lbIpAdress, "Haz clic para copiar las IPs al portapapeles.")
+    $toolTip2.SetToolTip($lbIpAdress, "Haz clic para copiar las IPs al portapapeles.")
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)

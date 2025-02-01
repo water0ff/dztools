@@ -17,7 +17,7 @@ $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250201.1707"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250201.1807"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -485,7 +485,7 @@ $chkSqlServer.Add_CheckedChanged({
         $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
 
         if ($tcpPort -and $tcpPort.TcpPort) {
-            $labelPort.Text = "Puerto SQL en instancia NationalSoft: $($tcpPort.TcpPort)"
+            $labelPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
         } else {
             $labelPort.Text = "No se encontró puerto o instancia."
         }

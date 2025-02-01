@@ -16,7 +16,7 @@ $formPrincipal.MaximizeBox = $false
 $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250131.2232"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250131.2342"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -644,10 +644,12 @@ $btnSQLManagement.Add_Click({
                     # Crear un botón para aceptar la selección
                     $buttonOKSSMS = New-Object System.Windows.Forms.Button
                     $buttonOKSSMS.Text = "Aceptar"
+                    $buttonOKSSMS.Size = $buttonStyle.Size
                     $buttonOKSSMS.Location = New-Object System.Drawing.Point(20, 100)
                     $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
                     $buttonCancelSSMS = New-Object System.Windows.Forms.Button
                     $buttonCancelSSMS.Text = "Cancelar"
+                    $buttonCancelSSMS.Size = $buttonStyle.Size
                     $buttonCancelSSMS.Location = New-Object System.Drawing.Point(120, 100)
                     $buttonCancelSSMS.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
                     $formSelectionSSMS.AcceptButton = $buttonOKSSMS
@@ -666,6 +668,10 @@ $btnSQLManagement.Add_Click({
                         } catch {
                             Write-Host "`tError al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
                             [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                        }
+                        else
+                        {
+                            Write-Host "`tEl usuario canceló la acción." -ForegroundColor Red
                         }
                     }
 })

@@ -43,6 +43,28 @@ $button_MouseLeave = {
     $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
     $this.Font = $defaultFont
 }
+# Función para crear botones con configuraciones comunes
+function Create-Button {
+    param (
+        [string]$Text,
+        [System.Drawing.Point]$Location,
+        [System.Drawing.Color]$BackColor = [System.Drawing.Color]::LightBlue,
+        [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black
+    )
+
+    $button = New-Object System.Windows.Forms.Button
+    $button.Text = $Text
+    $button.Size = $buttonStyle.Size
+    $button.Location = $Location
+    $button.BackColor = $BackColor
+    $button.ForeColor = $ForeColor
+    $button.Font = $defaultFont
+    $button.Tag = $BackColor
+    $button.Add_MouseEnter($button_MouseEnter)
+    $button.Add_MouseLeave($button_MouseLeave)
+
+    return $button
+}
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
@@ -59,119 +81,24 @@ $tabProSql.Text = "Pro"
 $tabControl.TabPages.Add($tabAplicaciones)
     #$tabControl.TabPages.Add($tabConsultas)
 $tabControl.TabPages.Add($tabProSql)
-# Crear los botones dentro de la pestaña de "Aplicaciones"
-    $btnInstallSQLManagement = New-Object System.Windows.Forms.Button
-    $btnInstallSQLManagement.Text = "Instalar Management2014"
-    $btnInstallSQLManagement.Size = $buttonStyle.Size
-    $btnInstallSQLManagement.Location = New-Object System.Drawing.Point(10, 10)
-    $btnInstallSQLManagement.Font = $defaultFont
-    $btnInstallSQLManagement.Add_MouseEnter($button_MouseEnter)
-    $btnInstallSQLManagement.Add_MouseLeave($button_MouseLeave)
-    $btnInstallSQLManagement.Tag = $btnInstallSQLManagement.BackColor
-#Profiler
-    $btnProfiler = New-Object System.Windows.Forms.Button
-    $btnProfiler.Text = "Ejecutar ExpressProfiler2.0"
-    $btnProfiler.Size = $buttonStyle.Size
-    $btnProfiler.Location = New-Object System.Drawing.Point(10, 50)
-    $btnProfiler.BackColor = [System.Drawing.Color]::LightBlue 
-    $btnProfiler.ForeColor = [System.Drawing.Color]::Black     
-    $btnProfiler.Font = $defaultFont
-    $btnProfiler.Tag = $btnProfiler.BackColor
-    $btnProfiler.Add_MouseEnter($button_MouseEnter)
-    $btnProfiler.Add_MouseLeave($button_MouseLeave)
-#Database
-    $btnDatabase = New-Object System.Windows.Forms.Button
-    $btnDatabase.Text = "Ejecutar Database4"
-    $btnDatabase.Size = $buttonStyle.Size
-    $btnDatabase.Location = New-Object System.Drawing.Point(10, 90)
-    $btnDatabase.BackColor = [System.Drawing.Color]::LightBlue  
-    $btnDatabase.ForeColor = [System.Drawing.Color]::Black      
-    $btnDatabase.Font = $defaultFont
-    $btnDatabase.Tag = $btnDatabase.BackColor
-    $btnDatabase.Add_MouseEnter($button_MouseEnter)
-    $btnDatabase.Add_MouseLeave($button_MouseLeave)
-#SqlManager
-    $btnSQLManager = New-Object System.Windows.Forms.Button
-    $btnSQLManager.Text = "Ejecutar Manager"
-    $btnSQLManager.Size = $buttonStyle.Size
-    $btnSQLManager.Location = New-Object System.Drawing.Point(10, 130)
-    $btnSQLManager.BackColor = [System.Drawing.Color]::LightBlue
-    $btnSQLManager.ForeColor = [System.Drawing.Color]::Black   
-    $btnSQLManager.Font = $defaultFont
-    $btnSQLManager.Tag = $btnSQLManager.BackColor
-    $btnSQLManager.Add_MouseEnter($button_MouseEnter)
-    $btnSQLManager.Add_MouseLeave($button_MouseLeave)
-#SqlManagement
-    $btnSQLManagement = New-Object System.Windows.Forms.Button
-    $btnSQLManagement.Text = "Ejecutar Management"
-    $btnSQLManagement.Size = $buttonStyle.Size
-    $btnSQLManagement.Location = New-Object System.Drawing.Point(10, 170)
-    $btnSQLManagement.BackColor = [System.Drawing.Color]::LightBlue
-    $btnSQLManagement.ForeColor = [System.Drawing.Color]::Black  
-    $btnSQLManagement.Font = $defaultFont
-    $btnSQLManagement.Tag = $btnSQLManagement.BackColor
-    $btnSQLManagement.Add_MouseEnter($button_MouseEnter)
-    $btnSQLManagement.Add_MouseLeave($button_MouseLeave)
-# PrinterTool
-    $btnPrinterTool = New-Object System.Windows.Forms.Button
-    $btnPrinterTool.Text = "Printer Tools"
-    $btnPrinterTool.Size = $buttonStyle.Size
-    $btnPrinterTool.Location = New-Object System.Drawing.Point(10, 210)
-    $btnPrinterTool.BackColor = [System.Drawing.Color]::LightBlue
-    $btnPrinterTool.ForeColor = [System.Drawing.Color]::Black    
-    $btnPrinterTool.Font = $defaultFont
-    $btnPrinterTool.Tag = $btnPrinterTool.BackColor
-    $btnPrinterTool.Add_MouseEnter($button_MouseEnter)
-    $btnPrinterTool.Add_MouseLeave($button_MouseLeave)
-# Anydesk
-    $btnClearAnyDesk = New-Object System.Windows.Forms.Button
-    $btnClearAnyDesk.Text = "Clear AnyDesk"
-    $btnClearAnyDesk.Size = $buttonStyle.Size
-    $btnClearAnyDesk.Font = $defaultFont
-    $btnClearAnyDesk.Location = New-Object System.Drawing.Point(240, 10)
-    $btnClearAnyDesk.BackColor = [System.Drawing.Color]::FromArgb(255, 76, 76)  # Rojo claro (FF4C4C)
-    $btnClearAnyDesk.Tag = $btnClearAnyDesk.BackColor
-    $btnClearAnyDesk.Add_MouseEnter($button_MouseEnter)
-    $btnClearAnyDesk.Add_MouseLeave($button_MouseLeave)
-# Impresoras show
-    $buttonShowPrinters = New-Object System.Windows.Forms.Button
-    $buttonShowPrinters.Text = "Mostrar Impresoras"
-    $buttonShowPrinters.Size = $buttonStyle.Size
-    $buttonShowPrinters.Font = $defaultFont
-    $buttonShowPrinters.Location = New-Object System.Drawing.Point(240, 50)
-    $buttonShowPrinters.Tag = $buttonShowPrinters.BackColor
-    $buttonShowPrinters.Add_MouseEnter($button_MouseEnter)
-    $buttonShowPrinters.Add_MouseLeave($button_MouseLeave)
-# cola de impresion
-    $btnClearPrintJobs = New-Object System.Windows.Forms.Button
-    $btnClearPrintJobs.Text = "Limpiar Impresiones y Reiniciar Cola"
-    $btnClearPrintJobs.Size = $buttonStyle.Size
-    $btnClearPrintJobs.Font = $defaultFont
-    $btnClearPrintJobs.Location = New-Object System.Drawing.Point(240, 90)
-    $btnClearPrintJobs.Tag = $btnClearPrintJobs.BackColor
-    $btnClearPrintJobs.Add_MouseEnter($button_MouseEnter)
-    $btnClearPrintJobs.Add_MouseLeave($button_MouseLeave)
-# aplicaciones ns
-    $btnAplicacionesNS = New-Object System.Windows.Forms.Button
-    $btnAplicacionesNS.Text = "Aplicaciones National Soft"
-    $btnAplicacionesNS.Size = $buttonStyle.Size
-    $btnAplicacionesNS.Font = $defaultFont
-    $btnAplicacionesNS.Location = New-Object System.Drawing.Point(240, 130)
-    $btnAplicacionesNS.BackColor = [System.Drawing.Color]::FromArgb(255, 200, 150)  # Naranja tenue (RGB: 200, 150, 100)
-    $btnAplicacionesNS.Tag = $btnAplicacionesNS.BackColor
-    $btnAplicacionesNS.Add_MouseEnter($button_MouseEnter)
-    $btnAplicacionesNS.Add_MouseLeave($button_MouseLeave)
-# Crear el botón para la configuración de IPs
-    $btnConfigurarIPs = New-Object System.Windows.Forms.Button
-    $btnConfigurarIPs.Text = "Configurar IPs"
-    $btnConfigurarIPs.Location = New-Object System.Drawing.Point(240, 170)
-    $btnConfigurarIPs.Size = $buttonStyle.Size
-    $btnConfigurarIPs.Font = $defaultFont
-    $btnConfigurarIPs.BackColor = [System.Drawing.Color]::FromArgb(150, 200, 255)  # Color azul claro
-    $btnConfigurarIPs.Tag = $btnConfigurarIPs.BackColor
-    $btnConfigurarIPs.Add_MouseEnter($button_MouseEnter)
-    $btnConfigurarIPs.Add_MouseLeave($button_MouseLeave)
-#Agregar botones a la de aplicaciones
+# Crear los botones utilizando la función
+    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 10))
+    $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler2.0" -Location (New-Object System.Drawing.Point(10, 50))
+    $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 90))
+    $btnSQLManager = Create-Button -Text "Ejecutar Manager" -Location (New-Object System.Drawing.Point(10, 130))
+    $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 170))
+    $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 210))
+    $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 10)) -BackColor ([System.Drawing.Color]::FromArgb(255, 76, 76))
+    $buttonShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 50))
+    $btnClearPrintJobs = Create-Button -Text "Limpiar Impresiones y Reiniciar Cola" -Location (New-Object System.Drawing.Point(240, 90))
+    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 130)) -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150))
+    $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(240, 170)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 40)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 40)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnReviewPivot = Create-Button -Text "Revisar Pivot Table" -Location (New-Object System.Drawing.Point(10, 110)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 150)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 190)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+# Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
     $tabAplicaciones.Controls.Add($btnDatabase)
@@ -183,60 +110,14 @@ $tabControl.TabPages.Add($tabProSql)
     $tabAplicaciones.Controls.Add($btnPrinterTool)
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
-# Crear el CheckBox
-    $chkSqlServer = New-Object System.Windows.Forms.CheckBox
-    $chkSqlServer.Text = "Instalar SQL Tools (opcional)"
-    $chkSqlServer.Size = New-Object System.Drawing.Size(290, 30)
-    $chkSqlServer.Location = New-Object System.Drawing.Point(10, 10)
-# Crear el Botón para conectar a la base de datos
-    $btnConnectDb = New-Object System.Windows.Forms.Button
-    $btnConnectDb.Text = "Conectar a BDD"
-    $btnConnectDb.Size = $buttonStyle.Size
-    $btnConnectDb.Font = $defaultFont
-    $btnConnectDb.Tag = $btnConfigurarIPs.BackColor
-    $btnConnectDb.Add_MouseEnter($button_MouseEnter)
-    $btnConnectDb.Add_MouseLeave($button_MouseLeave)
-    $btnConnectDb.Location = New-Object System.Drawing.Point(10, 40)
-    $btnConnectDb.Enabled = $true
-#2
-    $btnDisconnectDb = New-Object System.Windows.Forms.Button
-    $btnDisconnectDb.Text = "Desconectar de BDD"
-    $btnDisconnectDb.Size = $buttonStyle.Size
-    $btnDisconnectDb.Font = $defaultFont
-    $btnDisconnectDb.Tag = $btnConfigurarIPs.BackColor
-    $btnDisconnectDb.Add_MouseEnter($button_MouseEnter)
-    $btnDisconnectDb.Add_MouseLeave($button_MouseLeave)
-    $btnDisconnectDb.Location = New-Object System.Drawing.Point(240, 40)
-    $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
-# Crear el Botón para revisar Pivot Table
-    $btnReviewPivot = New-Object System.Windows.Forms.Button
-    $btnReviewPivot.Text = "Revisar Pivot Table"
-    $btnReviewPivot.Size = $buttonStyle.Size
-    $btnReviewPivot.Font = $defaultFont
-    $btnReviewPivot.Tag = $btnConfigurarIPs.BackColor
-    $btnReviewPivot.Add_MouseEnter($button_MouseEnter)
-    $btnReviewPivot.Add_MouseLeave($button_MouseLeave)
-    $btnReviewPivot.Location = New-Object System.Drawing.Point(10, 110)
-    $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
-# Crear el Botón para revisar Fecha de revisiones
-    $btnFechaRevEstaciones = New-Object System.Windows.Forms.Button
-    $btnFechaRevEstaciones.Text = "Fecha de revisiones"
-    $btnFechaRevEstaciones.Size = $buttonStyle.Size
-    $btnFechaRevEstaciones.Font = $defaultFont
-    $btnFechaRevEstaciones.Tag = $btnConfigurarIPs.BackColor
-    $btnFechaRevEstaciones.Add_MouseEnter($button_MouseEnter)
-    $btnFechaRevEstaciones.Add_MouseLeave($button_MouseLeave)
-    $btnFechaRevEstaciones.Location = New-Object System.Drawing.Point(10, 150)
-    $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
-# Crear el Botón para respaldar restcard
-    $btnRespaldarRestcard = New-Object System.Windows.Forms.Button
-    $btnRespaldarRestcard.Text = "Respaldar restcard"
-    $btnRespaldarRestcard.Size = $buttonStyle.Size
-    $btnRespaldarRestcard.Font = $defaultFont
-    $btnRespaldarRestcard.Tag = $btnConfigurarIPs.BackColor
-    $btnRespaldarRestcard.Add_MouseEnter($button_MouseEnter)
-    $btnRespaldarRestcard.Add_MouseLeave($button_MouseLeave)
-    $btnRespaldarRestcard.Location = New-Object System.Drawing.Point(10, 190)
+# Agregar controles a la pestaña Pro
+    $tabProSql.Controls.Add($chkSqlServer)
+    $tabProSql.Controls.Add($btnReviewPivot)
+    $tabProSql.Controls.Add($btnRespaldarRestcard)
+    $tabProSql.Controls.Add($btnFechaRevEstaciones)
+    $tabProSql.Controls.Add($lblConnectionStatus)
+    $tabProSql.Controls.Add($btnConnectDb)
+    $tabProSql.Controls.Add($btnDisconnectDb)
 # Label para mostrar conexión a la base de datos
     $lblConnectionStatus = New-Object System.Windows.Forms.Label
     $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"

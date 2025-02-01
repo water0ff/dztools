@@ -30,16 +30,14 @@ function Create-Button {
     param (
         [string]$Text,
         [System.Drawing.Point]$Location,
-        [System.Drawing.Color]$BackColor = [System.Drawing.Color]::LightBlue,
+        [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
         [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black
     )
 
-    # Estilo base para los botones (definido dentro de la función)
+    # Pasar esto a los parametros de arriba.
     $buttonStyle = @{
         Size      = New-Object System.Drawing.Size(220, 35)
         FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-        BackColor = [System.Drawing.Color]::White
-        ForeColor = [System.Drawing.Color]::Black
         Font      = $defaultFont
     }
 

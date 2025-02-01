@@ -17,7 +17,7 @@ $formPrincipal.MinimizeBox = $false
 $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
 $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
 # Crear un TextBox para ingresar la versión manualmente
-                                                                $version = "Alfa 250201.2199"  # Valor predeterminado para la versión
+                                                                $version = "Alfa 250201.2219"  # Valor predeterminado para la versión
 $formPrincipal.Text = "Daniel Tools v$version"
 Write-Host "`n=============================================" -ForegroundColor DarkCyan
 Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -26,24 +26,6 @@ Write-Host "=============================================" -ForegroundColor Dark
 Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
 Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
 
-# Crear un estilo base para los botones
-    $buttonStyle = New-Object System.Windows.Forms.Button
-    $buttonStyle.Size = New-Object System.Drawing.Size(220, 35)
-    $buttonStyle.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $buttonStyle.BackColor = [System.Drawing.Color]::LightGray
-    $buttonStyle.ForeColor = [System.Drawing.Color]::Black
-    $buttonStyle.Font = $defaultFont
-# Función para cambiar el color del botón al pasar el mouse
-$button_MouseEnter = {
-    $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
-    $this.Font = $boldFont
-}
-# Función para restaurar el color del botón al salir el mouse
-$button_MouseLeave = {
-    $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
-    $this.Font = $defaultFont
-}
-# Función para crear botones con configuraciones comunes
 function Create-Button {
     param (
         [string]$Text,
@@ -52,14 +34,36 @@ function Create-Button {
         [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black
     )
 
+    # Estilo base para los botones (definido dentro de la función)
+    $buttonStyle = @{
+        Size      = New-Object System.Drawing.Size(220, 35)
+        FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+        BackColor = [System.Drawing.Color]::LightGray
+        ForeColor = [System.Drawing.Color]::Black
+        Font      = $defaultFont
+    }
+
+    # Eventos de mouse (definidos dentro de la función)
+    $button_MouseEnter = {
+        $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
+        $this.Font = $boldFont
+    }
+
+    $button_MouseLeave = {
+        $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
+        $this.Font = $defaultFont
+    }
+
+    # Crear el botón
     $button = New-Object System.Windows.Forms.Button
     $button.Text = $Text
     $button.Size = $buttonStyle.Size
     $button.Location = $Location
     $button.BackColor = $BackColor
     $button.ForeColor = $ForeColor
-    $button.Font = $defaultFont
-    $button.Tag = $BackColor
+    $button.Font = $buttonStyle.Font
+    $button.FlatStyle = $buttonStyle.FlatStyle
+    $button.Tag = $BackColor  # Almacena el color original en Tag
     $button.Add_MouseEnter($button_MouseEnter)
     $button.Add_MouseLeave($button_MouseLeave)
 

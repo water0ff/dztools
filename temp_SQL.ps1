@@ -478,8 +478,7 @@ $btnReviewPivot.Add_Click({
         }
 
         # Consulta SQL para verificar duplicados
-        $queryCheckDuplicates = "
-                                BEGIN TRANSACTION;
+        $queryCheckDuplicates = "BEGIN TRANSACTION;
                                 -- Verifica si hay duplicados basados en app_id y field
                                 IF EXISTS (
                                     SELECT app_id, field
@@ -507,8 +506,7 @@ $btnReviewPivot.Add_Click({
                                     PRINT 'No hay duplicados para procesar.';
                                 END;
                                 
-                                COMMIT TRANSACTION;
-                                "
+                                COMMIT TRANSACTION;"
 
         ###TEST ESCRITO
         Write-Host @"Ejecutando la consulta:

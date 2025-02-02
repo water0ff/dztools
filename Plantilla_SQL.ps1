@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa SQL.1049"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa SQL.1052"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -649,7 +649,7 @@ $btnDisconnectDb.Add_Click({
             }
     
             # Consulta SQL para verificar duplicados
-            $queryCheckDuplicates = @"
+            $queryCheckDuplicates = "
             BEGIN TRANSACTION;
     
             -- Verifica si hay duplicados
@@ -695,8 +695,7 @@ $btnDisconnectDb.Add_Click({
             END;
     
             COMMIT TRANSACTION;
-    "@
-    
+    "
             # Ejecutar la consulta
             $results = Execute-SqlQuery -server $global:server -database $global:database -query $queryCheckDuplicates
     

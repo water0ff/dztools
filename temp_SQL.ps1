@@ -214,7 +214,6 @@ function Execute-SqlQuery {
         return $null
     }
 }
-
 # Función para mostrar los resultados en la consola en columnas
 function Show-ResultsConsole {
     param (
@@ -461,6 +460,14 @@ $btnDisconnectDb.Add_Click({
         Write-Host "`nError al desconectar: $_" -ForegroundColor Red
     }
 })
+
+
+
+
+
+
+
+
 #---------------------------------------------------------------------boton de pivot table
     $btnReviewPivot.Add_Click({
         try {
@@ -571,6 +578,14 @@ $btnDisconnectDb.Add_Click({
         }
     })
 
+
+
+
+
+
+
+    
+#SALIR DEL SISTEMA------------------------------------------------
 $btnExit.Add_Click({
                         $formPrincipal.Dispose()
                         $formPrincipal.Close()

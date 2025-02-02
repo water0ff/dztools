@@ -512,7 +512,6 @@ $btnDisconnectDb.Add_Click({
 Write-Host @"
   Ejecutando la consulta:
                       BEGIN TRANSACTION;
-                    -- Verifica si hay duplicados basados en app_id y field
                     IF EXISTS (
                         SELECT app_id, field
                         FROM app_settings
@@ -520,13 +519,11 @@ Write-Host @"
                         HAVING COUNT(*) > 1
                     )
                     BEGIN
-                        -- Usamos ROW_NUMBER para identificar cuáles deben eliminarse
                         WITH CTE AS (
                             SELECT id, app_id, field,
                                    ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
                             FROM app_settings
                         )
-                        -- Obtener los registros que serán eliminados
                         DELETE FROM app_settings
                         WHERE id IN (
                             SELECT id FROM CTE WHERE rn > 1
@@ -537,10 +534,9 @@ Write-Host @"
                     ELSE
                     BEGIN
                         PRINT 'No hay duplicados para procesar.';
-                    END;
-                    
+                    END;                    
                     COMMIT TRANSACTION;
-"@
+"@ -ForegroundColor Yellow
             if ($results -and $results.Count -gt 0) {
                 # Si hay duplicados, mostrar los registros eliminados
                 Write-Host "`nRegistros eliminados:" -ForegroundColor Red

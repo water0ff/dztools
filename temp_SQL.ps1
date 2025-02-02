@@ -509,7 +509,7 @@ $btnReviewPivot.Add_Click({
                                 COMMIT TRANSACTION;"
 
         ###TEST ESCRITO
-        Write-Host @"Ejecutando la consulta:
+        Write-Host "Ejecutando la consulta:
                                                   BEGIN TRANSACTION;
                                                 IF EXISTS (
                                                     SELECT app_id, field
@@ -535,7 +535,7 @@ $btnReviewPivot.Add_Click({
                                                     PRINT 'No hay duplicados para procesar.';
                                                 END;                    
                                                 COMMIT TRANSACTION;
-                            "@ -ForegroundColor Yellow
+                            " -ForegroundColor Yellow
 ##TEXT
         
         # Cadena de conexión

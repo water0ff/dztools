@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1129"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1200"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -477,104 +477,69 @@ $btnDisconnectDb.Add_Click({
             }
     
             # Consulta SQL para verificar duplicados
-            $queryCheckDuplicates = "
-            BEGIN TRANSACTION;
-    
-            -- Verifica si hay duplicados
-            IF EXISTS (
-                SELECT field
-                FROM app_settings
-                GROUP BY field
-                HAVING COUNT(*) > 1
-            )
-            BEGIN
-                -- Si hay duplicados, crea la tabla temporal y elimina registros
-                IF OBJECT_ID('tempdb..#to_delete') IS NOT NULL
-                    DROP TABLE #to_delete;
-    
-                -- Usamos ROW_NUMBER para asignar números a los duplicados y dejar el más bajo
-                WITH CTE AS (
-                    SELECT app_id, field,
-                           ROW_NUMBER() OVER (PARTITION BY field ORDER BY app_id ASC) AS rn
-                    FROM app_settings
-                )
-                -- Insertamos los duplicados (con rn > 1) en la tabla temporal
-                SELECT app_id
-                INTO #to_delete
-                FROM CTE
-                WHERE rn > 1;
-    
-                -- Verifica los registros a eliminar
-                SELECT * FROM #to_delete;
-    
-                -- Elimina los duplicados de la tabla original
-                DELETE FROM app_settings
-                WHERE app_id IN (SELECT app_id FROM #to_delete);
-    
-                -- Muestra los registros eliminados
-                SELECT * FROM #to_delete;
-    
-                -- Limpia la tabla temporal
-                DROP TABLE #to_delete;
-            END
-            ELSE
-            BEGIN
-                PRINT 'No hay duplicados para procesar.';
-            END;
-    
-            COMMIT TRANSACTION;
-    "
+            $queryCheckDuplicates = "BEGIN TRANSACTION;
+                                    -- Verifica si hay duplicados basados en app_id y field
+                                    IF EXISTS (
+                                        SELECT app_id, field
+                                        FROM app_settings
+                                        GROUP BY app_id, field
+                                        HAVING COUNT(*) > 1
+                                    )
+                                    BEGIN
+                                        -- Usamos ROW_NUMBER para identificar cuáles deben eliminarse
+                                        WITH CTE AS (
+                                            SELECT id, app_id, field,
+                                                   ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
+                                            FROM app_settings
+                                        )
+                                        -- Obtener los registros que serán eliminados
+                                        DELETE FROM app_settings
+                                        WHERE id IN (
+                                            SELECT id FROM CTE WHERE rn > 1
+                                        );
+                                    
+                                        PRINT 'Duplicados eliminados correctamente.';
+                                    END
+                                    ELSE
+                                    BEGIN
+                                        PRINT 'No hay duplicados para procesar.';
+                                    END;
+                                    
+                                    COMMIT TRANSACTION;"
     
             # Ejecutar la consulta
             $results = Execute-SqlQuery -server $global:server -database $global:database -query $queryCheckDuplicates
 Write-Host @"
   Ejecutando la consulta:
-  
-  BEGIN TRANSACTION;
-
-  -- Verifica si hay duplicados
-  IF EXISTS (
-      SELECT field
-      FROM app_settings
-      GROUP BY field
-      HAVING COUNT(*) > 1
-  )
-  BEGIN
-      -- Si hay duplicados, crea la tabla temporal y elimina registros
-      IF OBJECT_ID('tempdb..#to_delete') IS NOT NULL
-          DROP TABLE #to_delete;
-
-      -- Usamos ROW_NUMBER para asignar números a los duplicados y dejar el más bajo
-      WITH CTE AS (
-          SELECT app_id, field,
-                 ROW_NUMBER() OVER (PARTITION BY field ORDER BY app_id ASC) AS rn
-          FROM app_settings
-      )
-      -- Insertamos los duplicados (con rn > 1) en la tabla temporal
-      SELECT app_id
-      INTO #to_delete
-      FROM CTE
-      WHERE rn > 1;
-
-      -- Verifica los registros a eliminar
-      SELECT * FROM #to_delete;
-
-      -- Elimina los duplicados de la tabla original
-      DELETE FROM app_settings
-      WHERE app_id IN (SELECT app_id FROM #to_delete);
-
-      -- Muestra los registros eliminados
-      SELECT * FROM #to_delete;
-
-      -- Limpia la tabla temporal
-      DROP TABLE #to_delete;
-  END
-  ELSE
-  BEGIN
-      PRINT 'No hay duplicados para procesar.';
-  END;
-
-  COMMIT TRANSACTION;
+                      BEGIN TRANSACTION;
+                    -- Verifica si hay duplicados basados en app_id y field
+                    IF EXISTS (
+                        SELECT app_id, field
+                        FROM app_settings
+                        GROUP BY app_id, field
+                        HAVING COUNT(*) > 1
+                    )
+                    BEGIN
+                        -- Usamos ROW_NUMBER para identificar cuáles deben eliminarse
+                        WITH CTE AS (
+                            SELECT id, app_id, field,
+                                   ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
+                            FROM app_settings
+                        )
+                        -- Obtener los registros que serán eliminados
+                        DELETE FROM app_settings
+                        WHERE id IN (
+                            SELECT id FROM CTE WHERE rn > 1
+                        );
+                    
+                        PRINT 'Duplicados eliminados correctamente.';
+                    END
+                    ELSE
+                    BEGIN
+                        PRINT 'No hay duplicados para procesar.';
+                    END;
+                    
+                    COMMIT TRANSACTION;
 "@
             if ($results -and $results.Count -gt 0) {
                 # Si hay duplicados, mostrar los registros eliminados

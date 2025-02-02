@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250201.2359"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa SQL.1049"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -640,75 +640,121 @@ $btnDisconnectDb.Add_Click({
         Write-Host "`nError al desconectar: $_" -ForegroundColor Red
     }
 })
-$btnReviewPivot.Add_Click({
-    try {
-        if (-not $global:server -or -not $global:database -or -not $global:password) {
-            Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
-            return
+#boton de pivot table
+    $btnReviewPivot.Add_Click({
+        try {
+            if (-not $global:server -or -not $global:database -or -not $global:password) {
+                Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
+                return
+            }
+    
+            # Consulta SQL para verificar duplicados
+            $queryCheckDuplicates = @"
+            BEGIN TRANSACTION;
+    
+            -- Verifica si hay duplicados
+            IF EXISTS (
+                SELECT field
+                FROM app_settings
+                GROUP BY field
+                HAVING COUNT(*) > 1
+            )
+            BEGIN
+                -- Si hay duplicados, crea la tabla temporal y elimina registros
+                IF OBJECT_ID('tempdb..#to_delete') IS NOT NULL
+                    DROP TABLE #to_delete;
+    
+                -- Usamos ROW_NUMBER para asignar números a los duplicados y dejar el más bajo
+                WITH CTE AS (
+                    SELECT app_id, field,
+                           ROW_NUMBER() OVER (PARTITION BY field ORDER BY app_id ASC) AS rn
+                    FROM app_settings
+                )
+                -- Insertamos los duplicados (con rn > 1) en la tabla temporal
+                SELECT app_id
+                INTO #to_delete
+                FROM CTE
+                WHERE rn > 1;
+    
+                -- Verifica los registros a eliminar
+                SELECT * FROM #to_delete;
+    
+                -- Elimina los duplicados de la tabla original
+                DELETE FROM app_settings
+                WHERE app_id IN (SELECT app_id FROM #to_delete);
+    
+                -- Muestra los registros eliminados
+                SELECT * FROM #to_delete;
+    
+                -- Limpia la tabla temporal
+                DROP TABLE #to_delete;
+            END
+            ELSE
+            BEGIN
+                PRINT 'No hay duplicados para procesar.';
+            END;
+    
+            COMMIT TRANSACTION;
+    "@
+    
+            # Ejecutar la consulta
+            $results = Execute-SqlQuery -server $global:server -database $global:database -query $queryCheckDuplicates
+    
+            if ($results.Count -gt 0) {
+                # Si hay duplicados, mostrar los registros eliminados
+                Write-Host "`nRegistros eliminados:" -ForegroundColor Red
+                $results | ForEach-Object {
+                    Write-Host "app_id: $($_.app_id)"
+                }
+            } else {
+                # Si no hay duplicados, mostrar mensaje en verde
+                Write-Host "`nNo hay duplicados en la tabla app_settings." -ForegroundColor Green
+            }
+    
+        } catch {
+            Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
         }
-
-        # Consultas SQL
-        $query1 = "SELECT field, COUNT(*) FROM app_settings GROUP BY field HAVING COUNT(*) > 1;"
-        $query2 = "SELECT * FROM app_settings where field = 'activar_restcard_srm';"
-
-        # Ejecutar y analizar la primera consulta
-        $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
-
-        if ($resultsQuery1.Count -gt 0) {
-            # Si hay duplicados, mostrar mensaje en rojo y ejecutar query2
-            Write-Host "`nSELECT field, COUNT(*) FROM app_settings GROUP BY field HAVING COUNT(*) > 1;" -ForegroundColor white
-            Write-Host "`nSe recomienda correr proceso de limpieza pivot table" -ForegroundColor Red
-            # Ejecutar la segunda consulta
-            Show-ResultsConsole -query $query2
-        } else {
-            # Si no hay duplicados, mostrar mensaje en verde
-            Write-Host "`nSELECT field, COUNT(*) FROM app_settings GROUP BY field HAVING COUNT(*) > 1;" -ForegroundColor white
-            Write-Host "`nNo hay duplicados (pivot table)" -ForegroundColor Green
-        }
-
-    } catch {
-        Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
-    }
-})
+    })
+#Fecha de revisiones
 $btnFechaRevEstaciones.Add_Click({
-    try {
-        if (-not $global:server -or -not $global:database -or -not $global:password) {
-            Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
-            return
-        }
-        # Consultas SQL
-$query1 = "SELECT e.FECHAREV, 
-                   b.estacion as Estacion, 
-                   CONVERT(varchar, b.fecha, 23) AS UltimaUso
-            FROM bitacorasistema b
-            INNER JOIN (
-                SELECT estacion, MAX(fecha) AS max_fecha
-                FROM bitacorasistema
-                GROUP BY estacion
-            ) latest_bitacora 
-                ON b.estacion = latest_bitacora.estacion 
-                AND b.fecha = latest_bitacora.max_fecha
-            INNER JOIN estaciones e 
-                ON b.estacion = e.idestacion
-            ORDER BY b.fecha DESC;"
-        # Ejecutar y analizar la primera consulta
-        $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
-Write-Host "`nSELECT e.FECHAREV, ` 
-            b.estacion as Estacion, `
-            CONVERT(varchar, b.fecha, 23) AS UltimaUso, `
-            FROM bitacorasistema b `
-            INNER JOIN (SELECT estacion, MAX(fecha) AS max_fecha FROM bitacorasistema GROUP BY estacion) latest_bitacora `
-            ON b.estacion = latest_bitacora.estacion AND b.fecha = latest_bitacora.max_fecha `
-            INNER JOIN estaciones e ON b.estacion = e.idestacion ORDER BY b.fecha DESC;`n" -ForegroundColor Yellow
-                    Show-ResultsConsole -query $query1
-    } catch {
-        Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
-    }
-})
-$btnExit.Add_Click({
-    $formPrincipal.Dispose()
-    $formPrincipal.Close()
-})
+                        try {
+                            if (-not $global:server -or -not $global:database -or -not $global:password) {
+                                Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
+                                return
+                            }
+                            # Consultas SQL
+                    $query1 = "SELECT e.FECHAREV, 
+                                       b.estacion as Estacion, 
+                                       CONVERT(varchar, b.fecha, 23) AS UltimaUso
+                                FROM bitacorasistema b
+                                INNER JOIN (
+                                    SELECT estacion, MAX(fecha) AS max_fecha
+                                    FROM bitacorasistema
+                                    GROUP BY estacion
+                                ) latest_bitacora 
+                                    ON b.estacion = latest_bitacora.estacion 
+                                    AND b.fecha = latest_bitacora.max_fecha
+                                INNER JOIN estaciones e 
+                                    ON b.estacion = e.idestacion
+                                ORDER BY b.fecha DESC;"
+                            # Ejecutar y analizar la primera consulta
+                            $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
+                    Write-Host "`nSELECT e.FECHAREV, ` 
+                                b.estacion as Estacion, `
+                                CONVERT(varchar, b.fecha, 23) AS UltimaUso, `
+                                FROM bitacorasistema b `
+                                INNER JOIN (SELECT estacion, MAX(fecha) AS max_fecha FROM bitacorasistema GROUP BY estacion) latest_bitacora `
+                                ON b.estacion = latest_bitacora.estacion AND b.fecha = latest_bitacora.max_fecha `
+                                INNER JOIN estaciones e ON b.estacion = e.idestacion ORDER BY b.fecha DESC;`n" -ForegroundColor Yellow
+                                        Show-ResultsConsole -query $query1
+                        } catch {
+                            Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
+                        }
+                    })
+                    $btnExit.Add_Click({
+                        $formPrincipal.Dispose()
+                        $formPrincipal.Close()
+                    })
 $formPrincipal.Refresh()
 # Mostrar el formulario principal
 $formPrincipal.ShowDialog()

@@ -509,33 +509,7 @@ $btnReviewPivot.Add_Click({
                                 COMMIT TRANSACTION;"
 
         ###TEST ESCRITO
-        Write-Host "Ejecutando la consulta:
-                                                  BEGIN TRANSACTION;
-                                                IF EXISTS (
-                                                    SELECT app_id, field
-                                                    FROM app_settings
-                                                    GROUP BY app_id, field
-                                                    HAVING COUNT(*) > 1
-                                                )
-                                                BEGIN
-                                                    WITH CTE AS (
-                                                        SELECT id, app_id, field,
-                                                               ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
-                                                        FROM app_settings
-                                                    )
-                                                    DELETE FROM app_settings
-                                                    WHERE id IN (
-                                                        SELECT id FROM CTE WHERE rn > 1
-                                                    );
-                                                
-                                                    PRINT 'Duplicados eliminados correctamente.';
-                                                END
-                                                ELSE
-                                                BEGIN
-                                                    PRINT 'No hay duplicados para procesar.';
-                                                END;                    
-                                                COMMIT TRANSACTION;
-                            " -ForegroundColor Yellow
+        Write-Host "Ejecutando la consulta: " -ForegroundColor Yellow
 ##TEXT
         
         # Cadena de conexión

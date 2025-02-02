@@ -469,127 +469,115 @@ $btnDisconnectDb.Add_Click({
 
 
 #---------------------------------------------------------------------boton de pivot table
-    $btnReviewPivot.Add_Click({
-        try {
-            if (-not $global:server -or -not $global:database -or -not $global:password) {
-                Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
-                return
-            }
-    
-            # Consulta SQL para verificar duplicados
-            $queryCheckDuplicates = "BEGIN TRANSACTION;
-                                    -- Verifica si hay duplicados basados en app_id y field
-                                    IF EXISTS (
-                                        SELECT app_id, field
+#---------------------------------------------------------------------boton de pivot table
+$btnReviewPivot.Add_Click({
+    try {
+        if (-not $global:server -or -not $global:database -or -not $global:password) {
+            Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
+            return
+        }
+
+        # Consulta SQL para verificar duplicados
+        $queryCheckDuplicates = "
+                                BEGIN TRANSACTION;
+                                -- Verifica si hay duplicados basados en app_id y field
+                                IF EXISTS (
+                                    SELECT app_id, field
+                                    FROM app_settings
+                                    GROUP BY app_id, field
+                                    HAVING COUNT(*) > 1
+                                )
+                                BEGIN
+                                    -- Usamos ROW_NUMBER para identificar cuáles deben eliminarse
+                                    WITH CTE AS (
+                                        SELECT id, app_id, field,
+                                               ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
                                         FROM app_settings
-                                        GROUP BY app_id, field
-                                        HAVING COUNT(*) > 1
                                     )
-                                    BEGIN
-                                        -- Usamos ROW_NUMBER para identificar cuáles deben eliminarse
-                                        WITH CTE AS (
-                                            SELECT id, app_id, field,
-                                                   ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
-                                            FROM app_settings
-                                        )
-                                        -- Obtener los registros que serán eliminados
-                                        DELETE FROM app_settings
-                                        WHERE id IN (
-                                            SELECT id FROM CTE WHERE rn > 1
-                                        );
+                                    -- Obtener los registros que serán eliminados
+                                    DELETE FROM app_settings
+                                    WHERE id IN (
+                                        SELECT id FROM CTE WHERE rn > 1
+                                    );
                                     
-                                        PRINT 'Duplicados eliminados correctamente.';
-                                    END
-                                    ELSE
-                                    BEGIN
-                                        PRINT 'No hay duplicados para procesar.';
-                                    END;
-                                    
-                                    COMMIT TRANSACTION;"
-    
-            # Ejecutar la consulta
-            $results = Execute-SqlQuery -server $global:server -database $global:database -query $queryCheckDuplicates
-Write-Host @"
-  Ejecutando la consulta:
-                      BEGIN TRANSACTION;
-                    IF EXISTS (
-                        SELECT app_id, field
-                        FROM app_settings
-                        GROUP BY app_id, field
-                        HAVING COUNT(*) > 1
-                    )
-                    BEGIN
-                        WITH CTE AS (
-                            SELECT id, app_id, field,
-                                   ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
-                            FROM app_settings
-                        )
-                        DELETE FROM app_settings
-                        WHERE id IN (
-                            SELECT id FROM CTE WHERE rn > 1
-                        );
-                    
-                        PRINT 'Duplicados eliminados correctamente.';
-                    END
-                    ELSE
-                    BEGIN
-                        PRINT 'No hay duplicados para procesar.';
-                    END;                    
-                    COMMIT TRANSACTION;
-"@ -ForegroundColor Yellow
-            if ($results -and $results.Count -gt 0) {
-                # Si hay duplicados, mostrar los registros eliminados
-                Write-Host "`nRegistros eliminados:" -ForegroundColor Red
-                $results | ForEach-Object {
-                    Write-Host "app_id: $($_.app_id)"
-                }
-            } else {
-                # Si no hay duplicados, mostrar mensaje en verde
-                Write-Host "`nNo hay duplicados en la tabla app_settings." -ForegroundColor Green
-            }
-    
-        } catch {
-            Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
+                                    PRINT 'Duplicados eliminados correctamente.';
+                                END
+                                ELSE
+                                BEGIN
+                                    PRINT 'No hay duplicados para procesar.';
+                                END;
+                                
+                                COMMIT TRANSACTION;
+                                "
+
+        ###TEST ESCRITO
+        Write-Host @"Ejecutando la consulta:
+                                                  BEGIN TRANSACTION;
+                                                IF EXISTS (
+                                                    SELECT app_id, field
+                                                    FROM app_settings
+                                                    GROUP BY app_id, field
+                                                    HAVING COUNT(*) > 1
+                                                )
+                                                BEGIN
+                                                    WITH CTE AS (
+                                                        SELECT id, app_id, field,
+                                                               ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
+                                                        FROM app_settings
+                                                    )
+                                                    DELETE FROM app_settings
+                                                    WHERE id IN (
+                                                        SELECT id FROM CTE WHERE rn > 1
+                                                    );
+                                                
+                                                    PRINT 'Duplicados eliminados correctamente.';
+                                                END
+                                                ELSE
+                                                BEGIN
+                                                    PRINT 'No hay duplicados para procesar.';
+                                                END;                    
+                                                COMMIT TRANSACTION;
+                            "@ -ForegroundColor Yellow
+##TEXT
+        
+        # Cadena de conexión
+        $connectionString = "Server=$global:server;Database=$global:database;User Id=sa;Password=$global:password;"
+        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+        $connection.Open()
+
+        # Crear el comando
+        $command = $connection.CreateCommand()
+        $command.CommandText = $queryCheckDuplicates
+
+        # Capturar los mensajes de SQL Server
+        $message = ""
+        $connection.FireInfoMessageEventOnUserErrors = $true
+        $handler = [System.Data.SqlClient.SqlInfoMessageEventHandler] {
+            param($sender, $event)
+            $message = $event.Message
         }
-    })
-# Evento para el botón de fecha de revisiones
-    $btnFechaRevEstaciones.Add_Click({
-        try {
-            if (-not $global:server -or -not $global:database -or -not $global:password) {
-                Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
-                return
-            }
-    
-            # Consulta SQL
-            $query1 = "
-            SELECT e.FECHAREV, 
-                   b.estacion as Estacion, 
-                   CONVERT(varchar, b.fecha, 23) AS UltimaUso
-            FROM bitacorasistema b
-            INNER JOIN (
-                SELECT estacion, MAX(fecha) AS max_fecha
-                FROM bitacorasistema
-                GROUP BY estacion
-            ) latest_bitacora 
-                ON b.estacion = latest_bitacora.estacion 
-                AND b.fecha = latest_bitacora.max_fecha
-            INNER JOIN estaciones e 
-                ON b.estacion = e.idestacion
-            ORDER BY b.fecha DESC;
-    "
-    
-            # Ejecutar y mostrar los resultados
-            Write-Host "`nResultados de la consulta:" -ForegroundColor Yellow
-            Show-ResultsConsole -query $query1
-    
-        } catch {
-            Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
+        $connection.add_InfoMessage($handler)
+        # Ejecutar la consulta
+
+        $command.ExecuteNonQuery() | Out-Null
+
+        # Cerrar la conexión
+        $connection.Close()
+
+        # Verificar el mensaje capturado
+        if ($message -like "*Duplicados eliminados correctamente*") {
+            Write-Host "`nDuplicados eliminados correctamente." -ForegroundColor Green
+        } elseif ($message -like "*No hay duplicados para procesar*") {
+            Write-Host "`nNo hay duplicados en la tabla app_settings." -ForegroundColor Green
+        } else {
+            Write-Host "`nError inesperado al procesar la consulta." -ForegroundColor Red
         }
-    })
 
-
-
-
+    } catch {
+        Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
+    }
+})
+    
 
 
 

@@ -169,6 +169,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.Controls.Add($lblPerfilDeRed)
     $formPrincipal.Controls.Add($btnExit)
 ##-------------------- FUNCIONES                                                          -------#
+# Función para ejecutar consultas SQL
 function Execute-SqlQuery {
     param (
         [string]$server,
@@ -180,15 +181,18 @@ function Execute-SqlQuery {
         $connectionString = "Server=$server;Database=$database;User Id=sa;Password=$($global:password);"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
         $connection.Open()
+
         # Ejecutar consulta
         $command = $connection.CreateCommand()
         $command.CommandText = $query
         $reader = $command.ExecuteReader()
+
         # Obtener los nombres de las columnas
         $columns = @()
         for ($i = 0; $i -lt $reader.FieldCount; $i++) {
             $columns += $reader.GetName($i)
         }
+
         # Leer los resultados
         $results = @()
         while ($reader.Read()) {
@@ -198,14 +202,20 @@ function Execute-SqlQuery {
             }
             $results += $row
         }
+
         # Cerrar la conexión y liberar recursos
+        $reader.Close()
         $connection.Close()
         $connection.Dispose()
+
         return $results
     } catch {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
+        return $null
     }
 }
+
+# Función para mostrar los resultados en la consola en columnas
 function Show-ResultsConsole {
     param (
         [string]$query
@@ -214,13 +224,22 @@ function Show-ResultsConsole {
         # Ejecutar la consulta y obtener los resultados
         $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
 
-        if ($results.Count -gt 0) {
-            # Mostrar los resultados de la consulta
+        if ($results -and $results.Count -gt 0) {
+            # Obtener los nombres de las columnas
             $columns = $results[0].Keys
+
+            # Calcular el ancho máximo de cada columna
             $columnWidths = @{}
             foreach ($col in $columns) {
-                $columnWidths[$col] = $col.Length
+                $maxLength = $col.Length
+                foreach ($row in $results) {
+                    if ($row[$col] -and $row[$col].ToString().Length -gt $maxLength) {
+                        $maxLength = $row[$col].ToString().Length
+                    }
+                }
+                $columnWidths[$col] = $maxLength
             }
+
             # Mostrar los encabezados
             $header = ""
             foreach ($col in $columns) {
@@ -228,6 +247,7 @@ function Show-ResultsConsole {
             }
             Write-Host $header
             Write-Host ("-" * $header.Length)
+
             # Mostrar las filas de resultados
             foreach ($row in $results) {
                 $rowText = ""
@@ -441,7 +461,7 @@ $btnDisconnectDb.Add_Click({
         Write-Host "`nError al desconectar: $_" -ForegroundColor Red
     }
 })
-#boton de pivot table
+#---------------------------------------------------------------------boton de pivot table
     $btnReviewPivot.Add_Click({
         try {
             if (-not $global:server -or -not $global:database -or -not $global:password) {
@@ -450,7 +470,7 @@ $btnDisconnectDb.Add_Click({
             }
     
             # Consulta SQL para verificar duplicados
-            $queryCheckDuplicates = "
+            $queryCheckDuplicates = @"
             BEGIN TRANSACTION;
     
             -- Verifica si hay duplicados
@@ -496,11 +516,12 @@ $btnDisconnectDb.Add_Click({
             END;
     
             COMMIT TRANSACTION;
-    "
+    "@
+    
             # Ejecutar la consulta
             $results = Execute-SqlQuery -server $global:server -database $global:database -query $queryCheckDuplicates
     
-            if ($results.Count -gt 0) {
+            if ($results -and $results.Count -gt 0) {
                 # Si hay duplicados, mostrar los registros eliminados
                 Write-Host "`nRegistros eliminados:" -ForegroundColor Red
                 $results | ForEach-Object {
@@ -515,43 +536,42 @@ $btnDisconnectDb.Add_Click({
             Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
         }
     })
-#Fecha de revisiones
-$btnFechaRevEstaciones.Add_Click({
-                        try {
-                            if (-not $global:server -or -not $global:database -or -not $global:password) {
-                                Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
-                                return
-                            }
-                            # Consultas SQL
-                    $query1 = "SELECT e.FECHAREV, 
-                                       b.estacion as Estacion, 
-                                       CONVERT(varchar, b.fecha, 23) AS UltimaUso
-                                FROM bitacorasistema b
-                                INNER JOIN (
-                                    SELECT estacion, MAX(fecha) AS max_fecha
-                                    FROM bitacorasistema
-                                    GROUP BY estacion
-                                ) latest_bitacora 
-                                    ON b.estacion = latest_bitacora.estacion 
-                                    AND b.fecha = latest_bitacora.max_fecha
-                                INNER JOIN estaciones e 
-                                    ON b.estacion = e.idestacion
-                                ORDER BY b.fecha DESC;"
-                            # Ejecutar y analizar la primera consulta
-                            $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
-                    Write-Host "`nSELECT e.FECHAREV, ` 
-                                b.estacion as Estacion, `
-                                CONVERT(varchar, b.fecha, 23) AS UltimaUso, `
-                                FROM bitacorasistema b `
-                                INNER JOIN (SELECT estacion, MAX(fecha) AS max_fecha FROM bitacorasistema GROUP BY estacion) latest_bitacora `
-                                ON b.estacion = latest_bitacora.estacion AND b.fecha = latest_bitacora.max_fecha `
-                                INNER JOIN estaciones e ON b.estacion = e.idestacion ORDER BY b.fecha DESC;`n" -ForegroundColor Yellow
-                                        Show-ResultsConsole -query $query1
-                        } catch {
-                            Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
-                        }
-                    })
-                    $btnExit.Add_Click({
+# Evento para el botón de fecha de revisiones
+    $btnFechaRevEstaciones.Add_Click({
+        try {
+            if (-not $global:server -or -not $global:database -or -not $global:password) {
+                Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
+                return
+            }
+    
+            # Consulta SQL
+            $query1 = @"
+            SELECT e.FECHAREV, 
+                   b.estacion as Estacion, 
+                   CONVERT(varchar, b.fecha, 23) AS UltimaUso
+            FROM bitacorasistema b
+            INNER JOIN (
+                SELECT estacion, MAX(fecha) AS max_fecha
+                FROM bitacorasistema
+                GROUP BY estacion
+            ) latest_bitacora 
+                ON b.estacion = latest_bitacora.estacion 
+                AND b.fecha = latest_bitacora.max_fecha
+            INNER JOIN estaciones e 
+                ON b.estacion = e.idestacion
+            ORDER BY b.fecha DESC;
+    "@
+    
+            # Ejecutar y mostrar los resultados
+            Write-Host "`nResultados de la consulta:" -ForegroundColor Yellow
+            Show-ResultsConsole -query $query1
+    
+        } catch {
+            Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
+        }
+    })
+
+$btnExit.Add_Click({
                         $formPrincipal.Dispose()
                         $formPrincipal.Close()
                     })

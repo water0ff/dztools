@@ -228,6 +228,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 $LZMlblExePath.Location = New-Object System.Drawing.Point(10, 50)
                                 $LZMlblExePath.Size = New-Object System.Drawing.Size(360, 60)  # Aumentar la altura para 3 líneas
                                 $LZMlblExePath.Font = $defaultFont  # Usar la fuente predeterminada
+                                $LZMlblExePath.BackColor = [System.Drawing.Color]::Transparent
                                 $LZMlblExePath.Text = "AI_ExePath: -"
                 
                                 # Evento cuando se selecciona una subcarpeta en el ComboBox
@@ -247,7 +248,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 })
                 
                                 # Crear botón para renombrar usando la función Create-Button
-                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 90)) -Size (New-Object System.Drawing.Size(150, 40)) -BackColor ([System.Drawing.Color]::LightGreen)
+                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 90)) -Size (New-Object System.Drawing.Size(150, 40))
                                 $LZMbtnRenombrar.Enabled = $false  # Deshabilitar inicialmente
                 
                                 # Evento Click del botón Renombrar
@@ -276,7 +277,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 })
                 
                                 # Crear botón para salir usando la función Create-Button
-                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(270, 90)) -Size (New-Object System.Drawing.Size(150, 40)) -BackColor ([System.Drawing.Color]::LightCoral)
+                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(170, 90)) -Size (New-Object System.Drawing.Size(150, 40))
                 
                                 # Evento Click del botón Salir
                                 $LMZAbtnSalir.Add_Click({

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250201.2359"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250203.1216"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -961,29 +961,68 @@ $btnReviewPivot.Add_Click({
             return
         }
 
-        # Consultas SQL
-        $query1 = "SELECT field, COUNT(*) FROM app_settings GROUP BY field HAVING COUNT(*) > 1;"
-        $query2 = "SELECT * FROM app_settings where field = 'activar_restcard_srm';"
+        Write-Host "`nConectado a la base de datos: $global:database en el servidor: $global:server" -ForegroundColor Green
 
-        # Ejecutar y analizar la primera consulta
-        $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
+        # Consulta SQL para verificar duplicados
+        $queryCheckDuplicates = @"
+        SELECT app_id, field, COUNT(*) AS DuplicateCount
+        FROM app_settings
+        GROUP BY app_id, field
+        HAVING COUNT(*) > 1
+"@
 
-        if ($resultsQuery1.Count -gt 0) {
-            # Si hay duplicados, mostrar mensaje en rojo y ejecutar query2
-            Write-Host "`nSELECT field, COUNT(*) FROM app_settings GROUP BY field HAVING COUNT(*) > 1;" -ForegroundColor white
-            Write-Host "`nSe recomienda correr proceso de limpieza pivot table" -ForegroundColor Red
-            # Ejecutar la segunda consulta
-            Show-ResultsConsole -query $query2
+        # Mostrar la consulta en la consola en amarillo
+        Write-Host "`nEjecutando la consulta para verificar duplicados..." -ForegroundColor Yellow
+        Write-Host "`t$queryCheckDuplicates`n" -ForegroundColor Yellow
+
+        # Ejecutar la consulta para verificar duplicados
+        $duplicates = Execute-SqlQuery -server $global:server -database $global:database -query $queryCheckDuplicates
+
+        if ($duplicates.Count -eq 0) {
+            Write-Host "`nNo se encontraron duplicados en la tabla app_settings." -ForegroundColor Green
         } else {
-            # Si no hay duplicados, mostrar mensaje en verde
-            Write-Host "`nSELECT field, COUNT(*) FROM app_settings GROUP BY field HAVING COUNT(*) > 1;" -ForegroundColor white
-            Write-Host "`nNo hay duplicados (pivot table)" -ForegroundColor Green
+            Write-Host "`nSe encontraron los siguientes duplicados:" -ForegroundColor Green
+            foreach ($dup in $duplicates) {
+                Write-Host "app_id: $($dup.app_id), field: $($dup.field), Veces duplicado: $($dup.DuplicateCount)" -ForegroundColor Cyan
+            }
+
+            # Mostrar un MessageBox preguntando si desea eliminar los duplicados
+            $result = [System.Windows.Forms.MessageBox]::Show("¿Desea eliminar los duplicados mostrados en la consola?", "Eliminar Duplicados", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+
+            if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                # Consulta SQL para eliminar duplicados
+                $queryDeleteDuplicates = @"
+                BEGIN TRANSACTION;
+                WITH CTE AS (
+                    SELECT id, app_id, field,
+                           ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
+                    FROM app_settings
+                )
+                DELETE FROM app_settings
+                WHERE id IN (
+                    SELECT id FROM CTE WHERE rn > 1
+                );
+                COMMIT TRANSACTION;
+"@
+
+                # Mostrar la consulta en la consola en amarillo
+                Write-Host "`nEliminando duplicados..." -ForegroundColor Yellow
+                Write-Host "`t$queryDeleteDuplicates" -ForegroundColor Yellow
+
+                # Ejecutar la consulta para eliminar duplicados
+                Execute-SqlQuery -server $global:server -database $global:database -query $queryDeleteDuplicates | Out-Null
+
+                Write-Host "`nDuplicados eliminados correctamente." -ForegroundColor Green
+            } else {
+                Write-Host "`nEl usuario decidió no eliminar los duplicados." -ForegroundColor Red
+            }
         }
 
     } catch {
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
-})
+})  
+#boton para Fecha de revisiones
 $btnFechaRevEstaciones.Add_Click({
     try {
         if (-not $global:server -or -not $global:database -or -not $global:password) {
@@ -1007,18 +1046,13 @@ $query1 = "SELECT e.FECHAREV,
             ORDER BY b.fecha DESC;"
         # Ejecutar y analizar la primera consulta
         $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
-Write-Host "`nSELECT e.FECHAREV, ` 
-            b.estacion as Estacion, `
-            CONVERT(varchar, b.fecha, 23) AS UltimaUso, `
-            FROM bitacorasistema b `
-            INNER JOIN (SELECT estacion, MAX(fecha) AS max_fecha FROM bitacorasistema GROUP BY estacion) latest_bitacora `
-            ON b.estacion = latest_bitacora.estacion AND b.fecha = latest_bitacora.max_fecha `
-            INNER JOIN estaciones e ON b.estacion = e.idestacion ORDER BY b.fecha DESC;`n" -ForegroundColor Yellow
+        Write-Host "`n$query1`n" -ForegroundColor Yellow
                     Show-ResultsConsole -query $query1
     } catch {
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
+#Boton para conectar a la base de datos
 $btnConnectDb.Add_Click({
         # Crear el formulario para pedir los datos de conexión
         $connectionForm = New-Object System.Windows.Forms.Form

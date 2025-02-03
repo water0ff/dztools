@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1120"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1150"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -517,27 +517,6 @@ Write-Host "`nSELECT e.FECHAREV, `
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #---------------------------------------------------------------------boton de pivot table
 $btnReviewPivot.Add_Click({
     try {
@@ -550,77 +529,52 @@ $btnReviewPivot.Add_Click({
 
         # Consulta SQL para verificar duplicados
         $queryCheckDuplicates = @"
-BEGIN TRANSACTION;
--- Verifica si hay duplicados basados en app_id y field
-IF EXISTS (
-    SELECT app_id, field
-    FROM app_settings
-    GROUP BY app_id, field
-    HAVING COUNT(*) > 1
-)
-BEGIN
-    -- Usamos ROW_NUMBER para identificar cuáles deben eliminarse
-    WITH CTE AS (
-        SELECT id, app_id, field,
-               ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
+        SELECT app_id, field, COUNT(*) AS DuplicateCount
         FROM app_settings
-    )
-    -- Obtener los registros que serán eliminados
-    DELETE FROM app_settings
-    WHERE id IN (
-        SELECT id FROM CTE WHERE rn > 1
-    );
-    
-    PRINT 'Duplicados eliminados correctamente.';
-END
-ELSE
-BEGIN
-    PRINT 'No hay duplicados para procesar.';
-END;
-COMMIT TRANSACTION;
+        GROUP BY app_id, field
+        HAVING COUNT(*) > 1
 "@
 
-        Write-Host "`nEjecutando la consulta: $queryCheckDuplicates" -ForegroundColor Yellow
+        Write-Host "`nEjecutando la consulta para verificar duplicados..." -ForegroundColor Yellow
 
-        # Cadena de conexión
-        $connectionString = "Server=$global:server;Database=$global:database;User Id=sa;Password=$global:password;"
-        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        $connection.Open()
+        # Ejecutar la consulta para verificar duplicados
+        $duplicates = Execute-SqlQuery -server $global:server -database $global:database -query $queryCheckDuplicates
 
-        Write-Host "`nConexión abierta correctamente." -ForegroundColor Green
-
-        # Crear el comando
-        $command = $connection.CreateCommand()
-        $command.CommandText = $queryCheckDuplicates
-
-        # Configurar el manejador de mensajes de SQL Server
-        $message = ""
-        $connection.FireInfoMessageEventOnUserErrors = $true
-        $handler = [System.Data.SqlClient.SqlInfoMessageEventHandler] {
-            param($sender, $event)
-            $message = $event.Message
-        }
-        $connection.add_InfoMessage($handler)
-
-        Write-Host "`nEjecutando la consulta..." -ForegroundColor Yellow
-
-        # Ejecutar la consulta
-        $command.ExecuteNonQuery() | Out-Null
-
-        Write-Host "`nConsulta ejecutada." -ForegroundColor Green
-
-        # Cerrar la conexión
-        $connection.Close()
-
-        Write-Host "`nConexión cerrada." -ForegroundColor Green
-
-        # Verificar el mensaje capturado
-        if ($message -like "*Duplicados eliminados correctamente*") {
-            Write-Host "`nDuplicados eliminados correctamente." -ForegroundColor Green
-        } elseif ($message -like "*No hay duplicados para procesar*") {
-            Write-Host "`nNo hay duplicados en la tabla app_settings." -ForegroundColor Green
+        if ($duplicates.Count -eq 0) {
+            Write-Host "`nNo se encontraron duplicados en la tabla app_settings." -ForegroundColor Green
         } else {
-            Write-Host "`nError inesperado al procesar la consulta. Mensaje: $message" -ForegroundColor Red
+            Write-Host "`nSe encontraron los siguientes duplicados:" -ForegroundColor Yellow
+            foreach ($dup in $duplicates) {
+                Write-Host "app_id: $($dup.app_id), field: $($dup.field), Veces duplicado: $($dup.DuplicateCount)" -ForegroundColor Cyan
+            }
+
+            # Preguntar al usuario si desea eliminar los duplicados
+            $response = Read-Host "`n¿Desea eliminar los duplicados? (1.- Si / 2.- No)"
+            if ($response -eq 1) {
+                # Consulta SQL para eliminar duplicados
+                $queryDeleteDuplicates = @"
+                BEGIN TRANSACTION;
+                WITH CTE AS (
+                    SELECT id, app_id, field,
+                           ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
+                    FROM app_settings
+                )
+                DELETE FROM app_settings
+                WHERE id IN (
+                    SELECT id FROM CTE WHERE rn > 1
+                );
+                COMMIT TRANSACTION;
+"@
+
+                Write-Host "`nEliminando duplicados..." -ForegroundColor Yellow
+
+                # Ejecutar la consulta para eliminar duplicados
+                Execute-SqlQuery -server $global:server -database $global:database -query $queryDeleteDuplicates | Out-Null
+
+                Write-Host "`nDuplicados eliminados correctamente." -ForegroundColor Green
+            } else {
+                Write-Host "`nNo se eliminaron los duplicados." -ForegroundColor Yellow
+            }
         }
 
     } catch {

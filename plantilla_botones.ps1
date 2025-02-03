@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1433"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1437"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -220,8 +220,6 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 $LZMlblExePath.Location = New-Object System.Drawing.Point(10, 50)
                                 $LZMlblExePath.Size = New-Object System.Drawing.Size(360, 60)  # Aumentar la altura para 3 líneas
                                 $LZMlblExePath.Font = $defaultFont  # Usar la fuente predeterminada
-                                $LZMlblExePath.BackColor = [System.Drawing.Color]::Transparent  # Fondo transparente
-                                $LZMlblExePath.Parent = $formLZMA
                                 $LZMlblExePath.Text = "AI_ExePath: -"
                                 # Evento cuando se selecciona una subcarpeta en el ComboBox
                                 $LZMcomboBoxCarpetas.Add_SelectedIndexChanged({
@@ -239,7 +237,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                                     }
                                 })
                                 # Crear botón para renombrar usando la función Create-Button
-                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 90)) -Size (New-Object System.Drawing.Size(150, 40))
+                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 90)) -Size (New-Object System.Drawing.Size(180, 40))
                                 $LZMbtnRenombrar.Enabled = $false  # Deshabilitar inicialmente
                                 # Evento Click del botón Renombrar
                                 $LZMbtnRenombrar.Add_Click({
@@ -265,7 +263,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                                     }
                                 })
                                 # Crear botón para salir usando la función Create-Button
-                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(170, 90)) -Size (New-Object System.Drawing.Size(150, 40))
+                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(190, 90)) -Size (New-Object System.Drawing.Size(180, 40))
                                 # Evento Click del botón Salir
                                 $LMZAbtnSalir.Add_Click({
                                     $formLZMA.Close()
@@ -276,9 +274,9 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 })
                                 # Agregar controles al formulario
                                 $formLZMA.Controls.Add($LZMcomboBoxCarpetas)
-                                $formLZMA.Controls.Add($LZMlblExePath)
                                 $formLZMA.Controls.Add($LZMbtnRenombrar)
                                 $formLZMA.Controls.Add($LMZAbtnSalir)
+                                $formLZMA.Controls.Add($LZMlblExePath)
                                 # Mostrar el formulario
                                 $formLZMA.ShowDialog()
                             } else {

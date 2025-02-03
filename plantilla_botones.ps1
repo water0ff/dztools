@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1227"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1234"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -174,66 +174,71 @@ if (!(Test-Path -Path "C:\Temp")) {
 ##-------------------- FUNCIONES                                                          -------#
 
 ##---------------OTROS BOTONES Y FUNCIONES OMITIDAS AQUI----------------------------------------------------------------BOTONES#
-                # Evento Click del botón para buscar la segunda carpeta
-                $btnBuscarCarpeta.Add_Click({
-                    # Definir la ruta del registro
-                    $registryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
-                
-                    # Obtener las subcarpetas
-                    $subCarpetas = Get-ChildItem -Path $registryPath | Where-Object { $_.PSIsContainer }
-                
-                    # Verificar si hay al menos dos carpetas
-                    if ($subCarpetas.Count -ge 2) {
-                        # Obtener la segunda carpeta
-                        $segundaCarpeta = $subCarpetas[1].PSChildName
-                
-                        # Crear un nuevo formulario para mostrar las carpetas
-                        $formLZMA = New-Object System.Windows.Forms.Form
-                        $formLZMA.Text = "Carpetas LZMA"
-                        $formLZMA.Size = New-Object System.Drawing.Size(400, 200)
-                        $formLZMA.StartPosition = "CenterScreen"
-                
-                        # Crear un ComboBox para mostrar las carpetas
-                        $comboBoxCarpetas = New-Object System.Windows.Forms.ComboBox
-                        $comboBoxCarpetas.Location = New-Object System.Drawing.Point(10, 10)
-                        $comboBoxCarpetas.Size = New-Object System.Drawing.Size(360, 20)
-                        $comboBoxCarpetas.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-                
-                        # Agregar las carpetas al ComboBox
-                        foreach ($carpeta in $subCarpetas) {
-                            $comboBoxCarpetas.Items.Add($carpeta.PSChildName)
-                        }
-                
-                        # Seleccionar la segunda carpeta por defecto
-                        $comboBoxCarpetas.SelectedItem = $segundaCarpeta
-                
-                        # Crear un Label para mostrar el valor de AI_ExePath
-                        $labelExePath = New-Object System.Windows.Forms.Label
-                        $labelExePath.Location = New-Object System.Drawing.Point(10, 50)
-                        $labelExePath.Size = New-Object System.Drawing.Size(360, 20)
-                
-                        # Evento cuando se selecciona una carpeta en el ComboBox
-                        $comboBoxCarpetas.Add_SelectedIndexChanged({
-                            $carpetaSeleccionada = $comboBoxCarpetas.SelectedItem
-                            $rutaCompleta = "$registryPath\$carpetaSeleccionada"
-                            $valorExePath = Get-ItemProperty -Path $rutaCompleta -Name "AI_ExePath" -ErrorAction SilentlyContinue
-                            if ($valorExePath) {
-                                $labelExePath.Text = "AI_ExePath: $($valorExePath.AI_ExePath)"
-                            } else {
-                                $labelExePath.Text = "AI_ExePath: No encontrado"
+# Evento Click del botón para buscar la segunda carpeta
+                        $btnBuscarCarpeta.Add_Click({
+                            # Definir la ruta del registro
+                            $registryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
+                        
+                            try {
+                                # Intentar obtener las subcarpetas
+                                $subCarpetas = Get-ChildItem -Path $registryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
+                        
+                                # Verificar si hay al menos dos carpetas
+                                if ($subCarpetas.Count -ge 2) {
+                                    # Obtener la segunda carpeta
+                                    $segundaCarpeta = $subCarpetas[1].PSChildName
+                        
+                                    # Crear un nuevo formulario para mostrar las carpetas
+                                    $formLZMA = New-Object System.Windows.Forms.Form
+                                    $formLZMA.Text = "Carpetas LZMA"
+                                    $formLZMA.Size = New-Object System.Drawing.Size(400, 200)
+                                    $formLZMA.StartPosition = "CenterScreen"
+                        
+                                    # Crear un ComboBox para mostrar las carpetas
+                                    $comboBoxCarpetas = New-Object System.Windows.Forms.ComboBox
+                                    $comboBoxCarpetas.Location = New-Object System.Drawing.Point(10, 10)
+                                    $comboBoxCarpetas.Size = New-Object System.Drawing.Size(360, 20)
+                                    $comboBoxCarpetas.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+                        
+                                    # Agregar las carpetas al ComboBox
+                                    foreach ($carpeta in $subCarpetas) {
+                                        $comboBoxCarpetas.Items.Add($carpeta.PSChildName)
+                                    }
+                        
+                                    # Seleccionar la segunda carpeta por defecto
+                                    $comboBoxCarpetas.SelectedItem = $segundaCarpeta
+                        
+                                    # Crear un Label para mostrar el valor de AI_ExePath
+                                    $labelExePath = New-Object System.Windows.Forms.Label
+                                    $labelExePath.Location = New-Object System.Drawing.Point(10, 50)
+                                    $labelExePath.Size = New-Object System.Drawing.Size(360, 20)
+                        
+                                    # Evento cuando se selecciona una carpeta en el ComboBox
+                                    $comboBoxCarpetas.Add_SelectedIndexChanged({
+                                        $carpetaSeleccionada = $comboBoxCarpetas.SelectedItem
+                                        $rutaCompleta = "$registryPath\$carpetaSeleccionada"
+                                        $valorExePath = Get-ItemProperty -Path $rutaCompleta -Name "AI_ExePath" -ErrorAction SilentlyContinue
+                                        if ($valorExePath) {
+                                            $labelExePath.Text = "AI_ExePath: $($valorExePath.AI_ExePath)"
+                                        } else {
+                                            $labelExePath.Text = "AI_ExePath: No encontrado"
+                                        }
+                                    })
+                        
+                                    # Agregar controles al formulario
+                                    $formLZMA.Controls.Add($comboBoxCarpetas)
+                                    $formLZMA.Controls.Add($labelExePath)
+                        
+                                    # Mostrar el formulario
+                                    $formLZMA.ShowDialog()
+                                } else {
+                                    [System.Windows.Forms.MessageBox]::Show("No se encontraron suficientes carpetas en la ruta del registro.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                                }
+                            } catch {
+                                # Capturar la excepción si la ruta no existe
+                                [System.Windows.Forms.MessageBox]::Show("La ruta del registro no existe: $registryPath", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                             }
                         })
-                
-                        # Agregar controles al formulario
-                        $formLZMA.Controls.Add($comboBoxCarpetas)
-                        $formLZMA.Controls.Add($labelExePath)
-                
-                        # Mostrar el formulario
-                        $formLZMA.ShowDialog()
-                    } else {
-                        [System.Windows.Forms.MessageBox]::Show("No se encontraron suficientes carpetas en la ruta del registro.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                    }
-                })
 #SALIR DEL SISTEMA------------------------------------------------
 $btnExit.Add_Click({
                         $formPrincipal.Dispose()

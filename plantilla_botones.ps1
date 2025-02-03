@@ -237,15 +237,15 @@ if (!(Test-Path -Path "C:\Temp")) {
                                     }
                                 })
                                 # Crear botón para renombrar usando la función Create-Button
-                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 90)) -Size (New-Object System.Drawing.Size(180, 40))
+                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 90)) -Size (New-Object System.Drawing.Size(170, 40))
                                 $LZMbtnRenombrar.Enabled = $false  # Deshabilitar inicialmente
                                 # Evento Click del botón Renombrar
                                 $LZMbtnRenombrar.Add_Click({
-         Write-Host "`t¿Estás seguro de que deseas renombrar la ruta del registro?`n$LZMrutaCompleta`nA:`n$nuevaRuta" -ForegroundColor Yellow
                                     $indiceSeleccionado = $LZMcomboBoxCarpetas.SelectedIndex
                                     if ($indiceSeleccionado -gt 0) {  # Ignorar la opción por defecto
                                         $LZMrutaCompleta = $LZMrutasCompletas[$indiceSeleccionado - 1]  # Ajustar índice
                                         $nuevaRuta = "$LZMrutaCompleta.backup"  # Nueva ruta con .backup
+                                        Write-Host "`t¿Estás seguro de que deseas renombrar la ruta del registro?`n$LZMrutaCompleta`nA:`n$nuevaRuta" -ForegroundColor Yellow
                                         $confirmacion = [System.Windows.Forms.MessageBox]::Show(
                                             "¿Estás seguro de que deseas renombrar la ruta del registro?`n$LZMrutaCompleta`nA:`n$nuevaRuta",
                                             "Confirmar renombrado",
@@ -266,7 +266,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                                     }
                                 })
                                 # Crear botón para salir usando la función Create-Button
-                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(190, 90)) -Size (New-Object System.Drawing.Size(180, 40))
+                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(190, 90)) -Size (New-Object System.Drawing.Size(170, 40))
                                 # Evento Click del botón Salir
                                 $LMZAbtnSalir.Add_Click({
                                                 Write-Host "`tCancelado por el usuario." -ForegroundColor Yellow

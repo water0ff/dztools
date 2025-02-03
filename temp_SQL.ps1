@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1107"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1115"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -495,6 +495,17 @@ Write-Host "`nSELECT e.FECHAREV, `
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -15,52 +15,52 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1327"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1423"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
     $toolTip = New-Object System.Windows.Forms.ToolTip
-    function Create-Button {
-        param (
-            [string]$Text,
-            [System.Drawing.Point]$Location,
-            [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
-            [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-            [string]$ToolTipText = $null  # Nuevo parámetro para el ToolTip
-        )
-        # Pasar esto a los parametros de arriba.
-        $buttonStyle = @{
-            Size      = New-Object System.Drawing.Size(220, 35)
-            FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
-            Font      = $defaultFont
-        }
-        # Eventos de mouse (definidos dentro de la función)
-        $button_MouseEnter = {
-            $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
-            $this.Font = $boldFont
-        }
-        $button_MouseLeave = {
-            $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
-            $this.Font = $defaultFont
-        }
-        # Crear el botón
-        $button = New-Object System.Windows.Forms.Button
-        $button.Text = $Text
-        $button.Size = $buttonStyle.Size
-        $button.Location = $Location
-        $button.BackColor = $BackColor
-        $button.ForeColor = $ForeColor
-        $button.Font = $buttonStyle.Font
-        $button.FlatStyle = $buttonStyle.FlatStyle
-        $button.Tag = $BackColor  # Almacena el color original en Tag
-        $button.Add_MouseEnter($button_MouseEnter)
-        $button.Add_MouseLeave($button_MouseLeave)
-        # Agregar ToolTip si se proporciona
-        if ($ToolTipText) {
-            $toolTip.SetToolTip($button, $ToolTipText)
-        }
-        return $button
-    }
+            function Create-Button {
+                param (
+                    [string]$Text,
+                    [System.Drawing.Point]$Location,
+                    [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
+                    [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
+                    [string]$ToolTipText = $null,  # Nuevo parámetro para el ToolTip
+                    [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(220, 35))  # Tamaño personalizable
+                )
+                # Estilo del botón
+                $buttonStyle = @{
+                    FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
+                    Font      = $defaultFont
+                }
+                # Eventos de mouse (definidos dentro de la función)
+                $button_MouseEnter = {
+                    $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
+                    $this.Font = $boldFont
+                }
+                $button_MouseLeave = {
+                    $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
+                    $this.Font = $defaultFont
+                }
+                # Crear el botón
+                $button = New-Object System.Windows.Forms.Button
+                $button.Text = $Text
+                $button.Size = $Size  # Usar el tamaño personalizado
+                $button.Location = $Location
+                $button.BackColor = $BackColor
+                $button.ForeColor = $ForeColor
+                $button.Font = $buttonStyle.Font
+                $button.FlatStyle = $buttonStyle.FlatStyle
+                $button.Tag = $BackColor  # Almacena el color original en Tag
+                $button.Add_MouseEnter($button_MouseEnter)
+                $button.Add_MouseLeave($button_MouseLeave)
+                # Agregar ToolTip si se proporciona
+                if ($ToolTipText) {
+                    $toolTip.SetToolTip($button, $ToolTipText)
+                }
+                return $button
+            }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
@@ -247,7 +247,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 })
                 
                                 # Crear botón para renombrar usando la función Create-Button
-                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 90)) -BackColor ([System.Drawing.Color]::LightGreen)
+                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 90)) -Size (New-Object System.Drawing.Size(150, 40)) -BackColor ([System.Drawing.Color]::LightGreen)
                                 $LZMbtnRenombrar.Enabled = $false  # Deshabilitar inicialmente
                 
                                 # Evento Click del botón Renombrar
@@ -276,7 +276,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 })
                 
                                 # Crear botón para salir usando la función Create-Button
-                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(270, 90)) -BackColor ([System.Drawing.Color]::LightCoral)
+                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(270, 90)) -Size (New-Object System.Drawing.Size(150, 40)) -BackColor ([System.Drawing.Color]::LightCoral)
                 
                                 # Evento Click del botón Salir
                                 $LMZAbtnSalir.Add_Click({

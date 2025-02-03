@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1437"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1445"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -174,8 +174,8 @@ if (!(Test-Path -Path "C:\Temp")) {
 ##-------------------- FUNCIONES                                                          -------#
 ##---------------OTROS BOTONES Y FUNCIONES OMITIDAS AQUI----------------------------------------------------------------BOTONES#
                 $LZMAbtnBuscarCarpeta.Add_Click({
-                    # Definir la ruta del registro
-                    $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
+         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+                   $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
                     try {
                         # Intentar obtener las carpetas principales
                         $LZMcarpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
@@ -241,6 +241,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 $LZMbtnRenombrar.Enabled = $false  # Deshabilitar inicialmente
                                 # Evento Click del botón Renombrar
                                 $LZMbtnRenombrar.Add_Click({
+         Write-Host "`t¿Estás seguro de que deseas renombrar la ruta del registro?`n$LZMrutaCompleta`nA:`n$nuevaRuta" -ForegroundColor Yellow
                                     $indiceSeleccionado = $LZMcomboBoxCarpetas.SelectedIndex
                                     if ($indiceSeleccionado -gt 0) {  # Ignorar la opción por defecto
                                         $LZMrutaCompleta = $LZMrutasCompletas[$indiceSeleccionado - 1]  # Ajustar índice
@@ -255,8 +256,10 @@ if (!(Test-Path -Path "C:\Temp")) {
                                             try {
                                                 Rename-Item -Path $LZMrutaCompleta -NewName "$($LZMcomboBoxCarpetas.SelectedItem).backup"
                                                 [System.Windows.Forms.MessageBox]::Show("Registro renombrado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                                                Write-Host "`tRegistro renombrado correctamente." -ForegroundColor Yellow
                                                 $formLZMA.Close()  # Cerrar el formulario después de renombrar
                                             } catch {
+                                                Write-Host "`tError al renombrar el registro." -ForegroundColor Red
                                                 [System.Windows.Forms.MessageBox]::Show("Error al renombrar el registro: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                                             }
                                         }
@@ -266,6 +269,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(190, 90)) -Size (New-Object System.Drawing.Size(180, 40))
                                 # Evento Click del botón Salir
                                 $LMZAbtnSalir.Add_Click({
+                                                Write-Host "`tCancelado por el usuario." -ForegroundColor Yellow
                                     $formLZMA.Close()
                                 })
                                 # Habilitar el botón Renombrar solo si se selecciona una opción válida
@@ -280,13 +284,16 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 # Mostrar el formulario
                                 $formLZMA.ShowDialog()
                             } else {
+                                Write-Host "`tNo se encontraron subcarpetas en la ruta del registro." -ForegroundColor Yellow
                                 [System.Windows.Forms.MessageBox]::Show("No se encontraron subcarpetas en la ruta del registro.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                             }
                         } else {
+                            Write-Host "`tNo se encontraron carpetas principales en la ruta del registro." -ForegroundColor Yellow
                             [System.Windows.Forms.MessageBox]::Show("No se encontraron carpetas principales en la ruta del registro.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                         }
                     } catch {
                         # Capturar la excepción si la ruta no existe
+                        Write-Host "`tLa ruta del registro no existe: $LZMAregistryPath" -ForegroundColor Yellow
                         [System.Windows.Forms.MessageBox]::Show("La ruta del registro no existe: $LZMAregistryPath", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                     }
                 })

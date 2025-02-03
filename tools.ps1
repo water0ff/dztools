@@ -66,6 +66,38 @@ if (!(Test-Path -Path "C:\Temp")) {
                 }
                 return $button
             }
+#Lo mismo pero para las labels
+function Create-Label {
+                    param (
+                        [string]$Text,
+                        [System.Drawing.Point]$Location,
+                        [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
+                        [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
+                        [string]$ToolTipText = $null,  # Nuevo parámetro para el ToolTip
+                        [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),  # Tamaño personalizable
+                        [System.Drawing.Font]$Font = $defaultFont,
+                        [System.Windows.Forms.BorderStyle]$BorderStyle = [System.Windows.Forms.BorderStyle]::None,
+                        [System.Drawing.ContentAlignment]$TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+                    )
+                
+                    # Crear la etiqueta
+                    $label = New-Object System.Windows.Forms.Label
+                    $label.Text = $Text
+                    $label.Size = $Size
+                    $label.Location = $Location
+                    $label.BackColor = $BackColor
+                    $label.ForeColor = $ForeColor
+                    $label.Font = $Font
+                    $label.BorderStyle = $BorderStyle
+                    $label.TextAlign = $TextAlign
+                
+                    # Agregar ToolTip si se proporciona
+                    if ($ToolTipText) {
+                        $toolTip.SetToolTip($label, $ToolTipText)
+                    }
+                
+                    return $label
+                }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
@@ -106,6 +138,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $chkSqlServer.Text = "Instalar SQL Tools (opcional)"
     $chkSqlServer.Size = New-Object System.Drawing.Size(290, 30)
     $chkSqlServer.Location = New-Object System.Drawing.Point(10, 10)
+
 # Label para mostrar conexión a la base de datos
     $lblConnectionStatus = New-Object System.Windows.Forms.Label
     $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
@@ -114,39 +147,11 @@ if (!(Test-Path -Path "C:\Temp")) {
     $lblConnectionStatus.Location = New-Object System.Drawing.Point(10, 250)
     $lblConnectionStatus.ForeColor = [System.Drawing.Color]::RED
 # Crear el Label para mostrar el nombre del equipo fuera de las pestañas
-    $lblHostname = New-Object System.Windows.Forms.Label
-    $lblHostname.Text = [System.Net.Dns]::GetHostName()
-    $lblHostname.Size = New-Object System.Drawing.Size(240, 35)
-    $lblHostname.Font = $defaultFont
-    $lblHostname.Location = New-Object System.Drawing.Point(2, 350)
-    $lblHostname.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-    $lblHostname.BackColor = [System.Drawing.Color]::White
-    $lblHostname.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-    $lblHostname.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
-    $toolTipHostname = New-Object System.Windows.Forms.ToolTip
-    $toolTipHostname.SetToolTip($lblHostname, "Haz clic para copiar el Hostname al portapapeles.")
+    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(2, 350)) -Size (New-Object System.Drawing.Size(240, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
 # Crear el Label para mostrar el puerto
-    $lblPort = New-Object System.Windows.Forms.Label
-    $lblPort.Size = New-Object System.Drawing.Size(236, 35)
-    $lblPort.Font = $defaultFont
-    $lblPort.Location = New-Object System.Drawing.Point(245, 350)  # Alineado a la derecha del hostname
-    $lblPort.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-    $lblPort.BackColor = [System.Drawing.Color]::White
-    $lblPort.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-    $lblPort.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
-    $toolTip2 = New-Object System.Windows.Forms.ToolTip
-    $toolTip2.SetToolTip($lblPort, "Haz clic para copiar el Puerto al portapapeles.")
+    $lblPort = Create-Label -Location (New-Object System.Drawing.Point(245, 350)) -Size (New-Object System.Drawing.Size(236, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
 # Crear el Label para mostrar las IPs y adaptadores
-    $lbIpAdress = New-Object System.Windows.Forms.Label
-    $lbIpAdress.Size = New-Object System.Drawing.Size(240, 100)  # Tamaño inicial
-    $lbIpAdress.Font = $defaultFont
-    $lbIpAdress.Location = New-Object System.Drawing.Point(2, 390)
-    $lbIpAdress.TextAlign = [System.Drawing.ContentAlignment]::TopLeft
-    $lbIpAdress.BackColor = [System.Drawing.Color]::White
-    $lbIpAdress.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-    $lbIpAdress.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
-# Crear el ToolTip
-    $toolTip2.SetToolTip($lbIpAdress, "Haz clic para copiar las IPs al portapapeles.")
+    $lbIpAdress = Create-Label -Location (New-Object System.Drawing.Point(2, 390)) -Size (New-Object System.Drawing.Size(240, 100)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."    $lbIpAdress = New-Object System.Windows.Forms.Label
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)

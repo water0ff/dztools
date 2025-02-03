@@ -523,9 +523,10 @@ $btnReviewPivot.Add_Click({
                 Write-Host "app_id: $($dup.app_id), field: $($dup.field), Veces duplicado: $($dup.DuplicateCount)" -ForegroundColor Cyan
             }
 
-            # Preguntar al usuario si desea eliminar los duplicados
-            $response = Read-Host "`n¿Desea eliminar los duplicados? (1.- Si / 2.- No)"
-            if ($response -eq 1) {
+            # Mostrar un MessageBox preguntando si desea eliminar los duplicados
+            $result = [System.Windows.Forms.MessageBox]::Show("¿Desea eliminar los duplicados mostrados en la consola?", "Eliminar Duplicados", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+
+            if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
                 # Consulta SQL para eliminar duplicados
                 $queryDeleteDuplicates = @"
                 BEGIN TRANSACTION;
@@ -550,16 +551,14 @@ $btnReviewPivot.Add_Click({
 
                 Write-Host "`nDuplicados eliminados correctamente." -ForegroundColor Green
             } else {
-                Write-Host "`nNo se eliminaron los duplicados." -ForegroundColor Yellow
+                Write-Host "`nEl usuario decidió no eliminar los duplicados." -ForegroundColor Red
             }
         }
 
     } catch {
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
-})
-
-    
+})  
 #SALIR DEL SISTEMA------------------------------------------------
 $btnExit.Add_Click({
                         $formPrincipal.Dispose()

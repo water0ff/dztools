@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1150"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1205"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -460,6 +460,7 @@ $btnDisconnectDb.Add_Click({
         Write-Host "`nError al desconectar: $_" -ForegroundColor Red
     }
 })
+#Boton para revisar estaciones
 $btnFechaRevEstaciones.Add_Click({
     try {
         if (-not $global:server -or -not $global:database -or -not $global:password) {
@@ -483,40 +484,12 @@ $query1 = "SELECT e.FECHAREV,
             ORDER BY b.fecha DESC;"
         # Ejecutar y analizar la primera consulta
         $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
-Write-Host "`nSELECT e.FECHAREV, ` 
-            b.estacion as Estacion, `
-            CONVERT(varchar, b.fecha, 23) AS UltimaUso, `
-            FROM bitacorasistema b `
-            INNER JOIN (SELECT estacion, MAX(fecha) AS max_fecha FROM bitacorasistema GROUP BY estacion) latest_bitacora `
-            ON b.estacion = latest_bitacora.estacion AND b.fecha = latest_bitacora.max_fecha `
-            INNER JOIN estaciones e ON b.estacion = e.idestacion ORDER BY b.fecha DESC;`n" -ForegroundColor Yellow
+        Write-Host "`n$query1`n" -ForegroundColor Yellow
                     Show-ResultsConsole -query $query1
     } catch {
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #---------------------------------------------------------------------boton de pivot table
 $btnReviewPivot.Add_Click({
     try {
@@ -535,7 +508,9 @@ $btnReviewPivot.Add_Click({
         HAVING COUNT(*) > 1
 "@
 
+        # Mostrar la consulta en la consola en amarillo
         Write-Host "`nEjecutando la consulta para verificar duplicados..." -ForegroundColor Yellow
+        Write-Host "`t$queryCheckDuplicates`n" -ForegroundColor Yellow
 
         # Ejecutar la consulta para verificar duplicados
         $duplicates = Execute-SqlQuery -server $global:server -database $global:database -query $queryCheckDuplicates
@@ -543,7 +518,7 @@ $btnReviewPivot.Add_Click({
         if ($duplicates.Count -eq 0) {
             Write-Host "`nNo se encontraron duplicados en la tabla app_settings." -ForegroundColor Green
         } else {
-            Write-Host "`nSe encontraron los siguientes duplicados:" -ForegroundColor Yellow
+            Write-Host "`nSe encontraron los siguientes duplicados:" -ForegroundColor Green
             foreach ($dup in $duplicates) {
                 Write-Host "app_id: $($dup.app_id), field: $($dup.field), Veces duplicado: $($dup.DuplicateCount)" -ForegroundColor Cyan
             }
@@ -566,7 +541,9 @@ $btnReviewPivot.Add_Click({
                 COMMIT TRANSACTION;
 "@
 
+                # Mostrar la consulta en la consola en amarillo
                 Write-Host "`nEliminando duplicados..." -ForegroundColor Yellow
+                Write-Host "`t$queryDeleteDuplicates" -ForegroundColor Yellow
 
                 # Ejecutar la consulta para eliminar duplicados
                 Execute-SqlQuery -server $global:server -database $global:database -query $queryDeleteDuplicates | Out-Null
@@ -581,22 +558,6 @@ $btnReviewPivot.Add_Click({
         Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     
 #SALIR DEL SISTEMA------------------------------------------------

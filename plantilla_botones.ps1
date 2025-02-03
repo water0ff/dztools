@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1430"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1433"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -220,7 +220,8 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 $LZMlblExePath.Location = New-Object System.Drawing.Point(10, 50)
                                 $LZMlblExePath.Size = New-Object System.Drawing.Size(360, 60)  # Aumentar la altura para 3 líneas
                                 $LZMlblExePath.Font = $defaultFont  # Usar la fuente predeterminada
-                                $LZMlblExePath.BackColor = [System.Drawing.Color]::Transparent
+                                $LZMlblExePath.BackColor = [System.Drawing.Color]::Transparent  # Fondo transparente
+                                $LZMlblExePath.Parent = $formLZMA
                                 $LZMlblExePath.Text = "AI_ExePath: -"
                                 # Evento cuando se selecciona una subcarpeta en el ComboBox
                                 $LZMcomboBoxCarpetas.Add_SelectedIndexChanged({

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1423"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1430"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -86,8 +86,8 @@ if (!(Test-Path -Path "C:\Temp")) {
     $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(240, 90))
     $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 130))
     $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(240, 170))
+#BotonCreado
     $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Carpeta LZMA" -Location (New-Object System.Drawing.Point(240, 210))
-
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 40))
     $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 40))
     $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
@@ -172,12 +172,10 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.Controls.Add($lblPerfilDeRed)
     $formPrincipal.Controls.Add($btnExit)
 ##-------------------- FUNCIONES                                                          -------#
-
 ##---------------OTROS BOTONES Y FUNCIONES OMITIDAS AQUI----------------------------------------------------------------BOTONES#
                 $LZMAbtnBuscarCarpeta.Add_Click({
                     # Definir la ruta del registro
                     $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
-                
                     try {
                         # Intentar obtener las carpetas principales
                         $LZMcarpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
@@ -187,7 +185,6 @@ if (!(Test-Path -Path "C:\Temp")) {
                             # Crear una lista para almacenar las subcarpetas y sus rutas completas
                             $LZMsubCarpetas = @("Selecciona instalador a renombrar")  # Opción por defecto
                             $LZMrutasCompletas = @()
-                
                             # Recorrer cada carpeta principal y obtener sus subcarpetas
                             foreach ($LZMcarpetaPrincipal in $LZMcarpetasPrincipales) {
                                 $LZMsubCarpetasPrincipal = Get-ChildItem -Path $LZMcarpetaPrincipal.PSPath | Where-Object { $_.PSIsContainer }
@@ -196,7 +193,6 @@ if (!(Test-Path -Path "C:\Temp")) {
                                     $LZMrutasCompletas += $LZMsubCarpeta.PSPath
                                 }
                             }
-                
                             # Verificar si hay al menos una subcarpeta
                             if ($LZMsubCarpetas.Count -gt 1) {
                                 # Crear un nuevo formulario para mostrar las subcarpetas
@@ -207,22 +203,18 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 $formLZMA.MaximizeBox = $false  # Deshabilitar botón de maximizar
                                 $formLZMA.MinimizeBox = $false  # Deshabilitar botón de minimizar
                                 $formLZMA.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog  # Evitar redimensionar
-                
                                 # Crear un ComboBox para mostrar las subcarpetas
                                 $LZMcomboBoxCarpetas = New-Object System.Windows.Forms.ComboBox
                                 $LZMcomboBoxCarpetas.Location = New-Object System.Drawing.Point(10, 10)
                                 $LZMcomboBoxCarpetas.Size = New-Object System.Drawing.Size(360, 20)
                                 $LZMcomboBoxCarpetas.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
                                 $LZMcomboBoxCarpetas.Font = $defaultFont  # Usar la fuente predeterminada
-                
                                 # Agregar las subcarpetas al ComboBox
                                 foreach ($LZMsubCarpeta in $LZMsubCarpetas) {
                                     $LZMcomboBoxCarpetas.Items.Add($LZMsubCarpeta)
                                 }
-                
                                 # Seleccionar la primera opción por defecto
                                 $LZMcomboBoxCarpetas.SelectedIndex = 0
-                
                                 # Crear un Label para mostrar el valor de AI_ExePath
                                 $LZMlblExePath = New-Object System.Windows.Forms.Label
                                 $LZMlblExePath.Location = New-Object System.Drawing.Point(10, 50)
@@ -230,7 +222,6 @@ if (!(Test-Path -Path "C:\Temp")) {
                                 $LZMlblExePath.Font = $defaultFont  # Usar la fuente predeterminada
                                 $LZMlblExePath.BackColor = [System.Drawing.Color]::Transparent
                                 $LZMlblExePath.Text = "AI_ExePath: -"
-                
                                 # Evento cuando se selecciona una subcarpeta en el ComboBox
                                 $LZMcomboBoxCarpetas.Add_SelectedIndexChanged({
                                     $indiceSeleccionado = $LZMcomboBoxCarpetas.SelectedIndex
@@ -246,18 +237,15 @@ if (!(Test-Path -Path "C:\Temp")) {
                                         $LZMlblExePath.Text = "AI_ExePath: -"
                                     }
                                 })
-                
                                 # Crear botón para renombrar usando la función Create-Button
                                 $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 90)) -Size (New-Object System.Drawing.Size(150, 40))
                                 $LZMbtnRenombrar.Enabled = $false  # Deshabilitar inicialmente
-                
                                 # Evento Click del botón Renombrar
                                 $LZMbtnRenombrar.Add_Click({
                                     $indiceSeleccionado = $LZMcomboBoxCarpetas.SelectedIndex
                                     if ($indiceSeleccionado -gt 0) {  # Ignorar la opción por defecto
                                         $LZMrutaCompleta = $LZMrutasCompletas[$indiceSeleccionado - 1]  # Ajustar índice
                                         $nuevaRuta = "$LZMrutaCompleta.backup"  # Nueva ruta con .backup
-                
                                         $confirmacion = [System.Windows.Forms.MessageBox]::Show(
                                             "¿Estás seguro de que deseas renombrar la ruta del registro?`n$LZMrutaCompleta`nA:`n$nuevaRuta",
                                             "Confirmar renombrado",
@@ -275,26 +263,21 @@ if (!(Test-Path -Path "C:\Temp")) {
                                         }
                                     }
                                 })
-                
                                 # Crear botón para salir usando la función Create-Button
                                 $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(170, 90)) -Size (New-Object System.Drawing.Size(150, 40))
-                
                                 # Evento Click del botón Salir
                                 $LMZAbtnSalir.Add_Click({
                                     $formLZMA.Close()
                                 })
-                
                                 # Habilitar el botón Renombrar solo si se selecciona una opción válida
                                 $LZMcomboBoxCarpetas.Add_SelectedIndexChanged({
                                     $LZMbtnRenombrar.Enabled = ($LZMcomboBoxCarpetas.SelectedIndex -gt 0)
                                 })
-                
                                 # Agregar controles al formulario
                                 $formLZMA.Controls.Add($LZMcomboBoxCarpetas)
                                 $formLZMA.Controls.Add($LZMlblExePath)
                                 $formLZMA.Controls.Add($LZMbtnRenombrar)
                                 $formLZMA.Controls.Add($LMZAbtnSalir)
-                
                                 # Mostrar el formulario
                                 $formLZMA.ShowDialog()
                             } else {
@@ -309,7 +292,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                     }
                 })
 #SALIR DEL SISTEMA------------------------------------------------
-$btnExit.Add_Click({
+        $btnExit.Add_Click({
                         $formPrincipal.Dispose()
                         $formPrincipal.Close()
                     })

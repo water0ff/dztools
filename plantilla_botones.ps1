@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.1256"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.1302"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -174,85 +174,140 @@ if (!(Test-Path -Path "C:\Temp")) {
 ##-------------------- FUNCIONES                                                          -------#
 
 ##---------------OTROS BOTONES Y FUNCIONES OMITIDAS AQUI----------------------------------------------------------------BOTONES#
-                                $btnBuscarCarpeta.Add_Click({
-                                    # Definir la ruta del registro
-                                    $registryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
-                                
-                                    try {
-                                        # Intentar obtener las carpetas principales
-                                        $carpetasPrincipales = Get-ChildItem -Path $registryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
-                                
-                                        # Verificar si hay al menos una carpeta principal
-                                        if ($carpetasPrincipales.Count -ge 1) {
-                                            # Crear una lista para almacenar las subcarpetas y sus rutas completas
-                                            $subCarpetas = @()
-                                            $rutasCompletas = @()
-                                
-                                            # Recorrer cada carpeta principal y obtener sus subcarpetas
-                                            foreach ($carpetaPrincipal in $carpetasPrincipales) {
-                                                $subCarpetasPrincipal = Get-ChildItem -Path $carpetaPrincipal.PSPath | Where-Object { $_.PSIsContainer }
-                                                foreach ($subCarpeta in $subCarpetasPrincipal) {
-                                                    $subCarpetas += $subCarpeta.PSChildName
-                                                    $rutasCompletas += $subCarpeta.PSPath
-                                                }
+                            $btnBuscarCarpeta.Add_Click({
+                                # Definir la ruta del registro
+                                $registryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
+                            
+                                try {
+                                    # Intentar obtener las carpetas principales
+                                    $carpetasPrincipales = Get-ChildItem -Path $registryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
+                            
+                                    # Verificar si hay al menos una carpeta principal
+                                    if ($carpetasPrincipales.Count -ge 1) {
+                                        # Crear una lista para almacenar las subcarpetas y sus rutas completas
+                                        $subCarpetas = @("Selecciona instalador a borrar registro")  # Opción por defecto
+                                        $rutasCompletas = @()
+                            
+                                        # Recorrer cada carpeta principal y obtener sus subcarpetas
+                                        foreach ($carpetaPrincipal in $carpetasPrincipales) {
+                                            $subCarpetasPrincipal = Get-ChildItem -Path $carpetaPrincipal.PSPath | Where-Object { $_.PSIsContainer }
+                                            foreach ($subCarpeta in $subCarpetasPrincipal) {
+                                                $subCarpetas += $subCarpeta.PSChildName
+                                                $rutasCompletas += $subCarpeta.PSPath
                                             }
-                                
-                                            # Verificar si hay al menos una subcarpeta
-                                            if ($subCarpetas.Count -ge 1) {
-                                                # Crear un nuevo formulario para mostrar las subcarpetas
-                                                $formLZMA = New-Object System.Windows.Forms.Form
-                                                $formLZMA.Text = "Carpetas LZMA"
-                                                $formLZMA.Size = New-Object System.Drawing.Size(400, 200)
-                                                $formLZMA.StartPosition = "CenterScreen"
-                                
-                                                # Crear un ComboBox para mostrar las subcarpetas
-                                                $comboBoxCarpetas = New-Object System.Windows.Forms.ComboBox
-                                                $comboBoxCarpetas.Location = New-Object System.Drawing.Point(10, 10)
-                                                $comboBoxCarpetas.Size = New-Object System.Drawing.Size(360, 20)
-                                                $comboBoxCarpetas.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-                                
-                                                # Agregar las subcarpetas al ComboBox
-                                                foreach ($subCarpeta in $subCarpetas) {
-                                                    $comboBoxCarpetas.Items.Add($subCarpeta)
-                                                }
-                                
-                                                # Seleccionar la primera subcarpeta por defecto
-                                                $comboBoxCarpetas.SelectedIndex = 0
-                                
-                                                # Crear un Label para mostrar el valor de AI_ExePath
-                                                $labelExePath = New-Object System.Windows.Forms.Label
-                                                $labelExePath.Location = New-Object System.Drawing.Point(10, 50)
-                                                $labelExePath.Size = New-Object System.Drawing.Size(360, 20)
-                                
-                                                # Evento cuando se selecciona una subcarpeta en el ComboBox
-                                                $comboBoxCarpetas.Add_SelectedIndexChanged({
-                                                    $indiceSeleccionado = $comboBoxCarpetas.SelectedIndex
-                                                    $rutaCompleta = $rutasCompletas[$indiceSeleccionado]
+                                        }
+                            
+                                        # Verificar si hay al menos una subcarpeta
+                                        if ($subCarpetas.Count -gt 1) {
+                                            # Crear un nuevo formulario para mostrar las subcarpetas
+                                            $formLZMA = New-Object System.Windows.Forms.Form
+                                            $formLZMA.Text = "Carpetas LZMA"
+                                            $formLZMA.Size = New-Object System.Drawing.Size(400, 200)
+                                            $formLZMA.StartPosition = "CenterScreen"
+                                            $formLZMA.MaximizeBox = $false  # Deshabilitar botón de maximizar
+                                            $formLZMA.MinimizeBox = $false  # Deshabilitar botón de minimizar
+                                            $formLZMA.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog  # Evitar redimensionar
+                            
+                                            # Crear un ComboBox para mostrar las subcarpetas
+                                            $comboBoxCarpetas = New-Object System.Windows.Forms.ComboBox
+                                            $comboBoxCarpetas.Location = New-Object System.Drawing.Point(10, 10)
+                                            $comboBoxCarpetas.Size = New-Object System.Drawing.Size(360, 20)
+                                            $comboBoxCarpetas.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+                            
+                                            # Agregar las subcarpetas al ComboBox
+                                            foreach ($subCarpeta in $subCarpetas) {
+                                                $comboBoxCarpetas.Items.Add($subCarpeta)
+                                            }
+                            
+                                            # Seleccionar la primera opción por defecto
+                                            $comboBoxCarpetas.SelectedIndex = 0
+                            
+                                            # Crear un Label para mostrar el valor de AI_ExePath
+                                            $labelExePath = New-Object System.Windows.Forms.Label
+                                            $labelExePath.Location = New-Object System.Drawing.Point(10, 50)
+                                            $labelExePath.Size = New-Object System.Drawing.Size(360, 20)
+                            
+                                            # Evento cuando se selecciona una subcarpeta en el ComboBox
+                                            $comboBoxCarpetas.Add_SelectedIndexChanged({
+                                                $indiceSeleccionado = $comboBoxCarpetas.SelectedIndex
+                                                if ($indiceSeleccionado -gt 0) {  # Ignorar la opción por defecto
+                                                    $rutaCompleta = $rutasCompletas[$indiceSeleccionado - 1]  # Ajustar índice
                                                     $valorExePath = Get-ItemProperty -Path $rutaCompleta -Name "AI_ExePath" -ErrorAction SilentlyContinue
                                                     if ($valorExePath) {
                                                         $labelExePath.Text = "AI_ExePath: $($valorExePath.AI_ExePath)"
                                                     } else {
                                                         $labelExePath.Text = "AI_ExePath: No encontrado"
                                                     }
-                                                })
-                                
-                                                # Agregar controles al formulario
-                                                $formLZMA.Controls.Add($comboBoxCarpetas)
-                                                $formLZMA.Controls.Add($labelExePath)
-                                
-                                                # Mostrar el formulario
-                                                $formLZMA.ShowDialog()
-                                            } else {
-                                                [System.Windows.Forms.MessageBox]::Show("No se encontraron subcarpetas en la ruta del registro.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                                            }
+                                                } else {
+                                                    $labelExePath.Text = "AI_ExePath: -"
+                                                }
+                                            })
+                            
+                                            # Crear botón para eliminar
+                                            $btnEliminar = New-Object System.Windows.Forms.Button
+                                            $btnEliminar.Text = "Eliminar"
+                                            $btnEliminar.Location = New-Object System.Drawing.Point(10, 90)
+                                            $btnEliminar.Size = New-Object System.Drawing.Size(100, 30)
+                                            $btnEliminar.Enabled = $false  # Deshabilitar inicialmente
+                            
+                                            # Evento Click del botón Eliminar
+                                            $btnEliminar.Add_Click({
+                                                $indiceSeleccionado = $comboBoxCarpetas.SelectedIndex
+                                                if ($indiceSeleccionado -gt 0) {  # Ignorar la opción por defecto
+                                                    $rutaCompleta = $rutasCompletas[$indiceSeleccionado - 1]  # Ajustar índice
+                                                    $confirmacion = [System.Windows.Forms.MessageBox]::Show(
+                                                        "¿Estás seguro de que deseas eliminar la ruta completa del registro?`n$rutaCompleta",
+                                                        "Confirmar eliminación",
+                                                        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                                                        [System.Windows.Forms.MessageBoxIcon]::Warning
+                                                    )
+                                                    if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
+                                                        try {
+                                                            Remove-Item -Path $rutaCompleta -Recurse -Force
+                                                            [System.Windows.Forms.MessageBox]::Show("Registro eliminado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                                                            $formLZMA.Close()  # Cerrar el formulario después de eliminar
+                                                        } catch {
+                                                            [System.Windows.Forms.MessageBox]::Show("Error al eliminar el registro: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                                                        }
+                                                    }
+                                                }
+                                            })
+                            
+                                            # Crear botón para salir
+                                            $btnSalir = New-Object System.Windows.Forms.Button
+                                            $btnSalir.Text = "Salir"
+                                            $btnSalir.Location = New-Object System.Drawing.Point(270, 90)
+                                            $btnSalir.Size = New-Object System.Drawing.Size(100, 30)
+                            
+                                            # Evento Click del botón Salir
+                                            $btnSalir.Add_Click({
+                                                $formLZMA.Close()
+                                            })
+                            
+                                            # Habilitar el botón Eliminar solo si se selecciona una opción válida
+                                            $comboBoxCarpetas.Add_SelectedIndexChanged({
+                                                $btnEliminar.Enabled = ($comboBoxCarpetas.SelectedIndex -gt 0)
+                                            })
+                            
+                                            # Agregar controles al formulario
+                                            $formLZMA.Controls.Add($comboBoxCarpetas)
+                                            $formLZMA.Controls.Add($labelExePath)
+                                            $formLZMA.Controls.Add($btnEliminar)
+                                            $formLZMA.Controls.Add($btnSalir)
+                            
+                                            # Mostrar el formulario
+                                            $formLZMA.ShowDialog()
                                         } else {
-                                            [System.Windows.Forms.MessageBox]::Show("No se encontraron carpetas principales en la ruta del registro.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                                            [System.Windows.Forms.MessageBox]::Show("No se encontraron subcarpetas en la ruta del registro.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                                         }
-                                    } catch {
-                                        # Capturar la excepción si la ruta no existe
-                                        [System.Windows.Forms.MessageBox]::Show("La ruta del registro no existe: $registryPath", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                                    } else {
+                                        [System.Windows.Forms.MessageBox]::Show("No se encontraron carpetas principales en la ruta del registro.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                                     }
-                                })
+                                } catch {
+                                    # Capturar la excepción si la ruta no existe
+                                    [System.Windows.Forms.MessageBox]::Show("La ruta del registro no existe: $registryPath", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                                }
+                            })
 #SALIR DEL SISTEMA------------------------------------------------
 $btnExit.Add_Click({
                         $formPrincipal.Dispose()

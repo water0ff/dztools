@@ -575,10 +575,14 @@ function Show-ResultsConsole {
                         $query = $null
                         switch ($opcionSeleccionada) {
                             "On The minute" {
+                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
                                 $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+                                Write-Host "`t$query"
                             }
                             "NS Hoteles" {
+                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
                                 $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+                                Write-Host "`t$query"
                             }
                             "Rest Card" {
                                 Write-Host "`nFunción deshabilitada, ejecuta el Query en la base de datos:" -ForegroundColor Yellow

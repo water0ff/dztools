@@ -432,6 +432,7 @@ $btnOK.Add_Click({
             # Habilitar o deshabilitar botones cuando hay conexiones existosas
             $btnReviewPivot.Enabled = $true
             $btnFechaRevEstaciones.Enabled = $true
+                                                $btnEliminarServidorBDD.Enabled = $true
             $btnConnectDb.Enabled = $false
             $btnDisconnectDb.Enabled = $true
 
@@ -466,6 +467,7 @@ $btnDisconnectDb.Add_Click({
         $btnConnectDb.Enabled = $true
         $btnDisconnectDb.Enabled = $false
         $btnFechaRevEstaciones.Enabled = $false
+                                            $btnEliminarServidorBDD.Enabled = $false
         $btnReviewPivot.Enabled = $false
     } catch {
         Write-Host "`nError al desconectar: $_" -ForegroundColor Red
@@ -493,15 +495,9 @@ $btnDisconnectDb.Add_Click({
             $cmbOpciones.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
             $cmbOpciones.Items.AddRange(@("Seleccione 1", "On The minute", "NS Hoteles", "Rest Card"))
             # Crear los botones Eliminar y Cancelar
-            $btnEliminar = New-Object System.Windows.Forms.Button
-            $btnEliminar.Text = "Eliminar"
-            $btnEliminar.Size = New-Object System.Drawing.Size(100, 30)
-            $btnEliminar.Location = New-Object System.Drawing.Point(150, 60)
+            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(100, 30))
             $btnEliminar.Enabled = $false  # Deshabilitado inicialmente
-            $btnCancelar = New-Object System.Windows.Forms.Button
-            $btnCancelar.Text = "Cancelar"
-            $btnCancelar.Size = New-Object System.Drawing.Size(100, 30)
-            $btnCancelar.Location = New-Object System.Drawing.Point(260, 60)
+            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(100, 30))
             # Habilitar el botón Eliminar si se selecciona una opción válida
             $cmbOpciones.Add_SelectedIndexChanged({
                 if ($cmbOpciones.SelectedIndex -gt 0) {

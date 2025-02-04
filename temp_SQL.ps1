@@ -15,14 +15,9 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250203.2023"  # Valor predeterminado para la versión
+                                                                                                        $version = "SQL.250203.2119"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
-    Write-Host "`n=============================================" -ForegroundColor DarkCyan
-    Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
-    Write-Host "=============================================" -ForegroundColor DarkCyan
-    Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
-    Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
 # Creación maestra de botones
     $toolTip = New-Object System.Windows.Forms.ToolTip
             function Create-Button {

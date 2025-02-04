@@ -600,18 +600,6 @@ $query1 = "SELECT e.FECHAREV,
             # Mostrar el formulario
             $formEliminarServidor.ShowDialog()
         })
-        
-        # Habilitar el botón btnEliminarServidorBDD cuando se conecte a la base de datos
-        $btnConnectDb.Add_Click({
-            # ... (código existente para conectar a la base de datos)
-            $btnEliminarServidorBDD.Enabled = $true
-        })
-        
-        # Deshabilitar el botón btnEliminarServidorBDD cuando se desconecte de la base de datos
-        $btnDisconnectDb.Add_Click({
-            # ... (código existente para desconectar de la base de datos)
-            $btnEliminarServidorBDD.Enabled = $false
-        })
 #SALIR DEL SISTEMA------------------------------------------------
 $btnExit.Add_Click({
                         $formPrincipal.Dispose()

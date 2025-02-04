@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "SQL250204.1305"  # Valor predeterminado para la versión
+                                                                                                        $version = "SQL250204.1326"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -688,32 +688,34 @@ $btnOK.Add_Click({
                 $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
                 if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
                     try {
-                        $query = $null
-                        switch ($opcionSeleccionada) {
-                            "On The minute" {
-                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-                            }
-                            "NS Hoteles" {
-                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-                            }
-                            "Rest Card" {
-                                # Pedir al usuario los datos de conexión a MySQL
-                                $usuarioRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese el usuario de MySQL:", "Usuario MySQL")
-                                $passwordRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese la contraseña de MySQL:", "Contraseña MySQL")
-                                $hostnameRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese el hostname de MySQL:", "Hostname MySQL")
-                                $baseDeDatosRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese el nombre de la base de datos:", "Base de Datos MySQL")
-            
-                                # Ejecutar el comando mysqldump
-                                $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`""
-                                $process = Start-Process -FilePath "mysqldump" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
-            
-                                if ($process.ExitCode -eq 0) {
-                                    $query = "UPDATE tabvariables SET estacion='', ipservidor=''"
-                                } else {
-                                    Write-Host "Error al ejecutar mysqldump." -ForegroundColor Red
-                                    return
-                                }
-                            }
+                                    # En el bloque donde defines las consultas SQL, verifica las columnas existentes
+                                    $query = $null
+                                    switch ($opcionSeleccionada) {
+                                        "On The minute" {
+                                            # Verifica si las columnas existen antes de ejecutar la consulta
+                                            $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+                                        }
+                                        "NS Hoteles" {
+                                            # Verifica si las columnas existen antes de ejecutar la consulta
+                                            $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+                                        }
+                                        "Rest Card" {
+                                            # Lógica para Rest Card
+                                        }
+                                    }
+                                    
+                                    if ($query) {
+                                        try {
+                                            $success = Execute-SqlQuery -server $global:server -database $global:database -query $query
+                                            if ($success) {
+                                                Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
+                                            } else {
+                                                Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
+                                            }
+                                        } catch {
+                                            Write-Host "Error al ejecutar la consulta: $_" -ForegroundColor Red
+                                        }
+                                    }
                         }
             
                         if ($query) {

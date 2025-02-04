@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250203.1516"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250203.1947"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -149,9 +149,9 @@ function Create-Label {
 # Crear el Label para mostrar el nombre del equipo fuera de las pestañas
     $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(2, 350)) -Size (New-Object System.Drawing.Size(240, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
 # Crear el Label para mostrar el puerto
-    $lblPort = Create-Label -Location (New-Object System.Drawing.Point(245, 350)) -Size (New-Object System.Drawing.Size(236, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
+    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(245, 350)) -Size (New-Object System.Drawing.Size(236, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
 # Crear el Label para mostrar las IPs y adaptadores
-    $lbIpAdress = Create-Label -Location (New-Object System.Drawing.Point(2, 390)) -Size (New-Object System.Drawing.Size(240, 100)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."    $lbIpAdress = New-Object System.Windows.Forms.Label
+    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(2, 390)) -Size (New-Object System.Drawing.Size(240, 100)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
@@ -174,15 +174,15 @@ function Create-Label {
     $tabProSql.Controls.Add($btnConnectDb)
     $tabProSql.Controls.Add($btnDisconnectDb)
 #Funcion para copiar el puerto al portapapeles
-$lblPort.Add_Click({
-    if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
-        $port = $matches[0]  # Extraer el número del texto
-        [System.Windows.Forms.Clipboard]::SetText($port)
-        Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
-    } else {
-        Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
-    }
-})
+    $lblPort.Add_Click({
+        if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
+            $port = $matches[0]  # Extraer el número del texto
+            [System.Windows.Forms.Clipboard]::SetText($port)
+            Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
+        } else {
+            Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
+        }
+    })
 $lblHostname.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
         Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
@@ -192,45 +192,36 @@ $lbIpAdress.Add_Click({
         Write-Host "`nIP's copiadas al equipo: $($lbIpAdress.Text)"
     })
 # Obtener las direcciones IP y los adaptadores
-$ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
-    Where-Object { $_.OperationalStatus -eq 'Up' } |
-    ForEach-Object {
-        $interface = $_
-        $interface.GetIPProperties().UnicastAddresses |
-        Where-Object { 
-            $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' 
-        } |
-        ForEach-Object {
-            @{
-                AdapterName = $interface.Name
-                IPAddress = $_.Address.ToString()
-            }
-        }
-    }
-
-
-
-
-
-
-
+                $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
+                    Where-Object { $_.OperationalStatus -eq 'Up' } |
+                    ForEach-Object {
+                        $interface = $_
+                        $interface.GetIPProperties().UnicastAddresses |
+                        Where-Object { 
+                            $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' 
+                        } |
+                        ForEach-Object {
+                            @{
+                                AdapterName = $interface.Name
+                                IPAddress = $_.Address.ToString()
+                            }
+                        }
+                    }
 # Construir el texto para mostrar todas las IPs y adaptadores
-if ($ipsWithAdapters.Count -gt 0) {
-    # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
-    $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
-        $_.IPAddress
-    }) -join ", "
-    # Copiar las IPs al portapapeles en el formato adecuado
-    [System.Windows.Forms.Clipboard]::SetText($ipsTextForClipboard)
-    # Construir el texto para mostrar en el Label
-    $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
-        "Adaptador: $($_.AdapterName)`nIP: $($_.IPAddress)`n"
-    }) -join "`n"
-    # Asignar el texto al label
-    $lbIpAdress.Text = "$ipsTextForLabel"
-} else {
-    $lbIpAdress.Text = "No se encontraron direcciones IP"
-}
+                    if ($ipsWithAdapters.Count -gt 0) {
+                        # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
+                        $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
+                            $_.IPAddress
+                        }) -join ", "
+                        # Construir el texto para mostrar en el Label
+                        $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
+                            "Adaptador: $($_.AdapterName)`nIP: $($_.IPAddress)`n"
+                        }) -join "`n"
+                        # Asignar el texto al label
+                        $lbIpAdress.Text = "$ipsTextForLabel"
+                    } else {
+                        $lbIpAdress.Text = "No se encontraron direcciones IP"
+                    }
 # Configuración dinámica del tamaño del Label según la cantidad de líneas
     $lineHeight = 15
     $maxLines = $lbIpAdress.Text.Split("`n").Count

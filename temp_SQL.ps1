@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "SQL.250204.1223"  # Valor predeterminado para la versión
+                                                                                                        $version = "SQL.250204.1254"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -453,26 +453,29 @@ $btnOK.Add_Click({
         $connectionForm.Controls.Add($btnOK)
         $connectionForm.ShowDialog()
     })
-$btnDisconnectDb.Add_Click({
-    try {
-        # Cerrar la conexión
-        $global:connection.Close()
-        Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
-
-        # Restaurar el label al estado original
-        $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
-        $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Red
-
-        # Habilitar el botón de conectar y deshabilitar el de desconectar
-        $btnConnectDb.Enabled = $true
-        $btnDisconnectDb.Enabled = $false
-        $btnFechaRevEstaciones.Enabled = $false
-                                            $btnEliminarServidorBDD.Enabled = $false
-        $btnReviewPivot.Enabled = $false
-    } catch {
-        Write-Host "`nError al desconectar: $_" -ForegroundColor Red
-    }
-})
+# En el evento Click del botón $btnDisconnectDb
+        $btnDisconnectDb.Add_Click({
+            try {
+                # Cerrar la conexión
+                if ($global:connection -and $global:connection.State -eq 'Open') {
+                    $global:connection.Close()
+                    Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
+        
+                    # Restaurar el label al estado original
+                    $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
+                    $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Red
+        
+                    # Habilitar el botón de conectar y deshabilitar el de desconectar
+                    $btnConnectDb.Enabled = $true
+                    $btnDisconnectDb.Enabled = $false
+                    $btnFechaRevEstaciones.Enabled = $false
+                    $btnEliminarServidorBDD.Enabled = $false
+                    $btnReviewPivot.Enabled = $false
+                }
+            } catch {
+                Write-Host "`nError al desconectar: $_" -ForegroundColor Red
+            }
+        })
 
 
 

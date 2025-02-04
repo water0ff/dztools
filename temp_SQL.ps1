@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "SQL250204.1346"  # Valor predeterminado para la versión
+                                                                                                        $version = "SQL250204.1412"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -361,44 +361,63 @@ $chkSqlServer.Add_CheckedChanged({
             $lblPort.Text = "No se encontró puerto o instancia."
         }
 ##-------------------- FUNCIONES                                                          -------#
-
-function Execute-SqlQuery {
-    param (
-        [string]$server,
-        [string]$database,
-        [string]$query
-    )
-    try {
-        # Cadena de conexión
-        $connectionString = "Server=$server;Database=$database;User Id=sa;Password=$($global:password);"
-        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        $connection.Open()
-        # Ejecutar consulta
-        $command = $connection.CreateCommand()
-        $command.CommandText = $query
-        $reader = $command.ExecuteReader()
-        # Obtener los nombres de las columnas
-        $columns = @()
-        for ($i = 0; $i -lt $reader.FieldCount; $i++) {
-            $columns += $reader.GetName($i)
-        }
-        # Leer los resultados
-        $results = @()
-        while ($reader.Read()) {
-            $row = @{}
-            for ($i = 0; $i -lt $reader.FieldCount; $i++) {
-                $row[$columns[$i]] = $reader[$i]
-            }
-            $results += $row
-        }
-        # Cerrar la conexión y liberar recursos
-        $connection.Close()
-        $connection.Dispose()
-        return $results
-    } catch {
-        Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
-    }
-}
+                                    function Execute-SqlQuery {
+                                        param (
+                                            [string]$server,
+                                            [string]$database,
+                                            [string]$query
+                                        )
+                                        try {
+                                            # Cadena de conexión
+                                            $connectionString = "Server=$server;Database=$database;User Id=sa;Password=$($global:password);"
+                                            $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+                                            $connection.Open()
+                                    
+                                            # Determinar si la consulta es de tipo SELECT (devuelve resultados) o no (afecta filas)
+                                            if ($query -match "^\s*SELECT") {
+                                                # Consulta que devuelve resultados (SELECT)
+                                                $command = $connection.CreateCommand()
+                                                $command.CommandText = $query
+                                                $reader = $command.ExecuteReader()
+                                    
+                                                # Obtener los nombres de las columnas
+                                                $columns = @()
+                                                for ($i = 0; $i -lt $reader.FieldCount; $i++) {
+                                                    $columns += $reader.GetName($i)
+                                                }
+                                    
+                                                # Leer los resultados
+                                                $results = @()
+                                                while ($reader.Read()) {
+                                                    $row = @{}
+                                                    for ($i = 0; $i -lt $reader.FieldCount; $i++) {
+                                                        $row[$columns[$i]] = $reader[$i]
+                                                    }
+                                                    $results += $row
+                                                }
+                                    
+                                                # Cerrar la conexión y liberar recursos
+                                                $connection.Close()
+                                                $connection.Dispose()
+                                    
+                                                return $results  # Devolver los resultados como una lista de objetos
+                                            } else {
+                                                # Consulta que no devuelve resultados (UPDATE, DELETE, etc.)
+                                                $command = $connection.CreateCommand()
+                                                $command.CommandText = $query
+                                                $rowsAffected = $command.ExecuteNonQuery()  # Obtener el número de filas afectadas
+                                    
+                                                # Cerrar la conexión y liberar recursos
+                                                $connection.Close()
+                                                $connection.Dispose()
+                                    
+                                                return $rowsAffected  # Devolver el número de filas afectadas
+                                            }
+                                        } catch {
+                                            Write-Host "Error al ejecutar la consulta: $_" -ForegroundColor Red
+                                            return $null  # Devolver $null en caso de error
+                                        }
+                                    }
 function Show-ResultsConsole {
     param (
         [string]$query
@@ -436,6 +455,213 @@ function Show-ResultsConsole {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
+
+
+
+#Pivot new
+                                    $btnReviewPivot.Add_Click({
+                                        try {
+                                            if (-not $global:server -or -not $global:database -or -not $global:password) {
+                                                Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
+                                                return
+                                            }
+                                    
+                                            Write-Host "`nConectado a la base de datos: $global:database en el servidor: $global:server" -ForegroundColor Green
+                                    
+                                            # Consulta SQL para verificar duplicados
+                                            $queryCheckDuplicates = @"
+                                            SELECT app_id, field, COUNT(*) AS DuplicateCount
+                                            FROM app_settings
+                                            GROUP BY app_id, field
+                                            HAVING COUNT(*) > 1
+"@
+                                    
+                                            # Mostrar la consulta en la consola en amarillo
+                                            Write-Host "`nEjecutando la consulta para verificar duplicados..." -ForegroundColor Yellow
+                                            Write-Host "`t$queryCheckDuplicates`n" -ForegroundColor Yellow
+                                    
+                                            # Ejecutar la consulta para verificar duplicados
+                                            $duplicates = Execute-SqlQuery -server $global:server -database $global:database -query $queryCheckDuplicates
+                                    
+                                            if ($duplicates.Count -eq 0) {
+                                                Write-Host "`nNo se encontraron duplicados en la tabla app_settings." -ForegroundColor Green
+                                            } else {
+                                                Write-Host "`nSe encontraron los siguientes duplicados:" -ForegroundColor Green
+                                                foreach ($dup in $duplicates) {
+                                                    Write-Host "app_id: $($dup.app_id), field: $($dup.field), Veces duplicado: $($dup.DuplicateCount)" -ForegroundColor Cyan
+                                                }
+                                    
+                                                # Mostrar un MessageBox preguntando si desea eliminar los duplicados
+                                                $result = [System.Windows.Forms.MessageBox]::Show("¿Desea eliminar los duplicados mostrados en la consola?", "Eliminar Duplicados", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+                                    
+                                                if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                                                    # Consulta SQL para eliminar duplicados
+                                                    $queryDeleteDuplicates = @"
+                                                    BEGIN TRANSACTION;
+                                                    WITH CTE AS (
+                                                        SELECT id, app_id, field,
+                                                               ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
+                                                        FROM app_settings
+                                                    )
+                                                    DELETE FROM app_settings
+                                                    WHERE id IN (
+                                                        SELECT id FROM CTE WHERE rn > 1
+                                                    );
+                                                    COMMIT TRANSACTION;
+"@
+                                    
+                                                    # Mostrar la consulta en la consola en amarillo
+                                                    Write-Host "`nEliminando duplicados..." -ForegroundColor Yellow
+                                                    Write-Host "`t$queryDeleteDuplicates" -ForegroundColor Yellow
+                                    
+                                                    # Ejecutar la consulta para eliminar duplicados
+                                                    $rowsAffected = Execute-SqlQuery -server $global:server -database $global:database -query $queryDeleteDuplicates
+                                    
+                                                    if ($rowsAffected -gt 0) {
+                                                        Write-Host "`nDuplicados eliminados correctamente. Filas afectadas: $rowsAffected" -ForegroundColor Green
+                                                    } else {
+                                                        Write-Host "`nNo se eliminaron duplicados." -ForegroundColor Yellow
+                                                    }
+                                                } else {
+                                                    Write-Host "`nEl usuario decidió no eliminar los duplicados." -ForegroundColor Red
+                                                }
+                                            }
+                                    
+                                        } catch {
+                                            Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
+                                        }
+                                    })
+#Estaciones new
+                                            $btnFechaRevEstaciones.Add_Click({
+                                                try {
+                                                    if (-not $global:server -or -not $global:database -or -not $global:password) {
+                                                        Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
+                                                        return
+                                                    }
+                                                    # Consultas SQL
+                                                    $query1 = @"
+                                                    SELECT e.FECHAREV, 
+                                                           b.estacion as Estacion, 
+                                                           CONVERT(varchar, b.fecha, 23) AS UltimaUso
+                                                    FROM bitacorasistema b
+                                                    INNER JOIN (
+                                                        SELECT estacion, MAX(fecha) AS max_fecha
+                                                        FROM bitacorasistema
+                                                        GROUP BY estacion
+                                                    ) latest_bitacora 
+                                                        ON b.estacion = latest_bitacora.estacion 
+                                                        AND b.fecha = latest_bitacora.max_fecha
+                                                    INNER JOIN estaciones e 
+                                                        ON b.estacion = e.idestacion
+                                                    ORDER BY b.fecha DESC;
+"@
+                                                    # Ejecutar y analizar la primera consulta
+                                                    $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
+                                                    Write-Host "`n$query1`n" -ForegroundColor Yellow
+                                                    Show-ResultsConsole -query $query1
+                                                } catch {
+                                                    Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
+                                                }
+                                            })
+#Nueva funcion
+# Función para manejar el evento Click del botón btnEliminarServidorBDD
+        $btnEliminarServidorBDD.Add_Click({
+            # Crear el formulario para eliminar el servidor de la base de datos
+            $formEliminarServidor = New-Object System.Windows.Forms.Form
+            $formEliminarServidor.Text = "Eliminar Servidor de BDD"
+            $formEliminarServidor.Size = New-Object System.Drawing.Size(400, 200)
+            $formEliminarServidor.StartPosition = "CenterScreen"
+            $formEliminarServidor.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+            $formEliminarServidor.MaximizeBox = $false
+            $formEliminarServidor.MinimizeBox = $false
+            # Crear el ComboBox con las opciones
+# Crear el ComboBox con las opciones
+            $cmbOpciones = New-Object System.Windows.Forms.ComboBox
+            $cmbOpciones.Location = New-Object System.Drawing.Point(10, 20)
+            $cmbOpciones.Size = New-Object System.Drawing.Size(360, 20)
+            $cmbOpciones.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+            $cmbOpciones.Items.Add("Seleccione una opción")
+            $cmbOpciones.Items.AddRange(@("On The minute", "NS Hoteles", "Rest Card"))
+            $cmbOpciones.SelectedIndex = 0
+# Crear los botones Eliminar y Cancelar
+            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(100, 30))
+            $btnEliminar.Enabled = $false  # Deshabilitado inicialmente
+            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(100, 30))
+# Habilitar el botón Eliminar si se selecciona una opción válida
+            $cmbOpciones.Add_SelectedIndexChanged({
+                if ($cmbOpciones.SelectedIndex -gt 0) {
+                    $btnEliminar.Enabled = $true
+                } else {
+                    $btnEliminar.Enabled = $false
+                }
+            })
+#Cambios
+            $btnEliminar.Add_Click({
+                $opcionSeleccionada = $cmbOpciones.SelectedItem
+                $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    try {
+                        # Definir la consulta SQL según la opción seleccionada
+                        $query = $null
+                        switch ($opcionSeleccionada) {
+                            "On The minute" {
+                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+                            }
+                            "NS Hoteles" {
+                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+                            }
+                            "Rest Card" {
+                                # Lógica para Rest Card
+                            }
+                        }
+            
+                        if ($query) {
+                            # Ejecutar la consulta y obtener el número de filas afectadas
+                            $rowsAffected = Execute-SqlQuery -server $global:server -database $global:database -query $query
+            
+                            if ($rowsAffected -gt 0) {
+                                Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
+                            } elseif ($rowsAffected -eq 0) {
+                                Write-Host "No se encontraron filas para actualizar en la tabla configuracion." -ForegroundColor Yellow
+                            } else {
+                                Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
+                            }
+                        }
+                    } catch {
+                        Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
+                    }
+                    $formEliminarServidor.Close()
+                }
+            })
+            # Manejar el evento Click del botón Cancelar
+            $btnCancelar.Add_Click({
+                $formEliminarServidor.Close()
+            })
+            # Agregar los controles al formulario
+            $formEliminarServidor.Controls.Add($cmbOpciones)
+            $formEliminarServidor.Controls.Add($btnEliminar)
+            $formEliminarServidor.Controls.Add($btnCancelar)
+            # Mostrar el formulario
+            $formEliminarServidor.ShowDialog()
+        })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -645,102 +871,6 @@ $btnOK.Add_Click({
             } catch {
                 Write-Host "`nError al desconectar: $_" -ForegroundColor Red
             }
-        })
-
-
-
-
-
-# Función para manejar el evento Click del botón btnEliminarServidorBDD
-        $btnEliminarServidorBDD.Add_Click({
-            # Crear el formulario para eliminar el servidor de la base de datos
-            $formEliminarServidor = New-Object System.Windows.Forms.Form
-            $formEliminarServidor.Text = "Eliminar Servidor de BDD"
-            $formEliminarServidor.Size = New-Object System.Drawing.Size(400, 200)
-            $formEliminarServidor.StartPosition = "CenterScreen"
-            $formEliminarServidor.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-            $formEliminarServidor.MaximizeBox = $false
-            $formEliminarServidor.MinimizeBox = $false
-            # Crear el ComboBox con las opciones
-# Crear el ComboBox con las opciones
-            $cmbOpciones = New-Object System.Windows.Forms.ComboBox
-            $cmbOpciones.Location = New-Object System.Drawing.Point(10, 20)
-            $cmbOpciones.Size = New-Object System.Drawing.Size(360, 20)
-            $cmbOpciones.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-            $cmbOpciones.Items.Add("Seleccione una opción")
-            $cmbOpciones.Items.AddRange(@("On The minute", "NS Hoteles", "Rest Card"))
-            $cmbOpciones.SelectedIndex = 0
-# Crear los botones Eliminar y Cancelar
-            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(100, 30))
-            $btnEliminar.Enabled = $false  # Deshabilitado inicialmente
-            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(100, 30))
-# Habilitar el botón Eliminar si se selecciona una opción válida
-            $cmbOpciones.Add_SelectedIndexChanged({
-                if ($cmbOpciones.SelectedIndex -gt 0) {
-                    $btnEliminar.Enabled = $true
-                } else {
-                    $btnEliminar.Enabled = $false
-                }
-            })
-#Cambios
-                            $btnEliminar.Add_Click({
-                                $opcionSeleccionada = $cmbOpciones.SelectedItem
-                                $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                                if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
-                                    try {
-                                        # Verificar la estructura de la tabla
-                                        $queryVerificacion = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'configuracion'"
-                                        $columnas = Execute-SqlQuery -server $global:server -database $global:database -query $queryVerificacion
-                            
-                                        $columnasRequeridas = @('serie', 'ipserver', 'nombreservidor')
-                                        $columnasExistentes = $columnas | ForEach-Object { $_.COLUMN_NAME }
-                            
-                                        if ($columnasRequeridas | Where-Object { $_ -notin $columnasExistentes }) {
-                                            Write-Host "Algunas columnas requeridas no existen en la tabla configuracion." -ForegroundColor Red
-                                            return
-                                        }
-                            
-                                        # Ejecutar la consulta de actualización
-                                        $query = $null
-                                        switch ($opcionSeleccionada) {
-                                            "On The minute" {
-                                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-                                            }
-                                            "NS Hoteles" {
-                                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-                                            }
-                                            "Rest Card" {
-                                                # Lógica para Rest Card
-                                            }
-                                        }
-                            
-                                        if ($query) {
-                                            $success = Execute-SqlQuery -server $global:server -database $global:database -query $query
-                                            if ($success) {
-                                                Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
-                                            } else {
-                                                Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
-                                            }
-                                        }
-                                    } catch {
-                                        Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
-                                    }
-                                    $formEliminarServidor.Close()
-                                }
-                            })
-
-
-
-            # Manejar el evento Click del botón Cancelar
-            $btnCancelar.Add_Click({
-                $formEliminarServidor.Close()
-            })
-            # Agregar los controles al formulario
-            $formEliminarServidor.Controls.Add($cmbOpciones)
-            $formEliminarServidor.Controls.Add($btnEliminar)
-            $formEliminarServidor.Controls.Add($btnCancelar)
-            # Mostrar el formulario
-            $formEliminarServidor.ShowDialog()
         })
 #SALIR DEL SISTEMA------------------------------------------------
 $btnExit.Add_Click({

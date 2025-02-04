@@ -322,35 +322,6 @@ $lbIpAdress.Add_Click({
             $formPrincipal.Controls.Add($lbIpAdress)
             $formPrincipal.Controls.Add($lblPerfilDeRed)
             $formPrincipal.Controls.Add($btnExit)
-# Acción para el CheckBox, si el usuario lo marca manualmente
-$chkSqlServer.Add_CheckedChanged({
-    if ($chkSqlServer.Checked) {
-        # Confirmación con MsgBox
-        $result = [System.Windows.Forms.MessageBox]::Show("¿Estás seguro que deseas instalar las herramientas de SQL Server?", "Confirmar instalación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-            Write-Host "`nInstalando herramientas de SQL Server..."
-            $chkSqlServer.Enabled = $false
-            $installedSql = Check-SqlServerInstallation
-            if ($installedSql) {
-                $chkSqlServer.Checked = $true
-                $chkSqlServer.Enabled = $false  # Deshabilitar la edición si SQL Server está instalado
-            } else {
-                $chkSqlServer.Checked = $false
-            }
-            Install-Module -Name SqlServer -Force -Scope CurrentUser -AllowClobber
-            Write-Host "`nHerramientas de SQL Server instaladas."
-        } else {
-            # Desmarcar el checkbox si el usuario cancela
-            $chkSqlServer.Checked = $false
-            Write-Host "`nInstalación cancelada."
-        }
-    } else {
-        # Si el usuario desmarca el checkbox, se habilita para futuras instalaciones
-        $chkSqlServer.Enabled = $true
-    }
-    # Habilitar el botón de Conectar a BDD solo si las herramientas SQL Server están habilitadas
-    $btnConnectDb.Enabled = $chkSqlServer.Checked
-})
 # Obtener el puerto de SQL Server desde el registro
         $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
         $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
@@ -455,7 +426,6 @@ function Show-ResultsConsole {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
-
 
 
 #Pivot new
@@ -611,7 +581,8 @@ function Show-ResultsConsole {
                                 $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
                             }
                             "Rest Card" {
-                                # Lógica para Rest Card
+                                Write-Host "`nFunción deshabilitada, ejecuta el Query en la base de datos:" -ForegroundColor Yellow
+                                Write-Host "`tupdate tabvariables set estacion='', ipservidor='';" -ForegroundColor Yellow
                             }
                         }
             

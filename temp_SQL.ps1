@@ -93,11 +93,11 @@ if (!(Test-Path -Path "C:\Temp")) {
     $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
     $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 150))
     $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
-# Crear el botón btnEliminarServidorBDD
-$btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 80)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 200, 200))
-$btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
-                                        $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 190))
-                                        $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 310)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
+                                    # Crear el botón btnEliminarServidorBDD
+                                    $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 80)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 200, 200))
+                                    $btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
+    $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 190))
+    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 310)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Crear el CheckBox chkSqlServer
     $chkSqlServer = New-Object System.Windows.Forms.CheckBox
     $chkSqlServer.Text = "Instalar SQL Tools (opcional)"
@@ -157,15 +157,15 @@ $btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
 # Agregar controles a la pestaña Pro
-                                                    $tabProSql.Controls.Add($chkSqlServer)
-                                                    $tabProSql.Controls.Add($btnReviewPivot)
-                                                    $tabProSql.Controls.Add($btnRespaldarRestcard)
-                                                    $tabProSql.Controls.Add($btnFechaRevEstaciones)
-                                                    $tabProSql.Controls.Add($lblConnectionStatus)
-                                                    $tabProSql.Controls.Add($btnConnectDb)
-                                                    $tabProSql.Controls.Add($btnDisconnectDb)
-# Agregar el botón a la pestaña Pro
-$tabProSql.Controls.Add($btnEliminarServidorBDD)
+    $tabProSql.Controls.Add($chkSqlServer)
+    $tabProSql.Controls.Add($btnReviewPivot)
+    $tabProSql.Controls.Add($btnRespaldarRestcard)
+    $tabProSql.Controls.Add($btnFechaRevEstaciones)
+    $tabProSql.Controls.Add($lblConnectionStatus)
+    $tabProSql.Controls.Add($btnConnectDb)
+    $tabProSql.Controls.Add($btnDisconnectDb)
+                                                    # Agregar el botón a la pestaña Pro
+                                                    $tabProSql.Controls.Add($btnEliminarServidorBDD)
 # Agregar los controles al formulario
     $formPrincipal.Controls.Add($tabControl)
     $formPrincipal.Controls.Add($lblHostname)
@@ -504,114 +504,114 @@ $query1 = "SELECT e.FECHAREV,
 
 
 # Función para manejar el evento Click del botón btnEliminarServidorBDD
-$btnEliminarServidorBDD.Add_Click({
-    # Crear el formulario para eliminar el servidor de la base de datos
-    $formEliminarServidor = New-Object System.Windows.Forms.Form
-    $formEliminarServidor.Text = "Eliminar Servidor de BDD"
-    $formEliminarServidor.Size = New-Object System.Drawing.Size(400, 200)
-    $formEliminarServidor.StartPosition = "CenterScreen"
-    $formEliminarServidor.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-    $formEliminarServidor.MaximizeBox = $false
-    $formEliminarServidor.MinimizeBox = $false
-
-    # Crear el ComboBox con las opciones
-    $cmbOpciones = New-Object System.Windows.Forms.ComboBox
-    $cmbOpciones.Location = New-Object System.Drawing.Point(10, 20)
-    $cmbOpciones.Size = New-Object System.Drawing.Size(360, 20)
-    $cmbOpciones.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-    $cmbOpciones.Items.AddRange(@("Seleccione 1", "On The minute", "NS Hoteles", "Rest Card"))
-
-    # Crear los botones Eliminar y Cancelar
-    $btnEliminar = New-Object System.Windows.Forms.Button
-    $btnEliminar.Text = "Eliminar"
-    $btnEliminar.Size = New-Object System.Drawing.Size(100, 30)
-    $btnEliminar.Location = New-Object System.Drawing.Point(150, 60)
-    $btnEliminar.Enabled = $false  # Deshabilitado inicialmente
-
-    $btnCancelar = New-Object System.Windows.Forms.Button
-    $btnCancelar.Text = "Cancelar"
-    $btnCancelar.Size = New-Object System.Drawing.Size(100, 30)
-    $btnCancelar.Location = New-Object System.Drawing.Point(260, 60)
-
-    # Habilitar el botón Eliminar si se selecciona una opción válida
-    $cmbOpciones.Add_SelectedIndexChanged({
-        if ($cmbOpciones.SelectedIndex -gt 0) {
-            $btnEliminar.Enabled = $true
-        } else {
-            $btnEliminar.Enabled = $false
-        }
-    })
-
-    # Manejar el evento Click del botón Eliminar
-    $btnEliminar.Add_Click({
-        $opcionSeleccionada = $cmbOpciones.SelectedItem
-        $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
-
-        if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
-            try {
-                switch ($opcionSeleccionada) {
-                    "On The minute" {
-                        $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-                        Execute-SqlQuery -server $global:server -database $global:database -query $query
-                        Write-Host "Servidor de BDD eliminado para On The minute." -ForegroundColor Green
-                    }
-                    "NS Hoteles" {
-                        $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-                        Execute-SqlQuery -server $global:server -database $global:database -query $query
-                        Write-Host "Servidor de BDD eliminado para NS Hoteles." -ForegroundColor Green
-                    }
-                    "Rest Card" {
-                        # Pedir al usuario los datos de conexión a MySQL
-                        $usuarioRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese el usuario de MySQL:", "Usuario MySQL")
-                        $passwordRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese la contraseña de MySQL:", "Contraseña MySQL")
-                        $hostnameRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese el hostname de MySQL:", "Hostname MySQL")
-                        $baseDeDatosRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese el nombre de la base de datos:", "Base de Datos MySQL")
-
-                        # Ejecutar el comando mysqldump
-                        $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`""
-                        $process = Start-Process -FilePath "mysqldump" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
-
-                        if ($process.ExitCode -eq 0) {
-                            $query = "UPDATE tabvariables SET estacion='', ipservidor=''"
-                            Execute-SqlQuery -server $global:server -database $global:database -query $query
-                            Write-Host "Servidor de BDD eliminado para Rest Card." -ForegroundColor Green
-                        } else {
-                            Write-Host "Error al ejecutar mysqldump." -ForegroundColor Red
+        $btnEliminarServidorBDD.Add_Click({
+            # Crear el formulario para eliminar el servidor de la base de datos
+            $formEliminarServidor = New-Object System.Windows.Forms.Form
+            $formEliminarServidor.Text = "Eliminar Servidor de BDD"
+            $formEliminarServidor.Size = New-Object System.Drawing.Size(400, 200)
+            $formEliminarServidor.StartPosition = "CenterScreen"
+            $formEliminarServidor.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+            $formEliminarServidor.MaximizeBox = $false
+            $formEliminarServidor.MinimizeBox = $false
+        
+            # Crear el ComboBox con las opciones
+            $cmbOpciones = New-Object System.Windows.Forms.ComboBox
+            $cmbOpciones.Location = New-Object System.Drawing.Point(10, 20)
+            $cmbOpciones.Size = New-Object System.Drawing.Size(360, 20)
+            $cmbOpciones.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+            $cmbOpciones.Items.AddRange(@("Seleccione 1", "On The minute", "NS Hoteles", "Rest Card"))
+        
+            # Crear los botones Eliminar y Cancelar
+            $btnEliminar = New-Object System.Windows.Forms.Button
+            $btnEliminar.Text = "Eliminar"
+            $btnEliminar.Size = New-Object System.Drawing.Size(100, 30)
+            $btnEliminar.Location = New-Object System.Drawing.Point(150, 60)
+            $btnEliminar.Enabled = $false  # Deshabilitado inicialmente
+        
+            $btnCancelar = New-Object System.Windows.Forms.Button
+            $btnCancelar.Text = "Cancelar"
+            $btnCancelar.Size = New-Object System.Drawing.Size(100, 30)
+            $btnCancelar.Location = New-Object System.Drawing.Point(260, 60)
+        
+            # Habilitar el botón Eliminar si se selecciona una opción válida
+            $cmbOpciones.Add_SelectedIndexChanged({
+                if ($cmbOpciones.SelectedIndex -gt 0) {
+                    $btnEliminar.Enabled = $true
+                } else {
+                    $btnEliminar.Enabled = $false
+                }
+            })
+        
+            # Manejar el evento Click del botón Eliminar
+            $btnEliminar.Add_Click({
+                $opcionSeleccionada = $cmbOpciones.SelectedItem
+                $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        
+                if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    try {
+                        switch ($opcionSeleccionada) {
+                            "On The minute" {
+                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+                                Execute-SqlQuery -server $global:server -database $global:database -query $query
+                                Write-Host "Servidor de BDD eliminado para On The minute." -ForegroundColor Green
+                            }
+                            "NS Hoteles" {
+                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+                                Execute-SqlQuery -server $global:server -database $global:database -query $query
+                                Write-Host "Servidor de BDD eliminado para NS Hoteles." -ForegroundColor Green
+                            }
+                            "Rest Card" {
+                                # Pedir al usuario los datos de conexión a MySQL
+                                $usuarioRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese el usuario de MySQL:", "Usuario MySQL")
+                                $passwordRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese la contraseña de MySQL:", "Contraseña MySQL")
+                                $hostnameRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese el hostname de MySQL:", "Hostname MySQL")
+                                $baseDeDatosRestcard = [Microsoft.VisualBasic.Interaction]::InputBox("Ingrese el nombre de la base de datos:", "Base de Datos MySQL")
+        
+                                # Ejecutar el comando mysqldump
+                                $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`""
+                                $process = Start-Process -FilePath "mysqldump" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
+        
+                                if ($process.ExitCode -eq 0) {
+                                    $query = "UPDATE tabvariables SET estacion='', ipservidor=''"
+                                    Execute-SqlQuery -server $global:server -database $global:database -query $query
+                                    Write-Host "Servidor de BDD eliminado para Rest Card." -ForegroundColor Green
+                                } else {
+                                    Write-Host "Error al ejecutar mysqldump." -ForegroundColor Red
+                                }
+                            }
                         }
+                        $formEliminarServidor.Close()
+                    } catch {
+                        Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
                     }
                 }
+            })
+        
+            # Manejar el evento Click del botón Cancelar
+            $btnCancelar.Add_Click({
                 $formEliminarServidor.Close()
-            } catch {
-                Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
-            }
-        }
-    })
-
-    # Manejar el evento Click del botón Cancelar
-    $btnCancelar.Add_Click({
-        $formEliminarServidor.Close()
-    })
-
-    # Agregar los controles al formulario
-    $formEliminarServidor.Controls.Add($cmbOpciones)
-    $formEliminarServidor.Controls.Add($btnEliminar)
-    $formEliminarServidor.Controls.Add($btnCancelar)
-
-    # Mostrar el formulario
-    $formEliminarServidor.ShowDialog()
-})
-
-# Habilitar el botón btnEliminarServidorBDD cuando se conecte a la base de datos
-$btnConnectDb.Add_Click({
-    # ... (código existente para conectar a la base de datos)
-    $btnEliminarServidorBDD.Enabled = $true
-})
-
-# Deshabilitar el botón btnEliminarServidorBDD cuando se desconecte de la base de datos
-$btnDisconnectDb.Add_Click({
-    # ... (código existente para desconectar de la base de datos)
-    $btnEliminarServidorBDD.Enabled = $false
-})
+            })
+        
+            # Agregar los controles al formulario
+            $formEliminarServidor.Controls.Add($cmbOpciones)
+            $formEliminarServidor.Controls.Add($btnEliminar)
+            $formEliminarServidor.Controls.Add($btnCancelar)
+        
+            # Mostrar el formulario
+            $formEliminarServidor.ShowDialog()
+        })
+        
+        # Habilitar el botón btnEliminarServidorBDD cuando se conecte a la base de datos
+        $btnConnectDb.Add_Click({
+            # ... (código existente para conectar a la base de datos)
+            $btnEliminarServidorBDD.Enabled = $true
+        })
+        
+        # Deshabilitar el botón btnEliminarServidorBDD cuando se desconecte de la base de datos
+        $btnDisconnectDb.Add_Click({
+            # ... (código existente para desconectar de la base de datos)
+            $btnEliminarServidorBDD.Enabled = $false
+        })
 #SALIR DEL SISTEMA------------------------------------------------
 $btnExit.Add_Click({
                         $formPrincipal.Dispose()

@@ -1,4 +1,4 @@
-##############################﻿# Crear la carpeta 'C:\Temp' si no existe
+# Crear la carpeta 'C:\Temp' si no existe
 if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
@@ -15,52 +15,89 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.2101"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250203.2023"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
+    Write-Host "`n=============================================" -ForegroundColor DarkCyan
+    Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
+    Write-Host "=============================================" -ForegroundColor DarkCyan
+    Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
+    Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
 # Creación maestra de botones
     $toolTip = New-Object System.Windows.Forms.ToolTip
-    function Create-Button {
-        param (
-            [string]$Text,
-            [System.Drawing.Point]$Location,
-            [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
-            [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-            [string]$ToolTipText = $null  # Nuevo parámetro para el ToolTip
-        )
-        # Pasar esto a los parametros de arriba.
-        $buttonStyle = @{
-            Size      = New-Object System.Drawing.Size(220, 35)
-            FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
-            Font      = $defaultFont
-        }
-        # Eventos de mouse (definidos dentro de la función)
-        $button_MouseEnter = {
-            $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
-            $this.Font = $boldFont
-        }
-        $button_MouseLeave = {
-            $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
-            $this.Font = $defaultFont
-        }
-        # Crear el botón
-        $button = New-Object System.Windows.Forms.Button
-        $button.Text = $Text
-        $button.Size = $buttonStyle.Size
-        $button.Location = $Location
-        $button.BackColor = $BackColor
-        $button.ForeColor = $ForeColor
-        $button.Font = $buttonStyle.Font
-        $button.FlatStyle = $buttonStyle.FlatStyle
-        $button.Tag = $BackColor  # Almacena el color original en Tag
-        $button.Add_MouseEnter($button_MouseEnter)
-        $button.Add_MouseLeave($button_MouseLeave)
-        # Agregar ToolTip si se proporciona
-        if ($ToolTipText) {
-            $toolTip.SetToolTip($button, $ToolTipText)
-        }
-        return $button
-    }
+            function Create-Button {
+                param (
+                    [string]$Text,
+                    [System.Drawing.Point]$Location,
+                    [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
+                    [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
+                    [string]$ToolTipText = $null,  # Nuevo parámetro para el ToolTip
+                    [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(220, 35))  # Tamaño personalizable
+                )
+                # Estilo del botón
+                $buttonStyle = @{
+                    FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
+                    Font      = $defaultFont
+                }
+                # Eventos de mouse (definidos dentro de la función)
+                $button_MouseEnter = {
+                    $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
+                    $this.Font = $boldFont
+                }
+                $button_MouseLeave = {
+                    $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
+                    $this.Font = $defaultFont
+                }
+                # Crear el botón
+                $button = New-Object System.Windows.Forms.Button
+                $button.Text = $Text
+                $button.Size = $Size  # Usar el tamaño personalizado
+                $button.Location = $Location
+                $button.BackColor = $BackColor
+                $button.ForeColor = $ForeColor
+                $button.Font = $buttonStyle.Font
+                $button.FlatStyle = $buttonStyle.FlatStyle
+                $button.Tag = $BackColor  # Almacena el color original en Tag
+                $button.Add_MouseEnter($button_MouseEnter)
+                $button.Add_MouseLeave($button_MouseLeave)
+                # Agregar ToolTip si se proporciona
+                if ($ToolTipText) {
+                    $toolTip.SetToolTip($button, $ToolTipText)
+                }
+                return $button
+            }
+#Lo mismo pero para las labels
+function Create-Label {
+                    param (
+                        [string]$Text,
+                        [System.Drawing.Point]$Location,
+                        [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
+                        [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
+                        [string]$ToolTipText = $null,  # Nuevo parámetro para el ToolTip
+                        [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),  # Tamaño personalizable
+                        [System.Drawing.Font]$Font = $defaultFont,
+                        [System.Windows.Forms.BorderStyle]$BorderStyle = [System.Windows.Forms.BorderStyle]::None,
+                        [System.Drawing.ContentAlignment]$TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+                    )
+                
+                    # Crear la etiqueta
+                    $label = New-Object System.Windows.Forms.Label
+                    $label.Text = $Text
+                    $label.Size = $Size
+                    $label.Location = $Location
+                    $label.BackColor = $BackColor
+                    $label.ForeColor = $ForeColor
+                    $label.Font = $Font
+                    $label.BorderStyle = $BorderStyle
+                    $label.TextAlign = $TextAlign
+                
+                    # Agregar ToolTip si se proporciona
+                    if ($ToolTipText) {
+                        $toolTip.SetToolTip($label, $ToolTipText)
+                    }
+                
+                    return $label
+                }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
@@ -75,28 +112,29 @@ if (!(Test-Path -Path "C:\Temp")) {
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
 # Crear los botones utilizando la función
-    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 10))
-    $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 50))
-    $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 90))
-    $btnSQLManager = Create-Button -Text "Ejecutar Manager" -Location (New-Object System.Drawing.Point(10, 130))
-    $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 170))
-    $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 210))
-    $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 10))
-    $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 50))
-    $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(240, 90))
-    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 130))
-    $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(240, 170))
-    $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 40))
-    $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 40))
+    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 10)) -ToolTip "Instalación mediante choco de SQL Management 2014."
+    $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 50)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
+    $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 90)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
+    $btnSQLManager = Create-Button -Text "Ejecutar Manager" -Location (New-Object System.Drawing.Point(10, 130)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "De momento solo si es SQL 2014."
+    $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 170)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Busca SQL Management en tu equipo y te confirma la versión previo a ejecutarlo."
+    $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 210)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Herramienta de Star con funciones multiples para impresoras POS."
+    $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 10)) -BackColor ([System.Drawing.Color]::FromArgb(255, 76, 76)) -ToolTip "Detiene el programa y elimina los archivos para crear nuevos IDS."
+    $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 50)) -BackColor ([System.Drawing.Color]::White) -ToolTip "Muestra en consola: Impresora, Puerto y Driver instaladas en Windows."
+    $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(240, 90)) -BackColor ([System.Drawing.Color]::White) -ToolTip "Limpia las impresiones pendientes y reinicia la cola de impresión."
+    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 130)) -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
+    $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(240, 170)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
+    $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Carpeta LZMA" -Location (New-Object System.Drawing.Point(240, 210))
+    $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 40)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 40)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
     $btnReviewPivot = Create-Button -Text "Revisar Pivot Table" -Location (New-Object System.Drawing.Point(10, 110))
     $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
     $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 150))
     $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
+    $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 190))
                                     # Crear el botón btnEliminarServidorBDD
                                     $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 80)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 200, 200))
                                     $btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
-    $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 190))
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 310)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Crear el CheckBox chkSqlServer
     $chkSqlServer = New-Object System.Windows.Forms.CheckBox
@@ -111,39 +149,11 @@ if (!(Test-Path -Path "C:\Temp")) {
     $lblConnectionStatus.Location = New-Object System.Drawing.Point(10, 250)
     $lblConnectionStatus.ForeColor = [System.Drawing.Color]::RED
 # Crear el Label para mostrar el nombre del equipo fuera de las pestañas
-    $lblHostname = New-Object System.Windows.Forms.Label
-    $lblHostname.Text = [System.Net.Dns]::GetHostName()
-    $lblHostname.Size = New-Object System.Drawing.Size(240, 35)
-    $lblHostname.Font = $defaultFont
-    $lblHostname.Location = New-Object System.Drawing.Point(2, 350)
-    $lblHostname.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-    $lblHostname.BackColor = [System.Drawing.Color]::White
-    $lblHostname.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-    $lblHostname.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
-    $toolTipHostname = New-Object System.Windows.Forms.ToolTip
-    $toolTipHostname.SetToolTip($lblHostname, "Haz clic para copiar el Hostname al portapapeles.")
+    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(2, 350)) -Size (New-Object System.Drawing.Size(240, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
 # Crear el Label para mostrar el puerto
-    $lblPort = New-Object System.Windows.Forms.Label
-    $lblPort.Size = New-Object System.Drawing.Size(236, 35)
-    $lblPort.Font = $defaultFont
-    $lblPort.Location = New-Object System.Drawing.Point(245, 350)  # Alineado a la derecha del hostname
-    $lblPort.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-    $lblPort.BackColor = [System.Drawing.Color]::White
-    $lblPort.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-    $lblPort.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
-    $toolTip2 = New-Object System.Windows.Forms.ToolTip
-    $toolTip2.SetToolTip($lblPort, "Haz clic para copiar el Puerto al portapapeles.")
+    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(245, 350)) -Size (New-Object System.Drawing.Size(236, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
 # Crear el Label para mostrar las IPs y adaptadores
-    $lbIpAdress = New-Object System.Windows.Forms.Label
-    $lbIpAdress.Size = New-Object System.Drawing.Size(240, 100)  # Tamaño inicial
-    $lbIpAdress.Font = $defaultFont
-    $lbIpAdress.Location = New-Object System.Drawing.Point(2, 390)
-    $lbIpAdress.TextAlign = [System.Drawing.ContentAlignment]::TopLeft
-    $lbIpAdress.BackColor = [System.Drawing.Color]::White
-    $lbIpAdress.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-    $lbIpAdress.Cursor = [System.Windows.Forms.Cursors]::Hand  # Cambiar el cursor para que se vea como clickeable
-# Crear el ToolTip
-    $toolTip2.SetToolTip($lbIpAdress, "Haz clic para copiar las IPs al portapapeles.")
+    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(2, 390)) -Size (New-Object System.Drawing.Size(240, 100)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
@@ -156,6 +166,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $tabAplicaciones.Controls.Add($btnPrinterTool)
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
+    $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
 # Agregar controles a la pestaña Pro
     $tabProSql.Controls.Add($chkSqlServer)
     $tabProSql.Controls.Add($btnReviewPivot)

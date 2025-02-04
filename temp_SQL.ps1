@@ -122,10 +122,8 @@ function Create-Label {
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 40)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 40)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
-                                    # Crear el botón btnEliminarServidorBDD
-                                    $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 80))  -ToolTip "Quitar servidor asignado a la base de datos."
-                                    $btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
-
+    $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 80))  -ToolTip "Quitar servidor asignado a la base de datos."
+    $btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
     $btnReviewPivot = Create-Button -Text "Revisar Pivot Table" -Location (New-Object System.Drawing.Point(10, 110))
     $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
     $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 150))
@@ -170,8 +168,7 @@ function Create-Label {
     $tabProSql.Controls.Add($btnFechaRevEstaciones)
     $tabProSql.Controls.Add($lblConnectionStatus)
     $tabProSql.Controls.Add($btnConnectDb)
-                                                        # Agregar el botón a la pestaña Pro
-                                                    $tabProSql.Controls.Add($btnEliminarServidorBDD)
+    $tabProSql.Controls.Add($btnEliminarServidorBDD)
     $tabProSql.Controls.Add($btnDisconnectDb)
 #Funcion para copiar el puerto al portapapeles
     $lblPort.Add_Click({
@@ -426,8 +423,6 @@ function Show-ResultsConsole {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
-
-
 #Pivot new
                                     $btnReviewPivot.Add_Click({
                                         try {
@@ -533,117 +528,6 @@ function Show-ResultsConsole {
                                                     Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
                                                 }
                                             })
-#Nueva funcion
-# Función para manejar el evento Click del botón btnEliminarServidorBDD
-        $btnEliminarServidorBDD.Add_Click({
-            # Crear el formulario para eliminar el servidor de la base de datos
-            $formEliminarServidor = New-Object System.Windows.Forms.Form
-            $formEliminarServidor.Text = "Eliminar Servidor de BDD"
-            $formEliminarServidor.Size = New-Object System.Drawing.Size(400, 200)
-            $formEliminarServidor.StartPosition = "CenterScreen"
-            $formEliminarServidor.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-            $formEliminarServidor.MaximizeBox = $false
-            $formEliminarServidor.MinimizeBox = $false
-            # Crear el ComboBox con las opciones
-# Crear el ComboBox con las opciones
-            $cmbOpciones = New-Object System.Windows.Forms.ComboBox
-            $cmbOpciones.Location = New-Object System.Drawing.Point(10, 20)
-            $cmbOpciones.Size = New-Object System.Drawing.Size(360, 20)
-            $cmbOpciones.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-            $cmbOpciones.Items.Add("Seleccione una opción")
-            $cmbOpciones.Items.AddRange(@("On The minute", "NS Hoteles", "Rest Card"))
-            $cmbOpciones.SelectedIndex = 0
-# Crear los botones Eliminar y Cancelar
-            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(100, 30))
-            $btnEliminar.Enabled = $false  # Deshabilitado inicialmente
-            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(100, 30))
-# Habilitar el botón Eliminar si se selecciona una opción válida
-            $cmbOpciones.Add_SelectedIndexChanged({
-                if ($cmbOpciones.SelectedIndex -gt 0) {
-                    $btnEliminar.Enabled = $true
-                } else {
-                    $btnEliminar.Enabled = $false
-                }
-            })
-#Cambios
-            $btnEliminar.Add_Click({
-                $opcionSeleccionada = $cmbOpciones.SelectedItem
-                $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
-                    try {
-                        # Definir la consulta SQL según la opción seleccionada
-                        $query = $null
-                        switch ($opcionSeleccionada) {
-                            "On The minute" {
-                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
-                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-                                Write-Host "`t$query"
-                            }
-                            "NS Hoteles" {
-                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
-                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-                                Write-Host "`t$query"
-                            }
-                            "Rest Card" {
-                                Write-Host "`nFunción deshabilitada, ejecuta el Query en la base de datos:" -ForegroundColor Yellow
-                                Write-Host "`tupdate tabvariables set estacion='', ipservidor='';" -ForegroundColor Yellow
-                            }
-                        }
-            
-                        if ($query) {
-                            # Ejecutar la consulta y obtener el número de filas afectadas
-                            $rowsAffected = Execute-SqlQuery -server $global:server -database $global:database -query $query
-            
-                            if ($rowsAffected -gt 0) {
-                                Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
-                            } elseif ($rowsAffected -eq 0) {
-                                Write-Host "No se encontraron filas para actualizar en la tabla configuracion." -ForegroundColor Yellow
-                            } else {
-                                Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
-                            }
-                        }
-                    } catch {
-                        Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
-                    }
-                    $formEliminarServidor.Close()
-                }
-            })
-            # Manejar el evento Click del botón Cancelar
-            $btnCancelar.Add_Click({
-                $formEliminarServidor.Close()
-            })
-            # Agregar los controles al formulario
-            $formEliminarServidor.Controls.Add($cmbOpciones)
-            $formEliminarServidor.Controls.Add($btnEliminar)
-            $formEliminarServidor.Controls.Add($btnCancelar)
-            # Mostrar el formulario
-            $formEliminarServidor.ShowDialog()
-        })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ##---------------OTROS BOTONES Y FUNCIONES OMITIDAS AQUI----------------------------------------------------------------BOTONES#
 $btnConnectDb.Add_Click({
         # Crear el formulario para pedir los datos de conexión

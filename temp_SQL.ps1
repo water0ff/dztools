@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "SQL250204.1342"  # Valor predeterminado para la versión
+                                                                                                        $version = "SQL250204.1346"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -682,46 +682,55 @@ $btnOK.Add_Click({
                     $btnEliminar.Enabled = $false
                 }
             })
-# Manejar el evento Click del botón Eliminar
-                $btnEliminar.Add_Click({
-                    $opcionSeleccionada = $cmbOpciones.SelectedItem
-                    $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                    if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
-                        try {
-                            # En el bloque donde defines las consultas SQL, verifica las columnas existentes
-                            $query = $null
-                            switch ($opcionSeleccionada) {
-                                "On The minute" {
-                                    # Verifica si las columnas existen antes de ejecutar la consulta
-                                    $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-                                }
-                                "NS Hoteles" {
-                                    # Verifica si las columnas existen antes de ejecutar la consulta
-                                    $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-                                }
-                                "Rest Card" {
-                                    # Lógica para Rest Card
-                                }
-                            }
+#Cambios
+                            $btnEliminar.Add_Click({
+                                $opcionSeleccionada = $cmbOpciones.SelectedItem
+                                $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                                if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
+                                    try {
+                                        # Verificar la estructura de la tabla
+                                        $queryVerificacion = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'configuracion'"
+                                        $columnas = Execute-SqlQuery -server $global:server -database $global:database -query $queryVerificacion
                             
-                            if ($query) {
-                                try {
-                                    $success = Execute-SqlQuery -server $global:server -database $global:database -query $query
-                                    if ($success) {
-                                        Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
-                                    } else {
-                                        Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
+                                        $columnasRequeridas = @('serie', 'ipserver', 'nombreservidor')
+                                        $columnasExistentes = $columnas | ForEach-Object { $_.COLUMN_NAME }
+                            
+                                        if ($columnasRequeridas | Where-Object { $_ -notin $columnasExistentes }) {
+                                            Write-Host "Algunas columnas requeridas no existen en la tabla configuracion." -ForegroundColor Red
+                                            return
+                                        }
+                            
+                                        # Ejecutar la consulta de actualización
+                                        $query = $null
+                                        switch ($opcionSeleccionada) {
+                                            "On The minute" {
+                                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+                                            }
+                                            "NS Hoteles" {
+                                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+                                            }
+                                            "Rest Card" {
+                                                # Lógica para Rest Card
+                                            }
+                                        }
+                            
+                                        if ($query) {
+                                            $success = Execute-SqlQuery -server $global:server -database $global:database -query $query
+                                            if ($success) {
+                                                Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
+                                            } else {
+                                                Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
+                                            }
+                                        }
+                                    } catch {
+                                        Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
                                     }
-                                } catch {
-                                    Write-Host "Error al ejecutar la consulta: $_" -ForegroundColor Red
+                                    $formEliminarServidor.Close()
                                 }
-                            }
-                        } catch {
-                            Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
-                        }
-                        $formEliminarServidor.Close()
-                    }
-                })
+                            })
+
+
+
             # Manejar el evento Click del botón Cancelar
             $btnCancelar.Add_Click({
                 $formEliminarServidor.Close()

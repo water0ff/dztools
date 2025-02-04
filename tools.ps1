@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250204.1245"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250204.1248"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -288,7 +288,7 @@ $lbIpAdress.Add_Click({
                 }
             
                 # Crear un Label con la palabra "Público" o "Privado" clickeable
-                $label = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (415 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor = $color
+                $label = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (415 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor $color
             
                 # Función de cierre para capturar el adaptador actual
                 $adapterIndex = $adapter.InterfaceIndex

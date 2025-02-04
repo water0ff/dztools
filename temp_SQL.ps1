@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "SQL.250204.1014"  # Valor predeterminado para la versión
+                                                                                                        $version = "SQL.250204.1138"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -489,17 +489,20 @@ $btnDisconnectDb.Add_Click({
             $formEliminarServidor.MaximizeBox = $false
             $formEliminarServidor.MinimizeBox = $false
             # Crear el ComboBox con las opciones
+# Crear el ComboBox con las opciones
             $cmbOpciones = New-Object System.Windows.Forms.ComboBox
             $cmbOpciones.Location = New-Object System.Drawing.Point(10, 20)
             $cmbOpciones.Size = New-Object System.Drawing.Size(360, 20)
             $cmbOpciones.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-            $cmbOpciones.text = "Seleccione 1"
+            $cmbOpciones.Items.Add("Seleccione una opción")
             $cmbOpciones.Items.AddRange(@("On The minute", "NS Hoteles", "Rest Card"))
-            # Crear los botones Eliminar y Cancelar
+            $cmbOpciones.SelectedIndex = 0
+# Crear los botones Eliminar y Cancelar
             $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(100, 30))
             $btnEliminar.Enabled = $false  # Deshabilitado inicialmente
             $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(100, 30))
-            # Habilitar el botón Eliminar si se selecciona una opción válida
+            
+# Habilitar el botón Eliminar si se selecciona una opción válida
             $cmbOpciones.Add_SelectedIndexChanged({
                 if ($cmbOpciones.SelectedIndex -gt 0) {
                     $btnEliminar.Enabled = $true
@@ -507,7 +510,7 @@ $btnDisconnectDb.Add_Click({
                     $btnEliminar.Enabled = $false
                 }
             })
-            # Manejar el evento Click del botón Eliminar
+# Manejar el evento Click del botón Eliminar
             $btnEliminar.Add_Click({
                 $opcionSeleccionada = $cmbOpciones.SelectedItem
                 $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)

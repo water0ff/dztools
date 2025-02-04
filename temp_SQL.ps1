@@ -128,7 +128,7 @@ function Create-Label {
     $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
     $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 190))
                                     # Crear el botón btnEliminarServidorBDD
-                                    $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 80)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 200, 200))
+                                    $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 80))  -ToolTip "Quitar servidor asignado a la base de datos."
                                     $btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 310)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Crear el CheckBox chkSqlServer

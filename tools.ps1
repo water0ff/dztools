@@ -1200,10 +1200,8 @@ $btnInstallSQLManagement.Add_Click({
                                                     Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
                                                 }
                                             })
-#Nueva funcion
-# Función para manejar el evento Click del botón btnEliminarServidorBDD
-        $btnEliminarServidorBDD.Add_Click({
-            # Crear el formulario para eliminar el servidor de la base de datos
+#Boton para actualizar los datos del servidor (borrarlo basicamente)
+    $btnEliminarServidorBDD.Add_Click({
             $formEliminarServidor = New-Object System.Windows.Forms.Form
             $formEliminarServidor.Text = "Eliminar Servidor de BDD"
             $formEliminarServidor.Size = New-Object System.Drawing.Size(400, 200)
@@ -1211,8 +1209,6 @@ $btnInstallSQLManagement.Add_Click({
             $formEliminarServidor.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
             $formEliminarServidor.MaximizeBox = $false
             $formEliminarServidor.MinimizeBox = $false
-            # Crear el ComboBox con las opciones
-# Crear el ComboBox con las opciones
             $cmbOpciones = New-Object System.Windows.Forms.ComboBox
             $cmbOpciones.Location = New-Object System.Drawing.Point(10, 20)
             $cmbOpciones.Size = New-Object System.Drawing.Size(360, 20)
@@ -1220,11 +1216,9 @@ $btnInstallSQLManagement.Add_Click({
             $cmbOpciones.Items.Add("Seleccione una opción")
             $cmbOpciones.Items.AddRange(@("On The minute", "NS Hoteles", "Rest Card"))
             $cmbOpciones.SelectedIndex = 0
-# Crear los botones Eliminar y Cancelar
             $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(100, 30))
             $btnEliminar.Enabled = $false  # Deshabilitado inicialmente
             $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(100, 30))
-# Habilitar el botón Eliminar si se selecciona una opción válida
             $cmbOpciones.Add_SelectedIndexChanged({
                 if ($cmbOpciones.SelectedIndex -gt 0) {
                     $btnEliminar.Enabled = $true
@@ -1232,7 +1226,6 @@ $btnInstallSQLManagement.Add_Click({
                     $btnEliminar.Enabled = $false
                 }
             })
-#Cambios
             $btnEliminar.Add_Click({
                 $opcionSeleccionada = $cmbOpciones.SelectedItem
                 $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
@@ -1287,714 +1280,712 @@ $btnInstallSQLManagement.Add_Click({
             $formEliminarServidor.ShowDialog()
         })
 #Boton para conectar a la base de datos
-$btnConnectDb.Add_Click({
-        # Crear el formulario para pedir los datos de conexión
-        $connectionForm = New-Object System.Windows.Forms.Form
-        $connectionForm.Text = "Conexión a SQL Server"
-        $connectionForm.Size = New-Object System.Drawing.Size(400, 200)
-        $connectionForm.StartPosition = "CenterScreen"
-        $connectionForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-        $connectionForm.MaximizeBox = $false
-        $connectionForm.MinimizeBox = $false
-
-        # Crear las etiquetas y cajas de texto
-        $labelProfile = New-Object System.Windows.Forms.Label
-        $labelProfile.Text = "Perfil de conexión"
-        $labelProfile.Location = New-Object System.Drawing.Point(10, 20)
-        $labelProfile.Size = New-Object System.Drawing.Size(100, 20)
-
-        $cmbProfiles = New-Object System.Windows.Forms.ComboBox
-        $cmbProfiles.Location = New-Object System.Drawing.Point(120, 20)
-        $cmbProfiles.Size = New-Object System.Drawing.Size(250, 20)
-        $cmbProfiles.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-
-        # Cargar archivos INI desde las rutas especificadas
-        $profiles = @{ }
-        $iniFiles = @(
-            "C:\NationalSoft\OnTheMinute4.5\checadorsql.ini",
-            "C:\NationalSoft\Softrestaurant11.0\INIS\*.ini",
-            "C:\NationalSoft\Softrestaurant10.0\INIS\*.ini"
-        )
-
-            foreach ($path in $iniFiles) {
-                $files = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
-                foreach ($file in $files) {
-                    # Obtener la ruta de las dos carpetas anteriores
-                    $relativePath = $file.DirectoryName -replace "^.*\\([^\\]+\\[^\\]+)\\.*$", '$1'
-        
-                    # Concatenar la ruta relativa con el nombre del archivo
-                    $profileName = "$relativePath\$($file.Name)"
-        
-                    # Agregar el perfil a la lista
-                    $profiles[$profileName] = $file.FullName
-                    $cmbProfiles.Items.Add($profileName)
-                }
-            }
-
-        # Agregar opción "Personalizado" si no existe ya en la lista
-        if (-not $cmbProfiles.Items.Contains("Personalizado")) {
-            $cmbProfiles.Items.Add("Personalizado")
-        }
-        # Crear las demás etiquetas y campos de texto
-        $labelServer = New-Object System.Windows.Forms.Label
-        $labelServer.Text = "Servidor SQL"
-        $labelServer.Location = New-Object System.Drawing.Point(10, 50)
-        $labelServer.Size = New-Object System.Drawing.Size(100, 20)
+    $btnConnectDb.Add_Click({
+            # Crear el formulario para pedir los datos de conexión
+            $connectionForm = New-Object System.Windows.Forms.Form
+            $connectionForm.Text = "Conexión a SQL Server"
+            $connectionForm.Size = New-Object System.Drawing.Size(400, 200)
+            $connectionForm.StartPosition = "CenterScreen"
+            $connectionForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+            $connectionForm.MaximizeBox = $false
+            $connectionForm.MinimizeBox = $false
     
-        $txtServer = New-Object System.Windows.Forms.TextBox
-        $txtServer.Location = New-Object System.Drawing.Point(120, 50)
-        $txtServer.Size = New-Object System.Drawing.Size(250, 20)
-
-        $labelDatabase = New-Object System.Windows.Forms.Label
-        $labelDatabase.Text = "Base de Datos"
-        $labelDatabase.Location = New-Object System.Drawing.Point(10, 80)
-        $labelDatabase.Size = New-Object System.Drawing.Size(100, 20)
-
-        $txtDatabase = New-Object System.Windows.Forms.TextBox
-        $txtDatabase.Location = New-Object System.Drawing.Point(120, 80)
-        $txtDatabase.Size = New-Object System.Drawing.Size(250, 20)
-
-        $labelPassword = New-Object System.Windows.Forms.Label
-        $labelPassword.Text = "Contraseña"
-        $labelPassword.Location = New-Object System.Drawing.Point(10, 110)
-        $labelPassword.Size = New-Object System.Drawing.Size(100, 20)
-
-        $txtPassword = New-Object System.Windows.Forms.TextBox
-        $txtPassword.Location = New-Object System.Drawing.Point(120, 110)
-        $txtPassword.Size = New-Object System.Drawing.Size(250, 20)
-        $txtPassword.UseSystemPasswordChar = $true
-
-    # Habilitar el botón "Conectar" si la contraseña tiene al menos un carácter
-    $txtPassword.Add_TextChanged({
-        if ($txtPassword.Text.Length -ge 1) {
-            $btnOK.Enabled = $true
-        } else {
-            $btnOK.Enabled = $false
-        }
-    })
-        # Manejar selección del ComboBox
-        $cmbProfiles.Add_SelectedIndexChanged({
-            if ($cmbProfiles.SelectedItem -eq "Personalizado") {
-                $txtServer.Clear()
-                $txtDatabase.Clear()
-            } else {
-                $selectedFile = $profiles[$cmbProfiles.SelectedItem]
-                if (Test-Path $selectedFile) {
-                    $content = Get-Content -Path $selectedFile -ErrorAction SilentlyContinue
-                    if ($content.Length -gt 0) {
-                        # Inicializar valores por defecto
-                        $server = "No especificado"
-                        $database = "No especificado"
-
-                        # Obtener la primera coincidencia de DataSource y Catalog usando Select-String
-                        $dataSourceMatch = $content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1
-                        if ($dataSourceMatch) {
-                            $server = $dataSourceMatch.Matches.Groups[1].Value
-                        }
-
-                        $catalogMatch = $content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1
-                        if ($catalogMatch) {
-                            $database = $catalogMatch.Matches.Groups[1].Value
-                        }
-
-                        # Verificar que los valores sean correctos antes de asignarlos
-                        if ($server -ne "No especificado") {
-                            $txtServer.Text = $server
-                        }
-
-                        if ($database -ne "No especificado") {
-                            $txtDatabase.Text = $database
-                        }
+            # Crear las etiquetas y cajas de texto
+            $labelProfile = New-Object System.Windows.Forms.Label
+            $labelProfile.Text = "Perfil de conexión"
+            $labelProfile.Location = New-Object System.Drawing.Point(10, 20)
+            $labelProfile.Size = New-Object System.Drawing.Size(100, 20)
+    
+            $cmbProfiles = New-Object System.Windows.Forms.ComboBox
+            $cmbProfiles.Location = New-Object System.Drawing.Point(120, 20)
+            $cmbProfiles.Size = New-Object System.Drawing.Size(250, 20)
+            $cmbProfiles.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+    
+            # Cargar archivos INI desde las rutas especificadas
+            $profiles = @{ }
+            $iniFiles = @(
+                "C:\NationalSoft\OnTheMinute4.5\checadorsql.ini",
+                "C:\NationalSoft\Softrestaurant11.0\INIS\*.ini",
+                "C:\NationalSoft\Softrestaurant10.0\INIS\*.ini"
+            )
+    
+                foreach ($path in $iniFiles) {
+                    $files = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+                    foreach ($file in $files) {
+                        # Obtener la ruta de las dos carpetas anteriores
+                        $relativePath = $file.DirectoryName -replace "^.*\\([^\\]+\\[^\\]+)\\.*$", '$1'
+            
+                        # Concatenar la ruta relativa con el nombre del archivo
+                        $profileName = "$relativePath\$($file.Name)"
+            
+                        # Agregar el perfil a la lista
+                        $profiles[$profileName] = $file.FullName
+                        $cmbProfiles.Items.Add($profileName)
                     }
                 }
+    
+            # Agregar opción "Personalizado" si no existe ya en la lista
+            if (-not $cmbProfiles.Items.Contains("Personalizado")) {
+                $cmbProfiles.Items.Add("Personalizado")
+            }
+            # Crear las demás etiquetas y campos de texto
+            $labelServer = New-Object System.Windows.Forms.Label
+            $labelServer.Text = "Servidor SQL"
+            $labelServer.Location = New-Object System.Drawing.Point(10, 50)
+            $labelServer.Size = New-Object System.Drawing.Size(100, 20)
+        
+            $txtServer = New-Object System.Windows.Forms.TextBox
+            $txtServer.Location = New-Object System.Drawing.Point(120, 50)
+            $txtServer.Size = New-Object System.Drawing.Size(250, 20)
+    
+            $labelDatabase = New-Object System.Windows.Forms.Label
+            $labelDatabase.Text = "Base de Datos"
+            $labelDatabase.Location = New-Object System.Drawing.Point(10, 80)
+            $labelDatabase.Size = New-Object System.Drawing.Size(100, 20)
+    
+            $txtDatabase = New-Object System.Windows.Forms.TextBox
+            $txtDatabase.Location = New-Object System.Drawing.Point(120, 80)
+            $txtDatabase.Size = New-Object System.Drawing.Size(250, 20)
+    
+            $labelPassword = New-Object System.Windows.Forms.Label
+            $labelPassword.Text = "Contraseña"
+            $labelPassword.Location = New-Object System.Drawing.Point(10, 110)
+            $labelPassword.Size = New-Object System.Drawing.Size(100, 20)
+    
+            $txtPassword = New-Object System.Windows.Forms.TextBox
+            $txtPassword.Location = New-Object System.Drawing.Point(120, 110)
+            $txtPassword.Size = New-Object System.Drawing.Size(250, 20)
+            $txtPassword.UseSystemPasswordChar = $true
+    
+        # Habilitar el botón "Conectar" si la contraseña tiene al menos un carácter
+        $txtPassword.Add_TextChanged({
+            if ($txtPassword.Text.Length -ge 1) {
+                $btnOK.Enabled = $true
+            } else {
+                $btnOK.Enabled = $false
             }
         })
-
-        # Crear el botón para conectar
-        $btnOK = New-Object System.Windows.Forms.Button
-        $btnOK.Text = "Conectar"
-        $btnOK.Size = New-Object System.Drawing.Size(100, 30)
-        $btnOK.Location = New-Object System.Drawing.Point(150, 140)  # Ajusta la posición según necesites
-        $btnOK.Enabled = $false  # Deshabilitar el botón inicialmente
-    # Variables globales para guardar la información de conexión
-    $global:server
-    $global:database
-    $global:password
-    $global:connection  # Variable global para la conexión
-$btnOK.Add_Click({
-        try {
-            # Cadena de conexión
-            $connectionString = "Server=$($txtServer.Text);Database=$($txtDatabase.Text);User Id=sa;Password=$($txtPassword.Text);"
-            $global:connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)  # Asignar la conexión a la variable global
-            $global:connection.Open()
-
-            Write-Host "`nConexión exitosa" -ForegroundColor Green
-
-            # Guardar la información de conexión en variables globales
-            $global:server = $txtServer.Text
-            $global:database = $txtDatabase.Text
-            $global:password = $txtPassword.Text
-
-            # Cerrar la ventana de conexión
-            $connectionForm.Close()
-
-            # Actualizar el texto del label de conexión
-            $lblConnectionStatus.Text = "Conectado a BDD: $($txtDatabase.Text)"
-            $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-            Write-Host "`t$global:database"
-
-            # Habilitar o deshabilitar botones cuando hay conexiones existosas
-            $btnReviewPivot.Enabled = $true
-            $btnFechaRevEstaciones.Enabled = $true
-            $btnConnectDb.Enabled = $false
-            $btnDisconnectDb.Enabled = $true
-
-        } catch {
-            Write-Host "`nError de conexión: $_" -ForegroundColor Red
-            $lblConnectionStatus.Text = "Conexión fallida"
-        }
-    })
-        # Agregar los controles al formulario
-        $connectionForm.Controls.Add($labelProfile)
-        $connectionForm.Controls.Add($cmbProfiles)
-        $connectionForm.Controls.Add($labelServer)
-        $connectionForm.Controls.Add($txtServer)
-        $connectionForm.Controls.Add($labelDatabase)
-        $connectionForm.Controls.Add($txtDatabase)
-        $connectionForm.Controls.Add($labelPassword)
-        $connectionForm.Controls.Add($txtPassword)
-        $connectionForm.Controls.Add($btnOK)
-        $connectionForm.ShowDialog()
-    })
-$btnDisconnectDb.Add_Click({
-    try {
-        # Cerrar la conexión
-        $global:connection.Close()
-        Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
-
-        # Restaurar el label al estado original
-        $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
-        $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Red
-
-        # Habilitar el botón de conectar y deshabilitar el de desconectar
-        $btnConnectDb.Enabled = $true
-        $btnDisconnectDb.Enabled = $false
-        $btnFechaRevEstaciones.Enabled = $false
-        $btnReviewPivot.Enabled = $false
-    } catch {
-        Write-Host "`nError al desconectar: $_" -ForegroundColor Red
-    }
-})
-# Evento de clic para el botón de respaldo
-$btnRespaldarRestcard.Add_Click({
-    Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
-    # Crear la segunda ventana para ingresar los datos de conexión
-    $formRespaldarRestcard = New-Object System.Windows.Forms.Form
-    $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
-    $formRespaldarRestcard.Size = New-Object System.Drawing.Size(350, 210)
-    $formRespaldarRestcard.StartPosition = "CenterScreen"
-    $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-    $formRespaldarRestcard.MaximizeBox = $false
-    $formRespaldarRestcard.MinimizeBox = $false
-
-    # Etiquetas y controles para ingresar la información de conexión
-    $lblUsuarioRestcard = New-Object System.Windows.Forms.Label
-    $lblUsuarioRestcard.Text = "Usuario:"
-    $lblUsuarioRestcard.Location = New-Object System.Drawing.Point(20, 40)
-
-    $txtUsuarioRestcard = New-Object System.Windows.Forms.TextBox
-    $txtUsuarioRestcard.Location = New-Object System.Drawing.Point(120, 40)
-    $txtUsuarioRestcard.Width = 200
-
-    $lblBaseDeDatosRestcard = New-Object System.Windows.Forms.Label
-    $lblBaseDeDatosRestcard.Text = "Base de Datos:"
-    $lblBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(20, 65)
-
-    $txtBaseDeDatosRestcard = New-Object System.Windows.Forms.TextBox
-    $txtBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(120, 65)
-    $txtBaseDeDatosRestcard.Width = 200
-
-    $lblPasswordRestcard = New-Object System.Windows.Forms.Label
-    $lblPasswordRestcard.Text = "Contraseña:"
-    $lblPasswordRestcard.Location = New-Object System.Drawing.Point(20, 90)
-
-    $txtPasswordRestcard = New-Object System.Windows.Forms.TextBox
-    $txtPasswordRestcard.Location = New-Object System.Drawing.Point(120, 90)
-    $txtPasswordRestcard.Width = 200
-    $txtPasswordRestcard.UseSystemPasswordChar = $true
-
-    $lblHostnameRestcard = New-Object System.Windows.Forms.Label
-    $lblHostnameRestcard.Text = "Hostname:"
-    $lblHostnameRestcard.Location = New-Object System.Drawing.Point(20, 115)
-
-    $txtHostnameRestcard = New-Object System.Windows.Forms.TextBox
-    $txtHostnameRestcard.Location = New-Object System.Drawing.Point(120, 115)
-    $txtHostnameRestcard.Width = 200
-
-    # Crear el checkbox para llenar los datos por omisión
-    $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox
-    $chkLlenarDatos.Text = "Usar los datos por omisión"
-    $chkLlenarDatos.Location = New-Object System.Drawing.Point(5, 20)
-    $chkLlenarDatos.AutoSize = $true
-
-    # Evento de cambio de estado del checkbox
-    $chkLlenarDatos.Add_CheckedChanged({
-        if ($chkLlenarDatos.Checked) {
-            # Llenar los datos por omisión
-            $txtUsuarioRestcard.Text = "root"
-            $txtBaseDeDatosRestcard.Text = "restcard"
-            $txtPasswordRestcard.Text = "national"
-            $txtHostnameRestcard.Text = "localhost"
-        } else {
-            # Limpiar los campos
-            $txtUsuarioRestcard.Clear()
-            $txtBaseDeDatosRestcard.Clear()
-            $txtPasswordRestcard.Clear()
-            $txtHostnameRestcard.Clear()
-        }
-    })
-
-    # Crear botón para ejecutar el respaldo
-    $btnRespaldar = New-Object System.Windows.Forms.Button
-    $btnRespaldar.Text = "Respaldar"
-    $btnRespaldar.Location = New-Object System.Drawing.Point(20, 140)
-    $btnRespaldar.Size = New-Object System.Drawing.Size(140, 25)
-
-    # Evento de clic para el botón de respaldo
-                $btnRespaldar.Add_Click({
-                    # Obtener los valores del formulario
-                    $usuarioRestcard = $txtUsuarioRestcard.Text
-                    $baseDeDatosRestcard = $txtBaseDeDatosRestcard.Text
-                    $passwordRestcard = $txtPasswordRestcard.Text
-                    $hostnameRestcard = $txtHostnameRestcard.Text
-                
-                    # Validar que la información no esté vacía
-                    if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "") {
-                        [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                        return
-                    }
-                
-                    $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
-                    $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
-                    Write-Host "Selecciona la carpeta donde guardar el respaldo" -ForegroundColor Yellow
-                    if ($folderDialog.ShowDialog() -eq "OK") {
-                        # Obtener la ruta seleccionada
-                        Write-Host "Realizando respaldo para la base de datos." -ForegroundColor Green
-                        Write-Host "`tBase de datos:`t $baseDeDatosRestcard"
-                        Write-Host "`tEn el servidor:`t $hostnameRestcard"
-                        Write-Host "`tCon el usuario:`t $usuarioRestcard"
-                        $folderPath = $folderDialog.SelectedPath
-                        # Crear la ruta con el timestamp
-                        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-                        $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
-                
-                        # Ejecutar el comando mysqldump para hacer el respaldo
-                        $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`""
-                        $process = Start-Process -FilePath "mysqldump" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
-                
-                        # Verificar si el respaldo se realizó correctamente
-                        if ($process.ExitCode -eq 0) {
-                            # Obtener el tamaño del archivo generado
-                            $tamañoArchivo = (Get-Item $rutaRespaldo).Length / 1KB
-                            $tamañoArchivo = [math]::Round($tamañoArchivo, 2)
-                            Write-Host "Respaldo completado correctamente. Tamaño del archivo: $tamañoArchivo KB" -ForegroundColor Green
-                        } else {
-                            # Mostrar el error en rojo con tabulación
-                            Write-Host "`tError: No se pudo realizar el respaldo. Verifica los datos de conexión y la base de datos." -ForegroundColor Red
-                            # Eliminar el archivo de respaldo si el proceso falló
-                            if (Test-Path $rutaRespaldo) {
-                                Remove-Item $rutaRespaldo
-                                Write-Host "`tArchivo de respaldo eliminado debido a un error." -ForegroundColor Yellow
+            # Manejar selección del ComboBox
+            $cmbProfiles.Add_SelectedIndexChanged({
+                if ($cmbProfiles.SelectedItem -eq "Personalizado") {
+                    $txtServer.Clear()
+                    $txtDatabase.Clear()
+                } else {
+                    $selectedFile = $profiles[$cmbProfiles.SelectedItem]
+                    if (Test-Path $selectedFile) {
+                        $content = Get-Content -Path $selectedFile -ErrorAction SilentlyContinue
+                        if ($content.Length -gt 0) {
+                            # Inicializar valores por defecto
+                            $server = "No especificado"
+                            $database = "No especificado"
+    
+                            # Obtener la primera coincidencia de DataSource y Catalog usando Select-String
+                            $dataSourceMatch = $content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1
+                            if ($dataSourceMatch) {
+                                $server = $dataSourceMatch.Matches.Groups[1].Value
+                            }
+    
+                            $catalogMatch = $content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1
+                            if ($catalogMatch) {
+                                $database = $catalogMatch.Matches.Groups[1].Value
+                            }
+    
+                            # Verificar que los valores sean correctos antes de asignarlos
+                            if ($server -ne "No especificado") {
+                                $txtServer.Text = $server
+                            }
+    
+                            if ($database -ne "No especificado") {
+                                $txtDatabase.Text = $database
                             }
                         }
-                
-                        # Cerrar la segunda ventana después de completar el respaldo
-                        $formRespaldarRestcard.Close()
                     }
-                })
-
-    # Crear botón para salir
-    $btnSalirRestcard = New-Object System.Windows.Forms.Button
-    $btnSalirRestcard.Text = "Salir"
-    $btnSalirRestcard.Size = New-Object System.Drawing.Size(140, 25)
-    $btnSalirRestcard.Location = New-Object System.Drawing.Point(185, 140)
-    $btnSalirRestcard.BackColor = [System.Drawing.Color]::DarkGray
-
-    # Evento de clic para el botón de salir
-    $btnSalirRestcard.Add_Click({
-        Write-Host "`tSalió sin realizar respaldo." -ForegroundColor Red
-        $formRespaldarRestcard.Close()
-    })
-
-    # Agregar controles a la segunda ventana
-    $formRespaldarRestcard.Controls.Add($lblUsuarioRestcard)
-    $formRespaldarRestcard.Controls.Add($txtUsuarioRestcard)
-    $formRespaldarRestcard.Controls.Add($lblBaseDeDatosRestcard)
-    $formRespaldarRestcard.Controls.Add($txtBaseDeDatosRestcard)
-    $formRespaldarRestcard.Controls.Add($lblPasswordRestcard)
-    $formRespaldarRestcard.Controls.Add($txtPasswordRestcard)
-    $formRespaldarRestcard.Controls.Add($lblHostnameRestcard)
-    $formRespaldarRestcard.Controls.Add($txtHostnameRestcard)
-    $formRespaldarRestcard.Controls.Add($chkLlenarDatos)
-    $formRespaldarRestcard.Controls.Add($btnRespaldar)
-    $formRespaldarRestcard.Controls.Add($btnSalirRestcard)
-
-    # Mostrar la segunda ventana
-    $formRespaldarRestcard.ShowDialog()
-})
-
-function Show-NewIpForm {
-    $ipAssignForm = New-Object System.Windows.Forms.Form
-    $ipAssignForm.Text = "Agregar IP Adicional"
-    $ipAssignForm.Size = New-Object System.Drawing.Size(350, 150)
-    $ipAssignForm.StartPosition = "CenterScreen"
-
-    $ipAssignLabel = New-Object System.Windows.Forms.Label
-    $ipAssignLabel.Text = "Ingrese la nueva dirección IP:"
-    $ipAssignLabel.Location = New-Object System.Drawing.Point(10, 20)
-    $ipAssignLabel.AutoSize = $true
-    $ipAssignForm.Controls.Add($ipAssignLabel)
-
-    $ipAssignTextBox1 = New-Object System.Windows.Forms.TextBox
-    $ipAssignTextBox1.Location = New-Object System.Drawing.Point(10, 50)
-    $ipAssignTextBox1.Size = New-Object System.Drawing.Size(50, 20)
-    $ipAssignTextBox1.MaxLength = 3
-    $ipAssignTextBox1.Add_KeyPress({
-        if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
-        if ($_.KeyChar -eq '.') {
-            $ipAssignTextBox2.Focus()
-            $_.Handled = $true
+                }
+            })
+    
+            # Crear el botón para conectar
+            $btnOK = New-Object System.Windows.Forms.Button
+            $btnOK.Text = "Conectar"
+            $btnOK.Size = New-Object System.Drawing.Size(100, 30)
+            $btnOK.Location = New-Object System.Drawing.Point(150, 140)  # Ajusta la posición según necesites
+            $btnOK.Enabled = $false  # Deshabilitar el botón inicialmente
+        # Variables globales para guardar la información de conexión
+        $global:server
+        $global:database
+        $global:password
+        $global:connection  # Variable global para la conexión
+        $btnOK.Add_Click({
+                try {
+                    # Cadena de conexión
+                    $connectionString = "Server=$($txtServer.Text);Database=$($txtDatabase.Text);User Id=sa;Password=$($txtPassword.Text);"
+                    $global:connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)  # Asignar la conexión a la variable global
+                    $global:connection.Open()
+        
+                    Write-Host "`nConexión exitosa" -ForegroundColor Green
+        
+                    # Guardar la información de conexión en variables globales
+                    $global:server = $txtServer.Text
+                    $global:database = $txtDatabase.Text
+                    $global:password = $txtPassword.Text
+        
+                    # Cerrar la ventana de conexión
+                    $connectionForm.Close()
+        
+                    # Actualizar el texto del label de conexión
+                    $lblConnectionStatus.Text = "Conectado a BDD: $($txtDatabase.Text)"
+                    $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
+                    Write-Host "`t$global:database"
+        
+                    # Habilitar o deshabilitar botones cuando hay conexiones existosas
+                    $btnReviewPivot.Enabled = $true
+                    $btnFechaRevEstaciones.Enabled = $true
+                    $btnConnectDb.Enabled = $false
+                    $btnDisconnectDb.Enabled = $true
+        
+                } catch {
+                    Write-Host "`nError de conexión: $_" -ForegroundColor Red
+                    $lblConnectionStatus.Text = "Conexión fallida"
+                }
+            })
+                # Agregar los controles al formulario
+                $connectionForm.Controls.Add($labelProfile)
+                $connectionForm.Controls.Add($cmbProfiles)
+                $connectionForm.Controls.Add($labelServer)
+                $connectionForm.Controls.Add($txtServer)
+                $connectionForm.Controls.Add($labelDatabase)
+                $connectionForm.Controls.Add($txtDatabase)
+                $connectionForm.Controls.Add($labelPassword)
+                $connectionForm.Controls.Add($txtPassword)
+                $connectionForm.Controls.Add($btnOK)
+                $connectionForm.ShowDialog()
+            })
+#Boton para desconectar de la base de datos
+    $btnDisconnectDb.Add_Click({
+        try {
+            # Cerrar la conexión
+            $global:connection.Close()
+            Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
+    
+            # Restaurar el label al estado original
+            $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
+            $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Red
+    
+            # Habilitar el botón de conectar y deshabilitar el de desconectar
+            $btnConnectDb.Enabled = $true
+            $btnDisconnectDb.Enabled = $false
+            $btnFechaRevEstaciones.Enabled = $false
+            $btnReviewPivot.Enabled = $false
+        } catch {
+            Write-Host "`nError al desconectar: $_" -ForegroundColor Red
         }
     })
-    $ipAssignTextBox1.Add_TextChanged({
-        if ($ipAssignTextBox1.Text.Length -eq 3) { $ipAssignTextBox2.Focus() }
-    })
-    $ipAssignForm.Controls.Add($ipAssignTextBox1)
-
-    $ipAssignLabelDot1 = New-Object System.Windows.Forms.Label
-    $ipAssignLabelDot1.Text = "."
-    $ipAssignLabelDot1.Location = New-Object System.Drawing.Point(65, 53)
-    $ipAssignLabelDot1.AutoSize = $true
-    $ipAssignForm.Controls.Add($ipAssignLabelDot1)
-
-    $ipAssignTextBox2 = New-Object System.Windows.Forms.TextBox
-    $ipAssignTextBox2.Location = New-Object System.Drawing.Point(80, 50)
-    $ipAssignTextBox2.Size = New-Object System.Drawing.Size(50, 20)
-    $ipAssignTextBox2.MaxLength = 3
-    $ipAssignTextBox2.Add_KeyPress({
-        if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
-        if ($_.KeyChar -eq '.') {
-            $ipAssignTextBox3.Focus()
-            $_.Handled = $true
-        }
-    })
-    $ipAssignTextBox2.Add_TextChanged({
-        if ($ipAssignTextBox2.Text.Length -eq 3) { $ipAssignTextBox3.Focus() }
-    })
-    $ipAssignForm.Controls.Add($ipAssignTextBox2)
-
-    $ipAssignLabelDot2 = New-Object System.Windows.Forms.Label
-    $ipAssignLabelDot2.Text = "."
-    $ipAssignLabelDot2.Location = New-Object System.Drawing.Point(135, 53)
-    $ipAssignLabelDot2.AutoSize = $true
-    $ipAssignForm.Controls.Add($ipAssignLabelDot2)
-
-    $ipAssignTextBox3 = New-Object System.Windows.Forms.TextBox
-    $ipAssignTextBox3.Location = New-Object System.Drawing.Point(150, 50)
-    $ipAssignTextBox3.Size = New-Object System.Drawing.Size(50, 20)
-    $ipAssignTextBox3.MaxLength = 3
-    $ipAssignTextBox3.Add_KeyPress({
-        if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
-        if ($_.KeyChar -eq '.') {
-            $ipAssignTextBox4.Focus()
-            $_.Handled = $true
-        }
-    })
-    $ipAssignTextBox3.Add_TextChanged({
-        if ($ipAssignTextBox3.Text.Length -eq 3) { $ipAssignTextBox4.Focus() }
-    })
-    $ipAssignForm.Controls.Add($ipAssignTextBox3)
-
-    $ipAssignLabelDot3 = New-Object System.Windows.Forms.Label
-    $ipAssignLabelDot3.Text = "."
-    $ipAssignLabelDot3.Location = New-Object System.Drawing.Point(205, 53)
-    $ipAssignLabelDot3.AutoSize = $true
-    $ipAssignForm.Controls.Add($ipAssignLabelDot3)
-
-    $ipAssignTextBox4 = New-Object System.Windows.Forms.TextBox
-    $ipAssignTextBox4.Location = New-Object System.Drawing.Point(220, 50)
-    $ipAssignTextBox4.Size = New-Object System.Drawing.Size(50, 20)
-    $ipAssignTextBox4.MaxLength = 3
-    $ipAssignTextBox4.Add_KeyPress({
-        if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8) { $_.Handled = $true }
-    })
-    $ipAssignForm.Controls.Add($ipAssignTextBox4)
-
-    $ipAssignButton = New-Object System.Windows.Forms.Button
-    $ipAssignButton.Text = "Aceptar"
-    $ipAssignButton.Location = New-Object System.Drawing.Point(100, 80)
-    $ipAssignButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
-    $ipAssignForm.AcceptButton = $ipAssignButton
-    $ipAssignForm.Controls.Add($ipAssignButton)
-    $result = $ipAssignForm.ShowDialog()
-    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-        $octet1 = [int]$ipAssignTextBox1.Text
-        $octet2 = [int]$ipAssignTextBox2.Text
-        $octet3 = [int]$ipAssignTextBox3.Text
-        $octet4 = [int]$ipAssignTextBox4.Text
-
-        if ($octet1 -ge 0 -and $octet1 -le 255 -and
-            $octet2 -ge 0 -and $octet2 -le 255 -and
-            $octet3 -ge 0 -and $octet3 -le 255 -and
-            $octet4 -ge 0 -and $octet4 -le 255) {
-            $newIp = "$octet1.$octet2.$octet3.$octet4"
-
-            if ($newIp -eq "0.0.0.0") {
-                Write-Host "La dirección IP no puede ser 0.0.0.0." -ForegroundColor Red
-                [System.Windows.Forms.MessageBox]::Show("La dirección IP no puede ser 0.0.0.0.", "Error")
-                return $null
+# Evento de clic para el botón de respaldo
+    $btnRespaldarRestcard.Add_Click({
+        Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
+        # Crear la segunda ventana para ingresar los datos de conexión
+        $formRespaldarRestcard = New-Object System.Windows.Forms.Form
+        $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
+        $formRespaldarRestcard.Size = New-Object System.Drawing.Size(350, 210)
+        $formRespaldarRestcard.StartPosition = "CenterScreen"
+        $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+        $formRespaldarRestcard.MaximizeBox = $false
+        $formRespaldarRestcard.MinimizeBox = $false
+    
+        # Etiquetas y controles para ingresar la información de conexión
+        $lblUsuarioRestcard = New-Object System.Windows.Forms.Label
+        $lblUsuarioRestcard.Text = "Usuario:"
+        $lblUsuarioRestcard.Location = New-Object System.Drawing.Point(20, 40)
+    
+        $txtUsuarioRestcard = New-Object System.Windows.Forms.TextBox
+        $txtUsuarioRestcard.Location = New-Object System.Drawing.Point(120, 40)
+        $txtUsuarioRestcard.Width = 200
+    
+        $lblBaseDeDatosRestcard = New-Object System.Windows.Forms.Label
+        $lblBaseDeDatosRestcard.Text = "Base de Datos:"
+        $lblBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(20, 65)
+    
+        $txtBaseDeDatosRestcard = New-Object System.Windows.Forms.TextBox
+        $txtBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(120, 65)
+        $txtBaseDeDatosRestcard.Width = 200
+    
+        $lblPasswordRestcard = New-Object System.Windows.Forms.Label
+        $lblPasswordRestcard.Text = "Contraseña:"
+        $lblPasswordRestcard.Location = New-Object System.Drawing.Point(20, 90)
+    
+        $txtPasswordRestcard = New-Object System.Windows.Forms.TextBox
+        $txtPasswordRestcard.Location = New-Object System.Drawing.Point(120, 90)
+        $txtPasswordRestcard.Width = 200
+        $txtPasswordRestcard.UseSystemPasswordChar = $true
+    
+        $lblHostnameRestcard = New-Object System.Windows.Forms.Label
+        $lblHostnameRestcard.Text = "Hostname:"
+        $lblHostnameRestcard.Location = New-Object System.Drawing.Point(20, 115)
+    
+        $txtHostnameRestcard = New-Object System.Windows.Forms.TextBox
+        $txtHostnameRestcard.Location = New-Object System.Drawing.Point(120, 115)
+        $txtHostnameRestcard.Width = 200
+    
+        # Crear el checkbox para llenar los datos por omisión
+        $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox
+        $chkLlenarDatos.Text = "Usar los datos por omisión"
+        $chkLlenarDatos.Location = New-Object System.Drawing.Point(5, 20)
+        $chkLlenarDatos.AutoSize = $true
+    
+        # Evento de cambio de estado del checkbox
+        $chkLlenarDatos.Add_CheckedChanged({
+            if ($chkLlenarDatos.Checked) {
+                # Llenar los datos por omisión
+                $txtUsuarioRestcard.Text = "root"
+                $txtBaseDeDatosRestcard.Text = "restcard"
+                $txtPasswordRestcard.Text = "national"
+                $txtHostnameRestcard.Text = "localhost"
             } else {
-                Write-Host "Nueva IP ingresada: $newIp" -ForegroundColor Green
-                return $newIp
+                # Limpiar los campos
+                $txtUsuarioRestcard.Clear()
+                $txtBaseDeDatosRestcard.Clear()
+                $txtPasswordRestcard.Clear()
+                $txtHostnameRestcard.Clear()
             }
-        } else {
-            Write-Host "Uno o más octetos están fuera del rango válido (0-255)." -ForegroundColor Red
-            [System.Windows.Forms.MessageBox]::Show("Uno o más octetos están fuera del rango válido (0-255).", "Error")
-            return $null
-        }
-    } else {
-        return $null
-    }
-}
-# ------------------------------ funcion para impresoras
-$btnConfigurarIPs.Add_Click({
-        $ipAssignFormAsignacion = New-Object System.Windows.Forms.Form
-        $ipAssignFormAsignacion.Text = "Asignación de IPs"
-        $ipAssignFormAsignacion.Size = New-Object System.Drawing.Size(400, 200)
-        $ipAssignFormAsignacion.StartPosition = "CenterScreen"
-        $ipAssignFormAsignacion.BackColor = [System.Drawing.Color]::White
-        $ipAssignFormAsignacion.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-        $ipAssignFormAsignacion.font = $defaultFont
-        $ipAssignFormAsignacion.MinimizeBox = $false
-        $ipAssignFormAsignacion.MaximizeBox = $false
-        #interfaz
-        $ipAssignLabelAdapter = New-Object System.Windows.Forms.Label
-        $ipAssignLabelAdapter.Text = "Seleccione el adaptador de red:"
-        $ipAssignLabelAdapter.Location = New-Object System.Drawing.Point(10, 20)
-        $ipAssignLabelAdapter.AutoSize = $true
-        $ipAssignFormAsignacion.Controls.Add($ipAssignLabelAdapter)
-        $ipAssignComboBoxAdapters = New-Object System.Windows.Forms.ComboBox
-        $ipAssignComboBoxAdapters.Location = New-Object System.Drawing.Point(10, 50)
-        $ipAssignComboBoxAdapters.Size = New-Object System.Drawing.Size(360, 20)
-        $ipAssignComboBoxAdapters.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-        $ipAssignComboBoxAdapters.Text = "Selecciona 1 adaptador de red"
-                    # Agregar evento para habilitar botones cuando se selecciona un adaptador
-                    $ipAssignComboBoxAdapters.Add_SelectedIndexChanged({
-                        # Verificar si se ha seleccionado un adaptador distinto de la opción por defecto
-                        if ($ipAssignComboBoxAdapters.SelectedItem -ne "") {
-                            # Habilitar los botones si se ha seleccionado un adaptador
-                            $ipAssignButtonAssignIP.Enabled = $true
-                            $ipAssignButtonChangeToDhcp.Enabled = $true
-                        } else {
-                            # Deshabilitar los botones si no se ha seleccionado un adaptador
-                            $ipAssignButtonAssignIP.Enabled = $false
-                            $ipAssignButtonChangeToDhcp.Enabled = $false
+        })
+    
+        # Crear botón para ejecutar el respaldo
+        $btnRespaldar = New-Object System.Windows.Forms.Button
+        $btnRespaldar.Text = "Respaldar"
+        $btnRespaldar.Location = New-Object System.Drawing.Point(20, 140)
+        $btnRespaldar.Size = New-Object System.Drawing.Size(140, 25)
+    
+        # Evento de clic para el botón de respaldo
+                    $btnRespaldar.Add_Click({
+                        # Obtener los valores del formulario
+                        $usuarioRestcard = $txtUsuarioRestcard.Text
+                        $baseDeDatosRestcard = $txtBaseDeDatosRestcard.Text
+                        $passwordRestcard = $txtPasswordRestcard.Text
+                        $hostnameRestcard = $txtHostnameRestcard.Text
+                    
+                        # Validar que la información no esté vacía
+                        if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "") {
+                            [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                            return
                         }
-                    })
-            $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
-            foreach ($adapter in $adapters) {
-                $ipAssignComboBoxAdapters.Items.Add($adapter.Name)
-            }
-        $ipAssignFormAsignacion.Controls.Add($ipAssignComboBoxAdapters)
-        $ipAssignLabelIps = New-Object System.Windows.Forms.Label
-        $ipAssignLabelIps.Text = "IPs asignadas:"
-        $ipAssignLabelIps.Location = New-Object System.Drawing.Point(10, 80)
-        $ipAssignLabelIps.AutoSize = $true
-            $ipAssignFormAsignacion.Controls.Add($ipAssignLabelIps)
-        $ipAssignButtonAssignIP = New-Object System.Windows.Forms.Button
-        $ipAssignButtonAssignIP.Text = "Asignar Nueva IP"
-        $ipAssignButtonAssignIP.Location = New-Object System.Drawing.Point(10, 120)
-        $ipAssignButtonAssignIP.Size = New-Object System.Drawing.Size(120, 30)
-        $ipAssignButtonAssignIP.Enabled = $false
-        $ipAssignButtonAssignIP.Add_Click({
-            $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
-            if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
-                Write-Host "`nPor favor, selecciona un adaptador de red." -ForegroundColor Red
-                [System.Windows.Forms.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error")
-                return
-            }
-            $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
-            $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
-    
-            if ($currentConfig) {
-                $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
-                $currentIPAddress = $currentConfig.IPAddress
-                $currentPrefixLength = $currentConfig.PrefixLength
-                $currentGateway = (Get-NetIPConfiguration -InterfaceAlias $selectedAdapter.Name).IPv4DefaultGateway | Select-Object -ExpandProperty NextHop
-    
-                if (-not $isDhcp) {
-                    Write-Host "`nEl adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?" -ForegroundColor Yellow
-                    $confirmation = [System.Windows.Forms.MessageBox]::Show("El adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-                    if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
-                        $newIp = Show-NewIpForm
-                        if ($newIp) {
-                            $existingIp = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.IPAddress -eq $newIp }
-                            if ($existingIp) {
-                                Write-Host "`nLa dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name)." -ForegroundColor Red
-                                [System.Windows.Forms.MessageBox]::Show("La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name).", "Error")
+                    
+                        $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
+                        $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
+                        Write-Host "Selecciona la carpeta donde guardar el respaldo" -ForegroundColor Yellow
+                        if ($folderDialog.ShowDialog() -eq "OK") {
+                            # Obtener la ruta seleccionada
+                            Write-Host "Realizando respaldo para la base de datos." -ForegroundColor Green
+                            Write-Host "`tBase de datos:`t $baseDeDatosRestcard"
+                            Write-Host "`tEn el servidor:`t $hostnameRestcard"
+                            Write-Host "`tCon el usuario:`t $usuarioRestcard"
+                            $folderPath = $folderDialog.SelectedPath
+                            # Crear la ruta con el timestamp
+                            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+                            $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
+                    
+                            # Ejecutar el comando mysqldump para hacer el respaldo
+                            $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`""
+                            $process = Start-Process -FilePath "mysqldump" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
+                    
+                            # Verificar si el respaldo se realizó correctamente
+                            if ($process.ExitCode -eq 0) {
+                                # Obtener el tamaño del archivo generado
+                                $tamañoArchivo = (Get-Item $rutaRespaldo).Length / 1KB
+                                $tamañoArchivo = [math]::Round($tamañoArchivo, 2)
+                                Write-Host "Respaldo completado correctamente. Tamaño del archivo: $tamañoArchivo KB" -ForegroundColor Green
                             } else {
-                                try {
-                                    New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
-                                    Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
-                                    [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
-    
-                                    # Actualizar la lista de IPs asignadas
-                                    $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
-                                    $ips = $currentIPs.IPAddress -join ", "
-                                    $ipAssignLabelIps.Text = "IPs asignadas: $ips"
-                                } catch {
-                                    Write-Host "`nError al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
-                                    [System.Windows.Forms.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)", "Error")
+                                # Mostrar el error en rojo con tabulación
+                                Write-Host "`tError: No se pudo realizar el respaldo. Verifica los datos de conexión y la base de datos." -ForegroundColor Red
+                                # Eliminar el archivo de respaldo si el proceso falló
+                                if (Test-Path $rutaRespaldo) {
+                                    Remove-Item $rutaRespaldo
+                                    Write-Host "`tArchivo de respaldo eliminado debido a un error." -ForegroundColor Yellow
                                 }
                             }
+                    
+                            # Cerrar la segunda ventana después de completar el respaldo
+                            $formRespaldarRestcard.Close()
                         }
-                    }
+                    })
+    
+        # Crear botón para salir
+        $btnSalirRestcard = New-Object System.Windows.Forms.Button
+        $btnSalirRestcard.Text = "Salir"
+        $btnSalirRestcard.Size = New-Object System.Drawing.Size(140, 25)
+        $btnSalirRestcard.Location = New-Object System.Drawing.Point(185, 140)
+        $btnSalirRestcard.BackColor = [System.Drawing.Color]::DarkGray
+    
+        # Evento de clic para el botón de salir
+        $btnSalirRestcard.Add_Click({
+            Write-Host "`tSalió sin realizar respaldo." -ForegroundColor Red
+            $formRespaldarRestcard.Close()
+        })
+    
+        # Agregar controles a la segunda ventana
+        $formRespaldarRestcard.Controls.Add($lblUsuarioRestcard)
+        $formRespaldarRestcard.Controls.Add($txtUsuarioRestcard)
+        $formRespaldarRestcard.Controls.Add($lblBaseDeDatosRestcard)
+        $formRespaldarRestcard.Controls.Add($txtBaseDeDatosRestcard)
+        $formRespaldarRestcard.Controls.Add($lblPasswordRestcard)
+        $formRespaldarRestcard.Controls.Add($txtPasswordRestcard)
+        $formRespaldarRestcard.Controls.Add($lblHostnameRestcard)
+        $formRespaldarRestcard.Controls.Add($txtHostnameRestcard)
+        $formRespaldarRestcard.Controls.Add($chkLlenarDatos)
+        $formRespaldarRestcard.Controls.Add($btnRespaldar)
+        $formRespaldarRestcard.Controls.Add($btnSalirRestcard)
+    
+        # Mostrar la segunda ventana
+        $formRespaldarRestcard.ShowDialog()
+    })
+    
+    function Show-NewIpForm {
+        $ipAssignForm = New-Object System.Windows.Forms.Form
+        $ipAssignForm.Text = "Agregar IP Adicional"
+        $ipAssignForm.Size = New-Object System.Drawing.Size(350, 150)
+        $ipAssignForm.StartPosition = "CenterScreen"
+    
+        $ipAssignLabel = New-Object System.Windows.Forms.Label
+        $ipAssignLabel.Text = "Ingrese la nueva dirección IP:"
+        $ipAssignLabel.Location = New-Object System.Drawing.Point(10, 20)
+        $ipAssignLabel.AutoSize = $true
+        $ipAssignForm.Controls.Add($ipAssignLabel)
+    
+        $ipAssignTextBox1 = New-Object System.Windows.Forms.TextBox
+        $ipAssignTextBox1.Location = New-Object System.Drawing.Point(10, 50)
+        $ipAssignTextBox1.Size = New-Object System.Drawing.Size(50, 20)
+        $ipAssignTextBox1.MaxLength = 3
+        $ipAssignTextBox1.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
+            if ($_.KeyChar -eq '.') {
+                $ipAssignTextBox2.Focus()
+                $_.Handled = $true
+            }
+        })
+        $ipAssignTextBox1.Add_TextChanged({
+            if ($ipAssignTextBox1.Text.Length -eq 3) { $ipAssignTextBox2.Focus() }
+        })
+        $ipAssignForm.Controls.Add($ipAssignTextBox1)
+    
+        $ipAssignLabelDot1 = New-Object System.Windows.Forms.Label
+        $ipAssignLabelDot1.Text = "."
+        $ipAssignLabelDot1.Location = New-Object System.Drawing.Point(65, 53)
+        $ipAssignLabelDot1.AutoSize = $true
+        $ipAssignForm.Controls.Add($ipAssignLabelDot1)
+    
+        $ipAssignTextBox2 = New-Object System.Windows.Forms.TextBox
+        $ipAssignTextBox2.Location = New-Object System.Drawing.Point(80, 50)
+        $ipAssignTextBox2.Size = New-Object System.Drawing.Size(50, 20)
+        $ipAssignTextBox2.MaxLength = 3
+        $ipAssignTextBox2.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
+            if ($_.KeyChar -eq '.') {
+                $ipAssignTextBox3.Focus()
+                $_.Handled = $true
+            }
+        })
+        $ipAssignTextBox2.Add_TextChanged({
+            if ($ipAssignTextBox2.Text.Length -eq 3) { $ipAssignTextBox3.Focus() }
+        })
+        $ipAssignForm.Controls.Add($ipAssignTextBox2)
+    
+        $ipAssignLabelDot2 = New-Object System.Windows.Forms.Label
+        $ipAssignLabelDot2.Text = "."
+        $ipAssignLabelDot2.Location = New-Object System.Drawing.Point(135, 53)
+        $ipAssignLabelDot2.AutoSize = $true
+        $ipAssignForm.Controls.Add($ipAssignLabelDot2)
+    
+        $ipAssignTextBox3 = New-Object System.Windows.Forms.TextBox
+        $ipAssignTextBox3.Location = New-Object System.Drawing.Point(150, 50)
+        $ipAssignTextBox3.Size = New-Object System.Drawing.Size(50, 20)
+        $ipAssignTextBox3.MaxLength = 3
+        $ipAssignTextBox3.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
+            if ($_.KeyChar -eq '.') {
+                $ipAssignTextBox4.Focus()
+                $_.Handled = $true
+            }
+        })
+        $ipAssignTextBox3.Add_TextChanged({
+            if ($ipAssignTextBox3.Text.Length -eq 3) { $ipAssignTextBox4.Focus() }
+        })
+        $ipAssignForm.Controls.Add($ipAssignTextBox3)
+    
+        $ipAssignLabelDot3 = New-Object System.Windows.Forms.Label
+        $ipAssignLabelDot3.Text = "."
+        $ipAssignLabelDot3.Location = New-Object System.Drawing.Point(205, 53)
+        $ipAssignLabelDot3.AutoSize = $true
+        $ipAssignForm.Controls.Add($ipAssignLabelDot3)
+    
+        $ipAssignTextBox4 = New-Object System.Windows.Forms.TextBox
+        $ipAssignTextBox4.Location = New-Object System.Drawing.Point(220, 50)
+        $ipAssignTextBox4.Size = New-Object System.Drawing.Size(50, 20)
+        $ipAssignTextBox4.MaxLength = 3
+        $ipAssignTextBox4.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8) { $_.Handled = $true }
+        })
+        $ipAssignForm.Controls.Add($ipAssignTextBox4)
+    
+        $ipAssignButton = New-Object System.Windows.Forms.Button
+        $ipAssignButton.Text = "Aceptar"
+        $ipAssignButton.Location = New-Object System.Drawing.Point(100, 80)
+        $ipAssignButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+        $ipAssignForm.AcceptButton = $ipAssignButton
+        $ipAssignForm.Controls.Add($ipAssignButton)
+        $result = $ipAssignForm.ShowDialog()
+        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+            $octet1 = [int]$ipAssignTextBox1.Text
+            $octet2 = [int]$ipAssignTextBox2.Text
+            $octet3 = [int]$ipAssignTextBox3.Text
+            $octet4 = [int]$ipAssignTextBox4.Text
+    
+            if ($octet1 -ge 0 -and $octet1 -le 255 -and
+                $octet2 -ge 0 -and $octet2 -le 255 -and
+                $octet3 -ge 0 -and $octet3 -le 255 -and
+                $octet4 -ge 0 -and $octet4 -le 255) {
+                $newIp = "$octet1.$octet2.$octet3.$octet4"
+    
+                if ($newIp -eq "0.0.0.0") {
+                    Write-Host "La dirección IP no puede ser 0.0.0.0." -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show("La dirección IP no puede ser 0.0.0.0.", "Error")
+                    return $null
                 } else {
-                    Write-Host "`n¿Desea cambiar a IP fija usando la IP actual ($currentIPAddress)?" -ForegroundColor Yellow
-                    $confirmation = [System.Windows.Forms.MessageBox]::Show("¿Desea cambiar a IP fija usando la IP actual ($currentIPAddress)?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-                    if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
-                        try {
-                            Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Disabled
-                            New-NetIPAddress -IPAddress $currentIPAddress -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
-    
-                            if ($currentGateway) {
-                                Remove-NetRoute -InterfaceAlias $selectedAdapter.Name -NextHop $currentGateway -Confirm:$false -ErrorAction SilentlyContinue
-                                New-NetRoute -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -NextHop $currentGateway -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue
+                    Write-Host "Nueva IP ingresada: $newIp" -ForegroundColor Green
+                    return $newIp
+                }
+            } else {
+                Write-Host "Uno o más octetos están fuera del rango válido (0-255)." -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show("Uno o más octetos están fuera del rango válido (0-255).", "Error")
+                return $null
+            }
+        } else {
+            return $null
+        }
+    }
+# ------------------------------ funcion para impresoras
+    $btnConfigurarIPs.Add_Click({
+            $ipAssignFormAsignacion = New-Object System.Windows.Forms.Form
+            $ipAssignFormAsignacion.Text = "Asignación de IPs"
+            $ipAssignFormAsignacion.Size = New-Object System.Drawing.Size(400, 200)
+            $ipAssignFormAsignacion.StartPosition = "CenterScreen"
+            $ipAssignFormAsignacion.BackColor = [System.Drawing.Color]::White
+            $ipAssignFormAsignacion.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+            $ipAssignFormAsignacion.font = $defaultFont
+            $ipAssignFormAsignacion.MinimizeBox = $false
+            $ipAssignFormAsignacion.MaximizeBox = $false
+            #interfaz
+            $ipAssignLabelAdapter = New-Object System.Windows.Forms.Label
+            $ipAssignLabelAdapter.Text = "Seleccione el adaptador de red:"
+            $ipAssignLabelAdapter.Location = New-Object System.Drawing.Point(10, 20)
+            $ipAssignLabelAdapter.AutoSize = $true
+            $ipAssignFormAsignacion.Controls.Add($ipAssignLabelAdapter)
+            $ipAssignComboBoxAdapters = New-Object System.Windows.Forms.ComboBox
+            $ipAssignComboBoxAdapters.Location = New-Object System.Drawing.Point(10, 50)
+            $ipAssignComboBoxAdapters.Size = New-Object System.Drawing.Size(360, 20)
+            $ipAssignComboBoxAdapters.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+            $ipAssignComboBoxAdapters.Text = "Selecciona 1 adaptador de red"
+                        # Agregar evento para habilitar botones cuando se selecciona un adaptador
+                        $ipAssignComboBoxAdapters.Add_SelectedIndexChanged({
+                            # Verificar si se ha seleccionado un adaptador distinto de la opción por defecto
+                            if ($ipAssignComboBoxAdapters.SelectedItem -ne "") {
+                                # Habilitar los botones si se ha seleccionado un adaptador
+                                $ipAssignButtonAssignIP.Enabled = $true
+                                $ipAssignButtonChangeToDhcp.Enabled = $true
+                            } else {
+                                # Deshabilitar los botones si no se ha seleccionado un adaptador
+                                $ipAssignButtonAssignIP.Enabled = $false
+                                $ipAssignButtonChangeToDhcp.Enabled = $false
                             }
-    
-                            $dnsServers = @("8.8.8.8", "8.8.4.4")
-                            Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ServerAddresses $dnsServers
-    
-                            Write-Host "`nSe cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
-                            [System.Windows.Forms.MessageBox]::Show("Se cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name).", "Éxito")
-    
-                            # Actualizar la lista de IPs asignadas
-                            $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
-                            $ips = $currentIPs.IPAddress -join ", "
-                            $ipAssignLabelIps.Text = "IPs asignadas: $ips"
-    
-                            Write-Host "`n¿Desea agregar una dirección IP adicional?" -ForegroundColor Yellow
-                            $confirmationAdditionalIP = [System.Windows.Forms.MessageBox]::Show("¿Desea agregar una dirección IP adicional?", "IP Adicional", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-                            if ($confirmationAdditionalIP -eq [System.Windows.Forms.DialogResult]::Yes) {
-                                $newIp = Show-NewIpForm
-                                if ($newIp) {
-                                    $existingIp = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.IPAddress -eq $newIp }
-                                    if ($existingIp) {
-                                        Write-Host "`nLa dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name)." -ForegroundColor Red
-                                        [System.Windows.Forms.MessageBox]::Show("La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name).", "Error")
-                                    } else {
-                                        try {
-                                            New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
-                                            Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
-                                            [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
-    
-                                            # Actualizar la lista de IPs asignadas
-                                            $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
-                                            $ips = $currentIPs.IPAddress -join ", "
-                                            $ipAssignLabelIps.Text = "IPs asignadas: $ips"
-                                        } catch {
-                                            Write-Host "`nError al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
-                                            [System.Windows.Forms.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)", "Error")
-                                        }
+                        })
+                $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
+                foreach ($adapter in $adapters) {
+                    $ipAssignComboBoxAdapters.Items.Add($adapter.Name)
+                }
+            $ipAssignFormAsignacion.Controls.Add($ipAssignComboBoxAdapters)
+            $ipAssignLabelIps = New-Object System.Windows.Forms.Label
+            $ipAssignLabelIps.Text = "IPs asignadas:"
+            $ipAssignLabelIps.Location = New-Object System.Drawing.Point(10, 80)
+            $ipAssignLabelIps.AutoSize = $true
+            $ipAssignFormAsignacion.Controls.Add($ipAssignLabelIps)
+            $ipAssignButtonAssignIP = Create-Button -Text "Asignar Nueva IP" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(120, 30))
+            $ipAssignButtonAssignIP.Enabled = $false
+            $ipAssignButtonAssignIP.Add_Click({
+                $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
+                if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
+                    Write-Host "`nPor favor, selecciona un adaptador de red." -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error")
+                    return
+                }
+                $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
+                $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
+        
+                if ($currentConfig) {
+                    $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
+                    $currentIPAddress = $currentConfig.IPAddress
+                    $currentPrefixLength = $currentConfig.PrefixLength
+                    $currentGateway = (Get-NetIPConfiguration -InterfaceAlias $selectedAdapter.Name).IPv4DefaultGateway | Select-Object -ExpandProperty NextHop
+        
+                    if (-not $isDhcp) {
+                        Write-Host "`nEl adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?" -ForegroundColor Yellow
+                        $confirmation = [System.Windows.Forms.MessageBox]::Show("El adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                        if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
+                            $newIp = Show-NewIpForm
+                            if ($newIp) {
+                                $existingIp = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.IPAddress -eq $newIp }
+                                if ($existingIp) {
+                                    Write-Host "`nLa dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name)." -ForegroundColor Red
+                                    [System.Windows.Forms.MessageBox]::Show("La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name).", "Error")
+                                } else {
+                                    try {
+                                        New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
+                                        Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                        [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
+        
+                                        # Actualizar la lista de IPs asignadas
+                                        $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                                        $ips = $currentIPs.IPAddress -join ", "
+                                        $ipAssignLabelIps.Text = "IPs asignadas: $ips"
+                                    } catch {
+                                        Write-Host "`nError al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
+                                        [System.Windows.Forms.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)", "Error")
                                     }
                                 }
                             }
-                        } catch {
-                            Write-Host "`nError al cambiar a IP fija: $($_.Exception.Message)" -ForegroundColor Red
-                            [System.Windows.Forms.MessageBox]::Show("Error al cambiar a IP fija: $($_.Exception.Message)", "Error")
                         }
-                    }
-                }
-            } else {
-                Write-Host "`nNo se pudo obtener la configuración actual del adaptador." -ForegroundColor Red
-                [System.Windows.Forms.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error")
-            }
-        })
-        $ipAssignFormAsignacion.Controls.Add($ipAssignButtonAssignIP)
-        $ipAssignButtonChangeToDhcp = New-Object System.Windows.Forms.Button
-        $ipAssignButtonChangeToDhcp.Text = "Cambiar a DHCP"
-        $ipAssignButtonChangeToDhcp.Location = New-Object System.Drawing.Point(140, 120)
-        $ipAssignButtonChangeToDhcp.Size = New-Object System.Drawing.Size(120, 30)
-        $ipAssignButtonChangeToDhcp.Enabled = $false
-        $ipAssignButtonChangeToDhcp.Add_Click({
-            $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
-            if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
-                Write-Host "`nPor favor, selecciona un adaptador de red." -ForegroundColor Red
-                [System.Windows.Forms.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error")
-                return
-            }
-            $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
-            $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
-    
-            if ($currentConfig) {
-                $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
-                if ($isDhcp) {
-                    Write-Host "`nEl adaptador ya está en DHCP." -ForegroundColor Yellow
-                    [System.Windows.Forms.MessageBox]::Show("El adaptador ya está en DHCP.", "Información")
-                } else {
-                    Write-Host "`n¿Está seguro de que desea cambiar a DHCP?" -ForegroundColor Yellow
-                    $confirmation = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea cambiar a DHCP?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-                    if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
-                        try {
-                            $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq "Manual" }
-                            foreach ($ip in $currentIPs) {
-                                Remove-NetIPAddress -IPAddress $ip.IPAddress -PrefixLength $ip.PrefixLength -Confirm:$false -ErrorAction SilentlyContinue
+                    } else {
+                        Write-Host "`n¿Desea cambiar a IP fija usando la IP actual ($currentIPAddress)?" -ForegroundColor Yellow
+                        $confirmation = [System.Windows.Forms.MessageBox]::Show("¿Desea cambiar a IP fija usando la IP actual ($currentIPAddress)?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                        if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
+                            try {
+                                Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Disabled
+                                New-NetIPAddress -IPAddress $currentIPAddress -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
+        
+                                if ($currentGateway) {
+                                    Remove-NetRoute -InterfaceAlias $selectedAdapter.Name -NextHop $currentGateway -Confirm:$false -ErrorAction SilentlyContinue
+                                    New-NetRoute -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -NextHop $currentGateway -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue
+                                }
+        
+                                $dnsServers = @("8.8.8.8", "8.8.4.4")
+                                Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ServerAddresses $dnsServers
+        
+                                Write-Host "`nSe cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                [System.Windows.Forms.MessageBox]::Show("Se cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name).", "Éxito")
+        
+                                # Actualizar la lista de IPs asignadas
+                                $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                                $ips = $currentIPs.IPAddress -join ", "
+                                $ipAssignLabelIps.Text = "IPs asignadas: $ips"
+        
+                                Write-Host "`n¿Desea agregar una dirección IP adicional?" -ForegroundColor Yellow
+                                $confirmationAdditionalIP = [System.Windows.Forms.MessageBox]::Show("¿Desea agregar una dirección IP adicional?", "IP Adicional", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                                if ($confirmationAdditionalIP -eq [System.Windows.Forms.DialogResult]::Yes) {
+                                    $newIp = Show-NewIpForm
+                                    if ($newIp) {
+                                        $existingIp = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.IPAddress -eq $newIp }
+                                        if ($existingIp) {
+                                            Write-Host "`nLa dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name)." -ForegroundColor Red
+                                            [System.Windows.Forms.MessageBox]::Show("La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name).", "Error")
+                                        } else {
+                                            try {
+                                                New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
+                                                Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                                [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
+        
+                                                # Actualizar la lista de IPs asignadas
+                                                $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                                                $ips = $currentIPs.IPAddress -join ", "
+                                                $ipAssignLabelIps.Text = "IPs asignadas: $ips"
+                                            } catch {
+                                                Write-Host "`nError al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
+                                                [System.Windows.Forms.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)", "Error")
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch {
+                                Write-Host "`nError al cambiar a IP fija: $($_.Exception.Message)" -ForegroundColor Red
+                                [System.Windows.Forms.MessageBox]::Show("Error al cambiar a IP fija: $($_.Exception.Message)", "Error")
                             }
-                            Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Enabled
-                            Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ResetServerAddresses
-                            Write-Host "`nSe cambió a DHCP en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
-                            [System.Windows.Forms.MessageBox]::Show("Se cambió a DHCP en el adaptador $($selectedAdapter.Name).", "Éxito")
-    
-                            # Actualizar la lista de IPs asignadas
-                            $ipAssignLabelIps.Text = "Generando IP por DHCP. Seleccione de nuevo."
-                        } catch {
-                            Write-Host "`nError al cambiar a DHCP: $($_.Exception.Message)" -ForegroundColor Red
-                            [System.Windows.Forms.MessageBox]::Show("Error al cambiar a DHCP: $($_.Exception.Message)", "Error")
                         }
                     }
+                } else {
+                    Write-Host "`nNo se pudo obtener la configuración actual del adaptador." -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error")
                 }
-            } else {
-                Write-Host "`nNo se pudo obtener la configuración actual del adaptador." -ForegroundColor Red
-                [System.Windows.Forms.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error")
-            }
-        })
-        $ipAssignFormAsignacion.Controls.Add($ipAssignButtonChangeToDhcp)
-        # Agregar un botón "Cerrar" al formulario
-        $ipAssignButtonCloseForm = New-Object System.Windows.Forms.Button
-        $ipAssignButtonCloseForm.Text = "Cerrar"
-        $ipAssignButtonCloseForm.Location = New-Object System.Drawing.Point(270, 120)
-        $ipAssignButtonCloseForm.Size = New-Object System.Drawing.Size(100, 30)
-        $ipAssignButtonCloseForm.Add_Click({
-            $ipAssignFormAsignacion.Close()
-        })
-        $ipAssignFormAsignacion.Controls.Add($ipAssignButtonCloseForm)
-        $ipAssignComboBoxAdapters.Add_SelectedIndexChanged({
-            $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
-            if ($selectedAdapterName -ne "Selecciona 1 adaptador de red") {
+            })
+            $ipAssignFormAsignacion.Controls.Add($ipAssignButtonAssignIP)
+            $ipAssignButtonChangeToDhcp = New-Object System.Windows.Forms.Button
+            $ipAssignButtonChangeToDhcp.Text = "Cambiar a DHCP"
+            $ipAssignButtonChangeToDhcp.Location = New-Object System.Drawing.Point(140, 120)
+            $ipAssignButtonChangeToDhcp.Size = New-Object System.Drawing.Size(120, 30)
+            $ipAssignButtonChangeToDhcp.Enabled = $false
+            $ipAssignButtonChangeToDhcp.Add_Click({
+                $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
+                if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
+                    Write-Host "`nPor favor, selecciona un adaptador de red." -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error")
+                    return
+                }
                 $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
-                $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
-                $ips = $currentIPs.IPAddress -join ", "
-                $ipAssignLabelIps.Text = "IPs asignadas: $ips"
-            } else {
-                $ipAssignLabelIps.Text = "IPs asignadas:"
-            }
-        })
-        $ipAssignFormAsignacion.ShowDialog()
-})
-$btnExit.Add_Click({
-    $formPrincipal.Dispose()
-    $formPrincipal.Close()
-})
+                $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
+        
+                if ($currentConfig) {
+                    $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
+                    if ($isDhcp) {
+                        Write-Host "`nEl adaptador ya está en DHCP." -ForegroundColor Yellow
+                        [System.Windows.Forms.MessageBox]::Show("El adaptador ya está en DHCP.", "Información")
+                    } else {
+                        Write-Host "`n¿Está seguro de que desea cambiar a DHCP?" -ForegroundColor Yellow
+                        $confirmation = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea cambiar a DHCP?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                        if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
+                            try {
+                                $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq "Manual" }
+                                foreach ($ip in $currentIPs) {
+                                    Remove-NetIPAddress -IPAddress $ip.IPAddress -PrefixLength $ip.PrefixLength -Confirm:$false -ErrorAction SilentlyContinue
+                                }
+                                Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Enabled
+                                Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ResetServerAddresses
+                                Write-Host "`nSe cambió a DHCP en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                [System.Windows.Forms.MessageBox]::Show("Se cambió a DHCP en el adaptador $($selectedAdapter.Name).", "Éxito")
+        
+                                # Actualizar la lista de IPs asignadas
+                                $ipAssignLabelIps.Text = "Generando IP por DHCP. Seleccione de nuevo."
+                            } catch {
+                                Write-Host "`nError al cambiar a DHCP: $($_.Exception.Message)" -ForegroundColor Red
+                                [System.Windows.Forms.MessageBox]::Show("Error al cambiar a DHCP: $($_.Exception.Message)", "Error")
+                            }
+                        }
+                    }
+                } else {
+                    Write-Host "`nNo se pudo obtener la configuración actual del adaptador." -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error")
+                }
+            })
+            $ipAssignFormAsignacion.Controls.Add($ipAssignButtonChangeToDhcp)
+            # Agregar un botón "Cerrar" al formulario
+            $ipAssignButtonCloseForm = New-Object System.Windows.Forms.Button
+            $ipAssignButtonCloseForm.Text = "Cerrar"
+            $ipAssignButtonCloseForm.Location = New-Object System.Drawing.Point(270, 120)
+            $ipAssignButtonCloseForm.Size = New-Object System.Drawing.Size(100, 30)
+            $ipAssignButtonCloseForm.Add_Click({
+                $ipAssignFormAsignacion.Close()
+            })
+            $ipAssignFormAsignacion.Controls.Add($ipAssignButtonCloseForm)
+            $ipAssignComboBoxAdapters.Add_SelectedIndexChanged({
+                $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
+                if ($selectedAdapterName -ne "Selecciona 1 adaptador de red") {
+                    $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
+                    $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                    $ips = $currentIPs.IPAddress -join ", "
+                    $ipAssignLabelIps.Text = "IPs asignadas: $ips"
+                } else {
+                    $ipAssignLabelIps.Text = "IPs asignadas:"
+                }
+            })
+            $ipAssignFormAsignacion.ShowDialog()
+    })
+#Boton para salir
+    $btnExit.Add_Click({
+        $formPrincipal.Dispose()
+        $formPrincipal.Close()
+    })
 $formPrincipal.Refresh()
-# Mostrar el formulario principal
 $formPrincipal.ShowDialog()

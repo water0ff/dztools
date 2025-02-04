@@ -269,7 +269,7 @@ $lbIpAdress.Add_Click({
             }
         }
 # Crear la etiqueta para mostrar los adaptadores y su estado
-    $lblPerfilDeRed = Create-Label -Text "Estado de los Adaptadores:" -Location (New-Object System.Drawing.Point(245, 390)) -Size (New-Object System.Drawing.Size(236, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para cambiar la red a privada."
+    $lblPerfilDeRed = Create-Label -Text "Estado de los Adaptadores:" -Location (New-Object System.Drawing.Point(245, 390)) -Size (New-Object System.Drawing.Size(236, 25)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para cambiar la red a privada."
 # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
     $networkAdapters = Get-NetworkAdapterStatus
     $adapterInfo = ""
@@ -293,7 +293,7 @@ $lbIpAdress.Add_Click({
                 $label.ForeColor = $color
                 $label.Cursor = [System.Windows.Forms.Cursors]::Hand
                 $label.Size = New-Object System.Drawing.Size(236, 20)
-                $label.Location = New-Object System.Drawing.Point(245, (430 + (30 * $index)))  # Ajustar el desplazamiento de acuerdo con el índice
+                $label.Location = New-Object System.Drawing.Point(245, (410 + (30 * $index)))  # Ajustar el desplazamiento de acuerdo con el índice
             
                 # Función de cierre para capturar el adaptador actual
                 $adapterIndex = $adapter.InterfaceIndex

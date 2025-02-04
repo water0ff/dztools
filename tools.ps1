@@ -693,12 +693,12 @@ $btnClearAnyDesk.Add_Click({
 
             # Intentar cerrar el proceso AnyDesk
             try {
-                Write-Host "`nCerrando el proceso AnyDesk..."
+                Write-Host "`tCerrando el proceso AnyDesk..." -ForegroundColor Yellow
                 Stop-Process -Name "AnyDesk" -Force -ErrorAction Stop
-                Write-Host "`nAnyDesk ha sido cerrado correctamente."
+                Write-Host "`tAnyDesk ha sido cerrado correctamente." -ForegroundColor Green
             }
             catch {
-                Write-Host "`nError al cerrar el proceso AnyDesk: $_"
+                Write-Host "`tError al cerrar el proceso AnyDesk: $_" -ForegroundColor Red
                 $errors += "No se pudo cerrar el proceso AnyDesk."
             }
 
@@ -707,15 +707,15 @@ $btnClearAnyDesk.Add_Click({
                 try {
                     if (Test-Path $file) {
                         Remove-Item -Path $file -Force -ErrorAction Stop
-                        Write-Host "`nArchivo eliminado: $file"
+                        Write-Host "`tArchivo eliminado: $file" -ForegroundColor Green
                         $deletedFilesCount++
                     }
                     else {
-                        Write-Host "`nArchivo no encontrado: $file"
+                        Write-Host "`tArchivo no encontrado: $file" -ForegroundColor Red
                     }
                 }
                 catch {
-                    Write-Host "`nError al eliminar el archivo."
+                    Write-Host "`nError al eliminar el archivo." -ForegroundColor Red
                 }
             }
 
@@ -729,7 +729,7 @@ $btnClearAnyDesk.Add_Click({
         }
         else {
             # Si el usuario selecciona "No", simplemente no hace nada
-            Write-Host "`nRenovación de AnyDesk cancelada por el usuario."
+            Write-Host "`tRenovación de AnyDesk cancelada por el usuario."
         }
     })
 $btnShowPrinters.Add_Click({

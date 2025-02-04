@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "SQL.250204.1254"  # Valor predeterminado para la versión
+                                                                                                        $version = "SQL250204.1305"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -122,14 +122,15 @@ function Create-Label {
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 40)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 40)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
+                                    # Crear el botón btnEliminarServidorBDD
+                                    $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 80))  -ToolTip "Quitar servidor asignado a la base de datos."
+                                    $btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
+
     $btnReviewPivot = Create-Button -Text "Revisar Pivot Table" -Location (New-Object System.Drawing.Point(10, 110))
     $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
     $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 150))
     $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
     $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 190))
-                                    # Crear el botón btnEliminarServidorBDD
-                                    $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 80))  -ToolTip "Quitar servidor asignado a la base de datos."
-                                    $btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 310)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Crear el CheckBox chkSqlServer
     $chkSqlServer = New-Object System.Windows.Forms.CheckBox
@@ -169,18 +170,198 @@ function Create-Label {
     $tabProSql.Controls.Add($btnFechaRevEstaciones)
     $tabProSql.Controls.Add($lblConnectionStatus)
     $tabProSql.Controls.Add($btnConnectDb)
-    $tabProSql.Controls.Add($btnDisconnectDb)
-                                                    # Agregar el botón a la pestaña Pro
+                                                        # Agregar el botón a la pestaña Pro
                                                     $tabProSql.Controls.Add($btnEliminarServidorBDD)
+    $tabProSql.Controls.Add($btnDisconnectDb)
+#Funcion para copiar el puerto al portapapeles
+    $lblPort.Add_Click({
+        if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
+            $port = $matches[0]  # Extraer el número del texto
+            [System.Windows.Forms.Clipboard]::SetText($port)
+            Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
+        } else {
+            Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
+        }
+    })
+$lblHostname.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
+        Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
+    })
+$lbIpAdress.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($lbIpAdress.Text)
+        Write-Host "`nIP's copiadas al equipo: $($lbIpAdress.Text)"
+    })
+# Obtener las direcciones IP y los adaptadores
+                $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
+                    Where-Object { $_.OperationalStatus -eq 'Up' } |
+                    ForEach-Object {
+                        $interface = $_
+                        $interface.GetIPProperties().UnicastAddresses |
+                        Where-Object { 
+                            $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' 
+                        } |
+                        ForEach-Object {
+                            @{
+                                AdapterName = $interface.Name
+                                IPAddress = $_.Address.ToString()
+                            }
+                        }
+                    }
+# Construir el texto para mostrar todas las IPs y adaptadores
+                    if ($ipsWithAdapters.Count -gt 0) {
+                        # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
+                        $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
+                            $_.IPAddress
+                        }) -join ", "
+                        # Construir el texto para mostrar en el Label
+                        $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
+                            "Adaptador: $($_.AdapterName)`nIP: $($_.IPAddress)`n"
+                        }) -join "`n"
+                        # Asignar el texto al label
+                        $lbIpAdress.Text = "$ipsTextForLabel"
+                    } else {
+                        $lbIpAdress.Text = "No se encontraron direcciones IP"
+                    }
+# Configuración dinámica del tamaño del Label según la cantidad de líneas
+    $lineHeight = 15
+    $maxLines = $lbIpAdress.Text.Split("`n").Count
+    $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
+    $lbIpAdress.Size = New-Object System.Drawing.Size(240, $labelHeight)
+# Ajustar la altura del formulario según el Label de IPs
+    $formHeight = $formPrincipal.Size.Height + $labelHeight - 20
+    $formPrincipal.Size = New-Object System.Drawing.Size($formPrincipal.Size.Width, $formHeight)
+# Función para obtener adaptadores y sus estados (modificada)
+    function Get-NetworkAdapterStatus {
+        $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+        $profiles = Get-NetConnectionProfile
+        $adapterStatus = @()
+        foreach ($adapter in $adapters) {
+            $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
+            $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
+            $adapterStatus += [PSCustomObject]@{
+                AdapterName     = $adapter.Name
+                NetworkCategory = $networkCategory
+                InterfaceIndex  = $adapter.ifIndex  # Guardar el InterfaceIndex para identificar el adaptador
+            }
+        }
+        return $adapterStatus
+    }
+# Función para cambiar el estado de la red
+        function Set-NetworkCategory {
+            param (
+                [string]$category,
+                [int]$interfaceIndex,
+                [System.Windows.Forms.Label]$label
+            )
+            # Obtener el estado anterior
+            $profile = Get-NetConnectionProfile | Where-Object { $_.InterfaceIndex -eq $interfaceIndex }
+            $previousCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
+            
+            # Solo cambiar si la red es pública
+            if ($previousCategory -eq "Public") {
+                if ($category -eq "Privado") {
+                    Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Private
+                    Write-Host "Estado cambiado a Privado."
+                    $label.ForeColor = [System.Drawing.Color]::Green
+                    $label.Text = "$($label.Text.Split(' - ')[0]) - Privado"  # Actualizar el texto de la etiqueta
+                }
+            } else {
+                Write-Host "La red ya es privada o no es pública, no se realizará ningún cambio."
+            }
+        }
+# Crear la etiqueta para mostrar los adaptadores y su estado
+    $lblPerfilDeRed = Create-Label -Text "Estado de los Adaptadores:" -Location (New-Object System.Drawing.Point(245, 390)) -Size (New-Object System.Drawing.Size(236, 25)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para cambiar la red a privada."
+# Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
+    $networkAdapters = Get-NetworkAdapterStatus
+    $adapterInfo = ""
+# Usamos un contador para ubicar los labels
+            $index = 0
+            foreach ($adapter in $networkAdapters) {
+                $text = ""
+                $color = [System.Drawing.Color]::Green
+            
+                if ($adapter.NetworkCategory -eq "Private") {
+                    $text = "$($adapter.AdapterName) - Privado"
+                    $color = [System.Drawing.Color]::Green
+                } elseif ($adapter.NetworkCategory -eq "Public") {
+                    $text = "$($adapter.AdapterName) - Público"
+                    $color = [System.Drawing.Color]::Red
+                }
+            
+                # Crear un Label con la palabra "Público" o "Privado" clickeable
+                $label = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (415 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor $color
+            
+                # Función de cierre para capturar el adaptador actual
+                $adapterIndex = $adapter.InterfaceIndex
+                $label.Add_Click({
+                    # Obtener el adaptador asociado a este label
+                    $currentCategory = $adapter.NetworkCategory
+                    
+                    # Solo cambiar si la red es pública
+                    if ($currentCategory -eq "Public") {
+                        # Confirmar el cambio y llamar a la función de cambio
+                        $result = [System.Windows.Forms.MessageBox]::Show("¿Deseas cambiar el estado a Privado?", "Confirmar cambio", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                        
+                        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                            Set-NetworkCategory -category "Privado" -interfaceIndex $adapterIndex -label $label
+                        }
+                    } else {
+                        Write-Host "La red ya es privada o no es pública, no se realizará ningún cambio."
+                    }
+                })
+            
+                $adapterInfo += $label.Text + "`n"
+                $formPrincipal.Controls.Add($label)
+                # Incrementar el índice para la siguiente posición del label
+                $index++
+            }
 # Agregar los controles al formulario
-    $formPrincipal.Controls.Add($tabControl)
-    $formPrincipal.Controls.Add($lblHostname)
-    $formPrincipal.Controls.Add($lblPort)
-    $formPrincipal.Controls.Add($lbIpAdress)
-    $formPrincipal.Controls.Add($lblPerfilDeRed)
-    $formPrincipal.Controls.Add($btnExit)
+            $formPrincipal.Controls.Add($tabControl)
+            $formPrincipal.Controls.Add($lblHostname)
+            $formPrincipal.Controls.Add($lblPort)
+            $formPrincipal.Controls.Add($lbIpAdress)
+            $formPrincipal.Controls.Add($lblPerfilDeRed)
+            $formPrincipal.Controls.Add($btnExit)
+# Acción para el CheckBox, si el usuario lo marca manualmente
+$chkSqlServer.Add_CheckedChanged({
+    if ($chkSqlServer.Checked) {
+        # Confirmación con MsgBox
+        $result = [System.Windows.Forms.MessageBox]::Show("¿Estás seguro que deseas instalar las herramientas de SQL Server?", "Confirmar instalación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Write-Host "`nInstalando herramientas de SQL Server..."
+            $chkSqlServer.Enabled = $false
+            $installedSql = Check-SqlServerInstallation
+            if ($installedSql) {
+                $chkSqlServer.Checked = $true
+                $chkSqlServer.Enabled = $false  # Deshabilitar la edición si SQL Server está instalado
+            } else {
+                $chkSqlServer.Checked = $false
+            }
+            Install-Module -Name SqlServer -Force -Scope CurrentUser -AllowClobber
+            Write-Host "`nHerramientas de SQL Server instaladas."
+        } else {
+            # Desmarcar el checkbox si el usuario cancela
+            $chkSqlServer.Checked = $false
+            Write-Host "`nInstalación cancelada."
+        }
+    } else {
+        # Si el usuario desmarca el checkbox, se habilita para futuras instalaciones
+        $chkSqlServer.Enabled = $true
+    }
+    # Habilitar el botón de Conectar a BDD solo si las herramientas SQL Server están habilitadas
+    $btnConnectDb.Enabled = $chkSqlServer.Checked
+})
+# Obtener el puerto de SQL Server desde el registro
+        $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
+        $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
+
+        if ($tcpPort -and $tcpPort.TcpPort) {
+            $lblPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
+        } else {
+            $lblPort.Text = "No se encontró puerto o instancia."
+        }
 ##-------------------- FUNCIONES                                                          -------#
-# Función para ejecutar consultas SQL
+
 function Execute-SqlQuery {
     param (
         [string]$server,
@@ -192,18 +373,15 @@ function Execute-SqlQuery {
         $connectionString = "Server=$server;Database=$database;User Id=sa;Password=$($global:password);"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
         $connection.Open()
-
         # Ejecutar consulta
         $command = $connection.CreateCommand()
         $command.CommandText = $query
         $reader = $command.ExecuteReader()
-
         # Obtener los nombres de las columnas
         $columns = @()
         for ($i = 0; $i -lt $reader.FieldCount; $i++) {
             $columns += $reader.GetName($i)
         }
-
         # Leer los resultados
         $results = @()
         while ($reader.Read()) {
@@ -213,19 +391,14 @@ function Execute-SqlQuery {
             }
             $results += $row
         }
-
         # Cerrar la conexión y liberar recursos
-        $reader.Close()
         $connection.Close()
         $connection.Dispose()
-
         return $results
     } catch {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
-        return $null
     }
 }
-# Función para mostrar los resultados en la consola en columnas
 function Show-ResultsConsole {
     param (
         [string]$query
@@ -234,22 +407,13 @@ function Show-ResultsConsole {
         # Ejecutar la consulta y obtener los resultados
         $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
 
-        if ($results -and $results.Count -gt 0) {
-            # Obtener los nombres de las columnas
+        if ($results.Count -gt 0) {
+            # Mostrar los resultados de la consulta
             $columns = $results[0].Keys
-
-            # Calcular el ancho máximo de cada columna
             $columnWidths = @{}
             foreach ($col in $columns) {
-                $maxLength = $col.Length
-                foreach ($row in $results) {
-                    if ($row[$col] -and $row[$col].ToString().Length -gt $maxLength) {
-                        $maxLength = $row[$col].ToString().Length
-                    }
-                }
-                $columnWidths[$col] = $maxLength
+                $columnWidths[$col] = $col.Length
             }
-
             # Mostrar los encabezados
             $header = ""
             foreach ($col in $columns) {
@@ -257,7 +421,6 @@ function Show-ResultsConsole {
             }
             Write-Host $header
             Write-Host ("-" * $header.Length)
-
             # Mostrar las filas de resultados
             foreach ($row in $results) {
                 $rowText = ""
@@ -273,6 +436,13 @@ function Show-ResultsConsole {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
+
+
+
+
+
+
+
 ##---------------OTROS BOTONES Y FUNCIONES OMITIDAS AQUI----------------------------------------------------------------BOTONES#
 $btnConnectDb.Add_Click({
         # Crear el formulario para pedir los datos de conexión

@@ -288,12 +288,7 @@ $lbIpAdress.Add_Click({
                 }
             
                 # Crear un Label con la palabra "Público" o "Privado" clickeable
-                $label = New-Object System.Windows.Forms.Label
-                $label.Text = $text
-                $label.ForeColor = $color
-                $label.Cursor = [System.Windows.Forms.Cursors]::Hand
-                $label.Size = New-Object System.Drawing.Size(236, 20)
-                $label.Location = New-Object System.Drawing.Point(245, (410 + (30 * $index)))  # Ajustar el desplazamiento de acuerdo con el índice
+                $label = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (415 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor = $color
             
                 # Función de cierre para capturar el adaptador actual
                 $adapterIndex = $adapter.InterfaceIndex

@@ -1439,6 +1439,7 @@ $btnInstallSQLManagement.Add_Click({
                     # Habilitar o deshabilitar botones cuando hay conexiones existosas
                     $btnReviewPivot.Enabled = $true
                     $btnFechaRevEstaciones.Enabled = $true
+                    $btnEliminarServidorBDD.Enabled = $true
                     $btnConnectDb.Enabled = $false
                     $btnDisconnectDb.Enabled = $true
         
@@ -1474,6 +1475,7 @@ $btnInstallSQLManagement.Add_Click({
             $btnConnectDb.Enabled = $true
             $btnDisconnectDb.Enabled = $false
             $btnFechaRevEstaciones.Enabled = $false
+            $btnEliminarServidorBDD.Enabled = $false
             $btnReviewPivot.Enabled = $false
         } catch {
             Write-Host "`nError al desconectar: $_" -ForegroundColor Red

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                    $version = "Alfa SQL.2054"  # Valor predeterminado para la versión
+                                                                    $version = "Alfa SQL.2101"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -465,39 +465,6 @@ $btnDisconnectDb.Add_Click({
         Write-Host "`nError al desconectar: $_" -ForegroundColor Red
     }
 })
-#Boton para revisar estaciones
-$btnFechaRevEstaciones.Add_Click({
-    try {
-        if (-not $global:server -or -not $global:database -or -not $global:password) {
-            Write-Host "`nNo hay una conexión válida." -ForegroundColor Red
-            return
-        }
-        # Consultas SQL
-$query1 = "SELECT e.FECHAREV, 
-                   b.estacion as Estacion, 
-                   CONVERT(varchar, b.fecha, 23) AS UltimaUso
-            FROM bitacorasistema b
-            INNER JOIN (
-                SELECT estacion, MAX(fecha) AS max_fecha
-                FROM bitacorasistema
-                GROUP BY estacion
-            ) latest_bitacora 
-                ON b.estacion = latest_bitacora.estacion 
-                AND b.fecha = latest_bitacora.max_fecha
-            INNER JOIN estaciones e 
-                ON b.estacion = e.idestacion
-            ORDER BY b.fecha DESC;"
-        # Ejecutar y analizar la primera consulta
-        $resultsQuery1 = Execute-SqlQuery -server $global:server -database $global:database -query $query1
-        Write-Host "`n$query1`n" -ForegroundColor Yellow
-                    Show-ResultsConsole -query $query1
-    } catch {
-        Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
-    }
-})
-
-
-
 
 
 
@@ -513,26 +480,22 @@ $query1 = "SELECT e.FECHAREV,
             $formEliminarServidor.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
             $formEliminarServidor.MaximizeBox = $false
             $formEliminarServidor.MinimizeBox = $false
-        
             # Crear el ComboBox con las opciones
             $cmbOpciones = New-Object System.Windows.Forms.ComboBox
             $cmbOpciones.Location = New-Object System.Drawing.Point(10, 20)
             $cmbOpciones.Size = New-Object System.Drawing.Size(360, 20)
             $cmbOpciones.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
             $cmbOpciones.Items.AddRange(@("Seleccione 1", "On The minute", "NS Hoteles", "Rest Card"))
-        
             # Crear los botones Eliminar y Cancelar
             $btnEliminar = New-Object System.Windows.Forms.Button
             $btnEliminar.Text = "Eliminar"
             $btnEliminar.Size = New-Object System.Drawing.Size(100, 30)
             $btnEliminar.Location = New-Object System.Drawing.Point(150, 60)
             $btnEliminar.Enabled = $false  # Deshabilitado inicialmente
-        
             $btnCancelar = New-Object System.Windows.Forms.Button
             $btnCancelar.Text = "Cancelar"
             $btnCancelar.Size = New-Object System.Drawing.Size(100, 30)
             $btnCancelar.Location = New-Object System.Drawing.Point(260, 60)
-        
             # Habilitar el botón Eliminar si se selecciona una opción válida
             $cmbOpciones.Add_SelectedIndexChanged({
                 if ($cmbOpciones.SelectedIndex -gt 0) {
@@ -541,12 +504,10 @@ $query1 = "SELECT e.FECHAREV,
                     $btnEliminar.Enabled = $false
                 }
             })
-        
             # Manejar el evento Click del botón Eliminar
             $btnEliminar.Add_Click({
                 $opcionSeleccionada = $cmbOpciones.SelectedItem
                 $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
-        
                 if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
                     try {
                         switch ($opcionSeleccionada) {
@@ -586,20 +547,18 @@ $query1 = "SELECT e.FECHAREV,
                     }
                 }
             })
-        
             # Manejar el evento Click del botón Cancelar
             $btnCancelar.Add_Click({
                 $formEliminarServidor.Close()
             })
-        
             # Agregar los controles al formulario
             $formEliminarServidor.Controls.Add($cmbOpciones)
             $formEliminarServidor.Controls.Add($btnEliminar)
             $formEliminarServidor.Controls.Add($btnCancelar)
-        
             # Mostrar el formulario
             $formEliminarServidor.ShowDialog()
         })
+
 #SALIR DEL SISTEMA------------------------------------------------
 $btnExit.Add_Click({
                         $formPrincipal.Dispose()

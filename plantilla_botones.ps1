@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1426"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1439"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -353,105 +353,83 @@ $chkSqlServer.Add_CheckedChanged({
                                                         
                                                         
 
+# Crear el botón para modificar permisos
+$btnModificarPermisos = Create-Button -Text "Modificar Permisos LMZA" -Location (New-Object System.Drawing.Point(240, 250)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us utilizando AdvancedRun."
+
+# Agregar el botón a la pestaña de aplicaciones
+$tabAplicaciones.Controls.Add($btnModificarPermisos)
+
 # Definir la acción del botón
-            $btnModificarPermisos.Add_Click({
-                Write-Host "`nIniciando modificación de permisos con AdvancedRun..." -ForegroundColor Cyan
-            
-                try {
-                    # Ruta temporal para descargar AdvancedRun
-                    $tempDir = "C:\Temp\AdvancedRun"
-                    if (-not (Test-Path -Path $tempDir)) {
-                        New-Item -ItemType Directory -Path $tempDir | Out-Null
-                        Write-Host "Carpeta temporal creada: $tempDir" -ForegroundColor Green
-                    }
-            
-                    # Determinar si el sistema es de 64 bits
-                    $is64Bit = [Environment]::Is64BitOperatingSystem
-                    $advancedRunUrl = if ($is64Bit) {
-                        "https://www.nirsoft.net/utils/advancedrun-x64.zip"
-                    } else {
-                        "https://www.nirsoft.net/utils/advancedrun.zip"
-                    }
-            
-                    # Ruta a AdvancedRun.exe
-                    $advancedRunPath = Join-Path -Path $tempDir -ChildPath "AdvancedRun.exe"
-            
-                    # Verificar si AdvancedRun ya está descargado
-                    if (-not (Test-Path -Path $advancedRunPath)) {
-                        Write-Host "Descargando AdvancedRun desde NirSoft..." -ForegroundColor Yellow
-            
-                        # Descargar el archivo ZIP
-                        $zipPath = Join-Path -Path $tempDir -ChildPath "AdvancedRun.zip"
-                        Invoke-WebRequest -Uri $advancedRunUrl -OutFile $zipPath
-            
-                        # Extraer el archivo ZIP
-                        Write-Host "Extrayendo AdvancedRun..." -ForegroundColor Yellow
-                        Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
-            
-                        # Verificar si AdvancedRun se extrajo correctamente
-                        if (-not (Test-Path -Path $advancedRunPath)) {
-                            throw "No se pudo extraer AdvancedRun desde el archivo ZIP."
-                        }
-            
-                        Write-Host "AdvancedRun descargado y extraído correctamente." -ForegroundColor Green
-                    }
-            
-                    # Lista de comandos a ejecutar
-                    $comandos = @(
-                        "icacls C:\Windows\System32\en-us /grant Administrators:F",
-                        "icacls C:\Windows\System32\en-us /grant Administradores:F",
-                        "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
-                    )
-            
-                    # Ejecutar cada comando con AdvancedRun como TrustedInstaller
-                    foreach ($comando in $comandos) {
-                        Write-Host "`nEjecutando comando: $comando" -ForegroundColor Yellow
-            
-                        # Crear un archivo de configuración temporal para AdvancedRun
-                        $configFile = [System.IO.Path]::GetTempFileName()
-                        $configContent = @"
-            [Run]
-            Executable=cmd.exe
-            Parameters=/c $comando
-            RunAs=2
-"@
-                        Set-Content -Path $configFile -Value $configContent
-            
-                        # Ejecutar AdvancedRun en segundo plano
-                        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-                        $processInfo.FileName = $advancedRunPath
-                        $processInfo.Arguments = "/RunFrom `"$configFile`""
-                        $processInfo.UseShellExecute = $false
-                        $processInfo.RedirectStandardOutput = $true
-                        $processInfo.RedirectStandardError = $true
-                        $processInfo.CreateNoWindow = $true
-            
-                        $process = New-Object System.Diagnostics.Process
-                        $process.StartInfo = $processInfo
-                        $process.Start() | Out-Null
-                        $process.WaitForExit()
-            
-                        # Mostrar la salida del comando
-                        $output = $process.StandardOutput.ReadToEnd()
-                        $errorOutput = $process.StandardError.ReadToEnd()
-            
-                        Write-Host "Salida del comando:" -ForegroundColor Green
-                        Write-Host $output -ForegroundColor White
-            
-                        if ($errorOutput) {
-                            Write-Host "Errores:" -ForegroundColor Red
-                            Write-Host $errorOutput -ForegroundColor Red
-                        }
-            
-                        # Eliminar el archivo de configuración temporal
-                        Remove-Item -Path $configFile -Force
-                    }
-            
-                    Write-Host "`nModificación de permisos completada con AdvancedRun." -ForegroundColor Cyan
-                } catch {
-                    Write-Host "Error: $_" -ForegroundColor Red
-                }
-            })
+$btnModificarPermisos.Add_Click({
+    Write-Host "`nIniciando modificación de permisos con AdvancedRun..." -ForegroundColor Cyan
+
+    try {
+        # Ruta temporal para descargar AdvancedRun
+        $tempDir = "C:\Temp\AdvancedRun"
+        if (-not (Test-Path -Path $tempDir)) {
+            New-Item -ItemType Directory -Path $tempDir | Out-Null
+            Write-Host "Carpeta temporal creada: $tempDir" -ForegroundColor Green
+        }
+
+        # Determinar si el sistema es de 64 bits
+        $is64Bit = [Environment]::Is64BitOperatingSystem
+        $advancedRunUrl = if ($is64Bit) {
+            "https://www.nirsoft.net/utils/advancedrun-x64.zip"
+        } else {
+            "https://www.nirsoft.net/utils/advancedrun.zip"
+        }
+
+        # Ruta a AdvancedRun.exe
+        $advancedRunPath = Join-Path -Path $tempDir -ChildPath "AdvancedRun.exe"
+
+        # Verificar si AdvancedRun ya está descargado
+        if (-not (Test-Path -Path $advancedRunPath)) {
+            Write-Host "Descargando AdvancedRun desde NirSoft..." -ForegroundColor Yellow
+
+            # Descargar el archivo ZIP
+            $zipPath = Join-Path -Path $tempDir -ChildPath "AdvancedRun.zip"
+            Invoke-WebRequest -Uri $advancedRunUrl -OutFile $zipPath
+
+            # Extraer el archivo ZIP
+            Write-Host "Extrayendo AdvancedRun..." -ForegroundColor Yellow
+            Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+
+            # Verificar si AdvancedRun se extrajo correctamente
+            if (-not (Test-Path -Path $advancedRunPath)) {
+                throw "No se pudo extraer AdvancedRun desde el archivo ZIP."
+            }
+
+            Write-Host "AdvancedRun descargado y extraído correctamente." -ForegroundColor Green
+        }
+
+        # Lista de comandos a ejecutar
+        $comandos = @(
+            "icacls C:\Windows\System32\en-us /grant Administrators:F",
+            "icacls C:\Windows\System32\en-us /grant Administradores:F",
+            "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
+        )
+
+        # Ejecutar cada comando con AdvancedRun como TrustedInstaller
+        foreach ($comando in $comandos) {
+            Write-Host "`nEjecutando comando: $comando" -ForegroundColor Yellow
+
+            # Ejecutar AdvancedRun con cmd.exe y el comando icacls
+            Start-Process -FilePath $advancedRunPath -ArgumentList @(
+                '/EXEFilename "C:\Windows\System32\cmd.exe"',
+                '/RunAs 8',  # TrustedInstaller
+                '/StartDirectory "C:\Windows\System32"',
+                '/CommandLine "/c $comando"',
+                '/Run'
+            ) -WindowStyle Hidden -Wait
+
+            Write-Host "Comando ejecutado." -ForegroundColor Green
+        }
+
+        Write-Host "`nModificación de permisos completada con AdvancedRun." -ForegroundColor Cyan
+    } catch {
+        Write-Host "Error: $_" -ForegroundColor Red
+    }
+})
 
 
 

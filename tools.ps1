@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250204.1540"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250204.1749"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -616,15 +616,13 @@ $btnSQLManagement.Add_Click({
                     $comboBoxSSMS.SelectedIndex = 0
                     $formSelectionSSMS.Controls.Add($comboBoxSSMS)
                     # Crear un botón para aceptar la selección
-                    $buttonOKSSMS = New-Object System.Windows.Forms.Button
-                    $buttonOKSSMS.Text = "Aceptar"
-                    $buttonOKSSMS.Size = New-Object System.Drawing.Size(120, 35)
-                    $buttonOKSSMS.Location = New-Object System.Drawing.Point(20, 100)
+                    $buttonOKSSMS = Create-Button -Text "Aceptar" `
+                             -Location (New-Object System.Drawing.Point(20, 100)) `
+                             -Size (New-Object System.Drawing.Size(120, 35))
                     $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
-                    $buttonCancelSSMS = New-Object System.Windows.Forms.Button
-                    $buttonCancelSSMS.Text = "Cancelar"
-                    $buttonCancelSSMS.Size = New-Object System.Drawing.Size(120, 35)
-                    $buttonCancelSSMS.Location = New-Object System.Drawing.Point(120, 100)
+                    $buttonCancelSSMS = Create-Button -Text "Cancelar" `
+                                  -Location (New-Object System.Drawing.Point(120, 100)) `
+                                  -Size (New-Object System.Drawing.Size(120, 35))
                     $buttonCancelSSMS.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
                     $formSelectionSSMS.AcceptButton = $buttonOKSSMS
                     $formSelectionSSMS.Controls.Add($buttonOKSSMS)
@@ -1999,7 +1997,7 @@ $btnModificarPermisos.Add_Click({
 
         # Validar si PsExec.exe existe
         if (-Not (Test-Path $psexecPath)) {
-            Write-Host "`nPsExec no encontrado. Descargando desde Sysinternals..." -ForegroundColor Yellow
+            Write-Host "`tPsExec no encontrado. Descargando desde Sysinternals..." -ForegroundColor Yellow
             
             # Crear carpeta Temp si no existe
             if (-Not (Test-Path "C:\Temp")) {
@@ -2010,18 +2008,18 @@ $btnModificarPermisos.Add_Click({
             Invoke-WebRequest -Uri $psexecUrl -OutFile $psexecZip
 
             # Extraer PsExec.exe
-            Write-Host "Extrayendo PsExec..." -ForegroundColor Cyan
+            Write-Host "`tExtrayendo PsExec..." -ForegroundColor Cyan
             Expand-Archive -Path $psexecZip -DestinationPath $psexecExtractPath -Force
 
             # Verificar si PsExec fue extraído correctamente
             if (-Not (Test-Path $psexecPath)) {
-                Write-Host "Error: No se pudo extraer PsExec.exe." -ForegroundColor Red
+                Write-Host "`tError: No se pudo extraer PsExec.exe." -ForegroundColor Red
                 return
             }
 
-            Write-Host "PsExec descargado y extraído correctamente." -ForegroundColor Green
+            Write-Host "`tPsExec descargado y extraído correctamente." -ForegroundColor Green
         } else {
-            Write-Host "`nPsExec ya está instalado en: $psexecPath" -ForegroundColor Green
+            Write-Host "``tPsExec ya está instalado en: $psexecPath" -ForegroundColor Green
         }
 
         # Detectar el nombre correcto del grupo de administradores
@@ -2033,11 +2031,11 @@ $btnModificarPermisos.Add_Click({
         } elseif ($gruposLocales -match "Administradores") {
             $grupoAdmin = "Administradores"
         } else {
-            Write-Host "No se encontró el grupo de administradores en el sistema." -ForegroundColor Red
+            Write-Host "`tNo se encontró el grupo de administradores en el sistema." -ForegroundColor Red
             return
         }
-
-        Write-Host "Grupo de administradores detectado: $grupoAdmin" -ForegroundColor Green
+        Write-Host "`tGrupo de administradores detectado: " -NoNewline
+        Write-Host "$grupoAdmin" -ForegroundColor Green
 
         # Comandos con el nombre correcto del grupo
         $comando1 = "icacls C:\Windows\System32\en-us /grant `"$grupoAdmin`":F"

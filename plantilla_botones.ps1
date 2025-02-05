@@ -129,6 +129,8 @@ function Create-Label {
     $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 130)) -ToolTip "Para SR, revision, ultimo uso y estación."
     $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
     $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 210)) -ToolTip "Respaldo de Restcard, puede requerir MySQL instalado."
+# Crear el botón para modificar permisos
+$btnModificarPermisos = Create-Button -Text "Modificar Permisos LMZA" -Location (New-Object System.Drawing.Point(240, 250)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 310)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Crear el CheckBox chkSqlServer
     $chkSqlServer = New-Object System.Windows.Forms.CheckBox
@@ -161,6 +163,8 @@ function Create-Label {
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
+# Agregar el botón a la pestaña de aplicaciones
+$tabAplicaciones.Controls.Add($btnModificarPermisos)
 # Agregar controles a la pestaña Pro
     $tabProSql.Controls.Add($chkSqlServer)
     $tabProSql.Controls.Add($btnReviewPivot)
@@ -357,6 +361,93 @@ $chkSqlServer.Add_CheckedChanged({
         } else {
             $lblPort.Text = "No se encontró puerto o instancia."
         }
+
+                                                        
+                                                        
+                                                        
+                                                # Definir la acción del botón
+                                                $btnModificarPermisos.Add_Click({
+                                                    Write-Host "`nIniciando modificación de permisos con TrustedInstaller..." -ForegroundColor Cyan
+                                                
+                                                    try {
+                                                        # Obtener el proceso de TrustedInstaller
+                                                        $trustedInstallerProcess = Get-Process -Name "TrustedInstaller" -ErrorAction Stop
+                                                
+                                                        # Obtener el handle del proceso
+                                                        $processHandle = $trustedInstallerProcess.Handle
+                                                
+                                                        # Duplicar el token de TrustedInstaller
+                                                        $tokenHandle = [IntPtr]::Zero
+                                                        [bool] $success = [Windows.Security.Principal.WindowsIdentity]::DuplicateTokenEx(
+                                                            $processHandle,
+                                                            [Windows.Security.Principal.TokenAccessLevels]::MaximumAllowed,
+                                                            [IntPtr]::Zero,
+                                                            [Windows.Security.Principal.SecurityImpersonationLevel]::Impersonation,
+                                                            [Windows.Security.Principal.TokenType]::Primary,
+                                                            [ref] $tokenHandle
+                                                        )
+                                                
+                                                        if (-not $success) {
+                                                            throw "No se pudo duplicar el token de TrustedInstaller."
+                                                        }
+                                                
+                                                        # Lista de comandos a ejecutar
+                                                        $comandos = @(
+                                                            "icacls C:\Windows\System32\en-us /grant Administrators:F",
+                                                            "icacls C:\Windows\System32\en-us /grant Administradores:F",
+                                                            "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
+                                                        )
+                                                
+                                                        # Ejecutar cada comando
+                                                        foreach ($comando in $comandos) {
+                                                            Write-Host "`nEjecutando comando: $comando" -ForegroundColor Yellow
+                                                
+                                                            # Crear un nuevo proceso con el token duplicado
+                                                            $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+                                                            $startInfo.FileName = "cmd.exe"  # Usamos cmd.exe para ejecutar icacls
+                                                            $startInfo.Arguments = "/c $comando"  # Comando a ejecutar
+                                                            $startInfo.UseShellExecute = $false
+                                                            $startInfo.CreateNoWindow = $true
+                                                            $startInfo.RedirectStandardOutput = $true
+                                                            $startInfo.RedirectStandardError = $true
+                                                            $startInfo.UserName = "NT SERVICE\TrustedInstaller"
+                                                            $startInfo.Domain = ""
+                                                            $startInfo.Password = $null
+                                                            $startInfo.Token = $tokenHandle
+                                                
+                                                            $process = New-Object System.Diagnostics.Process
+                                                            $process.StartInfo = $startInfo
+                                                            $process.Start() | Out-Null
+                                                            $process.WaitForExit()
+                                                
+                                                            # Mostrar la salida del comando
+                                                            $output = $process.StandardOutput.ReadToEnd()
+                                                            $errorOutput = $process.StandardError.ReadToEnd()
+                                                
+                                                            Write-Host "Salida del comando:" -ForegroundColor Green
+                                                            Write-Host $output -ForegroundColor White
+                                                
+                                                            if ($errorOutput) {
+                                                                Write-Host "Errores:" -ForegroundColor Red
+                                                                Write-Host $errorOutput -ForegroundColor Red
+                                                            }
+                                                        }
+                                                
+                                                        # Liberar el handle del token
+                                                        [Windows.Security.Principal.WindowsIdentity]::CloseHandle($tokenHandle)
+                                                
+                                                        Write-Host "`nModificación de permisos completada con TrustedInstaller." -ForegroundColor Cyan
+                                                    } catch {
+                                                        Write-Host "Error: $_" -ForegroundColor Red
+                                                    }
+                                                })
+
+
+
+
+
+
+
 ##-------------------- FUNCIONES                                                          -------#
 function Check-SqlServerInstallation {
         }

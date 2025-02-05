@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1227"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1235"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -446,95 +446,6 @@ $chkSqlServer.Add_CheckedChanged({
 
 
 
-
-
-##-------------------- FUNCIONES                                                          -------#
-function Check-SqlServerInstallation {
-        }
-function Show-ResultsConsole {
-}
-#------------------------ download&run 1.0
-function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath) {
-
-}
-# Función para manejar MouseEnter y cambiar el color
-$changeColorOnHover = {
-    param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::Orange
-}
-# Función para manejar MouseLeave y restaurar el color
-$restoreColorOnLeave = {
-    param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::White
-}
-    $lblHostname.Add_MouseEnter($changeColorOnHover)
-    $lblHostname.Add_MouseLeave($restoreColorOnLeave)
-    $lblPort.Add_MouseEnter($changeColorOnHover)
-    $lblPort.Add_MouseLeave($restoreColorOnLeave)
-    $lbIpAdress.Add_MouseEnter($changeColorOnHover)
-    $lbIpAdress.Add_MouseLeave($restoreColorOnLeave)
-##-------------------------------------------------------------------------------BOTONES#
-$btnSQLManagement.Add_Click({
-
- })
-$btnProfiler.Add_Click({
-        }
-    )
-$btnPrinterTool.Add_Click({
-    })
-$btnDatabase.Add_Click({
-    })
-$btnSQLManager.Add_Click({
-    })
-$btnClearAnyDesk.Add_Click({
-    })
-$btnShowPrinters.Add_Click({
-    })
-$btnClearPrintJobs.Add_Click({
-    })
-#LMZA
-                $LZMAbtnBuscarCarpeta.Add_Click({
-                })
-#AplicacionesNS
-$btnAplicacionesNS.Add_Click({
-        })
-$btnInstallSQLManagement.Add_Click({
-})
-#Pivot new
-                                    $btnReviewPivot.Add_Click({
-                                    })
-#Estaciones new
-                                            $btnFechaRevEstaciones.Add_Click({
-                                            })
-#Boton para actualizar los datos del servidor (borrarlo basicamente)
-    $btnEliminarServidorBDD.Add_Click({
-            })
-            # Manejar el evento Click del botón Cancelar
-            $btnCancelar.Add_Click({
-                $formEliminarServidor.Close()
-            })
-            # Agregar los controles al formulario
-            $formEliminarServidor.Controls.Add($cmbOpciones)
-            $formEliminarServidor.Controls.Add($btnEliminar)
-            $formEliminarServidor.Controls.Add($btnCancelar)
-            # Mostrar el formulario
-            $formEliminarServidor.ShowDialog()
-        })
-#Boton para conectar a la base de datos
-    $btnConnectDb.Add_Click({
-            })
-#Boton para desconectar de la base de datos
-    $btnDisconnectDb.Add_Click({
-    })
-# Evento de clic para el botón de respaldo
-    $btnRespaldarRestcard.Add_Click({
-    })
-    
-    function Show-NewIpForm {
-    }
-# ------------------------------ funcion para impresoras
-    $btnConfigurarIPs.Add_Click({
-    })
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

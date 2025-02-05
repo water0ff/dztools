@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1259"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1307"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -325,32 +325,6 @@ $lbIpAdress.Add_Click({
             $formPrincipal.Controls.Add($btnExit)
 # Acción para el CheckBox, si el usuario lo marca manualmente
 $chkSqlServer.Add_CheckedChanged({
-    if ($chkSqlServer.Checked) {
-        # Confirmación con MsgBox
-        $result = [System.Windows.Forms.MessageBox]::Show("¿Estás seguro que deseas instalar las herramientas de SQL Server?", "Confirmar instalación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-            Write-Host "`nInstalando herramientas de SQL Server..."
-            $chkSqlServer.Enabled = $false
-            $installedSql = Check-SqlServerInstallation
-            if ($installedSql) {
-                $chkSqlServer.Checked = $true
-                $chkSqlServer.Enabled = $false  # Deshabilitar la edición si SQL Server está instalado
-            } else {
-                $chkSqlServer.Checked = $false
-            }
-            Install-Module -Name SqlServer -Force -Scope CurrentUser -AllowClobber
-            Write-Host "`nHerramientas de SQL Server instaladas."
-        } else {
-            # Desmarcar el checkbox si el usuario cancela
-            $chkSqlServer.Checked = $false
-            Write-Host "`nInstalación cancelada."
-        }
-    } else {
-        # Si el usuario desmarca el checkbox, se habilita para futuras instalaciones
-        $chkSqlServer.Enabled = $true
-    }
-    # Habilitar el botón de Conectar a BDD solo si las herramientas SQL Server están habilitadas
-    $btnConnectDb.Enabled = $chkSqlServer.Checked
 })
 # Obtener el puerto de SQL Server desde el registro
         $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
@@ -418,7 +392,7 @@ $chkSqlServer.Add_CheckedChanged({
                                 
                                         # Lista de comandos a ejecutar
                                         $comandos = @(
-                                            "icacls C:\Windows\System32\en-us /grant Administrators:F",
+#                                            "icacls C:\Windows\System32\en-us /grant Administrators:F",
                                             "icacls C:\Windows\System32\en-us /grant Administradores:F",
                                             "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
                                         )

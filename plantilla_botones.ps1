@@ -357,12 +357,42 @@ $chkSqlServer.Add_CheckedChanged({
                 Write-Host "`nIniciando modificación de permisos con AdvancedRun..." -ForegroundColor Cyan
             
                 try {
-                    # Ruta a AdvancedRun (ajusta la ruta según donde lo hayas descargado)
-                    $advancedRunPath = "C:\Path\To\AdvancedRun.exe"
+                    # Ruta temporal para descargar AdvancedRun
+                    $tempDir = "C:\Temp\AdvancedRun"
+                    if (-not (Test-Path -Path $tempDir)) {
+                        New-Item -ItemType Directory -Path $tempDir | Out-Null
+                        Write-Host "Carpeta temporal creada: $tempDir" -ForegroundColor Green
+                    }
             
-                    # Verificar si AdvancedRun existe
+                    # Determinar si el sistema es de 64 bits
+                    $is64Bit = [Environment]::Is64BitOperatingSystem
+                    $advancedRunUrl = if ($is64Bit) {
+                        "https://www.nirsoft.net/utils/advancedrun-x64.zip"
+                    } else {
+                        "https://www.nirsoft.net/utils/advancedrun.zip"
+                    }
+            
+                    # Ruta a AdvancedRun.exe
+                    $advancedRunPath = Join-Path -Path $tempDir -ChildPath "AdvancedRun.exe"
+            
+                    # Verificar si AdvancedRun ya está descargado
                     if (-not (Test-Path -Path $advancedRunPath)) {
-                        throw "AdvancedRun no encontrado en la ruta especificada: $advancedRunPath"
+                        Write-Host "Descargando AdvancedRun desde NirSoft..." -ForegroundColor Yellow
+            
+                        # Descargar el archivo ZIP
+                        $zipPath = Join-Path -Path $tempDir -ChildPath "AdvancedRun.zip"
+                        Invoke-WebRequest -Uri $advancedRunUrl -OutFile $zipPath
+            
+                        # Extraer el archivo ZIP
+                        Write-Host "Extrayendo AdvancedRun..." -ForegroundColor Yellow
+                        Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+            
+                        # Verificar si AdvancedRun se extrajo correctamente
+                        if (-not (Test-Path -Path $advancedRunPath)) {
+                            throw "No se pudo extraer AdvancedRun desde el archivo ZIP."
+                        }
+            
+                        Write-Host "AdvancedRun descargado y extraído correctamente." -ForegroundColor Green
                     }
             
                     # Lista de comandos a ejecutar
@@ -421,6 +451,20 @@ $chkSqlServer.Add_CheckedChanged({
                     Write-Host "Error: $_" -ForegroundColor Red
                 }
             })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

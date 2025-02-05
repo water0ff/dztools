@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1255"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1259"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -363,64 +363,102 @@ $chkSqlServer.Add_CheckedChanged({
         }
 
                                                         
+
+
+
+
+
+
+
+
+
+
+
+
+
                                                         
                                                         
-# Definir la acción del botón
-                $btnModificarPermisos.Add_Click({
-                    Write-Host "`nIniciando modificación de permisos con PsExec..." -ForegroundColor Cyan
-                
-                    try {
-                        # Ruta a PsExec (ajusta la ruta según donde lo hayas descargado)
-                        $psexecPath = "C:\Path\To\PsExec.exe"
-                
-                        # Verificar si PsExec existe
-                        if (-not (Test-Path -Path $psexecPath)) {
-                            throw "PsExec no encontrado en la ruta especificada: $psexecPath"
-                        }
-                
-                        # Lista de comandos a ejecutar
-                        $comandos = @(
-                            "icacls C:\Windows\System32\en-us /grant Administrators:F",
-                            "icacls C:\Windows\System32\en-us /grant Administradores:F",
-                            "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
-                        )
-                
-                        # Ejecutar cada comando con PsExec
-                        foreach ($comando in $comandos) {
-                            Write-Host "`nEjecutando comando: $comando" -ForegroundColor Yellow
-                
-                            # Ejecutar el comando con PsExec como TrustedInstaller
-                            $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-                            $processInfo.FileName = $psexecPath
-                            $processInfo.Arguments = "-i -s cmd.exe /c $comando"
-                            $processInfo.UseShellExecute = $false
-                            $processInfo.RedirectStandardOutput = $true
-                            $processInfo.RedirectStandardError = $true
-                            $processInfo.CreateNoWindow = $true
-                
-                            $process = New-Object System.Diagnostics.Process
-                            $process.StartInfo = $processInfo
-                            $process.Start() | Out-Null
-                            $process.WaitForExit()
-                
-                            # Mostrar la salida del comando
-                            $output = $process.StandardOutput.ReadToEnd()
-                            $errorOutput = $process.StandardError.ReadToEnd()
-                
-                            Write-Host "Salida del comando:" -ForegroundColor Green
-                            Write-Host $output -ForegroundColor White
-                
-                            if ($errorOutput) {
-                                Write-Host "Errores:" -ForegroundColor Red
-                                Write-Host $errorOutput -ForegroundColor Red
-                            }
-                        }
-                
-                        Write-Host "`nModificación de permisos completada con PsExec." -ForegroundColor Cyan
-                    } catch {
-                        Write-Host "Error: $_" -ForegroundColor Red
-                    }
-                })
+                                # Definir la acción del botón
+                                $btnModificarPermisos.Add_Click({
+                                    Write-Host "`nIniciando modificación de permisos con PsExec..." -ForegroundColor Cyan
+                                
+                                    try {
+                                        # Ruta temporal para descargar PsExec
+                                        $tempDir = "C:\Temp\PsExec"
+                                        if (-not (Test-Path -Path $tempDir)) {
+                                            New-Item -ItemType Directory -Path $tempDir | Out-Null
+                                            Write-Host "Carpeta temporal creada: $tempDir" -ForegroundColor Green
+                                        }
+                                
+                                        # Determinar si el sistema es de 64 bits
+                                        $is64Bit = [Environment]::Is64BitOperatingSystem
+                                        $psexecExe = if ($is64Bit) { "PsExec64.exe" } else { "PsExec.exe" }
+                                        $psexecPath = Join-Path -Path $tempDir -ChildPath $psexecExe
+                                
+                                        # Verificar si PsExec ya está descargado
+                                        if (-not (Test-Path -Path $psexecPath)) {
+                                            Write-Host "Descargando PsExec desde Sysinternals..." -ForegroundColor Yellow
+                                
+                                            # Descargar el archivo ZIP
+                                            $zipUrl = "https://download.sysinternals.com/files/PSTools.zip"
+                                            $zipPath = Join-Path -Path $tempDir -ChildPath "PSTools.zip"
+                                            Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath
+                                
+                                            # Extraer el archivo ZIP
+                                            Write-Host "Extrayendo PsExec..." -ForegroundColor Yellow
+                                            Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+                                
+                                            # Verificar si PsExec se extrajo correctamente
+                                            if (-not (Test-Path -Path $psexecPath)) {
+                                                throw "No se pudo extraer PsExec desde el archivo ZIP."
+                                            }
+                                
+                                            Write-Host "PsExec descargado y extraído correctamente." -ForegroundColor Green
+                                        }
+                                
+                                        # Lista de comandos a ejecutar
+                                        $comandos = @(
+                                            "icacls C:\Windows\System32\en-us /grant Administrators:F",
+                                            "icacls C:\Windows\System32\en-us /grant Administradores:F",
+                                            "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
+                                        )
+                                
+                                        # Ejecutar cada comando con PsExec
+                                        foreach ($comando in $comandos) {
+                                            Write-Host "`nEjecutando comando: $comando" -ForegroundColor Yellow
+                                
+                                            # Ejecutar el comando con PsExec como TrustedInstaller
+                                            $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+                                            $processInfo.FileName = $psexecPath
+                                            $processInfo.Arguments = "-i -s cmd.exe /c $comando"
+                                            $processInfo.UseShellExecute = $false
+                                            $processInfo.RedirectStandardOutput = $true
+                                            $processInfo.RedirectStandardError = $true
+                                            $processInfo.CreateNoWindow = $true
+                                
+                                            $process = New-Object System.Diagnostics.Process
+                                            $process.StartInfo = $processInfo
+                                            $process.Start() | Out-Null
+                                            $process.WaitForExit()
+                                
+                                            # Mostrar la salida del comando
+                                            $output = $process.StandardOutput.ReadToEnd()
+                                            $errorOutput = $process.StandardError.ReadToEnd()
+                                
+                                            Write-Host "Salida del comando:" -ForegroundColor Green
+                                            Write-Host $output -ForegroundColor White
+                                
+                                            if ($errorOutput) {
+                                                Write-Host "Errores:" -ForegroundColor Red
+                                                Write-Host $errorOutput -ForegroundColor Red
+                                            }
+                                        }
+                                
+                                        Write-Host "`nModificación de permisos completada con PsExec." -ForegroundColor Cyan
+                                    } catch {
+                                        Write-Host "Error: $_" -ForegroundColor Red
+                                    }
+                                })
 
 
 

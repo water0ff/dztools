@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1623"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1631"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -324,7 +324,87 @@ $chkSqlServer.Add_CheckedChanged({
         } else {
             $lblPort.Text = "No se encontró puerto o instancia."
         }
-
+function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath) {
+    # Validar si el archivo o aplicación ya existe
+    if (!(Test-Path -Path $validationPath)) {
+        $response = [System.Windows.Forms.MessageBox]::Show(
+            "El archivo o aplicación no se encontró en '$validationPath'. ¿Desea descargarlo?",
+            "Archivo no encontrado",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        )
+        # Si el usuario selecciona "No", salir de la función
+        if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
+            Write-Host "`nEl usuario canceló la operación."  -ForegroundColor Red
+            return
+        }
+    }
+    # Verificar si el archivo ZIP ya existe
+    if (Test-Path -Path $zipPath) {
+        $response = [System.Windows.Forms.MessageBox]::Show(
+            "Archivo encontrado. ¿Lo desea eliminar y volver a descargar?",
+            "Archivo ya descargado",
+            [System.Windows.Forms.MessageBoxButtons]::YesNoCancel
+        )
+        if ($response -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Remove-Item -Path $zipPath -Force
+            Remove-Item -Path $extractPath -Recurse -Force
+            Write-Host "`tEliminando archivos anteriores..."
+        } elseif ($response -eq [System.Windows.Forms.DialogResult]::No) {
+            # Si selecciona "No", abrir el programa sin eliminar archivos
+            $exePath = Join-Path -Path $extractPath -ChildPath $exeName
+            if (Test-Path -Path $exePath) {
+                Write-Host "`tEjecutando el archivo ya descargado..."
+                Start-Process -FilePath $exePath #-Wait   # Se quitó para ver si se usaban múltiples apps.
+                Write-Host "`t$exeName se está ejecutando."
+                return
+            } else {
+                Write-Host "`tNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
+                return
+            }
+        } elseif ($response -eq [System.Windows.Forms.DialogResult]::Cancel) {
+            # Si selecciona "Cancelar", no hacer nada y decir que el usuario canceló
+            Write-Host "`nEl usuario canceló la operación."  -ForegroundColor Red
+            return  # Aquí se termina la ejecución si el usuario cancela
+        }
+    }
+    # Proceder con la descarga si no fue cancelada
+    Write-Host "`tDescargando desde: $url"
+    # Obtener el tamaño total del archivo antes de la descarga
+    $response = Invoke-WebRequest -Uri $url -Method Head
+    $totalSize = $response.Headers["Content-Length"]
+    $totalSizeKB = [math]::round($totalSize / 1KB, 2)
+    Write-Host "`tTamaño total: $totalSizeKB KB" -ForegroundColor Yellow
+    # Descargar el archivo con barra de progreso
+    $downloaded = 0
+    $request = Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
+    foreach ($chunk in $request.Content) {
+        $downloaded += $chunk.Length
+        $downloadedKB = [math]::round($downloaded / 1KB, 2)
+        $progress = [math]::round(($downloaded / $totalSize) * 100, 2)
+        Write-Progress -PercentComplete $progress -Status "Descargando..." -Activity "Progreso de la descarga" -CurrentOperation "$downloadedKB KB de $totalSizeKB KB descargados"
+    }
+    Write-Host "`tDescarga completada."  -ForegroundColor Green
+    # Crear directorio de extracción si no existe
+    if (!(Test-Path -Path $extractPath)) {
+        New-Item -ItemType Directory -Path $extractPath | Out-Null
+    }
+    Write-Host "`tExtrayendo archivos..."
+    try {
+        Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+        Write-Host "`tArchivos extraídos correctamente."  -ForegroundColor Green
+    } catch {
+        Write-Host "`tError al descomprimir el archivo: $_"   -ForegroundColor Red
+    }
+    $exePath = Join-Path -Path $extractPath -ChildPath $exeName
+    if (Test-Path -Path $exePath) {
+        Write-Host "`tEjecutando $exeName..."
+        Start-Process -FilePath $exePath #-Wait
+        Write-Host "`n$exeName se está ejecutando."
+    } else {
+        Write-Host "`nNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
+    }
+}
                                                         
 
 
@@ -412,26 +492,30 @@ $btnModificarPermisos.Add_Click({
         Write-Host $output2
 
         Write-Host "`nModificación de permisos completada." -ForegroundColor Cyan
+
+            $ResponderDriver = [System.Windows.Forms.MessageBox]::Show(
+                "¿Desea descargar e instalar el driver del lector?",
+                "Descargar Driver",
+                [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                [System.Windows.Forms.MessageBoxIcon]::Question
+            )
+            
+            if ($ResponderDriver -eq [System.Windows.Forms.DialogResult]::Yes) {
+                # Definir parámetros de la descarga
+                $url = "https://softrestaurant.com/drivers?download=120:dp"
+                $zipPath = "C:\Temp\Driver_DP.zip"
+                $extractPath = "C:\Temp\Driver_DP"
+                $exeName = "x64\Setup.msi"
+                $validationPath = "C:\Temp\Driver_DP\x64\Setup.msi"
+            
+                # Llamar a la función de descarga y ejecución
+                DownloadAndRun -url $url -zipPath $zipPath -extractPath $extractPath -exeName $exeName -validationPath $validationPath
+            }
+        
     } catch {
         Write-Host "Error: $_" -ForegroundColor Red
     }
 })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

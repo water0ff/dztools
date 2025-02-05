@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1608"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1619"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -347,23 +347,65 @@ $btnModificarPermisos.Add_Click({
     Write-Host "`nIniciando modificación de permisos..." -ForegroundColor Cyan
 
     try {
-        # Comando 1: Conceder permisos a Administradores
-        $comando1 = "icacls C:\Windows\System32\en-us /grant Administrators:F"
-        # Comando 2: Conceder permisos a NT AUTHORITY\SYSTEM
+        # Ruta de PsExec
+        $psexecPath = "C:\Temp\PsExec\PsExec.exe"
+        $psexecZip = "C:\Temp\PSTools.zip"
+        $psexecUrl = "https://download.sysinternals.com/files/PSTools.zip"
+        $psexecExtractPath = "C:\Temp\PsExec"
+
+        # Validar si PsExec.exe existe
+        if (-Not (Test-Path $psexecPath)) {
+            Write-Host "`nPsExec no encontrado. Descargando desde Sysinternals..." -ForegroundColor Yellow
+            
+            # Crear carpeta Temp si no existe
+            if (-Not (Test-Path "C:\Temp")) {
+                New-Item -Path "C:\Temp" -ItemType Directory | Out-Null
+            }
+
+            # Descargar el archivo ZIP
+            Invoke-WebRequest -Uri $psexecUrl -OutFile $psexecZip
+
+            # Extraer PsExec.exe
+            Write-Host "Extrayendo PsExec..." -ForegroundColor Cyan
+            Expand-Archive -Path $psexecZip -DestinationPath $psexecExtractPath -Force
+
+            # Verificar si PsExec fue extraído correctamente
+            if (-Not (Test-Path $psexecPath)) {
+                Write-Host "Error: No se pudo extraer PsExec.exe." -ForegroundColor Red
+                return
+            }
+
+            Write-Host "PsExec descargado y extraído correctamente." -ForegroundColor Green
+        } else {
+            Write-Host "`nPsExec ya está instalado en: $psexecPath" -ForegroundColor Green
+        }
+
+        # Detectar el nombre correcto del grupo de administradores
+        $grupoAdmin = ""
+        $gruposLocales = net localgroup | Where-Object { $_ -match "Administrators|Administradores" }
+
+        if ($gruposLocales -match "Administrators") {
+            $grupoAdmin = "Administrators"
+        } elseif ($gruposLocales -match "Administradores") {
+            $grupoAdmin = "Administradores"
+        } else {
+            Write-Host "No se encontró el grupo de administradores en el sistema." -ForegroundColor Red
+            return
+        }
+
+        Write-Host "Grupo de administradores detectado: $grupoAdmin" -ForegroundColor Green
+
+        # Comandos con el nombre correcto del grupo
+        $comando1 = "icacls C:\Windows\System32\en-us /grant `"$grupoAdmin`":F"
         $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
 
-        # Ruta de PsExec (asumiendo que PsExec está en el PATH o en una ubicación conocida)
-        $psexecPath = "C:\Temp\PsExec\PsExec.exe"
-
-        # Ejecutar los comandos con PsExec usando el privilegio de TrustedInstaller (nivel 8) y mostrar salida en consola
-        $process1 = Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando1" -Verb RunAs -PassThru -Wait
-        $process2 = Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando2" -Verb RunAs -PassThru -Wait
-
-        # Mostrar la salida de los comandos en tiempo real
+        # Ejecutar los comandos con PsExec usando el privilegio de TrustedInstaller
         Write-Host "`nEjecutando primer comando: $comando1" -ForegroundColor Yellow
+        $process1 = Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando1" -Verb RunAs -PassThru -Wait
         $process1.StandardOutput.ReadToEnd() | ForEach-Object { Write-Host $_ }
 
         Write-Host "`nEjecutando segundo comando: $comando2" -ForegroundColor Yellow
+        $process2 = Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando2" -Verb RunAs -PassThru -Wait
         $process2.StandardOutput.ReadToEnd() | ForEach-Object { Write-Host $_ }
 
         Write-Host "`nModificación de permisos completada." -ForegroundColor Cyan
@@ -371,6 +413,7 @@ $btnModificarPermisos.Add_Click({
         Write-Host "Error: $_" -ForegroundColor Red
     }
 })
+
 
 
 

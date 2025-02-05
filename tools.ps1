@@ -100,7 +100,7 @@ function Create-Label {
                 }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
-    $tabControl.Size = New-Object System.Drawing.Size(480, 310) #X,Y
+    $tabControl.Size = New-Object System.Drawing.Size(480, 320) #X,Y
     $tabControl.Location = New-Object System.Drawing.Point(0,0)
     $tabControl.BackColor = [System.Drawing.Color]::LightGray
 # Crear las tres pestañas (Aplicaciones, Consultas y Pro)

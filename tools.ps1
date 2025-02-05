@@ -7,7 +7,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     Add-Type -AssemblyName System.Drawing
 # Crear el formulario
     $formPrincipal = New-Object System.Windows.Forms.Form
-    $formPrincipal.Size = New-Object System.Drawing.Size(500, 460)
+    $formPrincipal.Size = New-Object System.Drawing.Size(500, 470)
     $formPrincipal.StartPosition = "CenterScreen"
     $formPrincipal.BackColor = [System.Drawing.Color]::White
     $formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250204.1510"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250204.1535"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -100,7 +100,7 @@ function Create-Label {
                 }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
-    $tabControl.Size = New-Object System.Drawing.Size(480, 300) #X,Y
+    $tabControl.Size = New-Object System.Drawing.Size(480, 310) #X,Y
     $tabControl.Location = New-Object System.Drawing.Point(0,0)
     $tabControl.BackColor = [System.Drawing.Color]::LightGray
 # Crear las tres pestañas (Aplicaciones, Consultas y Pro)
@@ -124,6 +124,7 @@ function Create-Label {
     $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 130)) -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
     $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(240, 170)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
     $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Carpeta LZMA" -Location (New-Object System.Drawing.Point(240, 210)) -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
+    $btnModificarPermisos = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(240, 250)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 50)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 50)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
@@ -145,14 +146,14 @@ function Create-Label {
     $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
     $lblConnectionStatus.Font = $defaultFont
     $lblConnectionStatus.Size = New-Object System.Drawing.Size(290, 30)
-    $lblConnectionStatus.Location = New-Object System.Drawing.Point(10, 250)
+    $lblConnectionStatus.Location = New-Object System.Drawing.Point(10, 260)
     $lblConnectionStatus.ForeColor = [System.Drawing.Color]::RED
 # Crear el Label para mostrar el nombre del equipo fuera de las pestañas
-    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(2, 350)) -Size (New-Object System.Drawing.Size(240, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
+    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(2, 360)) -Size (New-Object System.Drawing.Size(240, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
 # Crear el Label para mostrar el puerto
-    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(245, 350)) -Size (New-Object System.Drawing.Size(236, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
+    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(245, 360)) -Size (New-Object System.Drawing.Size(236, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
 # Crear el Label para mostrar las IPs y adaptadores
-    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(2, 390)) -Size (New-Object System.Drawing.Size(240, 100)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
+    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(2, 400)) -Size (New-Object System.Drawing.Size(240, 100)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
@@ -166,6 +167,7 @@ function Create-Label {
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
+    $tabAplicaciones.Controls.Add($btnModificarPermisos)
 # Agregar controles a la pestaña Pro
     $tabProSql.Controls.Add($chkSqlServer)
     $tabProSql.Controls.Add($btnReviewPivot)
@@ -272,7 +274,7 @@ $lbIpAdress.Add_Click({
             }
         }
 # Crear la etiqueta para mostrar los adaptadores y su estado
-    $lblPerfilDeRed = Create-Label -Text "Estado de los Adaptadores:" -Location (New-Object System.Drawing.Point(245, 390)) -Size (New-Object System.Drawing.Size(236, 25)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para cambiar la red a privada."
+    $lblPerfilDeRed = Create-Label -Text "Estado de los Adaptadores:" -Location (New-Object System.Drawing.Point(245, 400)) -Size (New-Object System.Drawing.Size(236, 25)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para cambiar la red a privada."
 # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
     $networkAdapters = Get-NetworkAdapterStatus
     $adapterInfo = ""
@@ -291,7 +293,7 @@ $lbIpAdress.Add_Click({
                 }
             
                 # Crear un Label con la palabra "Público" o "Privado" clickeable
-                $label = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (415 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor $color
+                $label = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (425 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor $color
             
                 # Función de cierre para capturar el adaptador actual
                 $adapterIndex = $adapter.InterfaceIndex
@@ -1984,6 +1986,100 @@ $btnInstallSQLManagement.Add_Click({
             })
             $ipAssignFormAsignacion.ShowDialog()
     })
+# ICACLS para dar permisos cuando marca error driver de lector
+$btnModificarPermisos.Add_Click({
+    Write-Host "`nIniciando modificación de permisos..." -ForegroundColor Cyan
+
+    try {
+        # Ruta de PsExec
+        $psexecPath = "C:\Temp\PsExec\PsExec.exe"
+        $psexecZip = "C:\Temp\PSTools.zip"
+        $psexecUrl = "https://download.sysinternals.com/files/PSTools.zip"
+        $psexecExtractPath = "C:\Temp\PsExec"
+
+        # Validar si PsExec.exe existe
+        if (-Not (Test-Path $psexecPath)) {
+            Write-Host "`nPsExec no encontrado. Descargando desde Sysinternals..." -ForegroundColor Yellow
+            
+            # Crear carpeta Temp si no existe
+            if (-Not (Test-Path "C:\Temp")) {
+                New-Item -Path "C:\Temp" -ItemType Directory | Out-Null
+            }
+
+            # Descargar el archivo ZIP
+            Invoke-WebRequest -Uri $psexecUrl -OutFile $psexecZip
+
+            # Extraer PsExec.exe
+            Write-Host "Extrayendo PsExec..." -ForegroundColor Cyan
+            Expand-Archive -Path $psexecZip -DestinationPath $psexecExtractPath -Force
+
+            # Verificar si PsExec fue extraído correctamente
+            if (-Not (Test-Path $psexecPath)) {
+                Write-Host "Error: No se pudo extraer PsExec.exe." -ForegroundColor Red
+                return
+            }
+
+            Write-Host "PsExec descargado y extraído correctamente." -ForegroundColor Green
+        } else {
+            Write-Host "`nPsExec ya está instalado en: $psexecPath" -ForegroundColor Green
+        }
+
+        # Detectar el nombre correcto del grupo de administradores
+        $grupoAdmin = ""
+        $gruposLocales = net localgroup | Where-Object { $_ -match "Administrators|Administradores" }
+
+        if ($gruposLocales -match "Administrators") {
+            $grupoAdmin = "Administrators"
+        } elseif ($gruposLocales -match "Administradores") {
+            $grupoAdmin = "Administradores"
+        } else {
+            Write-Host "No se encontró el grupo de administradores en el sistema." -ForegroundColor Red
+            return
+        }
+
+        Write-Host "Grupo de administradores detectado: $grupoAdmin" -ForegroundColor Green
+
+        # Comandos con el nombre correcto del grupo
+        $comando1 = "icacls C:\Windows\System32\en-us /grant `"$grupoAdmin`":F"
+        $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
+       
+        # Comandos con formato correcto
+        $psexecCmd1 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando1`""
+        $psexecCmd2 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando2`""
+        
+        Write-Host "`nEjecutando primer comando: $comando1" -ForegroundColor Yellow
+        $output1 = & cmd /c $psexecCmd1
+        Write-Host $output1
+        
+        Write-Host "`nEjecutando segundo comando: $comando2" -ForegroundColor Yellow
+        $output2 = & cmd /c $psexecCmd2
+        Write-Host $output2
+
+        Write-Host "`nModificación de permisos completada." -ForegroundColor Cyan
+
+            $ResponderDriver = [System.Windows.Forms.MessageBox]::Show(
+                "¿Desea descargar e instalar el driver del lector?",
+                "Descargar Driver",
+                [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                [System.Windows.Forms.MessageBoxIcon]::Question
+            )
+            
+            if ($ResponderDriver -eq [System.Windows.Forms.DialogResult]::Yes) {
+                # Definir parámetros de la descarga
+                $url = "https://softrestaurant.com/drivers?download=120:dp"
+                $zipPath = "C:\Temp\Driver_DP.zip"
+                $extractPath = "C:\Temp\Driver_DP"
+                $exeName = "x64\Setup.msi"
+                $validationPath = "C:\Temp\Driver_DP\x64\Setup.msi"
+            
+                # Llamar a la función de descarga y ejecución
+                DownloadAndRun -url $url -zipPath $zipPath -extractPath $extractPath -exeName $exeName -validationPath $validationPath
+            }
+        
+    } catch {
+        Write-Host "Error: $_" -ForegroundColor Red
+    }
+})
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

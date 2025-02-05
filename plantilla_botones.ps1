@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1348"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1352"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -383,7 +383,7 @@ $chkSqlServer.Add_CheckedChanged({
             Executable=cmd.exe
             Parameters=/c $comando
             RunAs=2
-            "@
+"@
                         Set-Content -Path $configFile -Value $configContent
             
                         # Ejecutar AdvancedRun con el archivo de configuración

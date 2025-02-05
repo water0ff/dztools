@@ -100,7 +100,7 @@ function Create-Label {
                 }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
-    $tabControl.Size = New-Object System.Drawing.Size(480, 320) #X,Y
+    $tabControl.Size = New-Object System.Drawing.Size(480, 315) #X,Y
     $tabControl.Location = New-Object System.Drawing.Point(0,0)
     $tabControl.BackColor = [System.Drawing.Color]::LightGray
 # Crear las tres pestañas (Aplicaciones, Consultas y Pro)
@@ -135,7 +135,7 @@ function Create-Label {
     $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 130)) -ToolTip "Para SR, revision, ultimo uso y estación."
     $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
     $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 210)) -ToolTip "Respaldo de Restcard, puede requerir MySQL instalado."
-    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 330)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
+    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 325)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Crear el CheckBox chkSqlServer
     $chkSqlServer = New-Object System.Windows.Forms.CheckBox
     $chkSqlServer.Text = "Instalar SQL Tools (opcional)"

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1443"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1451"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -407,16 +407,44 @@ $btnModificarPermisos.Add_Click({
         foreach ($comando in $comandos) {
             Write-Host "`nEjecutando comando: $comando" -ForegroundColor Yellow
 
-            # Ejecutar AdvancedRun con cmd.exe y el comando icacls
-            Start-Process -FilePath $advancedRunPath -ArgumentList @(
-                '/EXEFilename "C:\Windows\System32\cmd.exe"',
-                '/RunAs 8',  # TrustedInstaller
-                '/StartDirectory "C:\Windows\System32"',
-                '/CommandLine "/c $comando"',
-                '/Run'
-            ) -WindowStyle Hidden -Wait
+            # Crear un archivo de configuración temporal para AdvancedRun
+            $configFile = [System.IO.Path]::GetTempFileName()
+            $configContent = @"
+[Run]
+Executable=cmd.exe
+Parameters=/c $comando
+RunAs=8
+"@
+            Set-Content -Path $configFile -Value $configContent
 
-            Write-Host "Comando ejecutado." -ForegroundColor Green
+            # Ejecutar AdvancedRun y capturar la salida
+            $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+            $processInfo.FileName = $advancedRunPath
+            $processInfo.Arguments = "/RunFrom `"$configFile`""
+            $processInfo.UseShellExecute = $false
+            $processInfo.RedirectStandardOutput = $true
+            $processInfo.RedirectStandardError = $true
+            $processInfo.CreateNoWindow = $true
+
+            $process = New-Object System.Diagnostics.Process
+            $process.StartInfo = $processInfo
+            $process.Start() | Out-Null
+            $process.WaitForExit()
+
+            # Mostrar la salida del comando
+            $output = $process.StandardOutput.ReadToEnd()
+            $errorOutput = $process.StandardError.ReadToEnd()
+
+            Write-Host "Salida del comando:" -ForegroundColor Green
+            Write-Host $output -ForegroundColor White
+
+            if ($errorOutput) {
+                Write-Host "Errores:" -ForegroundColor Red
+                Write-Host $errorOutput -ForegroundColor Red
+            }
+
+            # Eliminar el archivo de configuración temporal
+            Remove-Item -Path $configFile -Force
         }
 
         Write-Host "`nModificación de permisos completada con AdvancedRun." -ForegroundColor Cyan

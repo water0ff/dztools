@@ -353,12 +353,6 @@ $chkSqlServer.Add_CheckedChanged({
                                                         
                                                         
 
-# Crear el botón para modificar permisos
-$btnModificarPermisos = Create-Button -Text "Modificar Permisos LMZA" -Location (New-Object System.Drawing.Point(240, 250)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us utilizando AdvancedRun."
-
-# Agregar el botón a la pestaña de aplicaciones
-$tabAplicaciones.Controls.Add($btnModificarPermisos)
-
 # Definir la acción del botón
 $btnModificarPermisos.Add_Click({
     Write-Host "`nIniciando modificación de permisos con AdvancedRun..." -ForegroundColor Cyan

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1509"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1603"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -364,11 +364,18 @@ $btnModificarPermisos.Add_Click({
         $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
 
         # Ruta de PsExec (asumiendo que PsExec está en el PATH o en una ubicación conocida)
-        $psexecPath = "C:\Temp\PsExec\PsExec.exe"
+        $psexecPath = "C:\Path\To\PSTools\PsExec.exe"
 
-        # Ejecutar los comandos con PsExec usando el privilegio de TrustedInstaller (nivel 8)
-        Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando1" -Verb RunAs
-        Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando2" -Verb RunAs
+        # Ejecutar los comandos con PsExec usando el privilegio de TrustedInstaller (nivel 8) y mostrar salida en consola
+        $process1 = Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando1" -Verb RunAs -PassThru -Wait
+        $process2 = Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando2" -Verb RunAs -PassThru -Wait
+
+        # Mostrar la salida de los comandos en tiempo real
+        Write-Host "`nEjecutando primer comando: $comando1" -ForegroundColor Yellow
+        $process1.StandardOutput.ReadToEnd() | ForEach-Object { Write-Host $_ }
+
+        Write-Host "`nEjecutando segundo comando: $comando2" -ForegroundColor Yellow
+        $process2.StandardOutput.ReadToEnd() | ForEach-Object { Write-Host $_ }
 
         Write-Host "`nModificación de permisos completada." -ForegroundColor Cyan
     } catch {

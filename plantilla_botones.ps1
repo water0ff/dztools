@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1244"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1255"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -130,7 +130,7 @@ function Create-Label {
     $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
     $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 210)) -ToolTip "Respaldo de Restcard, puede requerir MySQL instalado."
 # Crear el botón para modificar permisos
-$btnModificarPermisos = Create-Button -Text "Modificar Permisos LMZA" -Location (New-Object System.Drawing.Point(240, 250)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
+$btnModificarPermisos = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(240, 250)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 310)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Crear el CheckBox chkSqlServer
     $chkSqlServer = New-Object System.Windows.Forms.CheckBox
@@ -365,122 +365,62 @@ $chkSqlServer.Add_CheckedChanged({
                                                         
                                                         
                                                         
-                                                                            # Definir la acción del botón
-                                                                            $btnModificarPermisos.Add_Click({
-                                                                                Write-Host "`nIniciando modificación de permisos con TrustedInstaller..." -ForegroundColor Cyan
-                                                                            
-                                                                                try {
-                                                                                    # Obtener el proceso de TrustedInstaller
-                                                                                    $trustedInstallerProcess = Get-Process -Name "TrustedInstaller" -ErrorAction Stop
-                                                                            
-                                                                                    # Duplicar el token de TrustedInstaller utilizando P/Invoke
-                                                                                    Add-Type @"
-                                                                                    using System;
-                                                                                    using System.Runtime.InteropServices;
-                                                                                    using System.Security.Principal;
-                                                                            
-                                                                                    public class TokenManipulator
-                                                                                    {
-                                                                                        [DllImport("advapi32.dll", SetLastError = true)]
-                                                                                        private static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
-                                                                            
-                                                                                        [DllImport("advapi32.dll", SetLastError = true)]
-                                                                                        private static extern bool DuplicateTokenEx(
-                                                                                            IntPtr hExistingToken,
-                                                                                            uint dwDesiredAccess,
-                                                                                            IntPtr lpTokenAttributes,
-                                                                                            int ImpersonationLevel,
-                                                                                            int TokenType,
-                                                                                            out IntPtr phNewToken);
-                                                                            
-                                                                                        [DllImport("kernel32.dll", SetLastError = true)]
-                                                                                        private static extern bool CloseHandle(IntPtr hObject);
-                                                                            
-                                                                                        public static IntPtr DuplicateToken(IntPtr processHandle)
-                                                                                        {
-                                                                                            IntPtr tokenHandle;
-                                                                                            IntPtr duplicatedTokenHandle;
-                                                                            
-                                                                                            // Abrir el token del proceso
-                                                                                            if (!OpenProcessToken(processHandle, 0x0002 | 0x0008, out tokenHandle))
-                                                                                            {
-                                                                                                throw new Exception("No se pudo abrir el token del proceso.");
-                                                                                            }
-                                                                            
-                                                                                            // Duplicar el token
-                                                                                            if (!DuplicateTokenEx(
-                                                                                                tokenHandle,
-                                                                                                0x10000000, // TOKEN_ALL_ACCESS
-                                                                                                IntPtr.Zero,
-                                                                                                2, // SecurityImpersonation
-                                                                                                1, // TokenPrimary
-                                                                                                out duplicatedTokenHandle))
-                                                                                            {
-                                                                                                CloseHandle(tokenHandle);
-                                                                                                throw new Exception("No se pudo duplicar el token.");
-                                                                                            }
-                                                                            
-                                                                                            // Cerrar el handle del token original
-                                                                                            CloseHandle(tokenHandle);
-                                                                            
-                                                                                            return duplicatedTokenHandle;
-                                                                                        }
-                                                                                    }
-"@
-                                                                            
-                                                                                    # Duplicar el token de TrustedInstaller
-                                                                                    $tokenHandle = [TokenManipulator]::DuplicateToken($trustedInstallerProcess.Handle)
-                                                                            
-                                                                                    # Lista de comandos a ejecutar
-                                                                                    $comandos = @(
-                                                                                        "icacls C:\Windows\System32\en-us /grant Administrators:F",
-                                                                                        "icacls C:\Windows\System32\en-us /grant Administradores:F",
-                                                                                        "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
-                                                                                    )
-                                                                            
-                                                                                    # Ejecutar cada comando
-                                                                                    foreach ($comando in $comandos) {
-                                                                                        Write-Host "`nEjecutando comando: $comando" -ForegroundColor Yellow
-                                                                            
-                                                                                        # Crear un nuevo proceso con el token duplicado
-                                                                                        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-                                                                                        $startInfo.FileName = "cmd.exe"  # Usamos cmd.exe para ejecutar icacls
-                                                                                        $startInfo.Arguments = "/c $comando"  # Comando a ejecutar
-                                                                                        $startInfo.UseShellExecute = $false
-                                                                                        $startInfo.CreateNoWindow = $true
-                                                                                        $startInfo.RedirectStandardOutput = $true
-                                                                                        $startInfo.RedirectStandardError = $true
-                                                                                        $startInfo.UserName = "NT SERVICE\TrustedInstaller"
-                                                                                        $startInfo.Domain = ""
-                                                                                        $startInfo.Password = $null
-                                                                                        $startInfo.Token = $tokenHandle
-                                                                            
-                                                                                        $process = New-Object System.Diagnostics.Process
-                                                                                        $process.StartInfo = $startInfo
-                                                                                        $process.Start() | Out-Null
-                                                                                        $process.WaitForExit()
-                                                                            
-                                                                                        # Mostrar la salida del comando
-                                                                                        $output = $process.StandardOutput.ReadToEnd()
-                                                                                        $errorOutput = $process.StandardError.ReadToEnd()
-                                                                            
-                                                                                        Write-Host "Salida del comando:" -ForegroundColor Green
-                                                                                        Write-Host $output -ForegroundColor White
-                                                                            
-                                                                                        if ($errorOutput) {
-                                                                                            Write-Host "Errores:" -ForegroundColor Red
-                                                                                            Write-Host $errorOutput -ForegroundColor Red
-                                                                                        }
-                                                                                    }
-                                                                            
-                                                                                    # Liberar el handle del token
-                                                                                    [System.Runtime.InteropServices.Marshal]::Release($tokenHandle)
-                                                                            
-                                                                                    Write-Host "`nModificación de permisos completada con TrustedInstaller." -ForegroundColor Cyan
-                                                                                } catch {
-                                                                                    Write-Host "Error: $_" -ForegroundColor Red
-                                                                                }
-                                                                            })
+# Definir la acción del botón
+                $btnModificarPermisos.Add_Click({
+                    Write-Host "`nIniciando modificación de permisos con PsExec..." -ForegroundColor Cyan
+                
+                    try {
+                        # Ruta a PsExec (ajusta la ruta según donde lo hayas descargado)
+                        $psexecPath = "C:\Path\To\PsExec.exe"
+                
+                        # Verificar si PsExec existe
+                        if (-not (Test-Path -Path $psexecPath)) {
+                            throw "PsExec no encontrado en la ruta especificada: $psexecPath"
+                        }
+                
+                        # Lista de comandos a ejecutar
+                        $comandos = @(
+                            "icacls C:\Windows\System32\en-us /grant Administrators:F",
+                            "icacls C:\Windows\System32\en-us /grant Administradores:F",
+                            "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
+                        )
+                
+                        # Ejecutar cada comando con PsExec
+                        foreach ($comando in $comandos) {
+                            Write-Host "`nEjecutando comando: $comando" -ForegroundColor Yellow
+                
+                            # Ejecutar el comando con PsExec como TrustedInstaller
+                            $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+                            $processInfo.FileName = $psexecPath
+                            $processInfo.Arguments = "-i -s cmd.exe /c $comando"
+                            $processInfo.UseShellExecute = $false
+                            $processInfo.RedirectStandardOutput = $true
+                            $processInfo.RedirectStandardError = $true
+                            $processInfo.CreateNoWindow = $true
+                
+                            $process = New-Object System.Diagnostics.Process
+                            $process.StartInfo = $processInfo
+                            $process.Start() | Out-Null
+                            $process.WaitForExit()
+                
+                            # Mostrar la salida del comando
+                            $output = $process.StandardOutput.ReadToEnd()
+                            $errorOutput = $process.StandardError.ReadToEnd()
+                
+                            Write-Host "Salida del comando:" -ForegroundColor Green
+                            Write-Host $output -ForegroundColor White
+                
+                            if ($errorOutput) {
+                                Write-Host "Errores:" -ForegroundColor Red
+                                Write-Host $errorOutput -ForegroundColor Red
+                            }
+                        }
+                
+                        Write-Host "`nModificación de permisos completada con PsExec." -ForegroundColor Cyan
+                    } catch {
+                        Write-Host "Error: $_" -ForegroundColor Red
+                    }
+                })
 
 
 

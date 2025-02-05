@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1413"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1426"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -353,7 +353,7 @@ $chkSqlServer.Add_CheckedChanged({
                                                         
                                                         
 
-            # Definir la acción del botón
+# Definir la acción del botón
             $btnModificarPermisos.Add_Click({
                 Write-Host "`nIniciando modificación de permisos con AdvancedRun..." -ForegroundColor Cyan
             
@@ -417,10 +417,10 @@ $chkSqlServer.Add_CheckedChanged({
 "@
                         Set-Content -Path $configFile -Value $configContent
             
-                        # Ejecutar AdvancedRun en modo silencioso
+                        # Ejecutar AdvancedRun en segundo plano
                         $processInfo = New-Object System.Diagnostics.ProcessStartInfo
                         $processInfo.FileName = $advancedRunPath
-                        $processInfo.Arguments = "/RunFrom `"$configFile`" /silent"  # Modo silencioso
+                        $processInfo.Arguments = "/RunFrom `"$configFile`""
                         $processInfo.UseShellExecute = $false
                         $processInfo.RedirectStandardOutput = $true
                         $processInfo.RedirectStandardError = $true

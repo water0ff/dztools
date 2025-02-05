@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1619"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1622"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -398,15 +398,18 @@ $btnModificarPermisos.Add_Click({
         # Comandos con el nombre correcto del grupo
         $comando1 = "icacls C:\Windows\System32\en-us /grant `"$grupoAdmin`":F"
         $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
-
-        # Ejecutar los comandos con PsExec usando el privilegio de TrustedInstaller
+       
+        # Comandos con formato correcto
+        $psexecCmd1 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando1`""
+        $psexecCmd2 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando2`""
+        
         Write-Host "`nEjecutando primer comando: $comando1" -ForegroundColor Yellow
-        $process1 = Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando1" -Verb RunAs -PassThru -Wait
-        $process1.StandardOutput.ReadToEnd() | ForEach-Object { Write-Host $_ }
-
+        $output1 = & cmd /c $psexecCmd1
+        Write-Host $output1
+        
         Write-Host "`nEjecutando segundo comando: $comando2" -ForegroundColor Yellow
-        $process2 = Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando2" -Verb RunAs -PassThru -Wait
-        $process2.StandardOutput.ReadToEnd() | ForEach-Object { Write-Host $_ }
+        $output2 = & cmd /c $psexecCmd2
+        Write-Host $output2
 
         Write-Host "`nModificación de permisos completada." -ForegroundColor Cyan
     } catch {

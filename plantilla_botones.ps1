@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250205.1603"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250205.1608"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -176,21 +176,10 @@ $tabAplicaciones.Controls.Add($btnModificarPermisos)
     $tabProSql.Controls.Add($btnDisconnectDb)
 #Funcion para copiar el puerto al portapapeles
     $lblPort.Add_Click({
-        if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
-            $port = $matches[0]  # Extraer el número del texto
-            [System.Windows.Forms.Clipboard]::SetText($port)
-            Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
-        } else {
-            Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
-        }
     })
 $lblHostname.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
-        Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
     })
 $lbIpAdress.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($lbIpAdress.Text)
-        Write-Host "`nIP's copiadas al equipo: $($lbIpAdress.Text)"
     })
 # Obtener las direcciones IP y los adaptadores
                 $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
@@ -364,7 +353,7 @@ $btnModificarPermisos.Add_Click({
         $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
 
         # Ruta de PsExec (asumiendo que PsExec está en el PATH o en una ubicación conocida)
-        $psexecPath = "C:\Path\To\PSTools\PsExec.exe"
+        $psexecPath = "C:\Temp\PsExec\PsExec.exe"
 
         # Ejecutar los comandos con PsExec usando el privilegio de TrustedInstaller (nivel 8) y mostrar salida en consola
         $process1 = Start-Process -FilePath $psexecPath -ArgumentList "/accepteula /s $comando1" -Verb RunAs -PassThru -Wait

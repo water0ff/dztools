@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1124"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1135"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -99,6 +99,27 @@ function Create-Label {
                 
                     return $label
                 }
+    function Create-Form {
+                param (
+                    [string]$Title,
+                    [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(350, 200)),
+                    [System.Windows.Forms.FormStartPosition]$StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen,
+                    [System.Windows.Forms.FormBorderStyle]$FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog,
+                    [bool]$MaximizeBox = $false,
+                    [bool]$MinimizeBox = $false
+                )
+                
+                # Crear el formulario
+                $form = New-Object System.Windows.Forms.Form
+                $form.Text = $Title
+                $form.Size = $Size
+                $form.StartPosition = $StartPosition
+                $form.FormBorderStyle = $FormBorderStyle
+                $form.MaximizeBox = $MaximizeBox
+                $form.MinimizeBox = $MinimizeBox
+            
+                return $form
+    }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 315) #X,Y
@@ -577,74 +598,62 @@ $restoreColorOnLeave = {
 ##-------------------------------------------------------------------------------BOTONES#
 $btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-        # Función para buscar versiones de SSMS instaladas
         function Get-SSMSVersions {
             $ssmsPaths = @()
-            # Rutas comunes donde SSMS puede estar instalado
             $possiblePaths = @(
                 "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",  # SSMS 2014 y versiones anteriores
                 "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"  # SSMS 2016 y versiones posteriores
             )
-            # Buscar en las rutas posibles
             foreach ($path in $possiblePaths) {
                 $foundPaths = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
                 if ($foundPaths) {
                     foreach ($foundPath in $foundPaths) {
-                        # Obtener la versión del archivo Ssms.exe
-                        $versionInfo = (Get-Command $foundPath.FullName).FileVersionInfo
-                        $ssmsPaths += [PSCustomObject]@{
-                            Path    = $foundPath.FullName
-                            Version = $versionInfo.FileVersion
-                        }
+                        $ssmsPaths += $foundPath.FullName
                     }
                 }
             }
             return $ssmsPaths
         }
-        # Obtener las versiones de SSMS instaladas
         $ssmsVersions = Get-SSMSVersions
         if ($ssmsVersions.Count -eq 0) {
             [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
         # Crear un formulario para seleccionar la versión de SSMS
-        $formSelectionSSMS = New-Object System.Windows.Forms.Form
-        $formSelectionSSMS.Text = "Seleccionar versión de SSMS"
-        $formSelectionSSMS.Size = New-Object System.Drawing.Size(350, 200)
-        $formSelectionSSMS.StartPosition = "CenterScreen"
-        $formSelectionSSMS.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-        $formSelectionSSMS.MaximizeBox = $false
-        $formSelectionSSMS.MinimizeBox = $false
-        # Crear un Label para el mensaje
-        $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20)) `
-                                  -AutoSize $true -Font $defaultFont
+        $formSelectionSSMS = Create-Form -Title "Seleccionar versión de SSMS" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition [System.Windows.Forms.FormStartPosition]::CenterScreen `
+                                        -FormBorderStyle [System.Windows.Forms.FormBorderStyle]::FixedDialog -MaximizeBox $false -MinimizeBox $false
+        $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20)) ` 
+                                      -AutoSize $true -Font $defaultFont -BackColor [System.Drawing.Color]::Transparent
         $formSelectionSSMS.Controls.Add($labelSSMS)
         # Usar la función Create-Label para crear la label de versión seleccionada
-        $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80)) `
-                                             -AutoSize $true -Font $defaultFont
+        $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80)) ` 
+                                             -AutoSize $true -Font $defaultFont -BackColor [System.Drawing.Color]::Transparent
         $formSelectionSSMS.Controls.Add($labelSelectedVersion)
         # Crear un ComboBox para las versiones de SSMS
         $comboBoxSSMS = New-Object System.Windows.Forms.ComboBox
         $comboBoxSSMS.Location = New-Object System.Drawing.Point(10, 50)
         $comboBoxSSMS.Size = New-Object System.Drawing.Size(310, 20)
         $comboBoxSSMS.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-        # Agregar las versiones encontradas al ComboBox
+        # Agregar las ubicaciones encontradas al ComboBox
         foreach ($version in $ssmsVersions) {
-            # Agregar la versión junto con el número de versión al ComboBox
-            $comboBoxSSMS.Items.Add("$($version.Version) - $($version.Path)")
+            # Agregar solo la ubicación (ruta) al ComboBox, sin la versión completa
+            $comboBoxSSMS.Items.Add($version)
         }
         # Seleccionar la primera versión por defecto en el ComboBox
         $comboBoxSSMS.SelectedIndex = 0
         $formSelectionSSMS.Controls.Add($comboBoxSSMS)
-    
-        # Inicializar la labelSelectedVersion con la primera versión seleccionada
+        
+        # Inicializar la labelSelectedVersion con la versión de la primera ruta seleccionada
         $selectedVersion = $comboBoxSSMS.SelectedItem
-        $labelSelectedVersion.Text = "Versión seleccionada: $selectedVersion"
-    
+        $versionName = [System.IO.Path]::GetFileNameWithoutExtension($selectedVersion)
+        $labelSelectedVersion.Text = "Versión seleccionada: $versionName"
+        
         # Actualizar el label con la versión seleccionada
         $comboBoxSSMS.Add_SelectedIndexChanged({
             $selectedVersion = $comboBoxSSMS.SelectedItem
-            $labelSelectedVersion.Text = "Versión seleccionada: $selectedVersion"
+            # Extraer solo el nombre del archivo sin la extensión
+            $versionName = [System.IO.Path]::GetFileNameWithoutExtension($selectedVersion)
+            $labelSelectedVersion.Text = "Versión seleccionada: $versionName"
         })
         # Crear un botón para aceptar la selección
         $buttonOKSSMS = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(20, 120)) -Size (New-Object System.Drawing.Size(120, 25))
@@ -655,7 +664,7 @@ $btnSQLManagement.Add_Click({
         $formSelectionSSMS.Controls.Add($buttonOKSSMS)
         $formSelectionSSMS.CancelButton = $buttonCancelSSMS
         $formSelectionSSMS.Controls.Add($buttonCancelSSMS)
-    
+        
         # Mostrar el formulario y manejar la selección
         $result = $formSelectionSSMS.ShowDialog()
         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
@@ -855,13 +864,8 @@ $btnClearPrintJobs.Add_Click({
                             # Verificar si hay al menos una subcarpeta
                             if ($LZMsubCarpetas.Count -gt 1) {
                                 # Crear un nuevo formulario para mostrar las subcarpetas
-                                $formLZMA = New-Object System.Windows.Forms.Form
-                                $formLZMA.Text = "Carpetas LZMA"
-                                $formLZMA.Size = New-Object System.Drawing.Size(400, 200)
-                                $formLZMA.StartPosition = "CenterScreen"
-                                $formLZMA.MaximizeBox = $false  # Deshabilitar botón de maximizar
-                                $formLZMA.MinimizeBox = $false  # Deshabilitar botón de minimizar
-                                $formLZMA.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog  # Evitar redimensionar
+                                $formLZMA = Create-Form -Title "Carpetas LZMA" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition [System.Windows.Forms.FormStartPosition]::CenterScreen `
+                                                        -FormBorderStyle [System.Windows.Forms.FormBorderStyle]::FixedDialog -MaximizeBox $false -MinimizeBox $false
                                 # Crear un ComboBox para mostrar las subcarpetas
                                 $LZMcomboBoxCarpetas = New-Object System.Windows.Forms.ComboBox
                                 $LZMcomboBoxCarpetas.Location = New-Object System.Drawing.Point(10, 10)

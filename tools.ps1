@@ -2039,7 +2039,7 @@ $btnModificarPermisos.Add_Click({
 
             Write-Host "`tPsExec descargado y extraído correctamente." -ForegroundColor Green
         } else {
-            Write-Host "``tPsExec ya está instalado en: $psexecPath" -ForegroundColor Green
+            Write-Host "`tPsExec ya está instalado en: $psexecPath" -ForegroundColor Green
         }
 
         # Detectar el nombre correcto del grupo de administradores

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1211"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1215"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -624,10 +624,10 @@ $btnSQLManagement.Add_Click({
         # Crear un formulario para seleccionar la versión de SSMS
         $formSelectionSSMS = Create-Form -Title "Seleccionar versión de SSMS" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
-        $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20)) -BackColor [System.Drawing.Color]::Transparent
+        $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20)) -BackColor [System.Drawing.Color]::Empty
         $formSelectionSSMS.Controls.Add($labelSSMS)
         # Usar la función Create-Label para crear la label de versión seleccionada
-        $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80)) -BackColor [System.Drawing.Color]::Transparent
+        $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80)) -BackColor [System.Drawing.Color]::Empty
         $formSelectionSSMS.Controls.Add($labelSelectedVersion)
         # Crear un ComboBox para las versiones de SSMS
         $comboBoxSSMS = New-Object System.Windows.Forms.ComboBox
@@ -841,7 +841,7 @@ $btnClearPrintJobs.Add_Click({
         }
     })
 #LMZA
-                $LZMAbtnBuscarCarpeta.Add_Click({
+$LZMAbtnBuscarCarpeta.Add_Click({
          Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
             # Usar la ruta correcta del registro
             $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
@@ -908,7 +908,7 @@ $btnClearPrintJobs.Add_Click({
                                     }
                                 })
                                 # Crear botón para renombrar usando la función Create-Button
-                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 100)) -Size (New-Object System.Drawing.Size(170, 40)) -Enabled $false
+                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 100)) -Size (New-Object System.Drawing.Size(150, 20)) -Enabled $false
                                 # Evento Click del botón Renombrar
                                 $LZMbtnRenombrar.Add_Click({
                                     $indiceSeleccionado = $LZMcomboBoxCarpetas.SelectedIndex
@@ -936,7 +936,7 @@ $btnClearPrintJobs.Add_Click({
                                     }
                                 })
                                 # Crear botón para salir usando la función Create-Button
-                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(190, 100)) -Size (New-Object System.Drawing.Size(170, 40))
+                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(210, 100)) -Size (New-Object System.Drawing.Size(150, 20))
                                 # Evento Click del botón Salir
                                 $LMZAbtnSalir.Add_Click({
                                                 Write-Host "`tCancelado por el usuario." -ForegroundColor Yellow

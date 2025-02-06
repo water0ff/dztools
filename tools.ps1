@@ -73,7 +73,7 @@ function Create-Label {
                     param (
                         [string]$Text,
                         [System.Drawing.Point]$Location,
-                        [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
+                        [System.Drawing.Color]$BackColor = [System.Drawing.Color]::Transparent,
                         [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
                         [string]$ToolTipText = $null,
                         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
@@ -1550,7 +1550,7 @@ $btnInstallSQLManagement.Add_Click({
         $txtUsuarioRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 40)) -Size (New-Object System.Drawing.Size(200, 20))
         $lblBaseDeDatosRestcard = Create-Label -Text "Base de Datos:" -Location (New-Object System.Drawing.Point(20, 65))        
         $txtBaseDeDatosRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 65)) -Size (New-Object System.Drawing.Size(200, 20))
-        $lblBaseDeDatosRestcard = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(20, 90))
+        $lblPasswordRestcard = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(20, 90))
         $txtPasswordRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 90)) -Size (New-Object System.Drawing.Size(200, 20)) -UseSystemPasswordChar $true
         $lblHostnameRestcard = Create-Label -Text "Hostname:" -Location (New-Object System.Drawing.Point(20, 115))    
         $txtHostnameRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 115)) -Size (New-Object System.Drawing.Size(200, 20))

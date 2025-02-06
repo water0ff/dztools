@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1428"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1449"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -118,6 +118,41 @@ function Create-Label {
             
                 return $form
     }
+function Create-ComboBox {
+            param (
+                [System.Drawing.Point]$Location,
+                [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
+                [System.Windows.Forms.ComboBoxStyle]$DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList,
+                [System.Drawing.Font]$Font = $defaultFont,
+                [string]$DefaultText = $null,
+                [string[]]$Items = @(),
+                [int]$SelectedIndex = -1
+            )
+        
+            # Crear el ComboBox
+            $comboBox = New-Object System.Windows.Forms.ComboBox
+            $comboBox.Location = $Location
+            $comboBox.Size = $Size
+            $comboBox.DropDownStyle = $DropDownStyle
+            $comboBox.Font = $Font
+        
+            # Agregar elementos si se proporcionan
+            if ($Items.Count -gt 0) {
+                $comboBox.Items.AddRange($Items)
+            }
+        
+            # Establecer texto predeterminado si se proporciona
+            if ($DefaultText) {
+                $comboBox.Text = $DefaultText
+            }
+        
+            # Seleccionar un índice si se proporciona
+            if ($SelectedIndex -ge 0 -and $SelectedIndex -lt $comboBox.Items.Count) {
+                $comboBox.SelectedIndex = $SelectedIndex
+            }
+        
+            return $comboBox
+}
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(480, 315) #X,Y
@@ -646,10 +681,7 @@ $btnSQLManagement.Add_Click({
         $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80))
         $formSelectionSSMS.Controls.Add($labelSelectedVersion)
     
-        $comboBoxSSMS = New-Object System.Windows.Forms.ComboBox
-        $comboBoxSSMS.Location = New-Object System.Drawing.Point(10, 50)
-        $comboBoxSSMS.Size = New-Object System.Drawing.Size(310, 20)
-        $comboBoxSSMS.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+        $comboBoxSSMS = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(310, 20)) -DropDownStyle [System.Windows.Forms.ComboBoxStyle]::DropDownList
     
         foreach ($version in $ssmsVersions) {
             $comboBoxSSMS.Items.Add($version)
@@ -885,12 +917,8 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                                 $formLZMA = Create-Form -Title "Carpetas LZMA" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                                                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
                                 # Crear un ComboBox para mostrar las subcarpetas
-                                $LZMcomboBoxCarpetas = New-Object System.Windows.Forms.ComboBox
-                                $LZMcomboBoxCarpetas.Location = New-Object System.Drawing.Point(10, 10)
-                                $LZMcomboBoxCarpetas.Size = New-Object System.Drawing.Size(360, 20)
-                                $LZMcomboBoxCarpetas.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-                                $LZMcomboBoxCarpetas.Font = $defaultFont  # Usar la fuente predeterminada
-                                # Agregar las subcarpetas al ComboBox
+                                $LZMcomboBoxCarpetas = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 10)) -Size (New-Object System.Drawing.Size(360, 20)) `
+                                       -DropDownStyle [System.Windows.Forms.ComboBoxStyle]::DropDownList -Font $defaultFont
                                 foreach ($LZMsubCarpeta in $LZMsubCarpetas) {
                                     $LZMcomboBoxCarpetas.Items.Add($LZMsubCarpeta)
                                 }
@@ -1253,13 +1281,8 @@ $btnInstallSQLManagement.Add_Click({
     $btnEliminarServidorBDD.Add_Click({
         $formEliminarServidor = Create-Form -Title "Eliminar Servidor de BDD" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
-            $cmbOpciones = New-Object System.Windows.Forms.ComboBox
-            $cmbOpciones.Location = New-Object System.Drawing.Point(10, 20)
-            $cmbOpciones.Size = New-Object System.Drawing.Size(360, 20)
-            $cmbOpciones.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-            $cmbOpciones.Items.Add("Seleccione una opción")
-            $cmbOpciones.Items.AddRange(@("On The minute", "NS Hoteles", "Rest Card"))
-            $cmbOpciones.SelectedIndex = 0
+            $cmbOpciones = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(360, 20)) `
+                               -DropDownStyle [System.Windows.Forms.ComboBoxStyle]::DropDownList -Items @("Seleccione una opción", "On The minute", "NS Hoteles", "Rest Card") -SelectedIndex 0
             $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
             $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(140, 30))
             $cmbOpciones.Add_SelectedIndexChanged({
@@ -1334,11 +1357,7 @@ $btnInstallSQLManagement.Add_Click({
             $labelProfile.Location = New-Object System.Drawing.Point(10, 20)
             $labelProfile.Size = New-Object System.Drawing.Size(100, 20)
     
-            $cmbProfiles = New-Object System.Windows.Forms.ComboBox
-            $cmbProfiles.Location = New-Object System.Drawing.Point(120, 20)
-            $cmbProfiles.Size = New-Object System.Drawing.Size(250, 20)
-            $cmbProfiles.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-    
+            $cmbProfiles = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(250, 20)) -DropDownStyle [System.Windows.Forms.ComboBoxStyle]::DropDownList    
             # Cargar archivos INI desde las rutas especificadas
             $profiles = @{ }
             $iniFiles = @(
@@ -1788,11 +1807,8 @@ $btnInstallSQLManagement.Add_Click({
             $lblipAssignAdapter.Location = New-Object System.Drawing.Point(10, 20)
             $lblipAssignAdapter.AutoSize = $true
             $formIpAssignAsignacion.Controls.Add($lblipAssignAdapter)
-            $ComboBipAssignAdapters = New-Object System.Windows.Forms.ComboBox
-            $ComboBipAssignAdapters.Location = New-Object System.Drawing.Point(10, 50)
-            $ComboBipAssignAdapters.Size = New-Object System.Drawing.Size(360, 20)
-            $ComboBipAssignAdapters.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-            $ComboBipAssignAdapters.Text = "Selecciona 1 adaptador de red"
+            $ComboBipAssignAdapters = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(360, 20)) `
+                                          -DropDownStyle [System.Windows.Forms.ComboBoxStyle]::DropDownList -DefaultText "Selecciona 1 adaptador de red"
                         # Agregar evento para habilitar botones cuando se selecciona un adaptador
                         $ComboBipAssignAdapters.Add_SelectedIndexChanged({
                             # Verificar si se ha seleccionado un adaptador distinto de la opción por defecto

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1621"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1622"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -160,6 +160,7 @@ function Create-TextBox {
         [bool]$Multiline = $false,
         [System.Windows.Forms.ScrollBars]$ScrollBars = [System.Windows.Forms.ScrollBars]::None,
         [bool]$ReadOnly = $false,
+        [bool]$UseSystemPasswordChar = $false
     )
 
     # Crear el TextBox
@@ -173,6 +174,11 @@ function Create-TextBox {
     $textBox.Multiline = $Multiline
     $textBox.ScrollBars = $ScrollBars
     $textBox.ReadOnly = $ReadOnly
+
+    # Si se requiere usar el sistema de contraseña, configurar el PasswordChar
+    if ($UseSystemPasswordChar) {
+        $textBox.UseSystemPasswordChar = $true
+    }
 
     return $textBox
 }
@@ -1411,9 +1417,8 @@ $btnInstallSQLManagement.Add_Click({
             $txtDatabase = Create-TextBox -Location (New-Object System.Drawing.Point(120, 80)) -Size (New-Object System.Drawing.Size(250, 20))
             $lblPassword = Create-Label -Text "Contraseña" -Location (New-Object System.Drawing.Point(10, 110)) -Size (New-Object System.Drawing.Size(100, 20)) `
                                      -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont           
-            $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 110)) -Size (New-Object System.Drawing.Size(250, 20))
-            $txtPassword.UseSystemPasswordChar = $true
-    
+            $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 110)) -Size (New-Object System.Drawing.Size(250, 20)) -UseSystemPasswordChar $true
+
         # Habilitar el botón "Conectar" si la contraseña tiene al menos un carácter
         $txtPassword.Add_TextChanged({
             if ($txtPassword.Text.Length -ge 1) {
@@ -1546,8 +1551,7 @@ $btnInstallSQLManagement.Add_Click({
         $lblBaseDeDatosRestcard = Create-Label -Text "Base de Datos:" -Location (New-Object System.Drawing.Point(20, 65))        
         $txtBaseDeDatosRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 65)) -Size (New-Object System.Drawing.Size(200, 20))
         $lblBaseDeDatosRestcard = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(20, 90))
-        $txtPasswordRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 90)) -Size (New-Object System.Drawing.Size(200, 20))
-        $txtPasswordRestcard.UseSystemPasswordChar = $true
+        $txtPasswordRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 90)) -Size (New-Object System.Drawing.Size(200, 20)) -UseSystemPasswordChar $true
         $lblHostnameRestcard = Create-Label -Text "Hostname:" -Location (New-Object System.Drawing.Point(20, 115))    
         $txtHostnameRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 115)) -Size (New-Object System.Drawing.Size(200, 20))
     

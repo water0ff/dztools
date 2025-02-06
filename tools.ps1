@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1157"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1206"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -80,7 +80,6 @@ function Create-Label {
                         [System.Drawing.Font]$Font = $defaultFont,
                         [System.Windows.Forms.BorderStyle]$BorderStyle = [System.Windows.Forms.BorderStyle]::None,
                         [System.Drawing.ContentAlignment]$TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft,
-                        [bool]$AutoSize = $false
                     )
                 
                     # Crear la etiqueta
@@ -95,7 +94,6 @@ function Create-Label {
                     $label.TextAlign = $TextAlign
                 
                     if ($ToolTipText) { $toolTip.SetToolTip($label, $ToolTipText) }
-                    if ($AutoSize) { $label.AutoSize = $true }
                 
                     return $label
                 }
@@ -619,12 +617,10 @@ $btnSQLManagement.Add_Click({
         # Crear un formulario para seleccionar la versión de SSMS
         $formSelectionSSMS = Create-Form -Title "Seleccionar versión de SSMS" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
-        $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20)) ` 
-                                      -AutoSize $true -Font $defaultFont -BackColor [System.Drawing.Color]::Transparent
+        $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20)) -BackColor [System.Drawing.Color]::Transparent
         $formSelectionSSMS.Controls.Add($labelSSMS)
         # Usar la función Create-Label para crear la label de versión seleccionada
-        $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80)) ` 
-                                             -AutoSize $true -Font $defaultFont -BackColor [System.Drawing.Color]::Transparent
+        $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80)) -BackColor [System.Drawing.Color]::Transparent
         $formSelectionSSMS.Controls.Add($labelSelectedVersion)
         # Crear un ComboBox para las versiones de SSMS
         $comboBoxSSMS = New-Object System.Windows.Forms.ComboBox
@@ -840,16 +836,16 @@ $btnClearPrintJobs.Add_Click({
 #LMZA
                 $LZMAbtnBuscarCarpeta.Add_Click({
          Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-         # Usar la ruta de registro estándar sin importar el idioma
-            $LZMAregistryPath = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
+            # Usar la ruta correcta del registro
+            $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
             
-            # Opción de fallback en caso de que la ruta no exista
+            # Verificar si la ruta existe
             if (-not (Test-Path $LZMAregistryPath)) {
-                Write-Host "`nLa ruta de registro no existe en: $LZMAregistryPath" -ForegroundColor Yellow
+                Write-Host "`nLa ruta del registro no existe: $LZMAregistryPath" -ForegroundColor Yellow
                 [System.Windows.Forms.MessageBox]::Show("La ruta del registro no existe: $LZMAregistryPath", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                 return
             }
-                    try {
+            try {
                         # Intentar obtener las carpetas principales
                         $LZMcarpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
                 
@@ -869,7 +865,8 @@ $btnClearPrintJobs.Add_Click({
                             # Verificar si hay al menos una subcarpeta
                             if ($LZMsubCarpetas.Count -gt 1) {
                                 # Crear un nuevo formulario para mostrar las subcarpetas
-                                $formLZMA = Create-Form -Title "Carpetas LZMA" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition [System.Windows.Forms.FormStartPosition]::CenterScreen -FormBorderStyle [System.Windows.Forms.FormBorderStyle]::FixedDialog -MaximizeBox $false -MinimizeBox $false
+                                $formLZMA = Create-Form -Title "Carpetas LZMA" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                                                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
                                 # Crear un ComboBox para mostrar las subcarpetas
                                 $LZMcomboBoxCarpetas = New-Object System.Windows.Forms.ComboBox
                                 $LZMcomboBoxCarpetas.Location = New-Object System.Drawing.Point(10, 10)

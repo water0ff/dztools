@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1252"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1308"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1248,13 +1248,8 @@ $btnInstallSQLManagement.Add_Click({
                                             })
 #Boton para actualizar los datos del servidor (borrarlo basicamente)
     $btnEliminarServidorBDD.Add_Click({
-            $formEliminarServidor = New-Object System.Windows.Forms.Form
-            $formEliminarServidor.Text = "Eliminar Servidor de BDD"
-            $formEliminarServidor.Size = New-Object System.Drawing.Size(400, 200)
-            $formEliminarServidor.StartPosition = "CenterScreen"
-            $formEliminarServidor.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-            $formEliminarServidor.MaximizeBox = $false
-            $formEliminarServidor.MinimizeBox = $false
+        $formEliminarServidor = Create-Form -Title "Eliminar Servidor de BDD" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
             $cmbOpciones = New-Object System.Windows.Forms.ComboBox
             $cmbOpciones.Location = New-Object System.Drawing.Point(10, 20)
             $cmbOpciones.Size = New-Object System.Drawing.Size(360, 20)
@@ -1327,13 +1322,8 @@ $btnInstallSQLManagement.Add_Click({
 #Boton para conectar a la base de datos
     $btnConnectDb.Add_Click({
             # Crear el formulario para pedir los datos de conexión
-            $connectionForm = New-Object System.Windows.Forms.Form
-            $connectionForm.Text = "Conexión a SQL Server"
-            $connectionForm.Size = New-Object System.Drawing.Size(400, 200)
-            $connectionForm.StartPosition = "CenterScreen"
-            $connectionForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-            $connectionForm.MaximizeBox = $false
-            $connectionForm.MinimizeBox = $false
+                $formBddConnection = Create-Form -Title "Conexión a SQL Server" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
     
             # Crear las etiquetas y cajas de texto
             $labelProfile = New-Object System.Windows.Forms.Label
@@ -1470,7 +1460,7 @@ $btnInstallSQLManagement.Add_Click({
                     $global:password = $txtPassword.Text
         
                     # Cerrar la ventana de conexión
-                    $connectionForm.Close()
+                    $formBddConnection.Close()
         
                     # Actualizar el texto del label de conexión
                     $lblConnectionStatus.Text = "Conectado a BDD: $($txtDatabase.Text)"
@@ -1490,16 +1480,16 @@ $btnInstallSQLManagement.Add_Click({
                 }
             })
                 # Agregar los controles al formulario
-                $connectionForm.Controls.Add($labelProfile)
-                $connectionForm.Controls.Add($cmbProfiles)
-                $connectionForm.Controls.Add($labelServer)
-                $connectionForm.Controls.Add($txtServer)
-                $connectionForm.Controls.Add($labelDatabase)
-                $connectionForm.Controls.Add($txtDatabase)
-                $connectionForm.Controls.Add($labelPassword)
-                $connectionForm.Controls.Add($txtPassword)
-                $connectionForm.Controls.Add($btnOK)
-                $connectionForm.ShowDialog()
+                $formBddConnection.Controls.Add($labelProfile)
+                $formBddConnection.Controls.Add($cmbProfiles)
+                $formBddConnection.Controls.Add($labelServer)
+                $formBddConnection.Controls.Add($txtServer)
+                $formBddConnection.Controls.Add($labelDatabase)
+                $formBddConnection.Controls.Add($txtDatabase)
+                $formBddConnection.Controls.Add($labelPassword)
+                $formBddConnection.Controls.Add($txtPassword)
+                $formBddConnection.Controls.Add($btnOK)
+                $formBddConnection.ShowDialog()
             })
 #Boton para desconectar de la base de datos
     $btnDisconnectDb.Add_Click({
@@ -1526,14 +1516,8 @@ $btnInstallSQLManagement.Add_Click({
     $btnRespaldarRestcard.Add_Click({
         Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
         # Crear la segunda ventana para ingresar los datos de conexión
-        $formRespaldarRestcard = New-Object System.Windows.Forms.Form
-        $formRespaldarRestcard.Text = "Datos de Conexión para Respaldar"
-        $formRespaldarRestcard.Size = New-Object System.Drawing.Size(350, 210)
-        $formRespaldarRestcard.StartPosition = "CenterScreen"
-        $formRespaldarRestcard.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-        $formRespaldarRestcard.MaximizeBox = $false
-        $formRespaldarRestcard.MinimizeBox = $false
-    
+        $formRespaldarRestcard = Create-Form -Title "Datos de Conexión para Respaldar" -Size (New-Object System.Drawing.Size(350, 210)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))    
         # Etiquetas y controles para ingresar la información de conexión
         $lblUsuarioRestcard = New-Object System.Windows.Forms.Label
         $lblUsuarioRestcard.Text = "Usuario:"
@@ -1681,16 +1665,14 @@ $btnInstallSQLManagement.Add_Click({
     })
     
     function Show-NewIpForm {
-        $ipAssignForm = New-Object System.Windows.Forms.Form
-        $ipAssignForm.Text = "Agregar IP Adicional"
-        $ipAssignForm.Size = New-Object System.Drawing.Size(350, 150)
-        $ipAssignForm.StartPosition = "CenterScreen"
+        $formIpAssign = Create-Form -Title "Agregar IP Adicional" -Size (New-Object System.Drawing.Size(350, 150)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
     
         $ipAssignLabel = New-Object System.Windows.Forms.Label
         $ipAssignLabel.Text = "Ingrese la nueva dirección IP:"
         $ipAssignLabel.Location = New-Object System.Drawing.Point(10, 20)
         $ipAssignLabel.AutoSize = $true
-        $ipAssignForm.Controls.Add($ipAssignLabel)
+        $formIpAssign.Controls.Add($ipAssignLabel)
     
         $ipAssignTextBox1 = New-Object System.Windows.Forms.TextBox
         $ipAssignTextBox1.Location = New-Object System.Drawing.Point(10, 50)
@@ -1706,13 +1688,13 @@ $btnInstallSQLManagement.Add_Click({
         $ipAssignTextBox1.Add_TextChanged({
             if ($ipAssignTextBox1.Text.Length -eq 3) { $ipAssignTextBox2.Focus() }
         })
-        $ipAssignForm.Controls.Add($ipAssignTextBox1)
+        $formIpAssign.Controls.Add($ipAssignTextBox1)
     
         $ipAssignLabelDot1 = New-Object System.Windows.Forms.Label
         $ipAssignLabelDot1.Text = "."
         $ipAssignLabelDot1.Location = New-Object System.Drawing.Point(65, 53)
         $ipAssignLabelDot1.AutoSize = $true
-        $ipAssignForm.Controls.Add($ipAssignLabelDot1)
+        $formIpAssign.Controls.Add($ipAssignLabelDot1)
     
         $ipAssignTextBox2 = New-Object System.Windows.Forms.TextBox
         $ipAssignTextBox2.Location = New-Object System.Drawing.Point(80, 50)
@@ -1728,13 +1710,13 @@ $btnInstallSQLManagement.Add_Click({
         $ipAssignTextBox2.Add_TextChanged({
             if ($ipAssignTextBox2.Text.Length -eq 3) { $ipAssignTextBox3.Focus() }
         })
-        $ipAssignForm.Controls.Add($ipAssignTextBox2)
+        $formIpAssign.Controls.Add($ipAssignTextBox2)
     
         $ipAssignLabelDot2 = New-Object System.Windows.Forms.Label
         $ipAssignLabelDot2.Text = "."
         $ipAssignLabelDot2.Location = New-Object System.Drawing.Point(135, 53)
         $ipAssignLabelDot2.AutoSize = $true
-        $ipAssignForm.Controls.Add($ipAssignLabelDot2)
+        $formIpAssign.Controls.Add($ipAssignLabelDot2)
     
         $ipAssignTextBox3 = New-Object System.Windows.Forms.TextBox
         $ipAssignTextBox3.Location = New-Object System.Drawing.Point(150, 50)
@@ -1750,13 +1732,13 @@ $btnInstallSQLManagement.Add_Click({
         $ipAssignTextBox3.Add_TextChanged({
             if ($ipAssignTextBox3.Text.Length -eq 3) { $ipAssignTextBox4.Focus() }
         })
-        $ipAssignForm.Controls.Add($ipAssignTextBox3)
+        $formIpAssign.Controls.Add($ipAssignTextBox3)
     
         $ipAssignLabelDot3 = New-Object System.Windows.Forms.Label
         $ipAssignLabelDot3.Text = "."
         $ipAssignLabelDot3.Location = New-Object System.Drawing.Point(205, 53)
         $ipAssignLabelDot3.AutoSize = $true
-        $ipAssignForm.Controls.Add($ipAssignLabelDot3)
+        $formIpAssign.Controls.Add($ipAssignLabelDot3)
     
         $ipAssignTextBox4 = New-Object System.Windows.Forms.TextBox
         $ipAssignTextBox4.Location = New-Object System.Drawing.Point(220, 50)
@@ -1765,15 +1747,15 @@ $btnInstallSQLManagement.Add_Click({
         $ipAssignTextBox4.Add_KeyPress({
             if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8) { $_.Handled = $true }
         })
-        $ipAssignForm.Controls.Add($ipAssignTextBox4)
+        $formIpAssign.Controls.Add($ipAssignTextBox4)
     
         $ipAssignButton = New-Object System.Windows.Forms.Button
         $ipAssignButton.Text = "Aceptar"
         $ipAssignButton.Location = New-Object System.Drawing.Point(100, 80)
         $ipAssignButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
-        $ipAssignForm.AcceptButton = $ipAssignButton
-        $ipAssignForm.Controls.Add($ipAssignButton)
-        $result = $ipAssignForm.ShowDialog()
+        $formIpAssign.AcceptButton = $ipAssignButton
+        $formIpAssign.Controls.Add($ipAssignButton)
+        $result = $formIpAssign.ShowDialog()
         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             $octet1 = [int]$ipAssignTextBox1.Text
             $octet2 = [int]$ipAssignTextBox2.Text

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1339"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1428"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -918,7 +918,7 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                                     }
                                 })
                                 # Crear botón para renombrar usando la función Create-Button
-                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 100)) -Size (New-Object System.Drawing.Size(150, 20)) -Enabled $false
+                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 100)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
                                 # Evento Click del botón Renombrar
                                 $LZMbtnRenombrar.Add_Click({
                                     $indiceSeleccionado = $LZMcomboBoxCarpetas.SelectedIndex
@@ -946,7 +946,7 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                                     }
                                 })
                                 # Crear botón para salir usando la función Create-Button
-                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(210, 100)) -Size (New-Object System.Drawing.Size(150, 20))
+                                $LMZAbtnSalir = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(210, 100)) -Size (New-Object System.Drawing.Size(140, 30))
                                 # Evento Click del botón Salir
                                 $LMZAbtnSalir.Add_Click({
                                                 Write-Host "`tCancelado por el usuario." -ForegroundColor Yellow
@@ -1260,8 +1260,8 @@ $btnInstallSQLManagement.Add_Click({
             $cmbOpciones.Items.Add("Seleccione una opción")
             $cmbOpciones.Items.AddRange(@("On The minute", "NS Hoteles", "Rest Card"))
             $cmbOpciones.SelectedIndex = 0
-            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(100, 30)) -Enabled $false
-            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(100, 30))
+            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
+            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(140, 30))
             $cmbOpciones.Add_SelectedIndexChanged({
                 if ($cmbOpciones.SelectedIndex -gt 0) {
                     $btnEliminar.Enabled = $true
@@ -1442,7 +1442,7 @@ $btnInstallSQLManagement.Add_Click({
             })
     
             # Crear el botón para conectar
-            $btnOK = Create-Button -Text "Conectar" -Location (New-Object System.Drawing.Point(150, 140)) -Size (New-Object System.Drawing.Size(100, 30)) -Enabled $false
+            $btnOK = Create-Button -Text "Conectar" -Location (New-Object System.Drawing.Point(150, 140)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
         # Variables globales para guardar la información de conexión
         $global:server
         $global:database
@@ -1579,10 +1579,7 @@ $btnInstallSQLManagement.Add_Click({
         })
     
         # Crear botón para ejecutar el respaldo
-        $btnRespaldar = New-Object System.Windows.Forms.Button
-        $btnRespaldar.Text = "Respaldar"
-        $btnRespaldar.Location = New-Object System.Drawing.Point(20, 140)
-        $btnRespaldar.Size = New-Object System.Drawing.Size(140, 25)
+            $btnRespaldar = Create-Button -Text "Respaldar" -Location (New-Object System.Drawing.Point(20, 140))  -Size (New-Object System.Drawing.Size(140, 30))
     
         # Evento de clic para el botón de respaldo
                     $btnRespaldar.Add_Click({
@@ -1638,11 +1635,7 @@ $btnInstallSQLManagement.Add_Click({
                     })
     
         # Crear botón para salir
-        $btnSalirRestcard = New-Object System.Windows.Forms.Button
-        $btnSalirRestcard.Text = "Salir"
-        $btnSalirRestcard.Size = New-Object System.Drawing.Size(140, 25)
-        $btnSalirRestcard.Location = New-Object System.Drawing.Point(185, 140)
-        $btnSalirRestcard.BackColor = [System.Drawing.Color]::DarkGray
+        $btnSalirRestcard = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(185, 140))  -Size (New-Object System.Drawing.Size(140, 30))
     
         # Evento de clic para el botón de salir
         $btnSalirRestcard.Add_Click({
@@ -1751,13 +1744,10 @@ $btnInstallSQLManagement.Add_Click({
             if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8) { $_.Handled = $true }
         })
         $formIpAssign.Controls.Add($ipAssignTextBox4)
-    
-        $ipAssignButton = New-Object System.Windows.Forms.Button
-        $ipAssignButton.Text = "Aceptar"
-        $ipAssignButton.Location = New-Object System.Drawing.Point(100, 80)
-        $ipAssignButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
-        $formIpAssign.AcceptButton = $ipAssignButton
-        $formIpAssign.Controls.Add($ipAssignButton)
+        $bntipAssign = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(100, 80))  -Size (New-Object System.Drawing.Size(140, 30))
+        $bntipAssign.DialogResult = [System.Windows.Forms.DialogResult]::OK
+        $formIpAssign.AcceptButton = $bntipAssign
+        $formIpAssign.Controls.Add($bntipAssign)
         $result = $formIpAssign.ShowDialog()
         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             $octet1 = [int]$ipAssignTextBox1.Text
@@ -1826,7 +1816,7 @@ $btnInstallSQLManagement.Add_Click({
             $lblipAssignIps.Location = New-Object System.Drawing.Point(10, 80)
             $lblipAssignIps.AutoSize = $true
             $formIpAssignAsignacion.Controls.Add($lblipAssignIps)
-            $btnipAssignAssignIP = Create-Button -Text "Asignar Nueva IP" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(120, 30)) -Enabled $false
+            $btnipAssignAssignIP = Create-Button -Text "Asignar Nueva IP" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
             $btnipAssignAssignIP.Add_Click({
                 $selectedAdapterName = $ComboBipAssignAdapters.SelectedItem
                 if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
@@ -1932,7 +1922,7 @@ $btnInstallSQLManagement.Add_Click({
                 }
             })
             $formIpAssignAsignacion.Controls.Add($btnipAssignAssignIP)
-            $btnipAssignChangeToDhcp = Create-Button -Text "Cambiar a DHCP" -Location (New-Object System.Drawing.Point(140, 120)) -Size (New-Object System.Drawing.Size(120, 30)) -Enabled $false
+            $btnipAssignChangeToDhcp = Create-Button -Text "Cambiar a DHCP" -Location (New-Object System.Drawing.Point(140, 120)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
             $btnipAssignChangeToDhcp.Add_Click({
                 $selectedAdapterName = $ComboBipAssignAdapters.SelectedItem
                 if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
@@ -1977,10 +1967,7 @@ $btnInstallSQLManagement.Add_Click({
             })
             $formIpAssignAsignacion.Controls.Add($btnipAssignChangeToDhcp)
             # Agregar un botón "Cerrar" al formulario
-            $btnCloseFormipAssign = New-Object System.Windows.Forms.Button
-            $btnCloseFormipAssign.Text = "Cerrar"
-            $btnCloseFormipAssign.Location = New-Object System.Drawing.Point(270, 120)
-            $btnCloseFormipAssign.Size = New-Object System.Drawing.Size(100, 30)
+            $btnCloseFormipAssign = Create-Button -Text "Cerrar" -Location (New-Object System.Drawing.Point(270, 120))  -Size (New-Object System.Drawing.Size(140, 30))
             $btnCloseFormipAssign.Add_Click({
                 $formIpAssignAsignacion.Close()
             })

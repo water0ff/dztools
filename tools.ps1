@@ -862,6 +862,7 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                 return
             }
             try {
+                         Write-Host "`t HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
                         # Intentar obtener las carpetas principales
                         $LZMcarpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
                 

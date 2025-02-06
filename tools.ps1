@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1454"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1610"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -25,7 +25,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
 # Creación maestra de botones
     $toolTip = New-Object System.Windows.Forms.ToolTip
-            function Create-Button {
+function Create-Button {
                 param (
                     [string]$Text,
                     [System.Drawing.Point]$Location,
@@ -148,6 +148,39 @@ function Create-ComboBox {
             }
         
             return $comboBox
+}
+function Create-TextBox {
+    param (
+        [System.Drawing.Point]$Location,
+        [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
+        [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
+        [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
+        [System.Drawing.Font]$Font = $defaultFont,
+        [string]$Text = "",
+        [bool]$Multiline = $false,
+        [System.Windows.Forms.ScrollBars]$ScrollBars = [System.Windows.Forms.ScrollBars]::None,
+        [bool]$ReadOnly = $false,
+        [char]$PasswordChar = ""
+    )
+
+    # Crear el TextBox
+    $textBox = New-Object System.Windows.Forms.TextBox
+    $textBox.Location = $Location
+    $textBox.Size = $Size
+    $textBox.BackColor = $BackColor
+    $textBox.ForeColor = $ForeColor
+    $textBox.Font = $Font
+    $textBox.Text = $Text
+    $textBox.Multiline = $Multiline
+    $textBox.ScrollBars = $ScrollBars
+    $textBox.ReadOnly = $ReadOnly
+
+    # Si se especifica un carácter de contraseña, aplicarlo
+    if ($PasswordChar -ne "") {
+        $textBox.PasswordChar = $PasswordChar
+    }
+
+    return $textBox
 }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
@@ -921,11 +954,8 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                                 # Seleccionar la primera opción por defecto
                                 $LZMcomboBoxCarpetas.SelectedIndex = 0
                                 # Crear un Label para mostrar el valor de AI_ExePath
-                                $LZMlblExePath = New-Object System.Windows.Forms.Label
-                                $LZMlblExePath.Location = New-Object System.Drawing.Point(10, 40)
-                                $LZMlblExePath.Size = New-Object System.Drawing.Size(360, 60)  # Aumentar la altura para 3 líneas
-                                $LZMlblExePath.Font = $defaultFont  # Usar la fuente predeterminada
-                                $LZMlblExePath.Text = "AI_ExePath: -"
+                                $lblLZMAExePath = Create-Label -Text "AI_ExePath: -" -Location (New-Object System.Drawing.Point(10, 40)) -Size (New-Object System.Drawing.Size(360, 60)) `
+                                     -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont
                                 # Evento cuando se selecciona una subcarpeta en el ComboBox
                                 $LZMcomboBoxCarpetas.Add_SelectedIndexChanged({
                                     $indiceSeleccionado = $LZMcomboBoxCarpetas.SelectedIndex
@@ -933,12 +963,12 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                                         $LZMrutaCompleta = $LZMrutasCompletas[$indiceSeleccionado - 1]  # Ajustar índice
                                         $valorExePath = Get-ItemProperty -Path $LZMrutaCompleta -Name "AI_ExePath" -ErrorAction SilentlyContinue
                                         if ($valorExePath) {
-                                            $LZMlblExePath.Text = "AI_ExePath: $($valorExePath.AI_ExePath)"
+                                            $lblLZMAExePath.Text = "AI_ExePath: $($valorExePath.AI_ExePath)"
                                         } else {
-                                            $LZMlblExePath.Text = "AI_ExePath: No encontrado"
+                                            $lblLZMAExePath.Text = "AI_ExePath: No encontrado"
                                         }
                                     } else {
-                                        $LZMlblExePath.Text = "AI_ExePath: -"
+                                        $lblLZMAExePath.Text = "AI_ExePath: -"
                                     }
                                 })
                                 # Crear botón para renombrar usando la función Create-Button
@@ -984,7 +1014,7 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                                 $formLZMA.Controls.Add($LZMcomboBoxCarpetas)
                                 $formLZMA.Controls.Add($LZMbtnRenombrar)
                                 $formLZMA.Controls.Add($LMZAbtnSalir)
-                                $formLZMA.Controls.Add($LZMlblExePath)
+                                $formLZMA.Controls.Add($lblLZMAExePath)
                                 # Mostrar el formulario
                                 $formLZMA.ShowDialog()
                             } else {
@@ -1348,11 +1378,8 @@ $btnInstallSQLManagement.Add_Click({
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
     
             # Crear las etiquetas y cajas de texto
-            $labelProfile = New-Object System.Windows.Forms.Label
-            $labelProfile.Text = "Perfil de conexión"
-            $labelProfile.Location = New-Object System.Drawing.Point(10, 20)
-            $labelProfile.Size = New-Object System.Drawing.Size(100, 20)
-    
+            $lblProfile = Create-Label -Text "Perfil de conexión" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(100, 20)) `
+                                     -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont    
             $cmbProfiles = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(250, 20)) -DropDownStyle DropDownList
             # Cargar archivos INI desde las rutas especificadas
             $profiles = @{ }
@@ -1382,32 +1409,15 @@ $btnInstallSQLManagement.Add_Click({
                 $cmbProfiles.Items.Add("Personalizado")
             }
             # Crear las demás etiquetas y campos de texto
-            $labelServer = New-Object System.Windows.Forms.Label
-            $labelServer.Text = "Servidor SQL"
-            $labelServer.Location = New-Object System.Drawing.Point(10, 50)
-            $labelServer.Size = New-Object System.Drawing.Size(100, 20)
-        
-            $txtServer = New-Object System.Windows.Forms.TextBox
-            $txtServer.Location = New-Object System.Drawing.Point(120, 50)
-            $txtServer.Size = New-Object System.Drawing.Size(250, 20)
-    
-            $labelDatabase = New-Object System.Windows.Forms.Label
-            $labelDatabase.Text = "Base de Datos"
-            $labelDatabase.Location = New-Object System.Drawing.Point(10, 80)
-            $labelDatabase.Size = New-Object System.Drawing.Size(100, 20)
-    
-            $txtDatabase = New-Object System.Windows.Forms.TextBox
-            $txtDatabase.Location = New-Object System.Drawing.Point(120, 80)
-            $txtDatabase.Size = New-Object System.Drawing.Size(250, 20)
-    
-            $labelPassword = New-Object System.Windows.Forms.Label
-            $labelPassword.Text = "Contraseña"
-            $labelPassword.Location = New-Object System.Drawing.Point(10, 110)
-            $labelPassword.Size = New-Object System.Drawing.Size(100, 20)
-    
-            $txtPassword = New-Object System.Windows.Forms.TextBox
-            $txtPassword.Location = New-Object System.Drawing.Point(120, 110)
-            $txtPassword.Size = New-Object System.Drawing.Size(250, 20)
+            $labelServer = Create-Label -Text "Servidor SQL" -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(100, 20)) `
+                                     -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont       
+            $txtServer = Create-TextBox -Location (New-Object System.Drawing.Point(120, 50)) -Size (New-Object System.Drawing.Size(250, 20))
+            $lblDatabase = Create-Label -Text "Base de Datos" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(100, 20)) `
+                                     -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont               
+            $txtDatabase = Create-TextBox -Location (New-Object System.Drawing.Point(120, 80)) -Size (New-Object System.Drawing.Size(250, 20))
+            $lblPassword = Create-Label -Text "Contraseña" -Location (New-Object System.Drawing.Point(10, 110)) -Size (New-Object System.Drawing.Size(100, 20)) `
+                                     -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont           
+            $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 110)) -Size (New-Object System.Drawing.Size(250, 20))
             $txtPassword.UseSystemPasswordChar = $true
     
         # Habilitar el botón "Conectar" si la contraseña tiene al menos un carácter
@@ -1498,13 +1508,13 @@ $btnInstallSQLManagement.Add_Click({
                 }
             })
                 # Agregar los controles al formulario
-                $formBddConnection.Controls.Add($labelProfile)
+                $formBddConnection.Controls.Add($lblProfile)
                 $formBddConnection.Controls.Add($cmbProfiles)
                 $formBddConnection.Controls.Add($labelServer)
                 $formBddConnection.Controls.Add($txtServer)
-                $formBddConnection.Controls.Add($labelDatabase)
+                $formBddConnection.Controls.Add($lblDatabase)
                 $formBddConnection.Controls.Add($txtDatabase)
-                $formBddConnection.Controls.Add($labelPassword)
+                $formBddConnection.Controls.Add($lblPassword)
                 $formBddConnection.Controls.Add($txtPassword)
                 $formBddConnection.Controls.Add($btnOK)
                 $formBddConnection.ShowDialog()
@@ -1537,38 +1547,15 @@ $btnInstallSQLManagement.Add_Click({
         $formRespaldarRestcard = Create-Form -Title "Datos de Conexión para Respaldar" -Size (New-Object System.Drawing.Size(350, 210)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))    
         # Etiquetas y controles para ingresar la información de conexión
-        $lblUsuarioRestcard = New-Object System.Windows.Forms.Label
-        $lblUsuarioRestcard.Text = "Usuario:"
-        $lblUsuarioRestcard.Location = New-Object System.Drawing.Point(20, 40)
-    
-        $txtUsuarioRestcard = New-Object System.Windows.Forms.TextBox
-        $txtUsuarioRestcard.Location = New-Object System.Drawing.Point(120, 40)
-        $txtUsuarioRestcard.Width = 200
-    
-        $lblBaseDeDatosRestcard = New-Object System.Windows.Forms.Label
-        $lblBaseDeDatosRestcard.Text = "Base de Datos:"
-        $lblBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(20, 65)
-    
-        $txtBaseDeDatosRestcard = New-Object System.Windows.Forms.TextBox
-        $txtBaseDeDatosRestcard.Location = New-Object System.Drawing.Point(120, 65)
-        $txtBaseDeDatosRestcard.Width = 200
-    
-        $lblPasswordRestcard = New-Object System.Windows.Forms.Label
-        $lblPasswordRestcard.Text = "Contraseña:"
-        $lblPasswordRestcard.Location = New-Object System.Drawing.Point(20, 90)
-    
-        $txtPasswordRestcard = New-Object System.Windows.Forms.TextBox
-        $txtPasswordRestcard.Location = New-Object System.Drawing.Point(120, 90)
-        $txtPasswordRestcard.Width = 200
+        $lblUsuarioRestcard = Create-Label -Text "Usuario:" -Location (New-Object System.Drawing.Point(20, 40))    
+        $txtUsuarioRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 40)) -Size (New-Object System.Drawing.Size(200, 20))
+        $lblBaseDeDatosRestcard = Create-Label -Text "Base de Datos:" -Location (New-Object System.Drawing.Point(20, 65))        
+        $txtBaseDeDatosRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 65)) -Size (New-Object System.Drawing.Size(200, 20))
+        $lblBaseDeDatosRestcard = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(20, 90))
+        $txtPasswordRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 90)) -Size (New-Object System.Drawing.Size(200, 20))
         $txtPasswordRestcard.UseSystemPasswordChar = $true
-    
-        $lblHostnameRestcard = New-Object System.Windows.Forms.Label
-        $lblHostnameRestcard.Text = "Hostname:"
-        $lblHostnameRestcard.Location = New-Object System.Drawing.Point(20, 115)
-    
-        $txtHostnameRestcard = New-Object System.Windows.Forms.TextBox
-        $txtHostnameRestcard.Location = New-Object System.Drawing.Point(120, 115)
-        $txtHostnameRestcard.Width = 200
+        $lblHostnameRestcard = Create-Label -Text "Hostname:" -Location (New-Object System.Drawing.Point(20, 115))    
+        $txtHostnameRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 115)) -Size (New-Object System.Drawing.Size(200, 20))
     
         # Crear el checkbox para llenar los datos por omisión
         $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox
@@ -1679,15 +1666,11 @@ $btnInstallSQLManagement.Add_Click({
         $formIpAssign = Create-Form -Title "Agregar IP Adicional" -Size (New-Object System.Drawing.Size(350, 150)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
     
-        $ipAssignLabel = New-Object System.Windows.Forms.Label
-        $ipAssignLabel.Text = "Ingrese la nueva dirección IP:"
-        $ipAssignLabel.Location = New-Object System.Drawing.Point(10, 20)
-        $ipAssignLabel.AutoSize = $true
-        $formIpAssign.Controls.Add($ipAssignLabel)
+        $lblipAssignER = Create-Label -Text "Ingrese la nueva dirección IP:" -Location (New-Object System.Drawing.Point(10, 20))
+        $lblipAssignER.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignER)
     
-        $ipAssignTextBox1 = New-Object System.Windows.Forms.TextBox
-        $ipAssignTextBox1.Location = New-Object System.Drawing.Point(10, 50)
-        $ipAssignTextBox1.Size = New-Object System.Drawing.Size(50, 20)
+        $ipAssignTextBox1 = Create-TextBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox1.MaxLength = 3
         $ipAssignTextBox1.Add_KeyPress({
             if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
@@ -1701,15 +1684,10 @@ $btnInstallSQLManagement.Add_Click({
         })
         $formIpAssign.Controls.Add($ipAssignTextBox1)
     
-        $ipAssignLabelDot1 = New-Object System.Windows.Forms.Label
-        $ipAssignLabelDot1.Text = "."
-        $ipAssignLabelDot1.Location = New-Object System.Drawing.Point(65, 53)
-        $ipAssignLabelDot1.AutoSize = $true
-        $formIpAssign.Controls.Add($ipAssignLabelDot1)
-    
-        $ipAssignTextBox2 = New-Object System.Windows.Forms.TextBox
-        $ipAssignTextBox2.Location = New-Object System.Drawing.Point(80, 50)
-        $ipAssignTextBox2.Size = New-Object System.Drawing.Size(50, 20)
+        $lblipAssignERDot1 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(65, 53))
+        $lblipAssignERDot1.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignERDot1)    
+        $ipAssignTextBox2 = Create-TextBox -Location (New-Object System.Drawing.Point(80, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox2.MaxLength = 3
         $ipAssignTextBox2.Add_KeyPress({
             if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
@@ -1723,15 +1701,11 @@ $btnInstallSQLManagement.Add_Click({
         })
         $formIpAssign.Controls.Add($ipAssignTextBox2)
     
-        $ipAssignLabelDot2 = New-Object System.Windows.Forms.Label
-        $ipAssignLabelDot2.Text = "."
-        $ipAssignLabelDot2.Location = New-Object System.Drawing.Point(135, 53)
-        $ipAssignLabelDot2.AutoSize = $true
-        $formIpAssign.Controls.Add($ipAssignLabelDot2)
+        $lblipAssignERDot2 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(135, 53))
+        $lblipAssignERDot2.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignERDot2)
     
-        $ipAssignTextBox3 = New-Object System.Windows.Forms.TextBox
-        $ipAssignTextBox3.Location = New-Object System.Drawing.Point(150, 50)
-        $ipAssignTextBox3.Size = New-Object System.Drawing.Size(50, 20)
+        $ipAssignTextBox3 = Create-TextBox -Location (New-Object System.Drawing.Point(150, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox3.MaxLength = 3
         $ipAssignTextBox3.Add_KeyPress({
             if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
@@ -1745,15 +1719,11 @@ $btnInstallSQLManagement.Add_Click({
         })
         $formIpAssign.Controls.Add($ipAssignTextBox3)
     
-        $ipAssignLabelDot3 = New-Object System.Windows.Forms.Label
-        $ipAssignLabelDot3.Text = "."
-        $ipAssignLabelDot3.Location = New-Object System.Drawing.Point(205, 53)
-        $ipAssignLabelDot3.AutoSize = $true
-        $formIpAssign.Controls.Add($ipAssignLabelDot3)
+        $lblipAssignERDot3 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(205, 53))
+        $lblipAssignERDot3.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignERDot3)
     
-        $ipAssignTextBox4 = New-Object System.Windows.Forms.TextBox
-        $ipAssignTextBox4.Location = New-Object System.Drawing.Point(220, 50)
-        $ipAssignTextBox4.Size = New-Object System.Drawing.Size(50, 20)
+        $ipAssignTextBox4 = Create-TextBox -Location (New-Object System.Drawing.Point(220, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox4.MaxLength = 3
         $ipAssignTextBox4.Add_KeyPress({
             if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8) { $_.Handled = $true }
@@ -1798,9 +1768,7 @@ $btnInstallSQLManagement.Add_Click({
             $formIpAssignAsignacion = Create-Form -Title "Asignación de IPs" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
             #interfaz
-            $lblipAssignAdapter = New-Object System.Windows.Forms.Label
-            $lblipAssignAdapter.Text = "Seleccione el adaptador de red:"
-            $lblipAssignAdapter.Location = New-Object System.Drawing.Point(10, 20)
+            $lblipAssignAdapter = Create-Label -Text "Seleccione el adaptador de red:" -Location (New-Object System.Drawing.Point(10, 20))
             $lblipAssignAdapter.AutoSize = $true
             $formIpAssignAsignacion.Controls.Add($lblipAssignAdapter)
             $ComboBipAssignAdapters = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(360, 20)) -DropDownStyle DropDownList `
@@ -1822,9 +1790,7 @@ $btnInstallSQLManagement.Add_Click({
                     $ComboBipAssignAdapters.Items.Add($adapter.Name)
                 }
             $formIpAssignAsignacion.Controls.Add($ComboBipAssignAdapters)
-            $lblipAssignIps = New-Object System.Windows.Forms.Label
-            $lblipAssignIps.Text = "IPs asignadas:"
-            $lblipAssignIps.Location = New-Object System.Drawing.Point(10, 80)
+            $lblipAssignIps = Create-Label -Text "IPs asignadas:" -Location (New-Object System.Drawing.Point(10, 80))
             $lblipAssignIps.AutoSize = $true
             $formIpAssignAsignacion.Controls.Add($lblipAssignIps)
             $btnipAssignAssignIP = Create-Button -Text "Asignar Nueva IP" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false

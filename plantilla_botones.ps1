@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250206.1742"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250206.1750"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -553,6 +553,11 @@ $lbIpAdress.Add_Click({
 
 
 
+
+
+
+
+#BOTON DE RESTAURAR
 $btnRestaurarRestcard.Add_Click({
     Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
 
@@ -633,15 +638,22 @@ $btnRestaurarRestcard.Add_Click({
             return
         }
 
-        # Ejecutar el comando mysql para restaurar la base de datos
-        $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard < `"$script:rutaRespaldo`""
-        $process = Start-Process -FilePath "mysql" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
+        # Construir el comando para restaurar la base de datos
+        $mysqlPath = "C:\Program Files (x86)\MySQL\MySQL Server 5.0\bin\mysql.exe"  # Ruta completa a mysql.exe
+        $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard"
 
-        # Verificar si la restauración se realizó correctamente
-        if ($process.ExitCode -eq 0) {
-            Write-Host "Restauración completada correctamente." -ForegroundColor Green
-        } else {
-            Write-Host "Error: No se pudo realizar la restauración. Verifica los datos de conexión y el archivo de respaldo." -ForegroundColor Red
+        # Ejecutar el comando mysql con redirección de entrada
+        try {
+            $process = Start-Process -FilePath $mysqlPath -ArgumentList $argumentos -RedirectStandardInput $script:rutaRespaldo -NoNewWindow -Wait -PassThru
+
+            # Verificar si la restauración se realizó correctamente
+            if ($process.ExitCode -eq 0) {
+                Write-Host "Restauración completada correctamente." -ForegroundColor Green
+            } else {
+                Write-Host "Error: No se pudo realizar la restauración. Verifica los datos de conexión y el archivo de respaldo." -ForegroundColor Red
+            }
+        } catch {
+            Write-Host "Error al ejecutar el comando mysql: $_" -ForegroundColor Red
         }
 
         # Cerrar la segunda ventana después de completar la restauración

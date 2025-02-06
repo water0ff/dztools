@@ -329,7 +329,9 @@ $lbIpAdress.Add_Click({
             }
             
             $lblAdaptadorStatus = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (425 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor $color -BorderStyle FixedSingle
-        
+            $lblAdaptadorStatus.Add_MouseEnter($changeColorOnHover)
+            $lblAdaptadorStatus.Add_MouseLeave($restoreColorOnLeave)
+
             # Función de cierre para capturar el adaptador actual
             $adapterIndex = $adapter.InterfaceIndex
             $lblAdaptadorStatus.Add_Click({

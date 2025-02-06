@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1610"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1614"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -455,7 +455,7 @@ $chkSqlServer.Add_CheckedChanged({
         $chkSqlServer.Enabled = $true
     }
     # Habilitar el botón de Conectar a BDD solo si las herramientas SQL Server están habilitadas
-    $btnConnectDb.Enabled = $chkSqlServer.Checked
+    #$btnConnectDb.Enabled = $chkSqlServer.Checked
 })
 # Obtener el puerto de SQL Server desde el registro
         $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"

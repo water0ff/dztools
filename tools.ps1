@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1149"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1151"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -618,7 +618,7 @@ $btnSQLManagement.Add_Click({
         }
         # Crear un formulario para seleccionar la versión de SSMS
         $formSelectionSSMS = Create-Form -Title "Seleccionar versión de SSMS" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                            -FormBorderStyle [System.Windows.Forms.FormBorderStyle]::FixedDialog -MaximizeBox $false -MinimizeBox $false
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
         $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20)) ` 
                                       -AutoSize $true -Font $defaultFont -BackColor [System.Drawing.Color]::Transparent
         $formSelectionSSMS.Controls.Add($labelSSMS)

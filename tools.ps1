@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250204.1749"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1101"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -73,11 +73,12 @@ function Create-Label {
                         [System.Drawing.Point]$Location,
                         [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
                         [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-                        [string]$ToolTipText = $null,  # Nuevo parámetro para el ToolTip
-                        [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),  # Tamaño personalizable
+                        [string]$ToolTipText = $null,
+                        [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
                         [System.Drawing.Font]$Font = $defaultFont,
                         [System.Windows.Forms.BorderStyle]$BorderStyle = [System.Windows.Forms.BorderStyle]::None,
                         [System.Drawing.ContentAlignment]$TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+                        [bool]$AutoSize = $false
                     )
                 
                     # Crear la etiqueta
@@ -91,10 +92,8 @@ function Create-Label {
                     $label.BorderStyle = $BorderStyle
                     $label.TextAlign = $TextAlign
                 
-                    # Agregar ToolTip si se proporciona
-                    if ($ToolTipText) {
-                        $toolTip.SetToolTip($label, $ToolTipText)
-                    }
+                    if ($ToolTipText) { $toolTip.SetToolTip($label, $ToolTipText) }
+                    if ($AutoSize) { $label.AutoSize = $true }
                 
                     return $label
                 }
@@ -112,42 +111,58 @@ function Create-Label {
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
 # Crear los botones utilizando la función
-    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 10)) -ToolTip "Instalación mediante choco de SQL Management 2014."
-    $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 50)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
-    $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 90)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
-    $btnSQLManager = Create-Button -Text "Ejecutar Manager" -Location (New-Object System.Drawing.Point(10, 130)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "De momento solo si es SQL 2014."
-    $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 170)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Busca SQL Management en tu equipo y te confirma la versión previo a ejecutarlo."
-    $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 210)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Herramienta de Star con funciones multiples para impresoras POS."
-    $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 10)) -BackColor ([System.Drawing.Color]::FromArgb(255, 76, 76)) -ToolTip "Detiene el programa y elimina los archivos para crear nuevos IDS."
-    $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 50)) -BackColor ([System.Drawing.Color]::White) -ToolTip "Muestra en consola: Impresora, Puerto y Driver instaladas en Windows."
-    $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(240, 90)) -BackColor ([System.Drawing.Color]::White) -ToolTip "Limpia las impresiones pendientes y reinicia la cola de impresión."
-    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 130)) -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
-    $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(240, 170)) -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
-    $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Carpeta LZMA" -Location (New-Object System.Drawing.Point(240, 210)) -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
-    $btnModificarPermisos = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(240, 250)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
-    $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 50)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
-    $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 50)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 10)) `
+                                -ToolTip "Instalación mediante choco de SQL Management 2014."
+    $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 50)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
+    $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 90)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
+    $btnSQLManager = Create-Button -Text "Ejecutar Manager" -Location (New-Object System.Drawing.Point(10, 130)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "De momento solo si es SQL 2014."
+    $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 170)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Busca SQL Management en tu equipo y te confirma la versión previo a ejecutarlo."
+    $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 210)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Herramienta de Star con funciones multiples para impresoras POS."
+    $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 10)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(255, 76, 76)) -ToolTip "Detiene el programa y elimina los archivos para crear nuevos IDS."
+    $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 50)) `
+                                -BackColor ([System.Drawing.Color]::White) -ToolTip "Muestra en consola: Impresora, Puerto y Driver instaladas en Windows."
+    $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(240, 90)) `
+                                -BackColor ([System.Drawing.Color]::White) -ToolTip "Limpia las impresiones pendientes y reinicia la cola de impresión."
+    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 130)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
+    $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(240, 170)) `
+                                -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
+    $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Carpeta LZMA" -Location (New-Object System.Drawing.Point(240, 210)) `
+                                -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
+    $btnModificarPermisos = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(240, 250)) `
+                                -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
+    $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 50)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+    $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 50)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
-    $btnReviewPivot = Create-Button -Text "Revisar Pivot Table" -Location (New-Object System.Drawing.Point(10, 90)) -ToolTip "Para SR, busca y elimina duplicados en app_settings"
+    $btnReviewPivot = Create-Button -Text "Revisar Pivot Table" -Location (New-Object System.Drawing.Point(10, 90)) `
+                                -ToolTip "Para SR, busca y elimina duplicados en app_settings"
     $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
-    $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 90))  -ToolTip "Quitar servidor asignado a la base de datos."
+    $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 90)) `
+                                -ToolTip "Quitar servidor asignado a la base de datos."
     $btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
-    $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 130)) -ToolTip "Para SR, revision, ultimo uso y estación."
+    $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 130)) `
+                                -ToolTip "Para SR, revision, ultimo uso y estación."
     $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
-    $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 210)) -ToolTip "Respaldo de Restcard, puede requerir MySQL instalado."
-    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 325)) -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
+    $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 210)) `
+                                -ToolTip "Respaldo de Restcard, puede requerir MySQL instalado."
+    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 325)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Crear el CheckBox chkSqlServer
     $chkSqlServer = New-Object System.Windows.Forms.CheckBox
     $chkSqlServer.Text = "Instalar SQL Tools (opcional)"
     $chkSqlServer.Size = New-Object System.Drawing.Size(290, 30)
     $chkSqlServer.Location = New-Object System.Drawing.Point(10, 10)
-# Label para mostrar conexión a la base de datos
-    $lblConnectionStatus = New-Object System.Windows.Forms.Label
-    $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
-    $lblConnectionStatus.Font = $defaultFont
-    $lblConnectionStatus.Size = New-Object System.Drawing.Size(290, 30)
-    $lblConnectionStatus.Location = New-Object System.Drawing.Point(10, 260)
-    $lblConnectionStatus.ForeColor = [System.Drawing.Color]::RED
+# Usar la función Create-Label para crear la label de conexión
+    $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" -Location (New-Object System.Drawing.Point(10, 260)) -Size (New-Object System.Drawing.Size(290, 30)) `
+                                     -ForeColor [System.Drawing.Color]::Red -Font $defaultFont
 # Crear el Label para mostrar el nombre del equipo fuera de las pestañas
     $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(2, 360)) -Size (New-Object System.Drawing.Size(240, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
 # Crear el Label para mostrar el puerto
@@ -564,87 +579,96 @@ $restoreColorOnLeave = {
 ##-------------------------------------------------------------------------------BOTONES#
 $btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-                    # Función para buscar versiones de SSMS instaladas
-                    function Get-SSMSVersions {
-                        $ssmsPaths = @()
-                        # Rutas comunes donde SSMS puede estar instalado
-                        $possiblePaths = @(
-                            "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",  # SSMS 2014 y versiones anteriores
-                            "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"  # SSMS 2016 y versiones posteriores
-                        )
-                        # Buscar en las rutas posibles
-                        foreach ($path in $possiblePaths) {
-                            $foundPaths = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
-                            if ($foundPaths) {
-                                foreach ($foundPath in $foundPaths) {
-                                    $ssmsPaths += $foundPath.FullName
-                                }
-                            }
-                        }
-                        return $ssmsPaths
+        # Función para buscar versiones de SSMS instaladas
+        function Get-SSMSVersions {
+            $ssmsPaths = @()
+            # Rutas comunes donde SSMS puede estar instalado
+            $possiblePaths = @(
+                "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",  # SSMS 2014 y versiones anteriores
+                "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"  # SSMS 2016 y versiones posteriores
+            )
+            # Buscar en las rutas posibles
+            foreach ($path in $possiblePaths) {
+                $foundPaths = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+                if ($foundPaths) {
+                    foreach ($foundPath in $foundPaths) {
+                        $ssmsPaths += $foundPath.FullName
                     }
-                    # Obtener las versiones de SSMS instaladas
-                    $ssmsVersions = Get-SSMSVersions
-                    if ($ssmsVersions.Count -eq 0) {
-                        [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                        return
-                    }
-                    # Crear un formulario para seleccionar la versión de SSMS
-                    $formSelectionSSMS = New-Object System.Windows.Forms.Form
-                    $formSelectionSSMS.Text = "Seleccionar versión de SSMS"
-                    $formSelectionSSMS.Size = New-Object System.Drawing.Size(350, 200)
-                    $formSelectionSSMS.StartPosition = "CenterScreen"
-                    $formSelectionSSMS.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-                    $formSelectionSSMS.MaximizeBox = $false
-                    $formSelectionSSMS.MinimizeBox = $false
-                    # Crear un Label para el mensaje
-                    $labelSSMS = New-Object System.Windows.Forms.Label
-                    $labelSSMS.Text = "Seleccione la versión de SSMS que desea ejecutar:"
-                    $labelSSMS.Location = New-Object System.Drawing.Point(10, 20)
-                    $labelSSMS.AutoSize = $true
-                    $formSelectionSSMS.Controls.Add($label)
-                    # Crear un ComboBox para las versiones de SSMS
-                    $comboBoxSSMS = New-Object System.Windows.Forms.ComboBox
-                    $comboBoxSSMS.Location = New-Object System.Drawing.Point(10, 50)
-                    $comboBoxSSMS.Size = New-Object System.Drawing.Size(310, 20)
-                    $comboBoxSSMS.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-                    # Agregar las versiones encontradas al ComboBox
-                    foreach ($version in $ssmsVersions) {
-                        $comboBoxSSMS.Items.Add($version)
-                    }
-                    # Seleccionar la primera versión por defecto
-                    $comboBoxSSMS.SelectedIndex = 0
-                    $formSelectionSSMS.Controls.Add($comboBoxSSMS)
-                    # Crear un botón para aceptar la selección
-                    $buttonOKSSMS = Create-Button -Text "Aceptar" `
-                             -Location (New-Object System.Drawing.Point(20, 100)) `
-                             -Size (New-Object System.Drawing.Size(120, 35))
-                    $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
-                    $buttonCancelSSMS = Create-Button -Text "Cancelar" `
-                                  -Location (New-Object System.Drawing.Point(120, 100)) `
-                                  -Size (New-Object System.Drawing.Size(120, 35))
-                    $buttonCancelSSMS.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
-                    $formSelectionSSMS.AcceptButton = $buttonOKSSMS
-                    $formSelectionSSMS.Controls.Add($buttonOKSSMS)
-                    $formSelectionSSMS.CancelButton = $buttonCancelSSMS
-                    $formSelectionSSMS.Controls.Add($buttonCancelSSMS)
-                    # Mostrar el formulario y manejar la selección
-                    $result = $formSelectionSSMS.ShowDialog()
-                if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-                        $selectedVersion = $comboBoxSSMS.SelectedItem
-                        try {
-                            Write-Host "`tEjecutando SQL Server Management Studio desde: $selectedVersion" -ForegroundColor Green
-                            Start-Process -FilePath $selectedVersion
-                        } catch {
-                            Write-Host "`tError al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
-                            [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                        }
-                    }
-                                           else
-                        {
-                            Write-Host "`tEl usuario canceló la acción." -ForegroundColor Red
-                        }
- })
+                }
+            }
+            return $ssmsPaths
+        }
+        # Obtener las versiones de SSMS instaladas
+        $ssmsVersions = Get-SSMSVersions
+        if ($ssmsVersions.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            return
+        }
+        # Crear un formulario para seleccionar la versión de SSMS
+        $formSelectionSSMS = New-Object System.Windows.Forms.Form
+        $formSelectionSSMS.Text = "Seleccionar versión de SSMS"
+        $formSelectionSSMS.Size = New-Object System.Drawing.Size(350, 200)
+        $formSelectionSSMS.StartPosition = "CenterScreen"
+        $formSelectionSSMS.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+        $formSelectionSSMS.MaximizeBox = $false
+        $formSelectionSSMS.MinimizeBox = $false
+        # Crear un Label para el mensaje
+        $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20)) `
+                          -AutoSize $true -Font $defaultFont
+            $formSelectionSSMS.Controls.Add($labelSSMS)
+        # Usar la función Create-Label para crear la label de versión seleccionada
+        $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80)) `
+                                             -AutoSize $true -Font $defaultFont
+        $formSelectionSSMS.Controls.Add($labelSelectedVersion)
+        # Crear un ComboBox para las versiones de SSMS
+        $comboBoxSSMS = New-Object System.Windows.Forms.ComboBox
+        $comboBoxSSMS.Location = New-Object System.Drawing.Point(10, 50)
+        $comboBoxSSMS.Size = New-Object System.Drawing.Size(310, 20)
+        $comboBoxSSMS.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+        # Agregar las versiones encontradas al ComboBox
+        foreach ($version in $ssmsVersions) {
+            $comboBoxSSMS.Items.Add($version)
+        }
+        # Seleccionar la primera versión por defecto
+        $comboBoxSSMS.SelectedIndex = 0
+        $formSelectionSSMS.Controls.Add($comboBoxSSMS)
+    
+        # Actualizar el label con la versión seleccionada
+        $comboBoxSSMS.Add_SelectedIndexChanged({
+            $selectedVersion = $comboBoxSSMS.SelectedItem
+            $labelSelectedVersion.Text = "Versión seleccionada: $selectedVersion"
+        })
+        # Crear un botón para aceptar la selección
+        $buttonOKSSMS = Create-Button -Text "Aceptar" ` 
+             -Location (New-Object System.Drawing.Point(20, 120)) `
+             -Size (New-Object System.Drawing.Size(120, 30))
+        $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
+        $buttonCancelSSMS = Create-Button -Text "Cancelar" `
+                -Location (New-Object System.Drawing.Point(130, 120)) `
+                -Size (New-Object System.Drawing.Size(120, 30))
+        $buttonCancelSSMS.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+        $formSelectionSSMS.AcceptButton = $buttonOKSSMS
+        $formSelectionSSMS.Controls.Add($buttonOKSSMS)
+        $formSelectionSSMS.CancelButton = $buttonCancelSSMS
+        $formSelectionSSMS.Controls.Add($buttonCancelSSMS)
+    
+        # Mostrar el formulario y manejar la selección
+        $result = $formSelectionSSMS.ShowDialog()
+        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+            $selectedVersion = $comboBoxSSMS.SelectedItem
+            try {
+                Write-Host "`tEjecutando SQL Server Management Studio desde: $selectedVersion" -ForegroundColor Green
+                Start-Process -FilePath $selectedVersion
+            } catch {
+                Write-Host "`tError al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        }
+        else {
+            Write-Host "`tEl usuario canceló la acción." -ForegroundColor Red
+        }
+    })
+#Profiler:
 $btnProfiler.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $ProfilerUrl = "https://codeplexarchive.org/codeplex/browse/ExpressProfiler/releases/4/ExpressProfiler22wAddinSigned.zip"

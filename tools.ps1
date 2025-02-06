@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1151"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1157"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -840,7 +840,15 @@ $btnClearPrintJobs.Add_Click({
 #LMZA
                 $LZMAbtnBuscarCarpeta.Add_Click({
          Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-                   $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
+         # Usar la ruta de registro estándar sin importar el idioma
+            $LZMAregistryPath = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
+            
+            # Opción de fallback en caso de que la ruta no exista
+            if (-not (Test-Path $LZMAregistryPath)) {
+                Write-Host "`nLa ruta de registro no existe en: $LZMAregistryPath" -ForegroundColor Yellow
+                [System.Windows.Forms.MessageBox]::Show("La ruta del registro no existe: $LZMAregistryPath", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                return
+            }
                     try {
                         # Intentar obtener las carpetas principales
                         $LZMcarpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }

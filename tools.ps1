@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1614"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1621"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -160,7 +160,6 @@ function Create-TextBox {
         [bool]$Multiline = $false,
         [System.Windows.Forms.ScrollBars]$ScrollBars = [System.Windows.Forms.ScrollBars]::None,
         [bool]$ReadOnly = $false,
-        [char]$PasswordChar = ""
     )
 
     # Crear el TextBox
@@ -174,11 +173,6 @@ function Create-TextBox {
     $textBox.Multiline = $Multiline
     $textBox.ScrollBars = $ScrollBars
     $textBox.ReadOnly = $ReadOnly
-
-    # Si se especifica un carácter de contraseña, aplicarlo
-    if ($PasswordChar -ne "") {
-        $textBox.PasswordChar = $PasswordChar
-    }
 
     return $textBox
 }

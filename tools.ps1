@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1624"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1628"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1379,7 +1379,6 @@ $btnInstallSQLManagement.Add_Click({
     
             # Crear las etiquetas y cajas de texto
             $lblProfile = Create-Label -Text "Perfil de conexión" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(100, 20)) `
-                                     -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont    
             $cmbProfiles = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(250, 20)) -DropDownStyle DropDownList
             # Cargar archivos INI desde las rutas especificadas
             $profiles = @{ }
@@ -1410,13 +1409,10 @@ $btnInstallSQLManagement.Add_Click({
             }
             # Crear las demás etiquetas y campos de texto
             $labelServer = Create-Label -Text "Servidor SQL" -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(100, 20)) `
-                                     -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont       
             $txtServer = Create-TextBox -Location (New-Object System.Drawing.Point(120, 50)) -Size (New-Object System.Drawing.Size(250, 20))
             $lblDatabase = Create-Label -Text "Base de Datos" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(100, 20)) `
-                                     -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont               
             $txtDatabase = Create-TextBox -Location (New-Object System.Drawing.Point(120, 80)) -Size (New-Object System.Drawing.Size(250, 20))
             $lblPassword = Create-Label -Text "Contraseña" -Location (New-Object System.Drawing.Point(10, 110)) -Size (New-Object System.Drawing.Size(100, 20)) `
-                                     -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont           
             $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 110)) -Size (New-Object System.Drawing.Size(250, 20)) -UseSystemPasswordChar $true
 
         # Habilitar el botón "Conectar" si la contraseña tiene al menos un carácter
@@ -1644,14 +1640,14 @@ $btnInstallSQLManagement.Add_Click({
         })
     
         # Agregar controles a la segunda ventana
-        $formRespaldarRestcard.Controls.Add($lblUsuarioRestcard)
         $formRespaldarRestcard.Controls.Add($txtUsuarioRestcard)
-        $formRespaldarRestcard.Controls.Add($lblBaseDeDatosRestcard)
         $formRespaldarRestcard.Controls.Add($txtBaseDeDatosRestcard)
-        $formRespaldarRestcard.Controls.Add($lblPasswordRestcard)
         $formRespaldarRestcard.Controls.Add($txtPasswordRestcard)
-        $formRespaldarRestcard.Controls.Add($lblHostnameRestcard)
         $formRespaldarRestcard.Controls.Add($txtHostnameRestcard)
+        $formRespaldarRestcard.Controls.Add($lblUsuarioRestcard)
+        $formRespaldarRestcard.Controls.Add($lblBaseDeDatosRestcard)
+        $formRespaldarRestcard.Controls.Add($lblPasswordRestcard)
+        $formRespaldarRestcard.Controls.Add($lblHostnameRestcard)
         $formRespaldarRestcard.Controls.Add($chkLlenarDatos)
         $formRespaldarRestcard.Controls.Add($btnRespaldar)
         $formRespaldarRestcard.Controls.Add($btnSalirRestcard)

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1117"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1119"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -151,7 +151,7 @@ function Create-Label {
                                 -ToolTip "Para SR, revision, ultimo uso y estación." -Enabled $false
     $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 210)) `
                                 -ToolTip "Respaldo de Restcard, puede requerir MySQL instalado."
-    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 325)) `
+    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 320)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Crear el CheckBox chkSqlServer
     $chkSqlServer = New-Object System.Windows.Forms.CheckBox
@@ -646,7 +646,7 @@ $btnSQLManagement.Add_Click({
             # Crear un botón para aceptar la selección
             $buttonOKSSMS = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(20, 120)) -Size (New-Object System.Drawing.Size(120, 25))
             $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
-            $buttonCancelSSMS = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(130, 120)) -Size (New-Object System.Drawing.Size(120, 25))
+            $buttonCancelSSMS = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(150, 120)) -Size (New-Object System.Drawing.Size(120, 25))
             $buttonCancelSSMS.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
             $formSelectionSSMS.AcceptButton = $buttonOKSSMS
             $formSelectionSSMS.Controls.Add($buttonOKSSMS)

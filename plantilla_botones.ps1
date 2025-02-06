@@ -599,6 +599,9 @@ $btnRestaurarRestcard.Add_Click({
             $txtPasswordRestcard.Clear()
             $txtHostnameRestcard.Clear()
         }
+
+        # Validar si los datos de conexión son válidos para habilitar la selección de archivo
+        ValidarConexion
     })
 
     # Crear botón para seleccionar el archivo de respaldo
@@ -612,11 +615,22 @@ $btnRestaurarRestcard.Add_Click({
         if ($fileDialog.ShowDialog() -eq "OK") {
             $script:rutaRespaldo = $fileDialog.FileName
             Write-Host "Archivo de respaldo seleccionado: $script:rutaRespaldo" -ForegroundColor Green
+
+            # Validar si el archivo fue seleccionado para habilitar el botón de restauración
+            ValidarConexion
         }
     })
 
     # Crear botón para ejecutar la restauración
     $btnRestaurar = Create-Button -Text "Restaurar" -Location (New-Object System.Drawing.Point(185, 140))  -Size (New-Object System.Drawing.Size(140, 30))
+
+    # Función para habilitar o deshabilitar los botones
+    function ValidarConexion {
+        # Verificar si los datos de conexión y el archivo de respaldo son válidos
+        $conexionValida = ($txtUsuarioRestcard.Text -ne "" -and $txtBaseDeDatosRestcard.Text -ne "" -and $txtPasswordRestcard.Text -ne "" -and $txtHostnameRestcard.Text -ne "")
+        $btnSeleccionarRespaldo.Enabled = $conexionValida
+        $btnRestaurar.Enabled = $conexionValida -and $script:rutaRespaldo
+    }
 
     # Evento de clic para el botón de restauración
     $btnRestaurar.Add_Click({
@@ -686,6 +700,7 @@ $btnRestaurarRestcard.Add_Click({
     # Mostrar la segunda ventana
     $formRestaurarRestcard.ShowDialog()
 })
+
 
 
 

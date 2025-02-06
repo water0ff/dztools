@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250206.1737"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250206.1742"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -549,11 +549,20 @@ $lbIpAdress.Add_Click({
         $formRespaldarRestcard.ShowDialog()
     })
 
+
+
+
+
 $btnRestaurarRestcard.Add_Click({
     Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
+
+    # Declarar la variable $rutaRespaldo en un ámbito superior
+    $script:rutaRespaldo = $null
+
     # Crear la segunda ventana para ingresar los datos de conexión
     $formRestaurarRestcard = Create-Form -Title "Datos de Conexión para Restaurar" -Size (New-Object System.Drawing.Size(350, 210)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
             -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))    
+
     # Etiquetas y controles para ingresar la información de conexión
     $lblUsuarioRestcard = Create-Label -Text "Usuario:" -Location (New-Object System.Drawing.Point(20, 40))    
     $txtUsuarioRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 40)) -Size (New-Object System.Drawing.Size(200, 20))
@@ -596,8 +605,8 @@ $btnRestaurarRestcard.Add_Click({
         $fileDialog.Filter = "SQL Files (*.sql)|*.sql"
         $fileDialog.Title = "Selecciona el archivo de respaldo"
         if ($fileDialog.ShowDialog() -eq "OK") {
-            $rutaRespaldo = $fileDialog.FileName
-            Write-Host "Archivo de respaldo seleccionado: $rutaRespaldo" -ForegroundColor Green
+            $script:rutaRespaldo = $fileDialog.FileName
+            Write-Host "Archivo de respaldo seleccionado: $script:rutaRespaldo" -ForegroundColor Green
         }
     })
 
@@ -619,13 +628,13 @@ $btnRestaurarRestcard.Add_Click({
         }
 
         # Validar que se haya seleccionado un archivo de respaldo
-        if (-not $rutaRespaldo) {
+        if (-not $script:rutaRespaldo) {
             [System.Windows.Forms.MessageBox]::Show("Por favor, seleccione un archivo de respaldo.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
 
         # Ejecutar el comando mysql para restaurar la base de datos
-        $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard < `"$rutaRespaldo`""
+        $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard < `"$script:rutaRespaldo`""
         $process = Start-Process -FilePath "mysql" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
 
         # Verificar si la restauración se realizó correctamente
@@ -665,6 +674,10 @@ $btnRestaurarRestcard.Add_Click({
     # Mostrar la segunda ventana
     $formRestaurarRestcard.ShowDialog()
 })
+
+
+
+
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

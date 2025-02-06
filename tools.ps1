@@ -308,7 +308,7 @@ $lbIpAdress.Add_Click({
             }
         }
 # Crear la etiqueta para mostrar los adaptadores y su estado
-    $lblPerfilDeRed = Create-Label -Text "Estado de los Adaptadores:" -Location (New-Object System.Drawing.Point(245, 400)) -Size (New-Object System.Drawing.Size(236, 25)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para cambiar la red a privada."
+    $lblPerfilDeRed = Create-Label -Text "Estado de los Adaptadores:" -Location (New-Object System.Drawing.Point(245, 400)) -Size (New-Object System.Drawing.Size(236, 25)) -TextAlign MiddleCenter -ToolTipText "Haz clic para cambiar la red a privada."
 # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
     $networkAdapters = Get-NetworkAdapterStatus
     $adapterInfo = ""
@@ -325,10 +325,7 @@ $lbIpAdress.Add_Click({
                     $text = "$($adapter.AdapterName) - Público"
                     $color = [System.Drawing.Color]::Red
                 }
-            
-                # Crear un Label con la palabra "Público" o "Privado" clickeable
-                $label = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (425 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor $color
-            
+                $label = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (425 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor $color -BorderStyle FixedSingle
                 # Función de cierre para capturar el adaptador actual
                 $adapterIndex = $adapter.InterfaceIndex
                 $label.Add_Click({

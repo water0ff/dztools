@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1114"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1117"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -625,23 +625,28 @@ $btnSQLManagement.Add_Click({
             $comboBoxSSMS.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
             # Agregar las versiones encontradas al ComboBox
             foreach ($version in $ssmsVersions) {
-                # Extraer solo el nombre del archivo, que representa la versión
-                $versionName = [System.IO.Path]::GetFileName($version)
-                $comboBoxSSMS.Items.Add($versionName)
+                # Agregar la ruta completa al ComboBox
+                $comboBoxSSMS.Items.Add($version)
             }
-            # Seleccionar la primera versión por defecto
+            # Seleccionar la primera versión por defecto en el ComboBox
             $comboBoxSSMS.SelectedIndex = 0
             $formSelectionSSMS.Controls.Add($comboBoxSSMS)
+        
+            # Inicializar la labelSelectedVersion con la primera versión seleccionada
+            $selectedVersion = $comboBoxSSMS.SelectedItem
+            $versionName = [System.IO.Path]::GetFileName($selectedVersion)
+            $labelSelectedVersion.Text = "Versión seleccionada: $versionName"
         
             # Actualizar el label con la versión seleccionada
             $comboBoxSSMS.Add_SelectedIndexChanged({
                 $selectedVersion = $comboBoxSSMS.SelectedItem
-                $labelSelectedVersion.Text = "Versión seleccionada: $selectedVersion"
+                $versionName = [System.IO.Path]::GetFileName($selectedVersion)
+                $labelSelectedVersion.Text = "Versión seleccionada: $versionName"
             })
             # Crear un botón para aceptar la selección
-            $buttonOKSSMS = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(20, 120)) -Size (New-Object System.Drawing.Size(120, 30))
+            $buttonOKSSMS = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(20, 120)) -Size (New-Object System.Drawing.Size(120, 25))
             $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
-            $buttonCancelSSMS = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(130, 120)) -Size (New-Object System.Drawing.Size(120, 30))
+            $buttonCancelSSMS = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(130, 120)) -Size (New-Object System.Drawing.Size(120, 25))
             $buttonCancelSSMS.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
             $formSelectionSSMS.AcceptButton = $buttonOKSSMS
             $formSelectionSSMS.Controls.Add($buttonOKSSMS)
@@ -663,7 +668,7 @@ $btnSQLManagement.Add_Click({
             else {
                 Write-Host "`tEl usuario canceló la acción." -ForegroundColor Red
             }
-        })
+})
 #Profiler:
 $btnProfiler.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green

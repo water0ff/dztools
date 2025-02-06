@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1223"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1246"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -600,11 +600,12 @@ $restoreColorOnLeave = {
 ##-------------------------------------------------------------------------------BOTONES#
 $btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+        
         function Get-SSMSVersions {
             $ssmsPaths = @()
             $possiblePaths = @(
-                "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",  # SSMS 2014 y versiones anteriores
-                "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"  # SSMS 2016 y versiones posteriores
+                "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",  
+                "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"
             )
             foreach ($path in $possiblePaths) {
                 $foundPaths = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
@@ -616,46 +617,54 @@ $btnSQLManagement.Add_Click({
             }
             return $ssmsPaths
         }
+    
+        function Get-SSMSVersionFromPath($path) {
+            if ($path -match 'Microsoft SQL Server\\(\d+)') {
+                return "SSMS $($matches[1])"
+            }
+            elseif ($path -match 'SQL Server Management Studio (\d+)') {
+                return "SSMS $($matches[1])"
+            }
+            else {
+                return "Versión desconocida"
+            }
+        }
+    
         $ssmsVersions = Get-SSMSVersions
         if ($ssmsVersions.Count -eq 0) {
             [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
-        # Crear un formulario para seleccionar la versión de SSMS
+    
         $formSelectionSSMS = Create-Form -Title "Seleccionar versión de SSMS" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
         $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20))
-            $formSelectionSSMS.Controls.Add($labelSSMS)
-        # Usar la función Create-Label para crear la label de versión seleccionada
+        $formSelectionSSMS.Controls.Add($labelSSMS)
+    
         $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80))
-            $formSelectionSSMS.Controls.Add($labelSelectedVersion)
-        # Crear un ComboBox para las versiones de SSMS
+        $formSelectionSSMS.Controls.Add($labelSelectedVersion)
+    
         $comboBoxSSMS = New-Object System.Windows.Forms.ComboBox
         $comboBoxSSMS.Location = New-Object System.Drawing.Point(10, 50)
         $comboBoxSSMS.Size = New-Object System.Drawing.Size(310, 20)
         $comboBoxSSMS.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-        # Agregar las ubicaciones encontradas al ComboBox
+    
         foreach ($version in $ssmsVersions) {
-            # Agregar solo la ubicación (ruta) al ComboBox, sin la versión completa
             $comboBoxSSMS.Items.Add($version)
         }
-        # Seleccionar la primera versión por defecto en el ComboBox
+    
         $comboBoxSSMS.SelectedIndex = 0
         $formSelectionSSMS.Controls.Add($comboBoxSSMS)
-        
-        # Inicializar la labelSelectedVersion con la versión de la primera ruta seleccionada
+    
+        # Actualizar la label con la versión real de SSMS extraída de la ruta
         $selectedVersion = $comboBoxSSMS.SelectedItem
-        $versionName = [System.IO.Path]::GetFileNameWithoutExtension($selectedVersion)
-        $labelSelectedVersion.Text = "Versión seleccionada: $versionName"
-        
-        # Actualizar el label con la versión seleccionada
+        $labelSelectedVersion.Text = "Versión seleccionada: $(Get-SSMSVersionFromPath $selectedVersion)"
+    
         $comboBoxSSMS.Add_SelectedIndexChanged({
             $selectedVersion = $comboBoxSSMS.SelectedItem
-            # Extraer solo el nombre del archivo sin la extensión
-            $versionName = [System.IO.Path]::GetFileNameWithoutExtension($selectedVersion)
-            $labelSelectedVersion.Text = "Versión seleccionada: $versionName"
+            $labelSelectedVersion.Text = "Versión seleccionada: $(Get-SSMSVersionFromPath $selectedVersion)"
         })
-        # Crear un botón para aceptar la selección
+    
         $buttonOKSSMS = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(20, 120)) -Size (New-Object System.Drawing.Size(150, 30))
         $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
         $buttonCancelSSMS = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(170, 120)) -Size (New-Object System.Drawing.Size(150, 30))
@@ -664,8 +673,7 @@ $btnSQLManagement.Add_Click({
         $formSelectionSSMS.Controls.Add($buttonOKSSMS)
         $formSelectionSSMS.CancelButton = $buttonCancelSSMS
         $formSelectionSSMS.Controls.Add($buttonCancelSSMS)
-        
-        # Mostrar el formulario y manejar la selección
+    
         $result = $formSelectionSSMS.ShowDialog()
         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             $selectedVersion = $comboBoxSSMS.SelectedItem
@@ -673,12 +681,11 @@ $btnSQLManagement.Add_Click({
                 Write-Host "`tEjecutando SQL Server Management Studio desde: $selectedVersion" -ForegroundColor Green
                 Start-Process -FilePath $selectedVersion
             } catch {
-                Write-Host "`tError al ejecutar SQL Server Management Studio: $_" -ForegroundColor Red
-                [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Management Studio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                Write-Host "`tError al intentar ejecutar SSMS desde la ruta seleccionada." -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show("No se pudo iniciar SSMS. Verifique la ruta seleccionada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             }
-        }
-        else {
-            Write-Host "`tEl usuario canceló la acción." -ForegroundColor Red
+        } else {
+            Write-Host "`tOperación cancelada por el usuario." -ForegroundColor Yellow
         }
 })
 #Profiler:
@@ -1798,52 +1805,45 @@ $btnInstallSQLManagement.Add_Click({
     }
 # ------------------------------ funcion para impresoras
     $btnConfigurarIPs.Add_Click({
-            $ipAssignFormAsignacion = New-Object System.Windows.Forms.Form
-            $ipAssignFormAsignacion.Text = "Asignación de IPs"
-            $ipAssignFormAsignacion.Size = New-Object System.Drawing.Size(400, 200)
-            $ipAssignFormAsignacion.StartPosition = "CenterScreen"
-            $ipAssignFormAsignacion.BackColor = [System.Drawing.Color]::White
-            $ipAssignFormAsignacion.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-            $ipAssignFormAsignacion.font = $defaultFont
-            $ipAssignFormAsignacion.MinimizeBox = $false
-            $ipAssignFormAsignacion.MaximizeBox = $false
+            $formIpAssignAsignacion = Create-Form -Title "Asignación de IPs" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
             #interfaz
-            $ipAssignLabelAdapter = New-Object System.Windows.Forms.Label
-            $ipAssignLabelAdapter.Text = "Seleccione el adaptador de red:"
-            $ipAssignLabelAdapter.Location = New-Object System.Drawing.Point(10, 20)
-            $ipAssignLabelAdapter.AutoSize = $true
-            $ipAssignFormAsignacion.Controls.Add($ipAssignLabelAdapter)
-            $ipAssignComboBoxAdapters = New-Object System.Windows.Forms.ComboBox
-            $ipAssignComboBoxAdapters.Location = New-Object System.Drawing.Point(10, 50)
-            $ipAssignComboBoxAdapters.Size = New-Object System.Drawing.Size(360, 20)
-            $ipAssignComboBoxAdapters.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
-            $ipAssignComboBoxAdapters.Text = "Selecciona 1 adaptador de red"
+            $lblipAssignAdapter = New-Object System.Windows.Forms.Label
+            $lblipAssignAdapter.Text = "Seleccione el adaptador de red:"
+            $lblipAssignAdapter.Location = New-Object System.Drawing.Point(10, 20)
+            $lblipAssignAdapter.AutoSize = $true
+            $formIpAssignAsignacion.Controls.Add($lblipAssignAdapter)
+            $ComboBipAssignAdapters = New-Object System.Windows.Forms.ComboBox
+            $ComboBipAssignAdapters.Location = New-Object System.Drawing.Point(10, 50)
+            $ComboBipAssignAdapters.Size = New-Object System.Drawing.Size(360, 20)
+            $ComboBipAssignAdapters.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+            $ComboBipAssignAdapters.Text = "Selecciona 1 adaptador de red"
                         # Agregar evento para habilitar botones cuando se selecciona un adaptador
-                        $ipAssignComboBoxAdapters.Add_SelectedIndexChanged({
+                        $ComboBipAssignAdapters.Add_SelectedIndexChanged({
                             # Verificar si se ha seleccionado un adaptador distinto de la opción por defecto
-                            if ($ipAssignComboBoxAdapters.SelectedItem -ne "") {
+                            if ($ComboBipAssignAdapters.SelectedItem -ne "") {
                                 # Habilitar los botones si se ha seleccionado un adaptador
-                                $ipAssignButtonAssignIP.Enabled = $true
-                                $ipAssignButtonChangeToDhcp.Enabled = $true
+                                $btnipAssignAssignIP.Enabled = $true
+                                $btnipAssignChangeToDhcp.Enabled = $true
                             } else {
                                 # Deshabilitar los botones si no se ha seleccionado un adaptador
-                                $ipAssignButtonAssignIP.Enabled = $false
-                                $ipAssignButtonChangeToDhcp.Enabled = $false
+                                $btnipAssignAssignIP.Enabled = $false
+                                $btnipAssignChangeToDhcp.Enabled = $false
                             }
                         })
                 $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
                 foreach ($adapter in $adapters) {
-                    $ipAssignComboBoxAdapters.Items.Add($adapter.Name)
+                    $ComboBipAssignAdapters.Items.Add($adapter.Name)
                 }
-            $ipAssignFormAsignacion.Controls.Add($ipAssignComboBoxAdapters)
-            $ipAssignLabelIps = New-Object System.Windows.Forms.Label
-            $ipAssignLabelIps.Text = "IPs asignadas:"
-            $ipAssignLabelIps.Location = New-Object System.Drawing.Point(10, 80)
-            $ipAssignLabelIps.AutoSize = $true
-            $ipAssignFormAsignacion.Controls.Add($ipAssignLabelIps)
-            $ipAssignButtonAssignIP = Create-Button -Text "Asignar Nueva IP" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(120, 30)) -Enabled $false
-            $ipAssignButtonAssignIP.Add_Click({
-                $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
+            $formIpAssignAsignacion.Controls.Add($ComboBipAssignAdapters)
+            $lblipAssignIps = New-Object System.Windows.Forms.Label
+            $lblipAssignIps.Text = "IPs asignadas:"
+            $lblipAssignIps.Location = New-Object System.Drawing.Point(10, 80)
+            $lblipAssignIps.AutoSize = $true
+            $formIpAssignAsignacion.Controls.Add($lblipAssignIps)
+            $btnipAssignAssignIP = Create-Button -Text "Asignar Nueva IP" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(120, 30)) -Enabled $false
+            $btnipAssignAssignIP.Add_Click({
+                $selectedAdapterName = $ComboBipAssignAdapters.SelectedItem
                 if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
                     Write-Host "`nPor favor, selecciona un adaptador de red." -ForegroundColor Red
                     [System.Windows.Forms.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error")
@@ -1877,7 +1877,7 @@ $btnInstallSQLManagement.Add_Click({
                                         # Actualizar la lista de IPs asignadas
                                         $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
                                         $ips = $currentIPs.IPAddress -join ", "
-                                        $ipAssignLabelIps.Text = "IPs asignadas: $ips"
+                                        $lblipAssignIps.Text = "IPs asignadas: $ips"
                                     } catch {
                                         Write-Host "`nError al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
                                         [System.Windows.Forms.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)", "Error")
@@ -1907,7 +1907,7 @@ $btnInstallSQLManagement.Add_Click({
                                 # Actualizar la lista de IPs asignadas
                                 $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
                                 $ips = $currentIPs.IPAddress -join ", "
-                                $ipAssignLabelIps.Text = "IPs asignadas: $ips"
+                                $lblipAssignIps.Text = "IPs asignadas: $ips"
         
                                 Write-Host "`n¿Desea agregar una dirección IP adicional?" -ForegroundColor Yellow
                                 $confirmationAdditionalIP = [System.Windows.Forms.MessageBox]::Show("¿Desea agregar una dirección IP adicional?", "IP Adicional", [System.Windows.Forms.MessageBoxButtons]::YesNo)
@@ -1927,7 +1927,7 @@ $btnInstallSQLManagement.Add_Click({
                                                 # Actualizar la lista de IPs asignadas
                                                 $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
                                                 $ips = $currentIPs.IPAddress -join ", "
-                                                $ipAssignLabelIps.Text = "IPs asignadas: $ips"
+                                                $lblipAssignIps.Text = "IPs asignadas: $ips"
                                             } catch {
                                                 Write-Host "`nError al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
                                                 [System.Windows.Forms.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)", "Error")
@@ -1946,10 +1946,10 @@ $btnInstallSQLManagement.Add_Click({
                     [System.Windows.Forms.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error")
                 }
             })
-            $ipAssignFormAsignacion.Controls.Add($ipAssignButtonAssignIP)
-            $ipAssignButtonChangeToDhcp = Create-Button -Text "Cambiar a DHCP" -Location (New-Object System.Drawing.Point(140, 120)) -Size (New-Object System.Drawing.Size(120, 30)) -Enabled $false
-            $ipAssignButtonChangeToDhcp.Add_Click({
-                $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
+            $formIpAssignAsignacion.Controls.Add($btnipAssignAssignIP)
+            $btnipAssignChangeToDhcp = Create-Button -Text "Cambiar a DHCP" -Location (New-Object System.Drawing.Point(140, 120)) -Size (New-Object System.Drawing.Size(120, 30)) -Enabled $false
+            $btnipAssignChangeToDhcp.Add_Click({
+                $selectedAdapterName = $ComboBipAssignAdapters.SelectedItem
                 if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
                     Write-Host "`nPor favor, selecciona un adaptador de red." -ForegroundColor Red
                     [System.Windows.Forms.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error")
@@ -1978,7 +1978,7 @@ $btnInstallSQLManagement.Add_Click({
                                 [System.Windows.Forms.MessageBox]::Show("Se cambió a DHCP en el adaptador $($selectedAdapter.Name).", "Éxito")
         
                                 # Actualizar la lista de IPs asignadas
-                                $ipAssignLabelIps.Text = "Generando IP por DHCP. Seleccione de nuevo."
+                                $lblipAssignIps.Text = "Generando IP por DHCP. Seleccione de nuevo."
                             } catch {
                                 Write-Host "`nError al cambiar a DHCP: $($_.Exception.Message)" -ForegroundColor Red
                                 [System.Windows.Forms.MessageBox]::Show("Error al cambiar a DHCP: $($_.Exception.Message)", "Error")
@@ -1990,28 +1990,28 @@ $btnInstallSQLManagement.Add_Click({
                     [System.Windows.Forms.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error")
                 }
             })
-            $ipAssignFormAsignacion.Controls.Add($ipAssignButtonChangeToDhcp)
+            $formIpAssignAsignacion.Controls.Add($btnipAssignChangeToDhcp)
             # Agregar un botón "Cerrar" al formulario
-            $ipAssignButtonCloseForm = New-Object System.Windows.Forms.Button
-            $ipAssignButtonCloseForm.Text = "Cerrar"
-            $ipAssignButtonCloseForm.Location = New-Object System.Drawing.Point(270, 120)
-            $ipAssignButtonCloseForm.Size = New-Object System.Drawing.Size(100, 30)
-            $ipAssignButtonCloseForm.Add_Click({
-                $ipAssignFormAsignacion.Close()
+            $btnCloseFormipAssign = New-Object System.Windows.Forms.Button
+            $btnCloseFormipAssign.Text = "Cerrar"
+            $btnCloseFormipAssign.Location = New-Object System.Drawing.Point(270, 120)
+            $btnCloseFormipAssign.Size = New-Object System.Drawing.Size(100, 30)
+            $btnCloseFormipAssign.Add_Click({
+                $formIpAssignAsignacion.Close()
             })
-            $ipAssignFormAsignacion.Controls.Add($ipAssignButtonCloseForm)
-            $ipAssignComboBoxAdapters.Add_SelectedIndexChanged({
-                $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
+            $formIpAssignAsignacion.Controls.Add($btnCloseFormipAssign)
+            $ComboBipAssignAdapters.Add_SelectedIndexChanged({
+                $selectedAdapterName = $ComboBipAssignAdapters.SelectedItem
                 if ($selectedAdapterName -ne "Selecciona 1 adaptador de red") {
                     $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
                     $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
                     $ips = $currentIPs.IPAddress -join ", "
-                    $ipAssignLabelIps.Text = "IPs asignadas: $ips"
+                    $lblipAssignIps.Text = "IPs asignadas: $ips"
                 } else {
-                    $ipAssignLabelIps.Text = "IPs asignadas:"
+                    $lblipAssignIps.Text = "IPs asignadas:"
                 }
             })
-            $ipAssignFormAsignacion.ShowDialog()
+            $formIpAssignAsignacion.ShowDialog()
     })
 # ICACLS para dar permisos cuando marca error driver de lector
 $btnModificarPermisos.Add_Click({

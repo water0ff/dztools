@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1215"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1223"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -624,11 +624,11 @@ $btnSQLManagement.Add_Click({
         # Crear un formulario para seleccionar la versión de SSMS
         $formSelectionSSMS = Create-Form -Title "Seleccionar versión de SSMS" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
-        $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20)) -BackColor [System.Drawing.Color]::Empty
-        $formSelectionSSMS.Controls.Add($labelSSMS)
+        $labelSSMS = Create-Label -Text "Seleccione la versión de SSMS que desea ejecutar:" -Location (New-Object System.Drawing.Point(10, 20))
+            $formSelectionSSMS.Controls.Add($labelSSMS)
         # Usar la función Create-Label para crear la label de versión seleccionada
-        $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80)) -BackColor [System.Drawing.Color]::Empty
-        $formSelectionSSMS.Controls.Add($labelSelectedVersion)
+        $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80))
+            $formSelectionSSMS.Controls.Add($labelSelectedVersion)
         # Crear un ComboBox para las versiones de SSMS
         $comboBoxSSMS = New-Object System.Windows.Forms.ComboBox
         $comboBoxSSMS.Location = New-Object System.Drawing.Point(10, 50)
@@ -656,9 +656,9 @@ $btnSQLManagement.Add_Click({
             $labelSelectedVersion.Text = "Versión seleccionada: $versionName"
         })
         # Crear un botón para aceptar la selección
-        $buttonOKSSMS = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(20, 120)) -Size (New-Object System.Drawing.Size(120, 25))
+        $buttonOKSSMS = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(20, 120)) -Size (New-Object System.Drawing.Size(150, 30))
         $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
-        $buttonCancelSSMS = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(150, 120)) -Size (New-Object System.Drawing.Size(120, 25))
+        $buttonCancelSSMS = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(170, 120)) -Size (New-Object System.Drawing.Size(150, 30))
         $buttonCancelSSMS.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
         $formSelectionSSMS.AcceptButton = $buttonOKSSMS
         $formSelectionSSMS.Controls.Add($buttonOKSSMS)

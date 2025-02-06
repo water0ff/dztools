@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1101"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250206.1105"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -31,8 +31,9 @@ if (!(Test-Path -Path "C:\Temp")) {
                     [System.Drawing.Point]$Location,
                     [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
                     [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-                    [string]$ToolTipText = $null,  # Nuevo parámetro para el ToolTip
-                    [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(220, 35))  # Tamaño personalizable
+                    [string]$ToolTipText = $null,
+                    [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(220, 35)),
+                    [bool]$Enabled = $true
                 )
                 # Estilo del botón
                 $buttonStyle = @{
@@ -60,6 +61,7 @@ if (!(Test-Path -Path "C:\Temp")) {
                 $button.Tag = $BackColor  # Almacena el color original en Tag
                 $button.Add_MouseEnter($button_MouseEnter)
                 $button.Add_MouseLeave($button_MouseLeave)
+                $button.Enabled = $Enabled
                 # Agregar ToolTip si se proporciona
                 if ($ToolTipText) {
                     $toolTip.SetToolTip($button, $ToolTipText)
@@ -77,7 +79,7 @@ function Create-Label {
                         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
                         [System.Drawing.Font]$Font = $defaultFont,
                         [System.Windows.Forms.BorderStyle]$BorderStyle = [System.Windows.Forms.BorderStyle]::None,
-                        [System.Drawing.ContentAlignment]$TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+                        [System.Drawing.ContentAlignment]$TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft,
                         [bool]$AutoSize = $false
                     )
                 
@@ -140,17 +142,13 @@ function Create-Label {
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 50)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
-    $btnDisconnectDb.Enabled = $false  # Deshabilitado inicialmente
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -Enabled $false
     $btnReviewPivot = Create-Button -Text "Revisar Pivot Table" -Location (New-Object System.Drawing.Point(10, 90)) `
-                                -ToolTip "Para SR, busca y elimina duplicados en app_settings"
-    $btnReviewPivot.Enabled = $false  # Deshabilitado inicialmente
+                                -ToolTip "Para SR, busca y elimina duplicados en app_settings" -Enabled $false
     $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(240, 90)) `
-                                -ToolTip "Quitar servidor asignado a la base de datos."
-    $btnEliminarServidorBDD.Enabled = $false  # Deshabilitado inicialmente
+                                -ToolTip "Quitar servidor asignado a la base de datos." -Enabled $false
     $btnFechaRevEstaciones = Create-Button -Text "Fecha de revisiones" -Location (New-Object System.Drawing.Point(10, 130)) `
-                                -ToolTip "Para SR, revision, ultimo uso y estación."
-    $btnFechaRevEstaciones.Enabled = $false  # Deshabilitado inicialmente
+                                -ToolTip "Para SR, revision, ultimo uso y estación." -Enabled $false
     $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 210)) `
                                 -ToolTip "Respaldo de Restcard, puede requerir MySQL instalado."
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 325)) `
@@ -892,8 +890,7 @@ $btnClearPrintJobs.Add_Click({
                                     }
                                 })
                                 # Crear botón para renombrar usando la función Create-Button
-                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 100)) -Size (New-Object System.Drawing.Size(170, 40))
-                                $LZMbtnRenombrar.Enabled = $false  # Deshabilitar inicialmente
+                                $LZMbtnRenombrar = Create-Button -Text "Renombrar" -Location (New-Object System.Drawing.Point(10, 100)) -Size (New-Object System.Drawing.Size(170, 40)) -Enabled $false
                                 # Evento Click del botón Renombrar
                                 $LZMbtnRenombrar.Add_Click({
                                     $indiceSeleccionado = $LZMcomboBoxCarpetas.SelectedIndex
@@ -1240,8 +1237,7 @@ $btnInstallSQLManagement.Add_Click({
             $cmbOpciones.Items.Add("Seleccione una opción")
             $cmbOpciones.Items.AddRange(@("On The minute", "NS Hoteles", "Rest Card"))
             $cmbOpciones.SelectedIndex = 0
-            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(100, 30))
-            $btnEliminar.Enabled = $false  # Deshabilitado inicialmente
+            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(100, 30)) -Enabled $false
             $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(100, 30))
             $cmbOpciones.Add_SelectedIndexChanged({
                 if ($cmbOpciones.SelectedIndex -gt 0) {
@@ -1428,11 +1424,7 @@ $btnInstallSQLManagement.Add_Click({
             })
     
             # Crear el botón para conectar
-            $btnOK = New-Object System.Windows.Forms.Button
-            $btnOK.Text = "Conectar"
-            $btnOK.Size = New-Object System.Drawing.Size(100, 30)
-            $btnOK.Location = New-Object System.Drawing.Point(150, 140)  # Ajusta la posición según necesites
-            $btnOK.Enabled = $false  # Deshabilitar el botón inicialmente
+            $btnOK = Create-Button -Text "Conectar" -Location (New-Object System.Drawing.Point(150, 140)) -Size (New-Object System.Drawing.Size(100, 30)) -Enabled $false
         # Variables globales para guardar la información de conexión
         $global:server
         $global:database
@@ -1831,8 +1823,7 @@ $btnInstallSQLManagement.Add_Click({
             $ipAssignLabelIps.Location = New-Object System.Drawing.Point(10, 80)
             $ipAssignLabelIps.AutoSize = $true
             $ipAssignFormAsignacion.Controls.Add($ipAssignLabelIps)
-            $ipAssignButtonAssignIP = Create-Button -Text "Asignar Nueva IP" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(120, 30))
-            $ipAssignButtonAssignIP.Enabled = $false
+            $ipAssignButtonAssignIP = Create-Button -Text "Asignar Nueva IP" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(120, 30)) -Enabled $false
             $ipAssignButtonAssignIP.Add_Click({
                 $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
                 if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
@@ -1938,11 +1929,7 @@ $btnInstallSQLManagement.Add_Click({
                 }
             })
             $ipAssignFormAsignacion.Controls.Add($ipAssignButtonAssignIP)
-            $ipAssignButtonChangeToDhcp = New-Object System.Windows.Forms.Button
-            $ipAssignButtonChangeToDhcp.Text = "Cambiar a DHCP"
-            $ipAssignButtonChangeToDhcp.Location = New-Object System.Drawing.Point(140, 120)
-            $ipAssignButtonChangeToDhcp.Size = New-Object System.Drawing.Size(120, 30)
-            $ipAssignButtonChangeToDhcp.Enabled = $false
+            $ipAssignButtonChangeToDhcp = Create-Button -Text "Cambiar a DHCP" -Location (New-Object System.Drawing.Point(140, 120)) -Size (New-Object System.Drawing.Size(120, 30)) -Enabled $false
             $ipAssignButtonChangeToDhcp.Add_Click({
                 $selectedAdapterName = $ipAssignComboBoxAdapters.SelectedItem
                 if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {

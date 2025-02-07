@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.17055555555"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1732"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -2034,7 +2034,7 @@ $btnAplicacionesNS.Add_Click({
                 $resultados += $resultado
             }
         } else {
-            # Si no se encuentra el archivo INI, agregar a la tabla con "NA"
+            # Si no se encuentra el archivo INI, agregar a la tabla con "No encontrado"
             $resultado = [PSCustomObject]@{
                 Aplicacion = $appName
                 INI        = "No encontrado"
@@ -2077,7 +2077,7 @@ $btnAplicacionesNS.Add_Click({
         }
         $resultados += $resultado
     } else {
-        # Si no se encuentra RestCard.ini, agregar con "NA"
+        # Si no se encuentra RestCard.ini, agregar con "No encontrado"
         $resultado = [PSCustomObject]@{
             Aplicacion = "Restcard"
             INI        = "No encontrado"
@@ -2088,8 +2088,14 @@ $btnAplicacionesNS.Add_Click({
         $resultados += $resultado
     }
 
-    # Mostrar resultados en una tabla
-    $resultados | Format-Table -AutoSize | Out-Host
+    # Mostrar resultados en una tabla con colores
+    foreach ($resultado in $resultados) {
+        if ($resultado.INI -eq "No encontrado") {
+            Write-Host ("{0,-15} {1,-20} {2,-20} {3,-20} {4,-20}" -f $resultado.Aplicacion, $resultado.INI, $resultado.DataSource, $resultado.Catalog, $resultado.Usuario) -ForegroundColor Red
+        } else {
+            Write-Host ("{0,-15} {1,-20} {2,-20} {3,-20} {4,-20}" -f $resultado.Aplicacion, $resultado.INI, $resultado.DataSource, $resultado.Catalog, $resultado.Usuario)
+        }
+    }
 })
 #Boton para salir
     $btnExit.Add_Click({

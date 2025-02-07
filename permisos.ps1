@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.15211111"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1526"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -397,17 +397,15 @@ $lblHostname.Add_Click({
         }
 # Construir el texto para mostrar todas las IPs y adaptadores
     if ($ipsWithAdapters.Count -gt 0) {
-        # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
+    # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
         $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
             $_.IPAddress
         }) -join ", "
-        
-        # Construir el texto para mostrar en el TextBox (sin usar -join "`n" aquí)
+    # Concatenar las IPs y adaptadores con un salto de línea entre cada uno
         $ipsTextForLabel = $ipsWithAdapters | ForEach-Object {
-            "Ada: $($_.AdapterName) - IP: $($_.IPAddress)`n"
-        }
-    
-        # Asignar el texto al TextBox
+            "- $($_.AdapterName) - IP: $($_.IPAddress)"
+        } | Out-String
+    # Asignar el texto al TextBox
         $textBoxIpAdress.Text = $ipsTextForLabel
     } else {
         $textBoxIpAdress.Text = "No se encontraron direcciones IP"

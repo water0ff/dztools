@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "permi_250207.1116"  # Valor predeterminado para la versión
+                                                                                                        $version = "permi_250207.1121"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -253,6 +253,11 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
 
 
 
+
+
+
+
+
 # Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
 function Check-Permissions {
     $folderPath = "C:\NationalSoft"
@@ -280,7 +285,7 @@ function Check-Permissions {
         }
     }
 
-    # Mostrar los permisos en la consola, agrupando "Everyone" si es necesario
+    # Mostrar los permisos en la consola
     $permissions | ForEach-Object { 
         Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
         Write-Host "` $($_.Permiso)" -ForegroundColor Green
@@ -320,6 +325,7 @@ $btnCheckPermissions.Add_Click({
 
 # Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
 $tabAplicaciones.Controls.Add($btnCheckPermissions)
+
 
 
 

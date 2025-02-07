@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.140999999999"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1414444444"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -334,9 +334,9 @@ $restoreColorOnLeave = {
             
                 # Mostrar los permisos de "Everyone" de forma consolidada
                 if ($everyonePermissions.Count -gt 0) {
-                    Write-Host "`n\tEveryone tiene los siguientes permisos: $($everyonePermissions -join ', ')" -ForegroundColor Green
+                    Write-Host "`tEveryone tiene los siguientes permisos: $($everyonePermissions -join ', ')" -ForegroundColor Green
                 } else {
-                    Write-Host "`n\tNo hay permisos para 'Everyone'" -ForegroundColor Red
+                    Write-Host "`tNo hay permisos para 'Everyone'" -ForegroundColor Red
                 }
             
                 # Si "Everyone" no tiene Full Control, preguntar si se desea concederlo
@@ -403,7 +403,7 @@ $lbIpAdress.Add_Click({
                         }) -join ", "
                         # Construir el texto para mostrar en el Label
                         $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
-                            "Dongle $($_.AdapterName) - IP: $($_.IPAddress)`n"
+                            "Dongle $($_.AdapterName) - IP: $($_.IPAddress)"
                         }) -join "`n"
                         # Asignar el texto al label
                         $lbIpAdress.Text = "$ipsTextForLabel"

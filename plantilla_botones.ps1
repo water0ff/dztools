@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250207.0950"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250207.0957"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -634,81 +634,87 @@ $btnRestaurarRestcard.Add_Click({
         $btnRestaurar.Enabled = $conexionValida -and $script:rutaRespaldo
     }
 
-    # Evento de clic para el botón de restauración
-    $btnRestaurar.Add_Click({
-        # Obtener los valores del formulario
-        $usuarioRestcard = $txtUsuarioRestcard.Text
-        $baseDeDatosRestcard = $txtBaseDeDatosRestcard.Text
-        $passwordRestcard = $txtPasswordRestcard.Text
-        $hostnameRestcard = $txtHostnameRestcard.Text
-
-        # Validar que la información no esté vacía
-        if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "") {
-            [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            return
-        }
-
-        # Validar que se haya seleccionado un archivo de respaldo
-        if (-not $script:rutaRespaldo) {
-            [System.Windows.Forms.MessageBox]::Show("Por favor, seleccione un archivo de respaldo.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            return
-        }
-
-        # Conectar a MySQL y verificar si la base de datos existe
-        $comandoComprobarDB = "SHOW DATABASES LIKE '$baseDeDatosRestcard';"
-        $procesoComprobarDB = Start-Process -FilePath "mysql" -ArgumentList "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard -e $comandoComprobarDB" -NoNewWindow -Wait -PassThru
-
-        # Si la base de datos no existe, crearla
-        if ($procesoComprobarDB.ExitCode -ne 0) {
-            Write-Host "La base de datos no existe. Creando la base de datos..." -ForegroundColor Yellow
-            $comandoCrearDB = "CREATE DATABASE $baseDeDatosRestcard;"
-            Start-Process -FilePath "mysql" -ArgumentList "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard -e $comandoCrearDB" -NoNewWindow -Wait -PassThru
-            Write-Host "Base de datos '$baseDeDatosRestcard' creada." -ForegroundColor Green
-        } else {
-            Write-Host "La base de datos '$baseDeDatosRestcard' ya existe." -ForegroundColor Green
-        }
-
-        # Construir el comando para restaurar la base de datos
-        $argumentosRestaurar = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard < `"$rutaRespaldo`""
-        $processRestaurar = Start-Process -FilePath "mysql" -ArgumentList $argumentosRestaurar -NoNewWindow -Wait -PassThru
-
-        # Verificar si la restauración se realizó correctamente
-        if ($processRestaurar.ExitCode -eq 0) {
-            Write-Host "Restauración completada correctamente." -ForegroundColor Green
-        } else {
-            Write-Host "Error: No se pudo realizar la restauración. Verifica los datos de conexión y el archivo de respaldo." -ForegroundColor Red
-        }
-
-        # Cerrar la segunda ventana después de completar la restauración
-        $formRestaurarRestcard.Close()
-    })
-
-    # Crear botón para salir
-    $btnSalirRestcard = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(185, 180))  -Size (New-Object System.Drawing.Size(140, 30))
-
-    # Evento de clic para el botón de salir
-    $btnSalirRestcard.Add_Click({
-        Write-Host "`tSalió sin realizar restauración." -ForegroundColor Red
-        $formRestaurarRestcard.Close()
-    })
-
-    # Agregar controles a la segunda ventana
-    $formRestaurarRestcard.Controls.Add($txtUsuarioRestcard)
-    $formRestaurarRestcard.Controls.Add($txtBaseDeDatosRestcard)
-    $formRestaurarRestcard.Controls.Add($txtPasswordRestcard)
-    $formRestaurarRestcard.Controls.Add($txtHostnameRestcard)
-    $formRestaurarRestcard.Controls.Add($lblUsuarioRestcard)
-    $formRestaurarRestcard.Controls.Add($lblBaseDeDatosRestcard)
-    $formRestaurarRestcard.Controls.Add($lblPasswordRestcard)
-    $formRestaurarRestcard.Controls.Add($lblHostnameRestcard)
-    $formRestaurarRestcard.Controls.Add($chkLlenarDatos)
-    $formRestaurarRestcard.Controls.Add($btnSeleccionarRespaldo)
-    $formRestaurarRestcard.Controls.Add($btnRestaurar)
-    $formRestaurarRestcard.Controls.Add($btnSalirRestcard)
-
-    # Mostrar la segunda ventana
-    $formRestaurarRestcard.ShowDialog()
+# Evento de clic para el botón de restauración
+$btnRestaurar.Add_Click({
+                # Obtener los valores del formulario
+                $usuarioRestcard = $txtUsuarioRestcard.Text
+                $baseDeDatosRestcard = $txtBaseDeDatosRestcard.Text
+                $passwordRestcard = $txtPasswordRestcard.Text
+                $hostnameRestcard = $txtHostnameRestcard.Text
+        
+                # Validar que la información no esté vacía
+                if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "") {
+                    [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                    return
+                }
+        
+                # Validar que se haya seleccionado un archivo de respaldo
+                if (-not $script:rutaRespaldo) {
+                    [System.Windows.Forms.MessageBox]::Show("Por favor, seleccione un archivo de respaldo.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                    return
+                }
+        
+        
+                    # Conectar a MySQL y verificar si la base de datos existe
+            $comandoComprobarDB = "SHOW DATABASES LIKE '$baseDeDatosRestcard';"
+            $procesoComprobarDB = Start-Process -FilePath "mysql" -ArgumentList "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard -e $comandoComprobarDB" -NoNewWindow -Wait -PassThru
+        
+        
+        
+        
+        
+            # Si la base de datos no existe, crearla
+            if ($procesoComprobarDB.ExitCode -ne 0) {
+                Write-Host "La base de datos no existe. Creando la base de datos..." -ForegroundColor Yellow
+                $comandoCrearDB = "CREATE DATABASE $baseDeDatosRestcard;"
+                Start-Process -FilePath "mysql" -ArgumentList "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard -e $comandoCrearDB" -NoNewWindow -Wait -PassThru
+                Write-Host "Base de datos '$baseDeDatosRestcard' creada." -ForegroundColor Green
+            } else {
+                Write-Host "La base de datos '$baseDeDatosRestcard' ya existe." -ForegroundColor Green
+            }
+        
+            # Leer el archivo de respaldo y pasarlo como entrada al proceso mysql
+            $argumentosRestaurar = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard"
+            $processRestaurar = Start-Process -FilePath "mysql" -ArgumentList $argumentosRestaurar -NoNewWindow -Wait -PassThru -RedirectStandardInput $script:rutaRespaldo
+        
+            # Verificar si la restauración se realizó correctamente
+            if ($processRestaurar.ExitCode -eq 0) {
+                Write-Host "Restauración completada correctamente." -ForegroundColor Green
+            } else {
+                Write-Host "Error: No se pudo realizar la restauración. Verifica los datos de conexión y el archivo de respaldo." -ForegroundColor Red
+            }
+        
+                # Cerrar la segunda ventana después de completar la restauración
+                $formRestaurarRestcard.Close()
+            })
+        
+            # Crear botón para salir
+            $btnSalirRestcard = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(185, 180))  -Size (New-Object System.Drawing.Size(140, 30))
+        
+            # Evento de clic para el botón de salir
+            $btnSalirRestcard.Add_Click({
+                Write-Host "`tSalió sin realizar restauración." -ForegroundColor Red
+                $formRestaurarRestcard.Close()
+            })
+        
+            # Agregar controles a la segunda ventana
+            $formRestaurarRestcard.Controls.Add($txtUsuarioRestcard)
+            $formRestaurarRestcard.Controls.Add($txtBaseDeDatosRestcard)
+            $formRestaurarRestcard.Controls.Add($txtPasswordRestcard)
+            $formRestaurarRestcard.Controls.Add($txtHostnameRestcard)
+            $formRestaurarRestcard.Controls.Add($lblUsuarioRestcard)
+            $formRestaurarRestcard.Controls.Add($lblBaseDeDatosRestcard)
+            $formRestaurarRestcard.Controls.Add($lblPasswordRestcard)
+            $formRestaurarRestcard.Controls.Add($lblHostnameRestcard)
+            $formRestaurarRestcard.Controls.Add($chkLlenarDatos)
+            $formRestaurarRestcard.Controls.Add($btnSeleccionarRespaldo)
+            $formRestaurarRestcard.Controls.Add($btnRestaurar)
+            $formRestaurarRestcard.Controls.Add($btnSalirRestcard)
+        
+            # Mostrar la segunda ventana
+            $formRestaurarRestcard.ShowDialog()
 })
+
 
 
 

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.164444444444444"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1651"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1982,6 +1982,7 @@ $btnRespaldarRestcard.Add_Click({
         $formRespaldarRestcard.ShowDialog()
 })
 #AplicacionesNS
+#AplicacionesNS
 $btnAplicacionesNS.Add_Click({
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
     # Definir una lista para almacenar los resultados
@@ -2078,7 +2079,7 @@ $btnAplicacionesNS.Add_Click({
     }
 
     # Mostrar resultados en una tabla
-    $resultados | Format-Table -AutoSize
+    $resultados | Format-Table -AutoSize | Out-Host
 })
 #Boton para salir
     $btnExit.Add_Click({

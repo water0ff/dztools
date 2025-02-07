@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "permi_250207.1057"  # Valor predeterminado para la versión
+                                                                                                        $version = "permi_250207.1110"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -273,7 +273,8 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
                     
                         # Mostrar los permisos en la consola
                         $permissions | ForEach-Object { 
-                            Write-Host "$($_.Usuario) - $($_.Permiso) - $($_.Tipo)"
+                            Write-Host "`t$($_.Usuario) - $($_.Tipo)" -NoNewline
+                            Write-Host "`- $($_.Permiso)" -ForegroundColor Green
                         }
                     
                         # Si "Everyone" no tiene Full Control o Control total, preguntar si se desea concederlo
@@ -291,13 +292,14 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
                                 $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "FullControl", "Allow")
                                 $acl.AddAccessRule($accessRule)
                                 Set-Acl -Path $folderPath -AclObject $acl
-                                Write-Host "Se ha concedido 'Full Control' a 'Everyone'."
+                                Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
                             }
                         }
                     }
                     
                     # Asignar la función al botón (si sigue siendo necesario)
                     $btnCheckPermissions.Add_Click({
+                            Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
                         Check-Permissions
                     })
                     

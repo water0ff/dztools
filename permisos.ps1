@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1346"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.13599999999"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -292,37 +292,37 @@ $restoreColorOnLeave = {
         $lblHostname.Add_MouseLeave($restoreColorOnLeave)
 
 # Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
-            function Check-Permissions {
+    function Check-Permissions {
                 $folderPath = "C:\NationalSoft"
                 $acl = Get-Acl -Path $folderPath
                 $permissions = @()
-                # Obtener el SID universal de "Everyone"
+            
+                # Obtener el SID universal de "Everyone" (independiente del idioma del sistema)
                 $everyoneSid = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::WorldSid, $null)
-
+                
                 $everyonePermissions = @()
                 $everyoneHasFullControl = $false
             
                 foreach ($access in $acl.Access) {
+                    # Obtener el SID del usuario en la ACL
+                    $userSid = (New-Object System.Security.Principal.NTAccount($access.IdentityReference)).Translate([System.Security.Principal.SecurityIdentifier])
+            
                     # Almacenar los permisos de todos los usuarios
                     $permissions += [PSCustomObject]@{
                         Usuario = $access.IdentityReference
                         Permiso = $access.FileSystemRights
                         Tipo    = $access.AccessControlType
                     }
-                    foreach ($access in $acl.Access) 
-                    {
-                        # Obtener el SID del usuario en la ACL
-                        $userSid = (New-Object System.Security.Principal.NTAccount($access.IdentityReference)).Translate([System.Security.Principal.SecurityIdentifier])
-                        # Comparar usando el SID universal de "Everyone"
-                        if ($userSid -eq $everyoneSid) 
-                        {
-                            $everyonePermissions += $access.FileSystemRights
-                            if ($access.FileSystemRights -match "FullControl") 
-                            {
-                                $everyoneHasFullControl = $true
-                            }
+            
+                    # Comparar usando el SID universal de "Everyone"
+                    if ($userSid -eq $everyoneSid) {
+                        $everyonePermissions += $access.FileSystemRights
+                        if ($access.FileSystemRights -match "FullControl") {
+                            $everyoneHasFullControl = $true
                         }
                     }
+                }
+            
                 # Mostrar los permisos en la consola
                 $permissions | ForEach-Object { 
                     Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
@@ -336,9 +336,9 @@ $restoreColorOnLeave = {
                     Write-Host "`n\tNo hay permisos para 'Everyone'" -ForegroundColor Red
                 }
             
-                # Si "Everyone" no tiene Full Control o Control total, preguntar si se desea concederlo
+                # Si "Everyone" no tiene Full Control, preguntar si se desea concederlo
                 if (-not $everyoneHasFullControl) {
-                    $message = "El usuario 'Everyone' no tiene permisos de 'Full Control' (o 'Control total'). ¿Deseas concederlo?"
+                    $message = "El usuario 'Everyone' no tiene permisos de 'Full Control'. ¿Deseas concederlo?"
                     $title = "Permisos 'Everyone'"
                     $buttons = [System.Windows.Forms.MessageBoxButtons]::YesNo
                     $icon = [System.Windows.Forms.MessageBoxIcon]::Question
@@ -347,7 +347,7 @@ $restoreColorOnLeave = {
             
                     if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
                         # Agregar Full Control a "Everyone" en la carpeta
-                        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+                        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($everyoneSid, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
                         $acl.AddAccessRule($accessRule)
             
                         # Forzar la herencia para subcarpetas y archivos
@@ -357,16 +357,15 @@ $restoreColorOnLeave = {
                         Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
                     }
                 }
-            }            
-            # Asignar la función al botón (si sigue siendo necesario)
-            $btnCheckPermissions.Add_Click({
-                Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
-                Check-Permissions
-            })            
-            # Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
-            $tabAplicaciones.Controls.Add($btnCheckPermissions)
-
-
+    }
+# Asignar la función al botón (si sigue siendo necesario)
+    $btnCheckPermissions.Add_Click({
+        Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
+        Check-Permissions
+    })            
+# Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
+    $tabAplicaciones.Controls.Add($btnCheckPermissions)
+# lbl clics
 $lblHostname.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
         Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"

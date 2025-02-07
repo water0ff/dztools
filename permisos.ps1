@@ -7,7 +7,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     Add-Type -AssemblyName System.Drawing
 # Crear el formulario
     $formPrincipal = New-Object System.Windows.Forms.Form
-    $formPrincipal.Size = New-Object System.Drawing.Size(720, 475)
+    $formPrincipal.Size = New-Object System.Drawing.Size(720, 350)
     $formPrincipal.StartPosition = "CenterScreen"
     $formPrincipal.BackColor = [System.Drawing.Color]::White
     $formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1310"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1335555555"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -443,10 +443,6 @@ $lbIpAdress.Add_Click({
                 Write-Host "La red ya es privada o no es pública, no se realizará ningún cambio."
             }
         }
-        
-        # Crear la etiqueta para mostrar los adaptadores y su estado
-        $lblPerfilDeRed = Create-Label -Text "Estado de los Adaptadores:" -Location (New-Object System.Drawing.Point(245, 400)) -Size (New-Object System.Drawing.Size(236, 25)) -TextAlign MiddleCenter -ToolTipText "Haz clic para cambiar la red a privada."
-        
         # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
         $networkAdapters = Get-NetworkAdapterStatus
         $adapterInfo = ""
@@ -465,7 +461,7 @@ $lbIpAdress.Add_Click({
                 $color = [System.Drawing.Color]::Red
             }
             
-            $lblAdaptadorStatus = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (425 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor $color -BorderStyle FixedSingle
+            $lblAdaptadorStatus = Create-Label -Text $text -Location (New-Object System.Drawing.Point(10, (320 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor $color -BorderStyle FixedSingle
             $lblAdaptadorStatus.Add_MouseEnter($changeColorOnHover)
             $lblAdaptadorStatus.Add_MouseLeave($restoreColorOnLeave)
 
@@ -496,7 +492,6 @@ $lbIpAdress.Add_Click({
     }
 # Agregar los controles al formulario
             $formPrincipal.Controls.Add($tabControl)
-            $formPrincipal.Controls.Add($lblPerfilDeRed)
             $formPrincipal.Controls.Add($btnExit)
 # Obtener el puerto de SQL Server desde el registro
         $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"

@@ -226,9 +226,9 @@ $labelWindowsTweaks = Create-Label -Text "Windows Tweaks" -Location (New-Object 
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
     $btnModificarPermisos = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(470, 90)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
-    $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Carpeta LZMA" -Location (New-Object System.Drawing.Point(470, 130)) `
+    $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Instalador LZMA" -Location (New-Object System.Drawing.Point(470, 130)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
-    $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(470, 170)) `
+    $btnConfigurarIPs = Create-Button -Text "Agregar IPs" -Location (New-Object System.Drawing.Point(470, 170)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
@@ -252,8 +252,10 @@ $labelWindowsTweaks = Create-Label -Text "Windows Tweaks" -Location (New-Object 
 # Usar la función Create-Label para crear la label de conexión
     $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" -Location (New-Object System.Drawing.Point(10, 260)) -Size (New-Object System.Drawing.Size(290, 30)) `
                                      -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont
-# Crear el Label para mostrar el nombre del equipo fuera de las pestañas
-    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(2, 360)) -Size (New-Object System.Drawing.Size(240, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
+    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(1, 1)) -Size (New-Object System.Drawing.Size(240, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
+
+        
+
 # Crear el Label para mostrar el puerto
     $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(245, 360)) -Size (New-Object System.Drawing.Size(236, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
 # Crear el Label para mostrar las IPs y adaptadores
@@ -275,6 +277,10 @@ $labelWindowsTweaks = Create-Label -Text "Windows Tweaks" -Location (New-Object 
     $tabAplicaciones.Controls.Add($labelEjecutables)
     $tabAplicaciones.Controls.Add($labelConsultas)
     $tabAplicaciones.Controls.Add($labelWindowsTweaks)
+    $tabAplicaciones.Controls.Add($lblHostname)
+    #funciones al entrar con el mouse
+        $lblHostname.Add_MouseEnter($changeColorOnHover)
+        $lblHostname.Add_MouseLeave($restoreColorOnLeave)
 # Agregar controles a la pestaña Pro
     $tabProSql.Controls.Add($chkSqlServer)
     $tabProSql.Controls.Add($btnReviewPivot)
@@ -504,12 +510,36 @@ $lbIpAdress.Add_Click({
     }
 # Agregar los controles al formulario
             $formPrincipal.Controls.Add($tabControl)
-            $formPrincipal.Controls.Add($lblHostname)
+            
             $formPrincipal.Controls.Add($lblPort)
             $formPrincipal.Controls.Add($lbIpAdress)
             $formPrincipal.Controls.Add($lblPerfilDeRed)
             $formPrincipal.Controls.Add($btnExit)
-# Acción para el CheckBox, si el usuario lo marca manualmente
+# Obtener el puerto de SQL Server desde el registro
+        $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
+        $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
+
+        if ($tcpPort -and $tcpPort.TcpPort) {
+            $lblPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
+        } else {
+            $lblPort.Text = "No se encontró puerto o instancia."
+        }
+# Función para manejar MouseEnter y cambiar el color
+$changeColorOnHover = {
+    param($sender, $eventArgs)
+    $sender.BackColor = [System.Drawing.Color]::Orange
+}
+# Función para manejar MouseLeave y restaurar el color
+$restoreColorOnLeave = {
+    param($sender, $eventArgs)
+    $sender.BackColor = [System.Drawing.Color]::White
+}
+    $lblPort.Add_MouseEnter($changeColorOnHover)
+    $lblPort.Add_MouseLeave($restoreColorOnLeave)
+    $lbIpAdress.Add_MouseEnter($changeColorOnHover)
+    $lbIpAdress.Add_MouseLeave($restoreColorOnLeave)
+
+##-------------------- FUNCIONES                                                          -------#
 $chkSqlServer.Add_CheckedChanged({
     if ($chkSqlServer.Checked) {
         # Confirmación con MsgBox
@@ -538,16 +568,6 @@ $chkSqlServer.Add_CheckedChanged({
     # Habilitar el botón de Conectar a BDD solo si las herramientas SQL Server están habilitadas
     #$btnConnectDb.Enabled = $chkSqlServer.Checked
 })
-# Obtener el puerto de SQL Server desde el registro
-        $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
-        $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
-
-        if ($tcpPort -and $tcpPort.TcpPort) {
-            $lblPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
-        } else {
-            $lblPort.Text = "No se encontró puerto o instancia."
-        }
-##-------------------- FUNCIONES                                                          -------#
 function Check-SqlServerInstallation {
     $sqlInstalled = Get-WmiObject -Query "SELECT * FROM Win32_Product WHERE Name LIKE 'Microsoft SQL Server%'" | Select-Object -First 1
     return $sqlInstalled
@@ -728,22 +748,6 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         Write-Host "`nNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
     }
 }
-# Función para manejar MouseEnter y cambiar el color
-$changeColorOnHover = {
-    param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::Orange
-}
-# Función para manejar MouseLeave y restaurar el color
-$restoreColorOnLeave = {
-    param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::White
-}
-    $lblHostname.Add_MouseEnter($changeColorOnHover)
-    $lblHostname.Add_MouseLeave($restoreColorOnLeave)
-    $lblPort.Add_MouseEnter($changeColorOnHover)
-    $lblPort.Add_MouseLeave($restoreColorOnLeave)
-    $lbIpAdress.Add_MouseEnter($changeColorOnHover)
-    $lbIpAdress.Add_MouseLeave($restoreColorOnLeave)
 ##-------------------------------------------------------------------------------BOTONES#
 $btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green

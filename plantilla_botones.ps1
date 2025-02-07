@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "btn250206.1750"  # Valor predeterminado para la versión
+                                                                                                        $version = "btn250207.0950"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -557,7 +557,9 @@ $lbIpAdress.Add_Click({
 
 
 
-#BOTON DE RESTAURAR
+
+
+
 $btnRestaurarRestcard.Add_Click({
     Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
 
@@ -605,7 +607,7 @@ $btnRestaurarRestcard.Add_Click({
     })
 
     # Crear botón para seleccionar el archivo de respaldo
-    $btnSeleccionarRespaldo = Create-Button -Text "Seleccionar Respaldo" -Location (New-Object System.Drawing.Point(20, 140))  -Size (New-Object System.Drawing.Size(140, 30))
+    $btnSeleccionarRespaldo = Create-Button -Text "Seleccionar Respaldo" -Location (New-Object System.Drawing.Point(20, 140))  -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
 
     # Evento de clic para el botón de selección de respaldo
     $btnSeleccionarRespaldo.Add_Click({
@@ -622,7 +624,7 @@ $btnRestaurarRestcard.Add_Click({
     })
 
     # Crear botón para ejecutar la restauración
-    $btnRestaurar = Create-Button -Text "Restaurar" -Location (New-Object System.Drawing.Point(185, 140))  -Size (New-Object System.Drawing.Size(140, 30))
+    $btnRestaurar = Create-Button -Text "Restaurar" -Location (New-Object System.Drawing.Point(185, 140))  -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
 
     # Función para habilitar o deshabilitar los botones
     function ValidarConexion {
@@ -652,22 +654,29 @@ $btnRestaurarRestcard.Add_Click({
             return
         }
 
+        # Conectar a MySQL y verificar si la base de datos existe
+        $comandoComprobarDB = "SHOW DATABASES LIKE '$baseDeDatosRestcard';"
+        $procesoComprobarDB = Start-Process -FilePath "mysql" -ArgumentList "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard -e $comandoComprobarDB" -NoNewWindow -Wait -PassThru
+
+        # Si la base de datos no existe, crearla
+        if ($procesoComprobarDB.ExitCode -ne 0) {
+            Write-Host "La base de datos no existe. Creando la base de datos..." -ForegroundColor Yellow
+            $comandoCrearDB = "CREATE DATABASE $baseDeDatosRestcard;"
+            Start-Process -FilePath "mysql" -ArgumentList "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard -e $comandoCrearDB" -NoNewWindow -Wait -PassThru
+            Write-Host "Base de datos '$baseDeDatosRestcard' creada." -ForegroundColor Green
+        } else {
+            Write-Host "La base de datos '$baseDeDatosRestcard' ya existe." -ForegroundColor Green
+        }
+
         # Construir el comando para restaurar la base de datos
-        $mysqlPath = "C:\Program Files (x86)\MySQL\MySQL Server 5.0\bin\mysql.exe"  # Ruta completa a mysql.exe
-        $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard"
+        $argumentosRestaurar = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard < `"$rutaRespaldo`""
+        $processRestaurar = Start-Process -FilePath "mysql" -ArgumentList $argumentosRestaurar -NoNewWindow -Wait -PassThru
 
-        # Ejecutar el comando mysql con redirección de entrada
-        try {
-            $process = Start-Process -FilePath $mysqlPath -ArgumentList $argumentos -RedirectStandardInput $script:rutaRespaldo -NoNewWindow -Wait -PassThru
-
-            # Verificar si la restauración se realizó correctamente
-            if ($process.ExitCode -eq 0) {
-                Write-Host "Restauración completada correctamente." -ForegroundColor Green
-            } else {
-                Write-Host "Error: No se pudo realizar la restauración. Verifica los datos de conexión y el archivo de respaldo." -ForegroundColor Red
-            }
-        } catch {
-            Write-Host "Error al ejecutar el comando mysql: $_" -ForegroundColor Red
+        # Verificar si la restauración se realizó correctamente
+        if ($processRestaurar.ExitCode -eq 0) {
+            Write-Host "Restauración completada correctamente." -ForegroundColor Green
+        } else {
+            Write-Host "Error: No se pudo realizar la restauración. Verifica los datos de conexión y el archivo de respaldo." -ForegroundColor Red
         }
 
         # Cerrar la segunda ventana después de completar la restauración
@@ -700,6 +709,12 @@ $btnRestaurarRestcard.Add_Click({
     # Mostrar la segunda ventana
     $formRestaurarRestcard.ShowDialog()
 })
+
+
+
+
+
+
 
 
 

@@ -243,14 +243,13 @@ function Create-TextBox {
     $chkSqlServer.Text = "Instalar SQL Tools (opcional)"
     $chkSqlServer.Size = New-Object System.Drawing.Size(290, 30)
     $chkSqlServer.Location = New-Object System.Drawing.Point(10, 10)
-# Usar la función Create-Label para crear la label de conexión
     $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" -Location (New-Object System.Drawing.Point(10, 260)) -Size (New-Object System.Drawing.Size(290, 30)) `
                                      -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont
-    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 30)) `
+# Usar la función Create-Label para crear la label de conexión
+    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 50)) `
                                     -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
-    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 30)) `
+    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 50)) `
                                     -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
-# Crear el Label para mostrar las IPs y adaptadores
     $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 100)) `
                                     -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
@@ -397,7 +396,7 @@ $lbIpAdress.Add_Click({
                         }) -join ", "
                         # Construir el texto para mostrar en el Label
                         $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
-                            "Adaptador: $($_.AdapterName)`nIP: $($_.IPAddress)`n"
+                            "Adaptador: $($_.AdapterName) - IP: $($_.IPAddress)`n"
                         }) -join "`n"
                         # Asignar el texto al label
                         $lbIpAdress.Text = "$ipsTextForLabel"
@@ -408,7 +407,7 @@ $lbIpAdress.Add_Click({
     $lineHeight = 15
     $maxLines = $lbIpAdress.Text.Split("`n").Count
     $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
-    $lbIpAdress.Size = New-Object System.Drawing.Size(240, $labelHeight)
+    $lbIpAdress.Size = New-Object System.Drawing.Size(220, $labelHeight)
 # Ajustar la altura del formulario según el Label de IPs
     $formHeight = $formPrincipal.Size.Height + $labelHeight - 20
     $formPrincipal.Size = New-Object System.Drawing.Size($formPrincipal.Size.Width, $formHeight)

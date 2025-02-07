@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1253333"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.12588888888888"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -246,11 +246,11 @@ function Create-TextBox {
     $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" -Location (New-Object System.Drawing.Point(10, 260)) -Size (New-Object System.Drawing.Size(290, 30)) `
                                      -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont
 # Usar la función Create-Label para crear la label de conexión
-    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 50)) `
+    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
                                     -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
-    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 50)) `
+    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
                                     -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
-    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 100)) `
+    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
                                     -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
@@ -396,21 +396,13 @@ $lbIpAdress.Add_Click({
                         }) -join ", "
                         # Construir el texto para mostrar en el Label
                         $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
-                            "Adaptador: $($_.AdapterName) - IP: $($_.IPAddress)`n"
+                            "Dongle $($_.AdapterName) - IP: $($_.IPAddress)`n"
                         }) -join "`n"
                         # Asignar el texto al label
                         $lbIpAdress.Text = "$ipsTextForLabel"
                     } else {
                         $lbIpAdress.Text = "No se encontraron direcciones IP"
                     }
-# Configuración dinámica del tamaño del Label según la cantidad de líneas
-    $lineHeight = 15
-    $maxLines = $lbIpAdress.Text.Split("`n").Count
-    $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
-    $lbIpAdress.Size = New-Object System.Drawing.Size(220, $labelHeight)
-# Ajustar la altura del formulario según el Label de IPs
-    $formHeight = $formPrincipal.Size.Height + $labelHeight - 20
-    $formPrincipal.Size = New-Object System.Drawing.Size($formPrincipal.Size.Width, $formHeight)
 # Función para obtener adaptadores y sus estados (modificada)
     function Get-NetworkAdapterStatus {
             $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }

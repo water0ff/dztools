@@ -7,7 +7,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     Add-Type -AssemblyName System.Drawing
 # Crear el formulario
     $formPrincipal = New-Object System.Windows.Forms.Form
-    $formPrincipal.Size = New-Object System.Drawing.Size(500, 470)
+    $formPrincipal.Size = New-Object System.Drawing.Size(720, 400)
     $formPrincipal.StartPosition = "CenterScreen"
     $formPrincipal.BackColor = [System.Drawing.Color]::White
     $formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1131"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1531"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -174,7 +174,7 @@ function Create-TextBox {
     $textBox.Multiline = $Multiline
     $textBox.ScrollBars = $ScrollBars
     $textBox.ReadOnly = $ReadOnly
-
+    $textBox.WordWrap = $false  # Evitar el ajuste de palabras, lo que habilita la barra de desplazamiento horizontal si es necesario
     # Si se requiere usar el sistema de contraseña, configurar el PasswordChar
     if ($UseSystemPasswordChar) {
         $textBox.UseSystemPasswordChar = $true
@@ -184,9 +184,8 @@ function Create-TextBox {
 }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
-    $tabControl.Size = New-Object System.Drawing.Size(480, 315) #X,Y
+    $tabControl.Size = New-Object System.Drawing.Size(710, 315) #X,Y
     $tabControl.Location = New-Object System.Drawing.Point(0,0)
-    $tabControl.BackColor = [System.Drawing.Color]::LightGray
 # Crear las tres pestañas (Aplicaciones, Consultas y Pro)
     $tabAplicaciones = New-Object System.Windows.Forms.TabPage
     $tabAplicaciones.Text = "Aplicaciones"
@@ -196,34 +195,34 @@ function Create-TextBox {
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
 # Crear los botones utilizando la función
-    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 10)) `
+    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 50)) `
                                 -ToolTip "Instalación mediante choco de SQL Management 2014."
-    $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 50)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
-    $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 90)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
-    $btnSQLManager = Create-Button -Text "Ejecutar Manager" -Location (New-Object System.Drawing.Point(10, 130)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "De momento solo si es SQL 2014."
-    $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 170)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Busca SQL Management en tu equipo y te confirma la versión previo a ejecutarlo."
-    $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 210)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Herramienta de Star con funciones multiples para impresoras POS."
-    $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(10, 250)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
-    $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 10)) `
+    $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 90)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
+    $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 130)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
+    $btnSQLManager = Create-Button -Text "Ejecutar Manager" -Location (New-Object System.Drawing.Point(10, 170)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "De momento solo si es SQL 2014."
+    $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 210)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Busca SQL Management en tu equipo y te confirma la versión previo a ejecutarlo."
+    $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 250)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Herramienta de Star con funciones multiples para impresoras POS."
+    $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 76, 76)) -ToolTip "Detiene el programa y elimina los archivos para crear nuevos IDS."
-    $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 50)) `
+    $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 90)) `
                                 -BackColor ([System.Drawing.Color]::White) -ToolTip "Muestra en consola: Impresora, Puerto y Driver instaladas en Windows."
-    $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(240, 90)) `
+    $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(240, 130)) `
                                 -BackColor ([System.Drawing.Color]::White) -ToolTip "Limpia las impresiones pendientes y reinicia la cola de impresión."
-    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 130)) `
+    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 170)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
-    $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(240, 170)) `
-                                -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
-    $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Carpeta LZMA" -Location (New-Object System.Drawing.Point(240, 210)) `
-                                -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
-    $btnModificarPermisos = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(240, 250)) `
-                                -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
+    $btnCheckPermissions = Create-Button -Text "Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(470, 50)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
+    $btnModificarPermisos = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(470, 90)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
+    $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Instalador LZMA" -Location (New-Object System.Drawing.Point(470, 130)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
+    $btnConfigurarIPs = Create-Button -Text "Agregar IPs" -Location (New-Object System.Drawing.Point(470, 170)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 50)) `
@@ -236,22 +235,26 @@ function Create-TextBox {
                                 -ToolTip "Para SR, revision, ultimo uso y estación." -Enabled $false
     $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 210)) `
                                 -ToolTip "Respaldo de Restcard, puede requerir MySQL instalado."
-    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(120, 320)) `
+    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(240, 320)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
 # Crear el CheckBox chkSqlServer
     $chkSqlServer = New-Object System.Windows.Forms.CheckBox
     $chkSqlServer.Text = "Instalar SQL Tools (opcional)"
     $chkSqlServer.Size = New-Object System.Drawing.Size(290, 30)
     $chkSqlServer.Location = New-Object System.Drawing.Point(10, 10)
-# Usar la función Create-Label para crear la label de conexión
     $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" -Location (New-Object System.Drawing.Point(10, 260)) -Size (New-Object System.Drawing.Size(290, 30)) `
                                      -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont
-# Crear el Label para mostrar el nombre del equipo fuera de las pestañas
-    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(2, 360)) -Size (New-Object System.Drawing.Size(240, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
-# Crear el Label para mostrar el puerto
-    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(245, 360)) -Size (New-Object System.Drawing.Size(236, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
-# Crear el Label para mostrar las IPs y adaptadores
-    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(2, 400)) -Size (New-Object System.Drawing.Size(240, 100)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
+# Usar la función Create-Label para crear la label de conexión
+    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
+        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
+    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
+        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
+# Crear el TextBox para mostrar las direcciones IP
+$textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
+    -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
+    -ScrollBars 'Vertical' -Multiline $true -ReadOnly $true
+#    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
+#        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
@@ -266,6 +269,10 @@ function Create-TextBox {
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
     $tabAplicaciones.Controls.Add($btnModificarPermisos)
+    $tabAplicaciones.Controls.Add($lblHostname)
+    $tabAplicaciones.Controls.Add($lblPort)
+#    $tabAplicaciones.Controls.Add($lbIpAdress)
+$tabAplicaciones.Controls.Add($textBoxIpAdress)
 # Agregar controles a la pestaña Pro
     $tabProSql.Controls.Add($chkSqlServer)
     $tabProSql.Controls.Add($btnReviewPivot)
@@ -275,16 +282,35 @@ function Create-TextBox {
     $tabProSql.Controls.Add($lblConnectionStatus)
     $tabProSql.Controls.Add($btnConnectDb)
     $tabProSql.Controls.Add($btnDisconnectDb)
-            # Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
-            function Check-Permissions {
+# Función para manejar MouseEnter y cambiar el color
+$changeColorOnHover = {
+    param($sender, $eventArgs)
+    $sender.BackColor = [System.Drawing.Color]::Orange
+}
+# Función para manejar MouseLeave y restaurar el color
+$restoreColorOnLeave = {
+    param($sender, $eventArgs)
+    $sender.BackColor = [System.Drawing.Color]::Black
+}
+        $lblHostname.Add_MouseEnter($changeColorOnHover)
+        $lblHostname.Add_MouseLeave($restoreColorOnLeave)
+
+# Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
+    function Check-Permissions {
                 $folderPath = "C:\NationalSoft"
                 $acl = Get-Acl -Path $folderPath
                 $permissions = @()
             
+                # Obtener el SID universal de "Everyone" (independiente del idioma del sistema)
+                $everyoneSid = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::WorldSid, $null)
+                
                 $everyonePermissions = @()
                 $everyoneHasFullControl = $false
             
                 foreach ($access in $acl.Access) {
+                    # Obtener el SID del usuario en la ACL
+                    $userSid = (New-Object System.Security.Principal.NTAccount($access.IdentityReference)).Translate([System.Security.Principal.SecurityIdentifier])
+            
                     # Almacenar los permisos de todos los usuarios
                     $permissions += [PSCustomObject]@{
                         Usuario = $access.IdentityReference
@@ -292,11 +318,10 @@ function Create-TextBox {
                         Tipo    = $access.AccessControlType
                     }
             
-                    # Revisar si "Everyone" tiene permisos
-                    if ($access.IdentityReference -eq "Everyone") {
+                    # Comparar usando el SID universal de "Everyone"
+                    if ($userSid -eq $everyoneSid) {
                         $everyonePermissions += $access.FileSystemRights
-                        # Verificar si "Everyone" tiene FullControl o Control total
-                        if ($access.FileSystemRights -match "FullControl" -or $access.FileSystemRights -match "Control total") {
+                        if ($access.FileSystemRights -match "FullControl") {
                             $everyoneHasFullControl = $true
                         }
                     }
@@ -310,14 +335,15 @@ function Create-TextBox {
             
                 # Mostrar los permisos de "Everyone" de forma consolidada
                 if ($everyonePermissions.Count -gt 0) {
-                    Write-Host "`n\tEveryone tiene los siguientes permisos: $($everyonePermissions -join ', ')" -ForegroundColor Green
+                    Write-Host "`tEveryone tiene los siguientes permisos:"  -NoNewline
+                    Write-Host "` $($everyonePermissions -join ', ')" -ForegroundColor Green
                 } else {
-                    Write-Host "`n\tNo hay permisos para 'Everyone'" -ForegroundColor Red
+                    Write-Host "`tNo hay permisos para 'Everyone'" -ForegroundColor Red
                 }
             
-                # Si "Everyone" no tiene Full Control o Control total, preguntar si se desea concederlo
+                # Si "Everyone" no tiene Full Control, preguntar si se desea concederlo
                 if (-not $everyoneHasFullControl) {
-                    $message = "El usuario 'Everyone' no tiene permisos de 'Full Control' (o 'Control total'). ¿Deseas concederlo?"
+                    $message = "El usuario 'Everyone' no tiene permisos de 'Full Control'. ¿Deseas concederlo?"
                     $title = "Permisos 'Everyone'"
                     $buttons = [System.Windows.Forms.MessageBoxButtons]::YesNo
                     $icon = [System.Windows.Forms.MessageBoxIcon]::Question
@@ -326,7 +352,7 @@ function Create-TextBox {
             
                     if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
                         # Agregar Full Control a "Everyone" en la carpeta
-                        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+                        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($everyoneSid, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
                         $acl.AddAccessRule($accessRule)
             
                         # Forzar la herencia para subcarpetas y archivos
@@ -336,72 +362,55 @@ function Create-TextBox {
                         Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
                     }
                 }
-            }            
-            # Asignar la función al botón (si sigue siendo necesario)
-            $btnCheckPermissions.Add_Click({
-                Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
-                Check-Permissions
-            })            
-            # Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
-            $tabAplicaciones.Controls.Add($btnCheckPermissions)
-
-#Funcion para copiar el puerto al portapapeles
-    $lblPort.Add_Click({
-        if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
-            $port = $matches[0]  # Extraer el número del texto
-            [System.Windows.Forms.Clipboard]::SetText($port)
-            Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
-        } else {
-            Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
-        }
-    })
+    }
+# Asignar la función al botón (si sigue siendo necesario)
+    $btnCheckPermissions.Add_Click({
+        Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
+        Check-Permissions
+    })            
+# Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
+    $tabAplicaciones.Controls.Add($btnCheckPermissions)
+# lbl clics
 $lblHostname.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
         Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
     })
-$lbIpAdress.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($lbIpAdress.Text)
-        Write-Host "`nIP's copiadas al equipo: $($lbIpAdress.Text)"
+# Manejar el evento de clic para copiar las IPs al portapapeles
+    $textBoxIpAdress.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($textBoxIpAdress.Text)
+        Write-Host "`nIP's copiadas al equipo: $($textBoxIpAdress.Text)"
     })
 # Obtener las direcciones IP y los adaptadores
-                $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
-                    Where-Object { $_.OperationalStatus -eq 'Up' } |
-                    ForEach-Object {
-                        $interface = $_
-                        $interface.GetIPProperties().UnicastAddresses |
-                        Where-Object { 
-                            $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' 
-                        } |
-                        ForEach-Object {
-                            @{
-                                AdapterName = $interface.Name
-                                IPAddress = $_.Address.ToString()
-                            }
-                        }
-                    }
+    $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
+        Where-Object { $_.OperationalStatus -eq 'Up' } |
+        ForEach-Object {
+            $interface = $_
+            $interface.GetIPProperties().UnicastAddresses |
+            Where-Object { 
+                $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' 
+            } |
+            ForEach-Object {
+                @{
+                    AdapterName = $interface.Name
+                    IPAddress = $_.Address.ToString()
+                }
+            }
+        }
 # Construir el texto para mostrar todas las IPs y adaptadores
-                    if ($ipsWithAdapters.Count -gt 0) {
-                        # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
-                        $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
-                            $_.IPAddress
-                        }) -join ", "
-                        # Construir el texto para mostrar en el Label
-                        $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
-                            "Adaptador: $($_.AdapterName)`nIP: $($_.IPAddress)`n"
-                        }) -join "`n"
-                        # Asignar el texto al label
-                        $lbIpAdress.Text = "$ipsTextForLabel"
-                    } else {
-                        $lbIpAdress.Text = "No se encontraron direcciones IP"
-                    }
-# Configuración dinámica del tamaño del Label según la cantidad de líneas
-    $lineHeight = 15
-    $maxLines = $lbIpAdress.Text.Split("`n").Count
-    $labelHeight = [Math]::Min(400, $lineHeight * $maxLines)
-    $lbIpAdress.Size = New-Object System.Drawing.Size(240, $labelHeight)
-# Ajustar la altura del formulario según el Label de IPs
-    $formHeight = $formPrincipal.Size.Height + $labelHeight - 20
-    $formPrincipal.Size = New-Object System.Drawing.Size($formPrincipal.Size.Width, $formHeight)
+    if ($ipsWithAdapters.Count -gt 0) {
+    # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
+        $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
+            $_.IPAddress
+        }) -join ", "
+    # Concatenar las IPs y adaptadores con un salto de línea entre cada uno
+        $ipsTextForLabel = $ipsWithAdapters | ForEach-Object {
+            "- $($_.AdapterName) - IP: $($_.IPAddress)"
+        } | Out-String
+    # Asignar el texto al TextBox
+        $textBoxIpAdress.Text = $ipsTextForLabel
+    } else {
+        $textBoxIpAdress.Text = "No se encontraron direcciones IP"
+    }
 # Función para obtener adaptadores y sus estados (modificada)
     function Get-NetworkAdapterStatus {
             $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -442,10 +451,6 @@ $lbIpAdress.Add_Click({
                 Write-Host "La red ya es privada o no es pública, no se realizará ningún cambio."
             }
         }
-        
-        # Crear la etiqueta para mostrar los adaptadores y su estado
-        $lblPerfilDeRed = Create-Label -Text "Estado de los Adaptadores:" -Location (New-Object System.Drawing.Point(245, 400)) -Size (New-Object System.Drawing.Size(236, 25)) -TextAlign MiddleCenter -ToolTipText "Haz clic para cambiar la red a privada."
-        
         # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
         $networkAdapters = Get-NetworkAdapterStatus
         $adapterInfo = ""
@@ -464,7 +469,7 @@ $lbIpAdress.Add_Click({
                 $color = [System.Drawing.Color]::Red
             }
             
-            $lblAdaptadorStatus = Create-Label -Text $text -Location (New-Object System.Drawing.Point(245, (425 + (30 * $index)))) -Size (New-Object System.Drawing.Size(236, 20)) -ForeColor $color -BorderStyle FixedSingle
+            $lblAdaptadorStatus = Create-Label -Text $text -Location (New-Object System.Drawing.Point(10, (320 + (30 * $index)))) -Size (New-Object System.Drawing.Size(220, 20)) -ForeColor $color -BorderStyle FixedSingle
             $lblAdaptadorStatus.Add_MouseEnter($changeColorOnHover)
             $lblAdaptadorStatus.Add_MouseLeave($restoreColorOnLeave)
 
@@ -495,12 +500,29 @@ $lbIpAdress.Add_Click({
     }
 # Agregar los controles al formulario
             $formPrincipal.Controls.Add($tabControl)
-            $formPrincipal.Controls.Add($lblHostname)
-            $formPrincipal.Controls.Add($lblPort)
-            $formPrincipal.Controls.Add($lbIpAdress)
-            $formPrincipal.Controls.Add($lblPerfilDeRed)
             $formPrincipal.Controls.Add($btnExit)
-# Acción para el CheckBox, si el usuario lo marca manualmente
+# Obtener el puerto de SQL Server desde el registro
+        $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
+        $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
+
+        if ($tcpPort -and $tcpPort.TcpPort) {
+            $lblPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
+        } else {
+            $lblPort.Text = "No se encontró puerto o instancia."
+        }
+#Funcion para copiar el puerto al portapapeles
+    $lblPort.Add_Click({
+        if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
+            $port = $matches[0]  # Extraer el número del texto
+            [System.Windows.Forms.Clipboard]::SetText($port)
+            Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
+        } else {
+            Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
+        }
+    })
+        $lblPort.Add_MouseEnter($changeColorOnHover)
+        $lblPort.Add_MouseLeave($restoreColorOnLeave)
+##-------------------- FUNCIONES                                                          -------#
 $chkSqlServer.Add_CheckedChanged({
     if ($chkSqlServer.Checked) {
         # Confirmación con MsgBox
@@ -529,16 +551,6 @@ $chkSqlServer.Add_CheckedChanged({
     # Habilitar el botón de Conectar a BDD solo si las herramientas SQL Server están habilitadas
     #$btnConnectDb.Enabled = $chkSqlServer.Checked
 })
-# Obtener el puerto de SQL Server desde el registro
-        $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
-        $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
-
-        if ($tcpPort -and $tcpPort.TcpPort) {
-            $lblPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
-        } else {
-            $lblPort.Text = "No se encontró puerto o instancia."
-        }
-##-------------------- FUNCIONES                                                          -------#
 function Check-SqlServerInstallation {
     $sqlInstalled = Get-WmiObject -Query "SELECT * FROM Win32_Product WHERE Name LIKE 'Microsoft SQL Server%'" | Select-Object -First 1
     return $sqlInstalled
@@ -719,22 +731,108 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         Write-Host "`nNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
     }
 }
-# Función para manejar MouseEnter y cambiar el color
-$changeColorOnHover = {
-    param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::Orange
+# Funcion para agregar nuevas ips
+function Show-NewIpForm {
+        $formIpAssign = Create-Form -Title "Agregar IP Adicional" -Size (New-Object System.Drawing.Size(350, 150)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+    
+        $lblipAssignER = Create-Label -Text "Ingrese la nueva dirección IP:" -Location (New-Object System.Drawing.Point(10, 20))
+        $lblipAssignER.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignER)
+    
+        $ipAssignTextBox1 = Create-TextBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(50, 20))
+        $ipAssignTextBox1.MaxLength = 3
+        $ipAssignTextBox1.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
+            if ($_.KeyChar -eq '.') {
+                $ipAssignTextBox2.Focus()
+                $_.Handled = $true
+            }
+        })
+        $ipAssignTextBox1.Add_TextChanged({
+            if ($ipAssignTextBox1.Text.Length -eq 3) { $ipAssignTextBox2.Focus() }
+        })
+        $formIpAssign.Controls.Add($ipAssignTextBox1)
+    
+        $lblipAssignERDot1 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(65, 53))
+        $lblipAssignERDot1.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignERDot1)    
+        $ipAssignTextBox2 = Create-TextBox -Location (New-Object System.Drawing.Point(80, 50)) -Size (New-Object System.Drawing.Size(50, 20))
+        $ipAssignTextBox2.MaxLength = 3
+        $ipAssignTextBox2.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
+            if ($_.KeyChar -eq '.') {
+                $ipAssignTextBox3.Focus()
+                $_.Handled = $true
+            }
+        })
+        $ipAssignTextBox2.Add_TextChanged({
+            if ($ipAssignTextBox2.Text.Length -eq 3) { $ipAssignTextBox3.Focus() }
+        })
+        $formIpAssign.Controls.Add($ipAssignTextBox2)
+    
+        $lblipAssignERDot2 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(135, 53))
+        $lblipAssignERDot2.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignERDot2)
+    
+        $ipAssignTextBox3 = Create-TextBox -Location (New-Object System.Drawing.Point(150, 50)) -Size (New-Object System.Drawing.Size(50, 20))
+        $ipAssignTextBox3.MaxLength = 3
+        $ipAssignTextBox3.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
+            if ($_.KeyChar -eq '.') {
+                $ipAssignTextBox4.Focus()
+                $_.Handled = $true
+            }
+        })
+        $ipAssignTextBox3.Add_TextChanged({
+            if ($ipAssignTextBox3.Text.Length -eq 3) { $ipAssignTextBox4.Focus() }
+        })
+        $formIpAssign.Controls.Add($ipAssignTextBox3)
+    
+        $lblipAssignERDot3 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(205, 53))
+        $lblipAssignERDot3.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignERDot3)
+    
+        $ipAssignTextBox4 = Create-TextBox -Location (New-Object System.Drawing.Point(220, 50)) -Size (New-Object System.Drawing.Size(50, 20))
+        $ipAssignTextBox4.MaxLength = 3
+        $ipAssignTextBox4.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8) { $_.Handled = $true }
+        })
+        $formIpAssign.Controls.Add($ipAssignTextBox4)
+        $bntipAssign = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(100, 80))  -Size (New-Object System.Drawing.Size(140, 30))
+        $bntipAssign.DialogResult = [System.Windows.Forms.DialogResult]::OK
+        $formIpAssign.AcceptButton = $bntipAssign
+        $formIpAssign.Controls.Add($bntipAssign)
+        $result = $formIpAssign.ShowDialog()
+        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+            $octet1 = [int]$ipAssignTextBox1.Text
+            $octet2 = [int]$ipAssignTextBox2.Text
+            $octet3 = [int]$ipAssignTextBox3.Text
+            $octet4 = [int]$ipAssignTextBox4.Text
+    
+            if ($octet1 -ge 0 -and $octet1 -le 255 -and
+                $octet2 -ge 0 -and $octet2 -le 255 -and
+                $octet3 -ge 0 -and $octet3 -le 255 -and
+                $octet4 -ge 0 -and $octet4 -le 255) {
+                $newIp = "$octet1.$octet2.$octet3.$octet4"
+    
+                if ($newIp -eq "0.0.0.0") {
+                    Write-Host "La dirección IP no puede ser 0.0.0.0." -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show("La dirección IP no puede ser 0.0.0.0.", "Error")
+                    return $null
+                } else {
+                    Write-Host "Nueva IP ingresada: $newIp" -ForegroundColor Green
+                    return $newIp
+                }
+            } else {
+                Write-Host "Uno o más octetos están fuera del rango válido (0-255)." -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show("Uno o más octetos están fuera del rango válido (0-255).", "Error")
+                return $null
+            }
+        } else {
+            return $null
+        }
 }
-# Función para manejar MouseLeave y restaurar el color
-$restoreColorOnLeave = {
-    param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::White
-}
-    $lblHostname.Add_MouseEnter($changeColorOnHover)
-    $lblHostname.Add_MouseLeave($restoreColorOnLeave)
-    $lblPort.Add_MouseEnter($changeColorOnHover)
-    $lblPort.Add_MouseLeave($restoreColorOnLeave)
-    $lbIpAdress.Add_MouseEnter($changeColorOnHover)
-    $lbIpAdress.Add_MouseLeave($restoreColorOnLeave)
 ##-------------------------------------------------------------------------------BOTONES#
 $btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
@@ -1450,7 +1548,7 @@ $btnInstallSQLManagement.Add_Click({
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
     
             # Crear las etiquetas y cajas de texto
-            $lblProfile = Create-Label -Text "Perfil de conexión" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(100, 20)) `
+            $lblProfile = Create-Label -Text "Perfil de conexión" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(100, 20))
             $cmbProfiles = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(250, 20)) -DropDownStyle DropDownList
             # Cargar archivos INI desde las rutas especificadas
             $profiles = @{ }
@@ -1480,11 +1578,11 @@ $btnInstallSQLManagement.Add_Click({
                 $cmbProfiles.Items.Add("Personalizado")
             }
             # Crear las demás etiquetas y campos de texto
-            $labelServer = Create-Label -Text "Servidor SQL" -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(100, 20)) `
+            $labelServer = Create-Label -Text "Servidor SQL" -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(100, 20))
             $txtServer = Create-TextBox -Location (New-Object System.Drawing.Point(120, 50)) -Size (New-Object System.Drawing.Size(250, 20))
-            $lblDatabase = Create-Label -Text "Base de Datos" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(100, 20)) `
+            $lblDatabase = Create-Label -Text "Base de Datos" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(100, 20))
             $txtDatabase = Create-TextBox -Location (New-Object System.Drawing.Point(120, 80)) -Size (New-Object System.Drawing.Size(250, 20))
-            $lblPassword = Create-Label -Text "Contraseña" -Location (New-Object System.Drawing.Point(10, 110)) -Size (New-Object System.Drawing.Size(100, 20)) `
+            $lblPassword = Create-Label -Text "Contraseña" -Location (New-Object System.Drawing.Point(10, 110)) -Size (New-Object System.Drawing.Size(100, 20))
             $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 110)) -Size (New-Object System.Drawing.Size(250, 20)) -UseSystemPasswordChar $true
 
         # Habilitar el botón "Conectar" si la contraseña tiene al menos un carácter
@@ -1587,7 +1685,7 @@ $btnInstallSQLManagement.Add_Click({
                 $formBddConnection.ShowDialog()
             })
 #Boton para desconectar de la base de datos
-    $btnDisconnectDb.Add_Click({
+$btnDisconnectDb.Add_Click({
         try {
             # Cerrar la conexión
             $global:connection.Close()
@@ -1606,110 +1704,9 @@ $btnInstallSQLManagement.Add_Click({
         } catch {
             Write-Host "`nError al desconectar: $_" -ForegroundColor Red
         }
-    })
-    function Show-NewIpForm {
-        $formIpAssign = Create-Form -Title "Agregar IP Adicional" -Size (New-Object System.Drawing.Size(350, 150)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
-    
-        $lblipAssignER = Create-Label -Text "Ingrese la nueva dirección IP:" -Location (New-Object System.Drawing.Point(10, 20))
-        $lblipAssignER.AutoSize = $true
-        $formIpAssign.Controls.Add($lblipAssignER)
-    
-        $ipAssignTextBox1 = Create-TextBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(50, 20))
-        $ipAssignTextBox1.MaxLength = 3
-        $ipAssignTextBox1.Add_KeyPress({
-            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
-            if ($_.KeyChar -eq '.') {
-                $ipAssignTextBox2.Focus()
-                $_.Handled = $true
-            }
-        })
-        $ipAssignTextBox1.Add_TextChanged({
-            if ($ipAssignTextBox1.Text.Length -eq 3) { $ipAssignTextBox2.Focus() }
-        })
-        $formIpAssign.Controls.Add($ipAssignTextBox1)
-    
-        $lblipAssignERDot1 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(65, 53))
-        $lblipAssignERDot1.AutoSize = $true
-        $formIpAssign.Controls.Add($lblipAssignERDot1)    
-        $ipAssignTextBox2 = Create-TextBox -Location (New-Object System.Drawing.Point(80, 50)) -Size (New-Object System.Drawing.Size(50, 20))
-        $ipAssignTextBox2.MaxLength = 3
-        $ipAssignTextBox2.Add_KeyPress({
-            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
-            if ($_.KeyChar -eq '.') {
-                $ipAssignTextBox3.Focus()
-                $_.Handled = $true
-            }
-        })
-        $ipAssignTextBox2.Add_TextChanged({
-            if ($ipAssignTextBox2.Text.Length -eq 3) { $ipAssignTextBox3.Focus() }
-        })
-        $formIpAssign.Controls.Add($ipAssignTextBox2)
-    
-        $lblipAssignERDot2 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(135, 53))
-        $lblipAssignERDot2.AutoSize = $true
-        $formIpAssign.Controls.Add($lblipAssignERDot2)
-    
-        $ipAssignTextBox3 = Create-TextBox -Location (New-Object System.Drawing.Point(150, 50)) -Size (New-Object System.Drawing.Size(50, 20))
-        $ipAssignTextBox3.MaxLength = 3
-        $ipAssignTextBox3.Add_KeyPress({
-            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
-            if ($_.KeyChar -eq '.') {
-                $ipAssignTextBox4.Focus()
-                $_.Handled = $true
-            }
-        })
-        $ipAssignTextBox3.Add_TextChanged({
-            if ($ipAssignTextBox3.Text.Length -eq 3) { $ipAssignTextBox4.Focus() }
-        })
-        $formIpAssign.Controls.Add($ipAssignTextBox3)
-    
-        $lblipAssignERDot3 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(205, 53))
-        $lblipAssignERDot3.AutoSize = $true
-        $formIpAssign.Controls.Add($lblipAssignERDot3)
-    
-        $ipAssignTextBox4 = Create-TextBox -Location (New-Object System.Drawing.Point(220, 50)) -Size (New-Object System.Drawing.Size(50, 20))
-        $ipAssignTextBox4.MaxLength = 3
-        $ipAssignTextBox4.Add_KeyPress({
-            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8) { $_.Handled = $true }
-        })
-        $formIpAssign.Controls.Add($ipAssignTextBox4)
-        $bntipAssign = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(100, 80))  -Size (New-Object System.Drawing.Size(140, 30))
-        $bntipAssign.DialogResult = [System.Windows.Forms.DialogResult]::OK
-        $formIpAssign.AcceptButton = $bntipAssign
-        $formIpAssign.Controls.Add($bntipAssign)
-        $result = $formIpAssign.ShowDialog()
-        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-            $octet1 = [int]$ipAssignTextBox1.Text
-            $octet2 = [int]$ipAssignTextBox2.Text
-            $octet3 = [int]$ipAssignTextBox3.Text
-            $octet4 = [int]$ipAssignTextBox4.Text
-    
-            if ($octet1 -ge 0 -and $octet1 -le 255 -and
-                $octet2 -ge 0 -and $octet2 -le 255 -and
-                $octet3 -ge 0 -and $octet3 -le 255 -and
-                $octet4 -ge 0 -and $octet4 -le 255) {
-                $newIp = "$octet1.$octet2.$octet3.$octet4"
-    
-                if ($newIp -eq "0.0.0.0") {
-                    Write-Host "La dirección IP no puede ser 0.0.0.0." -ForegroundColor Red
-                    [System.Windows.Forms.MessageBox]::Show("La dirección IP no puede ser 0.0.0.0.", "Error")
-                    return $null
-                } else {
-                    Write-Host "Nueva IP ingresada: $newIp" -ForegroundColor Green
-                    return $newIp
-                }
-            } else {
-                Write-Host "Uno o más octetos están fuera del rango válido (0-255)." -ForegroundColor Red
-                [System.Windows.Forms.MessageBox]::Show("Uno o más octetos están fuera del rango válido (0-255).", "Error")
-                return $null
-            }
-        } else {
-            return $null
-        }
-    }
-# ------------------------------ funcion para impresoras
-    $btnConfigurarIPs.Add_Click({
+})
+# ------------------------------ Boton para configurar nuevas ips
+$btnConfigurarIPs.Add_Click({
             $formIpAssignAsignacion = Create-Form -Title "Asignación de IPs" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
             #interfaz
@@ -1906,49 +1903,40 @@ $btnInstallSQLManagement.Add_Click({
                 }
             })
             $formIpAssignAsignacion.ShowDialog()
-    })
+})
 # ICACLS para dar permisos cuando marca error driver de lector
 $btnModificarPermisos.Add_Click({
     Write-Host "`nIniciando modificación de permisos..." -ForegroundColor Cyan
-
     try {
         # Ruta de PsExec
         $psexecPath = "C:\Temp\PsExec\PsExec.exe"
         $psexecZip = "C:\Temp\PSTools.zip"
         $psexecUrl = "https://download.sysinternals.com/files/PSTools.zip"
         $psexecExtractPath = "C:\Temp\PsExec"
-
         # Validar si PsExec.exe existe
         if (-Not (Test-Path $psexecPath)) {
             Write-Host "`tPsExec no encontrado. Descargando desde Sysinternals..." -ForegroundColor Yellow
-            
             # Crear carpeta Temp si no existe
             if (-Not (Test-Path "C:\Temp")) {
                 New-Item -Path "C:\Temp" -ItemType Directory | Out-Null
             }
-
             # Descargar el archivo ZIP
             Invoke-WebRequest -Uri $psexecUrl -OutFile $psexecZip
-
             # Extraer PsExec.exe
             Write-Host "`tExtrayendo PsExec..." -ForegroundColor Cyan
             Expand-Archive -Path $psexecZip -DestinationPath $psexecExtractPath -Force
-
             # Verificar si PsExec fue extraído correctamente
             if (-Not (Test-Path $psexecPath)) {
                 Write-Host "`tError: No se pudo extraer PsExec.exe." -ForegroundColor Red
                 return
             }
-
             Write-Host "`tPsExec descargado y extraído correctamente." -ForegroundColor Green
         } else {
             Write-Host "`tPsExec ya está instalado en: $psexecPath" -ForegroundColor Green
         }
-
         # Detectar el nombre correcto del grupo de administradores
         $grupoAdmin = ""
         $gruposLocales = net localgroup | Where-Object { $_ -match "Administrators|Administradores" }
-
         if ($gruposLocales -match "Administrators") {
             $grupoAdmin = "Administrators"
         } elseif ($gruposLocales -match "Administradores") {
@@ -1959,32 +1947,25 @@ $btnModificarPermisos.Add_Click({
         }
         Write-Host "`tGrupo de administradores detectado: " -NoNewline
         Write-Host "$grupoAdmin" -ForegroundColor Green
-
         # Comandos con el nombre correcto del grupo
         $comando1 = "icacls C:\Windows\System32\en-us /grant `"$grupoAdmin`":F"
         $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
-       
         # Comandos con formato correcto
         $psexecCmd1 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando1`""
         $psexecCmd2 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando2`""
-        
         Write-Host "`nEjecutando primer comando: $comando1" -ForegroundColor Yellow
         $output1 = & cmd /c $psexecCmd1
         Write-Host $output1
-        
         Write-Host "`nEjecutando segundo comando: $comando2" -ForegroundColor Yellow
         $output2 = & cmd /c $psexecCmd2
         Write-Host $output2
-
         Write-Host "`nModificación de permisos completada." -ForegroundColor Cyan
-
             $ResponderDriver = [System.Windows.Forms.MessageBox]::Show(
                 "¿Desea descargar e instalar el driver del lector?",
                 "Descargar Driver",
                 [System.Windows.Forms.MessageBoxButtons]::YesNo,
                 [System.Windows.Forms.MessageBoxIcon]::Question
             )
-            
             if ($ResponderDriver -eq [System.Windows.Forms.DialogResult]::Yes) {
                 # Definir parámetros de la descarga
                 $url = "https://softrestaurant.com/drivers?download=120:dp"
@@ -2002,7 +1983,7 @@ $btnModificarPermisos.Add_Click({
     }
 })
 # Evento de clic para el botón de respaldo
-    $btnRespaldarRestcard.Add_Click({
+$btnRespaldarRestcard.Add_Click({
         Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
         # Crear la segunda ventana para ingresar los datos de conexión
         $formRespaldarRestcard = Create-Form -Title "Datos de Conexión para Respaldar" -Size (New-Object System.Drawing.Size(350, 210)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
@@ -2039,10 +2020,8 @@ $btnModificarPermisos.Add_Click({
                 $txtHostnameRestcard.Clear()
             }
         })
-    
         # Crear botón para ejecutar el respaldo
             $btnRespaldar = Create-Button -Text "Respaldar" -Location (New-Object System.Drawing.Point(20, 140))  -Size (New-Object System.Drawing.Size(140, 30))
-    
         # Evento de clic para el botón de respaldo
                     $btnRespaldar.Add_Click({
                         # Obtener los valores del formulario
@@ -2070,11 +2049,9 @@ $btnModificarPermisos.Add_Click({
                             # Crear la ruta con el timestamp
                             $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
                             $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
-                    
                             # Ejecutar el comando mysqldump para hacer el respaldo
                             $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`""
                             $process = Start-Process -FilePath "mysqldump" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
-                    
                             # Verificar si el respaldo se realizó correctamente
                             if ($process.ExitCode -eq 0) {
                                 # Obtener el tamaño del archivo generado
@@ -2090,21 +2067,17 @@ $btnModificarPermisos.Add_Click({
                                     Write-Host "`tArchivo de respaldo eliminado debido a un error." -ForegroundColor Yellow
                                 }
                             }
-                    
                             # Cerrar la segunda ventana después de completar el respaldo
                             $formRespaldarRestcard.Close()
                         }
                     })
-    
         # Crear botón para salir
         $btnSalirRestcard = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(185, 140))  -Size (New-Object System.Drawing.Size(140, 30))
-    
         # Evento de clic para el botón de salir
         $btnSalirRestcard.Add_Click({
             Write-Host "`tSalió sin realizar respaldo." -ForegroundColor Red
             $formRespaldarRestcard.Close()
         })
-    
         # Agregar controles a la segunda ventana
         $formRespaldarRestcard.Controls.Add($txtUsuarioRestcard)
         $formRespaldarRestcard.Controls.Add($txtBaseDeDatosRestcard)
@@ -2117,10 +2090,9 @@ $btnModificarPermisos.Add_Click({
         $formRespaldarRestcard.Controls.Add($chkLlenarDatos)
         $formRespaldarRestcard.Controls.Add($btnRespaldar)
         $formRespaldarRestcard.Controls.Add($btnSalirRestcard)
-    
         # Mostrar la segunda ventana
         $formRespaldarRestcard.ShowDialog()
-    })
+})
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

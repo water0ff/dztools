@@ -1206,7 +1206,7 @@ $btnAplicacionesNS.Add_Click({
             Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
             # Definir una lista para almacenar los resultados
             $resultados = @()
-            
+        
             # Función para extraer valores de un archivo INI
             function Leer-Ini($filePath) {
                 if (Test-Path $filePath) {
@@ -1214,13 +1214,13 @@ $btnAplicacionesNS.Add_Click({
                     $dataSource = ($content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
                     $catalog = ($content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
                     $authType = $content | Select-String -Pattern "^autenticacion=(\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
-            
+        
                     $authUser = switch ($authType) {
                         "2" { "sa" }
                         "1" { "Windows" }
                         default { "Desconocido" }
                     }
-            
+        
                     return @{
                         DataSource = $dataSource
                         Catalog    = $catalog
@@ -1229,7 +1229,7 @@ $btnAplicacionesNS.Add_Click({
                 }
                 return $null
             }
-            
+        
             # Lista de rutas principales
             $pathsToCheck = @(
                 "C:\NationalSoft\Softrestaurant11.0",
@@ -1237,14 +1237,14 @@ $btnAplicacionesNS.Add_Click({
                 "C:\NationalSoft\NationalSoftHoteles3.0",
                 "C:\NationalSoft\OnTheMinute4.5"
             )
-            
+        
             foreach ($basePath in $pathsToCheck) {
                 $mainIniPath = "$basePath\restaurant.ini"
                 if (Test-Path $mainIniPath) {
                     $iniData = Leer-Ini $mainIniPath
                     if ($iniData) {
                         $appName = $basePath -match "Softrestaurant(\d+\.\d+)" ? "SR$($matches[1])" : "Hoteles"
-            
+        
                         $resultado = [PSCustomObject]@{
                             Aplicacion = $appName
                             INI        = "restaurant.ini"
@@ -1255,7 +1255,7 @@ $btnAplicacionesNS.Add_Click({
                         $resultados += $resultado
                     }
                 }
-            
+        
                 # Revisar si hay archivos .ini en la carpeta INIS
                 $inisFolder = "$basePath\INIS"
                 if (Test-Path $inisFolder) {
@@ -1264,7 +1264,7 @@ $btnAplicacionesNS.Add_Click({
                         $iniData = Leer-Ini $iniFile.FullName
                         if ($iniData) {
                             $appName = $basePath -match "Softrestaurant(\d+\.\d+)" ? "SR$($matches[1])" : "OnTheMinute"
-            
+        
                             $resultado = [PSCustomObject]@{
                                 Aplicacion = $appName
                                 INI        = $iniFile.Name
@@ -1277,17 +1277,22 @@ $btnAplicacionesNS.Add_Click({
                     }
                 }
             }
-            
-            # Mostrar resultados en una tabla
-            $resultados | Format-Table -AutoSize
-
+        
             # Proceso 3: Detectar si existe RestCard.ini
             $restCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
             if (Test-Path $restCardPath) {
-                Write-Host "`nArchivo encontrado: $restCardPath" -ForegroundColor Green
-            } else {
-                Write-Host "`nArchivo no encontrado: $restCardPath" -ForegroundColor Red
+                $resultado = [PSCustomObject]@{
+                    Aplicacion = "Restcard"
+                    INI        = "RestCard.ini"
+                    DataSource = "existe"
+                    Catalog    = "existe"
+                    Usuario    = "existe"
+                }
+                $resultados += $resultado
             }
+        
+            # Mostrar resultados en una tabla
+            $resultados | Format-Table -AutoSize
 })
 #Boton para instalar Management
 $btnInstallSQLManagement.Add_Click({

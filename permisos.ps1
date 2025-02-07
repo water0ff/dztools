@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "permi_250207.1024"  # Valor predeterminado para la versión
+                                                                                                        $version = "permi_250207.1030"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -249,42 +249,33 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
 # Crear el Label para mostrar las IPs y adaptadores
     $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(2, 400)) -Size (New-Object System.Drawing.Size(240, 100)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 
-                                        # Función para revisar permisos
-                                        function Check-Permissions {
-                                            $folderPath = "C:\NationalSoft"
-                                            $acl = Get-Acl -Path $folderPath
-                                            $permissions = @()
-                                        
-                                            foreach ($access in $acl.Access) {
-                                                $permissions += [PSCustomObject]@{
-                                                    Usuario = $access.IdentityReference
-                                                    Permiso = $access.FileSystemRights
-                                                    Tipo    = $access.AccessControlType
-                                                }
-                                            }
-                                        
-                                            # Construir el texto para mostrar
-                                            $permissionsText = $permissions | ForEach-Object { 
-                                                "$($_.Usuario) - $($_.Permiso) - $($_.Tipo)" 
-                                        } -join "`n"
-                                        
-                                            # Mostrar los permisos en un cuadro de diálogo
-                                            [System.Windows.Forms.MessageBox]::Show(
-                                                $permissionsText, 
-                                                "Permisos de C:\NationalSoft", 
-                                                [System.Windows.Forms.MessageBoxButtons]::OK, 
-                                                [System.Windows.Forms.MessageBoxIcon]::Information
-                                            )
-                                        }
-                                        
-                                        # Asignar la función al botón
-                                        $btnCheckPermissions.Add_Click({
-                                            Check-Permissions
-                                        })
-                                        
-                                        # Agregar el botón a la pestaña de Aplicaciones
-                                        $tabAplicaciones.Controls.Add($btnCheckPermissions)
-
+                    # Función para revisar permisos
+                    function Check-Permissions {
+                        $folderPath = "C:\NationalSoft"
+                        $acl = Get-Acl -Path $folderPath
+                        $permissions = @()
+                    
+                        foreach ($access in $acl.Access) {
+                            $permissions += [PSCustomObject]@{
+                                Usuario = $access.IdentityReference
+                                Permiso = $access.FileSystemRights
+                                Tipo    = $access.AccessControlType
+                            }
+                        }
+                    
+                        # Mostrar los permisos en la consola con Write-Host
+                        $permissions | ForEach-Object { 
+                            Write-Host "$($_.Usuario) - $($_.Permiso) - $($_.Tipo)"
+                        }
+                    }
+                    
+                    # Asignar la función al botón (si sigue siendo necesario)
+                    $btnCheckPermissions.Add_Click({
+                        Check-Permissions
+                    })
+                    
+                    # Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
+                    $tabAplicaciones.Controls.Add($btnCheckPermissions)
 
 
 
@@ -305,17 +296,8 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
 
 #Funcion para copiar el puerto al portapapeles
     $lblPort.Add_Click({
-        if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
-            $port = $matches[0]  # Extraer el número del texto
-            [System.Windows.Forms.Clipboard]::SetText($port)
-            Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
-        } else {
-            Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
-        }
     })
 $lblHostname.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
-        Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
     })
 $lbIpAdress.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lbIpAdress.Text)

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250206.1641"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1131"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -208,6 +208,8 @@ function Create-TextBox {
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Busca SQL Management en tu equipo y te confirma la versión previo a ejecutarlo."
     $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 210)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Herramienta de Star con funciones multiples para impresoras POS."
+    $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(10, 250)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
     $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 10)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 76, 76)) -ToolTip "Detiene el programa y elimina los archivos para crear nuevos IDS."
     $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 50)) `
@@ -273,6 +275,76 @@ function Create-TextBox {
     $tabProSql.Controls.Add($lblConnectionStatus)
     $tabProSql.Controls.Add($btnConnectDb)
     $tabProSql.Controls.Add($btnDisconnectDb)
+            # Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
+            function Check-Permissions {
+                $folderPath = "C:\NationalSoft"
+                $acl = Get-Acl -Path $folderPath
+                $permissions = @()
+            
+                $everyonePermissions = @()
+                $everyoneHasFullControl = $false
+            
+                foreach ($access in $acl.Access) {
+                    # Almacenar los permisos de todos los usuarios
+                    $permissions += [PSCustomObject]@{
+                        Usuario = $access.IdentityReference
+                        Permiso = $access.FileSystemRights
+                        Tipo    = $access.AccessControlType
+                    }
+            
+                    # Revisar si "Everyone" tiene permisos
+                    if ($access.IdentityReference -eq "Everyone") {
+                        $everyonePermissions += $access.FileSystemRights
+                        # Verificar si "Everyone" tiene FullControl o Control total
+                        if ($access.FileSystemRights -match "FullControl" -or $access.FileSystemRights -match "Control total") {
+                            $everyoneHasFullControl = $true
+                        }
+                    }
+                }
+            
+                # Mostrar los permisos en la consola
+                $permissions | ForEach-Object { 
+                    Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
+                    Write-Host "` $($_.Permiso)" -ForegroundColor Green
+                }
+            
+                # Mostrar los permisos de "Everyone" de forma consolidada
+                if ($everyonePermissions.Count -gt 0) {
+                    Write-Host "`n\tEveryone tiene los siguientes permisos: $($everyonePermissions -join ', ')" -ForegroundColor Green
+                } else {
+                    Write-Host "`n\tNo hay permisos para 'Everyone'" -ForegroundColor Red
+                }
+            
+                # Si "Everyone" no tiene Full Control o Control total, preguntar si se desea concederlo
+                if (-not $everyoneHasFullControl) {
+                    $message = "El usuario 'Everyone' no tiene permisos de 'Full Control' (o 'Control total'). ¿Deseas concederlo?"
+                    $title = "Permisos 'Everyone'"
+                    $buttons = [System.Windows.Forms.MessageBoxButtons]::YesNo
+                    $icon = [System.Windows.Forms.MessageBoxIcon]::Question
+            
+                    $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
+            
+                    if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                        # Agregar Full Control a "Everyone" en la carpeta
+                        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+                        $acl.AddAccessRule($accessRule)
+            
+                        # Forzar la herencia para subcarpetas y archivos
+                        $acl.SetAccessRuleProtection($false, $true)
+            
+                        Set-Acl -Path $folderPath -AclObject $acl
+                        Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
+                    }
+                }
+            }            
+            # Asignar la función al botón (si sigue siendo necesario)
+            $btnCheckPermissions.Add_Click({
+                Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
+                Check-Permissions
+            })            
+            # Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
+            $tabAplicaciones.Controls.Add($btnCheckPermissions)
+
 #Funcion para copiar el puerto al portapapeles
     $lblPort.Add_Click({
         if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número

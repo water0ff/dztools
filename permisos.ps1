@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.12588888888888"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1310"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -247,11 +247,11 @@ function Create-TextBox {
                                      -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont
 # Usar la función Create-Label para crear la label de conexión
     $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-                                    -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
+        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
     $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-                                    -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
+        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
     $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-                                    -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
+        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
@@ -269,9 +269,6 @@ function Create-TextBox {
     $tabAplicaciones.Controls.Add($lblHostname)
     $tabAplicaciones.Controls.Add($lblPort)
     $tabAplicaciones.Controls.Add($lbIpAdress)
-    #funciones al entrar con el mouse
-        $lblHostname.Add_MouseEnter($changeColorOnHover)
-        $lblHostname.Add_MouseLeave($restoreColorOnLeave)
 # Agregar controles a la pestaña Pro
     $tabProSql.Controls.Add($chkSqlServer)
     $tabProSql.Controls.Add($btnReviewPivot)
@@ -289,8 +286,11 @@ $changeColorOnHover = {
 # Función para manejar MouseLeave y restaurar el color
 $restoreColorOnLeave = {
     param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::White
+    $sender.BackColor = [System.Drawing.Color]::Black
 }
+        $lblHostname.Add_MouseEnter($changeColorOnHover)
+        $lblHostname.Add_MouseLeave($restoreColorOnLeave)
+
 # Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
             function Check-Permissions {
                 $folderPath = "C:\NationalSoft"

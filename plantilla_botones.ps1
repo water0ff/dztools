@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.163999999999"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.164444444444444"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1983,96 +1983,102 @@ $btnRespaldarRestcard.Add_Click({
 })
 #AplicacionesNS
 $btnAplicacionesNS.Add_Click({
-            Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-            # Definir una lista para almacenar los resultados
-            $resultados = @()
-        
-            # Función para extraer valores de un archivo INI
-            function Leer-Ini($filePath) {
-                if (Test-Path $filePath) {
-                    $content = Get-Content $filePath
-                    $dataSource = ($content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
-                    $catalog = ($content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
-                    $authType = $content | Select-String -Pattern "^autenticacion=(\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
-        
-                    $authUser = switch ($authType) {
-                        "2" { "sa" }
-                        "1" { "Windows" }
-                        default { "Desconocido" }
-                    }
-        
-                    return @{
-                        DataSource = $dataSource
-                        Catalog    = $catalog
-                        Usuario    = $authUser
-                    }
-                }
-                return $null
+    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+    # Definir una lista para almacenar los resultados
+    $resultados = @()
+
+    # Función para extraer valores de un archivo INI
+    function Leer-Ini($filePath) {
+        if (Test-Path $filePath) {
+            $content = Get-Content $filePath
+            $dataSource = ($content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
+            $catalog = ($content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
+            $authType = $content | Select-String -Pattern "^autenticacion=(\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
+
+            $authUser = if ($authType -eq "2") { "sa" }
+                        elseif ($authType -eq "1") { "Windows" }
+                        else { "Desconocido" }
+
+            return @{
+                DataSource = $dataSource
+                Catalog    = $catalog
+                Usuario    = $authUser
             }
-        
-            # Lista de rutas principales
-            $pathsToCheck = @(
-                "C:\NationalSoft\Softrestaurant11.0",
-                "C:\NationalSoft\Softrestaurant10.0",
-                "C:\NationalSoft\NationalSoftHoteles3.0",
-                "C:\NationalSoft\OnTheMinute4.5"
-            )
-        
-            foreach ($basePath in $pathsToCheck) {
-                $mainIniPath = "$basePath\restaurant.ini"
-                if (Test-Path $mainIniPath) {
-                    $iniData = Leer-Ini $mainIniPath
-                    if ($iniData) {
-                        $appName = $basePath -match "Softrestaurant(\d+\.\d+)" ? "SR$($matches[1])" : "Hoteles"
-        
-                        $resultado = [PSCustomObject]@{
-                            Aplicacion = $appName
-                            INI        = "restaurant.ini"
-                            DataSource = $iniData.DataSource
-                            Catalog    = $iniData.Catalog
-                            Usuario    = $iniData.Usuario
-                        }
-                        $resultados += $resultado
-                    }
+        }
+        return $null
+    }
+
+    # Lista de rutas principales
+    $pathsToCheck = @(
+        "C:\NationalSoft\Softrestaurant11.0",
+        "C:\NationalSoft\Softrestaurant10.0",
+        "C:\NationalSoft\NationalSoftHoteles3.0",
+        "C:\NationalSoft\OnTheMinute4.5"
+    )
+
+    foreach ($basePath in $pathsToCheck) {
+        $mainIniPath = "$basePath\restaurant.ini"
+        if (Test-Path $mainIniPath) {
+            $iniData = Leer-Ini $mainIniPath
+            if ($iniData) {
+                if ($basePath -match "Softrestaurant(\d+\.\d+)") {
+                    $appName = "SR$($matches[1])"
+                } else {
+                    $appName = "Hoteles"
                 }
-        
-                # Revisar si hay archivos .ini en la carpeta INIS
-                $inisFolder = "$basePath\INIS"
-                if (Test-Path $inisFolder) {
-                    $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
-                    foreach ($iniFile in $iniFiles) {
-                        $iniData = Leer-Ini $iniFile.FullName
-                        if ($iniData) {
-                            $appName = $basePath -match "Softrestaurant(\d+\.\d+)" ? "SR$($matches[1])" : "OnTheMinute"
-        
-                            $resultado = [PSCustomObject]@{
-                                Aplicacion = $appName
-                                INI        = $iniFile.Name
-                                DataSource = $iniData.DataSource
-                                Catalog    = $iniData.Catalog
-                                Usuario    = $iniData.Usuario
-                            }
-                            $resultados += $resultado
-                        }
-                    }
-                }
-            }
-        
-            # Proceso 3: Detectar si existe RestCard.ini
-            $restCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
-            if (Test-Path $restCardPath) {
+
                 $resultado = [PSCustomObject]@{
-                    Aplicacion = "Restcard"
-                    INI        = "RestCard.ini"
-                    DataSource = "existe"
-                    Catalog    = "existe"
-                    Usuario    = "existe"
+                    Aplicacion = $appName
+                    INI        = "restaurant.ini"
+                    DataSource = $iniData.DataSource
+                    Catalog    = $iniData.Catalog
+                    Usuario    = $iniData.Usuario
                 }
                 $resultados += $resultado
             }
-        
-            # Mostrar resultados en una tabla
-            $resultados | Format-Table -AutoSize
+        }
+
+        # Revisar si hay archivos .ini en la carpeta INIS
+        $inisFolder = "$basePath\INIS"
+        if (Test-Path $inisFolder) {
+            $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
+            foreach ($iniFile in $iniFiles) {
+                $iniData = Leer-Ini $iniFile.FullName
+                if ($iniData) {
+                    if ($basePath -match "Softrestaurant(\d+\.\d+)") {
+                        $appName = "SR$($matches[1])"
+                    } else {
+                        $appName = "OnTheMinute"
+                    }
+
+                    $resultado = [PSCustomObject]@{
+                        Aplicacion = $appName
+                        INI        = $iniFile.Name
+                        DataSource = $iniData.DataSource
+                        Catalog    = $iniData.Catalog
+                        Usuario    = $iniData.Usuario
+                    }
+                    $resultados += $resultado
+                }
+            }
+        }
+    }
+
+    # Proceso 3: Detectar si existe RestCard.ini
+    $restCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
+    if (Test-Path $restCardPath) {
+        $resultado = [PSCustomObject]@{
+            Aplicacion = "Restcard"
+            INI        = "RestCard.ini"
+            DataSource = "existe"
+            Catalog    = "existe"
+            Usuario    = "existe"
+        }
+        $resultados += $resultado
+    }
+
+    # Mostrar resultados en una tabla
+    $resultados | Format-Table -AutoSize
 })
 #Boton para salir
     $btnExit.Add_Click({

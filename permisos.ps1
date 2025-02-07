@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "permi_250207.1030"  # Valor predeterminado para la versión
+                                                                                                        $version = "permi_250207.1057"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -249,11 +249,13 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
 # Crear el Label para mostrar las IPs y adaptadores
     $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(2, 400)) -Size (New-Object System.Drawing.Size(240, 100)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 
-                    # Función para revisar permisos
+                    # Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
                     function Check-Permissions {
                         $folderPath = "C:\NationalSoft"
                         $acl = Get-Acl -Path $folderPath
                         $permissions = @()
+                    
+                        $everyoneHasFullControl = $false
                     
                         foreach ($access in $acl.Access) {
                             $permissions += [PSCustomObject]@{
@@ -261,11 +263,36 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
                                 Permiso = $access.FileSystemRights
                                 Tipo    = $access.AccessControlType
                             }
+                    
+                            # Verificar si "Everyone" tiene FullControl o Control total
+                            if ($access.IdentityReference -eq "Everyone" -and 
+                                ($access.FileSystemRights -match "FullControl" -or $access.FileSystemRights -match "Control total")) {
+                                $everyoneHasFullControl = $true
+                            }
                         }
                     
-                        # Mostrar los permisos en la consola con Write-Host
+                        # Mostrar los permisos en la consola
                         $permissions | ForEach-Object { 
                             Write-Host "$($_.Usuario) - $($_.Permiso) - $($_.Tipo)"
+                        }
+                    
+                        # Si "Everyone" no tiene Full Control o Control total, preguntar si se desea concederlo
+                        if (-not $everyoneHasFullControl) {
+                            $message = "El usuario 'Everyone' no tiene permisos de 'Full Control' (o 'Control total'). ¿Deseas concederlo?"
+                            $title = "Permisos 'Everyone'"
+                            $buttons = [System.Windows.Forms.MessageBoxButtons]::YesNo
+                            $icon = [System.Windows.Forms.MessageBoxIcon]::Question
+                    
+                            $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
+                    
+                            if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                                # Aquí puedes agregar el código para conceder el permiso
+                                # Por ejemplo, agregar Full Control a "Everyone" en la carpeta
+                                $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "FullControl", "Allow")
+                                $acl.AddAccessRule($accessRule)
+                                Set-Acl -Path $folderPath -AclObject $acl
+                                Write-Host "Se ha concedido 'Full Control' a 'Everyone'."
+                            }
                         }
                     }
                     
@@ -276,6 +303,7 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
                     
                     # Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
                     $tabAplicaciones.Controls.Add($btnCheckPermissions)
+
 
 
 

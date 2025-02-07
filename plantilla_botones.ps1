@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1651"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.17055555555"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1982,7 +1982,6 @@ $btnRespaldarRestcard.Add_Click({
         $formRespaldarRestcard.ShowDialog()
 })
 #AplicacionesNS
-#AplicacionesNS
 $btnAplicacionesNS.Add_Click({
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
     # Definir una lista para almacenar los resultados
@@ -2009,34 +2008,41 @@ $btnAplicacionesNS.Add_Click({
         return $null
     }
 
-    # Lista de rutas principales
+    # Lista de rutas principales con los archivos .ini correspondientes
     $pathsToCheck = @(
-        "C:\NationalSoft\Softrestaurant11.0",
-        "C:\NationalSoft\Softrestaurant10.0",
-        "C:\NationalSoft\NationalSoftHoteles3.0",
-        "C:\NationalSoft\OnTheMinute4.5"
+        @{ Path = "C:\NationalSoft\Softrestaurant11.0"; INI = "restaurant.ini"; Nombre = "SR11" },
+        @{ Path = "C:\NationalSoft\Softrestaurant10.0"; INI = "restaurant.ini"; Nombre = "SR10" },
+        @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0"; INI = "nshoteles.ini"; Nombre = "Hoteles" },
+        @{ Path = "C:\NationalSoft\OnTheMinute4.5"; INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
     )
 
-    foreach ($basePath in $pathsToCheck) {
-        $mainIniPath = "$basePath\restaurant.ini"
+    foreach ($entry in $pathsToCheck) {
+        $basePath = $entry.Path
+        $mainIniPath = "$basePath\$($entry.INI)"
+        $appName = $entry.Nombre
+
         if (Test-Path $mainIniPath) {
             $iniData = Leer-Ini $mainIniPath
             if ($iniData) {
-                if ($basePath -match "Softrestaurant(\d+\.\d+)") {
-                    $appName = "SR$($matches[1])"
-                } else {
-                    $appName = "Hoteles"
-                }
-
                 $resultado = [PSCustomObject]@{
                     Aplicacion = $appName
-                    INI        = "restaurant.ini"
+                    INI        = $entry.INI
                     DataSource = $iniData.DataSource
                     Catalog    = $iniData.Catalog
                     Usuario    = $iniData.Usuario
                 }
                 $resultados += $resultado
             }
+        } else {
+            # Si no se encuentra el archivo INI, agregar a la tabla con "NA"
+            $resultado = [PSCustomObject]@{
+                Aplicacion = $appName
+                INI        = "No encontrado"
+                DataSource = "NA"
+                Catalog    = "NA"
+                Usuario    = "NA"
+            }
+            $resultados += $resultado
         }
 
         # Revisar si hay archivos .ini en la carpeta INIS
@@ -2046,12 +2052,6 @@ $btnAplicacionesNS.Add_Click({
             foreach ($iniFile in $iniFiles) {
                 $iniData = Leer-Ini $iniFile.FullName
                 if ($iniData) {
-                    if ($basePath -match "Softrestaurant(\d+\.\d+)") {
-                        $appName = "SR$($matches[1])"
-                    } else {
-                        $appName = "OnTheMinute"
-                    }
-
                     $resultado = [PSCustomObject]@{
                         Aplicacion = $appName
                         INI        = $iniFile.Name
@@ -2074,6 +2074,16 @@ $btnAplicacionesNS.Add_Click({
             DataSource = "existe"
             Catalog    = "existe"
             Usuario    = "existe"
+        }
+        $resultados += $resultado
+    } else {
+        # Si no se encuentra RestCard.ini, agregar con "NA"
+        $resultado = [PSCustomObject]@{
+            Aplicacion = "Restcard"
+            INI        = "No encontrado"
+            DataSource = "NA"
+            Catalog    = "NA"
+            Usuario    = "NA"
         }
         $resultados += $resultado
     }

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1339"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1346"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -296,7 +296,9 @@ $restoreColorOnLeave = {
                 $folderPath = "C:\NationalSoft"
                 $acl = Get-Acl -Path $folderPath
                 $permissions = @()
-            
+                # Obtener el SID universal de "Everyone"
+                $everyoneSid = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::WorldSid, $null)
+
                 $everyonePermissions = @()
                 $everyoneHasFullControl = $false
             
@@ -307,17 +309,20 @@ $restoreColorOnLeave = {
                         Permiso = $access.FileSystemRights
                         Tipo    = $access.AccessControlType
                     }
-            
-                    # Revisar si "Everyone" tiene permisos
-                    if ($access.IdentityReference -eq "Everyone") {
-                        $everyonePermissions += $access.FileSystemRights
-                        # Verificar si "Everyone" tiene FullControl o Control total
-                        if ($access.FileSystemRights -match "FullControl" -or $access.FileSystemRights -match "Control total") {
-                            $everyoneHasFullControl = $true
+                    foreach ($access in $acl.Access) 
+                    {
+                        # Obtener el SID del usuario en la ACL
+                        $userSid = (New-Object System.Security.Principal.NTAccount($access.IdentityReference)).Translate([System.Security.Principal.SecurityIdentifier])
+                        # Comparar usando el SID universal de "Everyone"
+                        if ($userSid -eq $everyoneSid) 
+                        {
+                            $everyonePermissions += $access.FileSystemRights
+                            if ($access.FileSystemRights -match "FullControl") 
+                            {
+                                $everyoneHasFullControl = $true
+                            }
                         }
                     }
-                }
-            
                 # Mostrar los permisos en la consola
                 $permissions | ForEach-Object { 
                     Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1240"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1246"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -246,14 +246,13 @@ function Create-TextBox {
 # Usar la función Create-Label para crear la label de conexión
     $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" -Location (New-Object System.Drawing.Point(10, 260)) -Size (New-Object System.Drawing.Size(290, 30)) `
                                      -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont
-    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(1, 1)) -Size (New-Object System.Drawing.Size(240, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
-
-        
-
-# Crear el Label para mostrar el puerto
-    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(245, 360)) -Size (New-Object System.Drawing.Size(236, 35)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
+    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 30)) `
+                                    -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
+    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 30)) `
+                                    -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
 # Crear el Label para mostrar las IPs y adaptadores
-    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(2, 400)) -Size (New-Object System.Drawing.Size(240, 100)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
+    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 100)) `
+                                    -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
@@ -269,6 +268,8 @@ function Create-TextBox {
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
     $tabAplicaciones.Controls.Add($btnModificarPermisos)
     $tabAplicaciones.Controls.Add($lblHostname)
+    $tabAplicaciones.Controls.Add($lblPort)
+    $tabAplicaciones.Controls.Add($lbIpAdress)
     #funciones al entrar con el mouse
         $lblHostname.Add_MouseEnter($changeColorOnHover)
         $lblHostname.Add_MouseLeave($restoreColorOnLeave)
@@ -281,7 +282,17 @@ function Create-TextBox {
     $tabProSql.Controls.Add($lblConnectionStatus)
     $tabProSql.Controls.Add($btnConnectDb)
     $tabProSql.Controls.Add($btnDisconnectDb)
-            # Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
+# Función para manejar MouseEnter y cambiar el color
+$changeColorOnHover = {
+    param($sender, $eventArgs)
+    $sender.BackColor = [System.Drawing.Color]::Orange
+}
+# Función para manejar MouseLeave y restaurar el color
+$restoreColorOnLeave = {
+    param($sender, $eventArgs)
+    $sender.BackColor = [System.Drawing.Color]::White
+}
+# Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
             function Check-Permissions {
                 $folderPath = "C:\NationalSoft"
                 $acl = Get-Acl -Path $folderPath
@@ -351,16 +362,7 @@ function Create-TextBox {
             # Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
             $tabAplicaciones.Controls.Add($btnCheckPermissions)
 
-#Funcion para copiar el puerto al portapapeles
-    $lblPort.Add_Click({
-        if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
-            $port = $matches[0]  # Extraer el número del texto
-            [System.Windows.Forms.Clipboard]::SetText($port)
-            Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
-        } else {
-            Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
-        }
-    })
+
 $lblHostname.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
         Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
@@ -369,6 +371,8 @@ $lbIpAdress.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lbIpAdress.Text)
         Write-Host "`nIP's copiadas al equipo: $($lbIpAdress.Text)"
     })
+    $lbIpAdress.Add_MouseEnter($changeColorOnHover)
+    $lbIpAdress.Add_MouseLeave($restoreColorOnLeave)
 # Obtener las direcciones IP y los adaptadores
                 $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
                     Where-Object { $_.OperationalStatus -eq 'Up' } |
@@ -501,9 +505,6 @@ $lbIpAdress.Add_Click({
     }
 # Agregar los controles al formulario
             $formPrincipal.Controls.Add($tabControl)
-            
-            $formPrincipal.Controls.Add($lblPort)
-            $formPrincipal.Controls.Add($lbIpAdress)
             $formPrincipal.Controls.Add($lblPerfilDeRed)
             $formPrincipal.Controls.Add($btnExit)
 # Obtener el puerto de SQL Server desde el registro
@@ -515,21 +516,18 @@ $lbIpAdress.Add_Click({
         } else {
             $lblPort.Text = "No se encontró puerto o instancia."
         }
-# Función para manejar MouseEnter y cambiar el color
-$changeColorOnHover = {
-    param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::Orange
-}
-# Función para manejar MouseLeave y restaurar el color
-$restoreColorOnLeave = {
-    param($sender, $eventArgs)
-    $sender.BackColor = [System.Drawing.Color]::White
-}
-    $lblPort.Add_MouseEnter($changeColorOnHover)
-    $lblPort.Add_MouseLeave($restoreColorOnLeave)
-    $lbIpAdress.Add_MouseEnter($changeColorOnHover)
-    $lbIpAdress.Add_MouseLeave($restoreColorOnLeave)
-
+#Funcion para copiar el puerto al portapapeles
+    $lblPort.Add_Click({
+        if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
+            $port = $matches[0]  # Extraer el número del texto
+            [System.Windows.Forms.Clipboard]::SetText($port)
+            Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
+        } else {
+            Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
+        }
+    })
+        $lblPort.Add_MouseEnter($changeColorOnHover)
+        $lblPort.Add_MouseLeave($restoreColorOnLeave)
 ##-------------------- FUNCIONES                                                          -------#
 $chkSqlServer.Add_CheckedChanged({
     if ($chkSqlServer.Checked) {

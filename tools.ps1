@@ -217,7 +217,7 @@ function Create-TextBox {
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
     $btnCheckPermissions = Create-Button -Text "Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(470, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
-    $btnModificarPermisos = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(470, 90)) `
+    $btnLectorDPicacls = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(470, 90)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
     $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Instalador LZMA" -Location (New-Object System.Drawing.Point(470, 130)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
@@ -268,7 +268,7 @@ $textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
-    $tabAplicaciones.Controls.Add($btnModificarPermisos)
+    $tabAplicaciones.Controls.Add($btnLectorDPicacls)
     $tabAplicaciones.Controls.Add($lblHostname)
     $tabAplicaciones.Controls.Add($lblPort)
 #    $tabAplicaciones.Controls.Add($lbIpAdress)
@@ -335,7 +335,7 @@ $restoreColorOnLeave = {
             
                 # Mostrar los permisos de "Everyone" de forma consolidada
                 if ($everyonePermissions.Count -gt 0) {
-                    Write-Host "`tEveryone tiene los siguientes permisos:"  -NoNewline
+                    Write-Host "`tEveryone tiene los siguientes permisos:"  -NoNewline -ForegroundColor Yellow
                     Write-Host "` $($everyonePermissions -join ', ')" -ForegroundColor Green
                 } else {
                     Write-Host "`tNo hay permisos para 'Everyone'" -ForegroundColor Red
@@ -1905,7 +1905,7 @@ $btnConfigurarIPs.Add_Click({
             $formIpAssignAsignacion.ShowDialog()
 })
 # ICACLS para dar permisos cuando marca error driver de lector
-$btnModificarPermisos.Add_Click({
+$btnLectorDPicacls.Add_Click({
     Write-Host "`nIniciando modificación de permisos..." -ForegroundColor Cyan
     try {
         # Ruta de PsExec

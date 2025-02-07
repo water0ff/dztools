@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1458"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.15044444444"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -731,6 +731,108 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
     } else {
         Write-Host "`nNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
     }
+}
+# Funcion para agregar nuevas ips
+function Show-NewIpForm {
+        $formIpAssign = Create-Form -Title "Agregar IP Adicional" -Size (New-Object System.Drawing.Size(350, 150)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+    
+        $lblipAssignER = Create-Label -Text "Ingrese la nueva dirección IP:" -Location (New-Object System.Drawing.Point(10, 20))
+        $lblipAssignER.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignER)
+    
+        $ipAssignTextBox1 = Create-TextBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(50, 20))
+        $ipAssignTextBox1.MaxLength = 3
+        $ipAssignTextBox1.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
+            if ($_.KeyChar -eq '.') {
+                $ipAssignTextBox2.Focus()
+                $_.Handled = $true
+            }
+        })
+        $ipAssignTextBox1.Add_TextChanged({
+            if ($ipAssignTextBox1.Text.Length -eq 3) { $ipAssignTextBox2.Focus() }
+        })
+        $formIpAssign.Controls.Add($ipAssignTextBox1)
+    
+        $lblipAssignERDot1 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(65, 53))
+        $lblipAssignERDot1.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignERDot1)    
+        $ipAssignTextBox2 = Create-TextBox -Location (New-Object System.Drawing.Point(80, 50)) -Size (New-Object System.Drawing.Size(50, 20))
+        $ipAssignTextBox2.MaxLength = 3
+        $ipAssignTextBox2.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
+            if ($_.KeyChar -eq '.') {
+                $ipAssignTextBox3.Focus()
+                $_.Handled = $true
+            }
+        })
+        $ipAssignTextBox2.Add_TextChanged({
+            if ($ipAssignTextBox2.Text.Length -eq 3) { $ipAssignTextBox3.Focus() }
+        })
+        $formIpAssign.Controls.Add($ipAssignTextBox2)
+    
+        $lblipAssignERDot2 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(135, 53))
+        $lblipAssignERDot2.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignERDot2)
+    
+        $ipAssignTextBox3 = Create-TextBox -Location (New-Object System.Drawing.Point(150, 50)) -Size (New-Object System.Drawing.Size(50, 20))
+        $ipAssignTextBox3.MaxLength = 3
+        $ipAssignTextBox3.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
+            if ($_.KeyChar -eq '.') {
+                $ipAssignTextBox4.Focus()
+                $_.Handled = $true
+            }
+        })
+        $ipAssignTextBox3.Add_TextChanged({
+            if ($ipAssignTextBox3.Text.Length -eq 3) { $ipAssignTextBox4.Focus() }
+        })
+        $formIpAssign.Controls.Add($ipAssignTextBox3)
+    
+        $lblipAssignERDot3 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(205, 53))
+        $lblipAssignERDot3.AutoSize = $true
+        $formIpAssign.Controls.Add($lblipAssignERDot3)
+    
+        $ipAssignTextBox4 = Create-TextBox -Location (New-Object System.Drawing.Point(220, 50)) -Size (New-Object System.Drawing.Size(50, 20))
+        $ipAssignTextBox4.MaxLength = 3
+        $ipAssignTextBox4.Add_KeyPress({
+            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8) { $_.Handled = $true }
+        })
+        $formIpAssign.Controls.Add($ipAssignTextBox4)
+        $bntipAssign = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(100, 80))  -Size (New-Object System.Drawing.Size(140, 30))
+        $bntipAssign.DialogResult = [System.Windows.Forms.DialogResult]::OK
+        $formIpAssign.AcceptButton = $bntipAssign
+        $formIpAssign.Controls.Add($bntipAssign)
+        $result = $formIpAssign.ShowDialog()
+        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+            $octet1 = [int]$ipAssignTextBox1.Text
+            $octet2 = [int]$ipAssignTextBox2.Text
+            $octet3 = [int]$ipAssignTextBox3.Text
+            $octet4 = [int]$ipAssignTextBox4.Text
+    
+            if ($octet1 -ge 0 -and $octet1 -le 255 -and
+                $octet2 -ge 0 -and $octet2 -le 255 -and
+                $octet3 -ge 0 -and $octet3 -le 255 -and
+                $octet4 -ge 0 -and $octet4 -le 255) {
+                $newIp = "$octet1.$octet2.$octet3.$octet4"
+    
+                if ($newIp -eq "0.0.0.0") {
+                    Write-Host "La dirección IP no puede ser 0.0.0.0." -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show("La dirección IP no puede ser 0.0.0.0.", "Error")
+                    return $null
+                } else {
+                    Write-Host "Nueva IP ingresada: $newIp" -ForegroundColor Green
+                    return $newIp
+                }
+            } else {
+                Write-Host "Uno o más octetos están fuera del rango válido (0-255)." -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show("Uno o más octetos están fuera del rango válido (0-255).", "Error")
+                return $null
+            }
+        } else {
+            return $null
+        }
 }
 ##-------------------------------------------------------------------------------BOTONES#
 $btnSQLManagement.Add_Click({
@@ -1584,7 +1686,7 @@ $btnInstallSQLManagement.Add_Click({
                 $formBddConnection.ShowDialog()
             })
 #Boton para desconectar de la base de datos
-    $btnDisconnectDb.Add_Click({
+$btnDisconnectDb.Add_Click({
         try {
             # Cerrar la conexión
             $global:connection.Close()
@@ -1603,110 +1705,9 @@ $btnInstallSQLManagement.Add_Click({
         } catch {
             Write-Host "`nError al desconectar: $_" -ForegroundColor Red
         }
-    })
-    function Show-NewIpForm {
-        $formIpAssign = Create-Form -Title "Agregar IP Adicional" -Size (New-Object System.Drawing.Size(350, 150)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
-    
-        $lblipAssignER = Create-Label -Text "Ingrese la nueva dirección IP:" -Location (New-Object System.Drawing.Point(10, 20))
-        $lblipAssignER.AutoSize = $true
-        $formIpAssign.Controls.Add($lblipAssignER)
-    
-        $ipAssignTextBox1 = Create-TextBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(50, 20))
-        $ipAssignTextBox1.MaxLength = 3
-        $ipAssignTextBox1.Add_KeyPress({
-            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
-            if ($_.KeyChar -eq '.') {
-                $ipAssignTextBox2.Focus()
-                $_.Handled = $true
-            }
-        })
-        $ipAssignTextBox1.Add_TextChanged({
-            if ($ipAssignTextBox1.Text.Length -eq 3) { $ipAssignTextBox2.Focus() }
-        })
-        $formIpAssign.Controls.Add($ipAssignTextBox1)
-    
-        $lblipAssignERDot1 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(65, 53))
-        $lblipAssignERDot1.AutoSize = $true
-        $formIpAssign.Controls.Add($lblipAssignERDot1)    
-        $ipAssignTextBox2 = Create-TextBox -Location (New-Object System.Drawing.Point(80, 50)) -Size (New-Object System.Drawing.Size(50, 20))
-        $ipAssignTextBox2.MaxLength = 3
-        $ipAssignTextBox2.Add_KeyPress({
-            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
-            if ($_.KeyChar -eq '.') {
-                $ipAssignTextBox3.Focus()
-                $_.Handled = $true
-            }
-        })
-        $ipAssignTextBox2.Add_TextChanged({
-            if ($ipAssignTextBox2.Text.Length -eq 3) { $ipAssignTextBox3.Focus() }
-        })
-        $formIpAssign.Controls.Add($ipAssignTextBox2)
-    
-        $lblipAssignERDot2 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(135, 53))
-        $lblipAssignERDot2.AutoSize = $true
-        $formIpAssign.Controls.Add($lblipAssignERDot2)
-    
-        $ipAssignTextBox3 = Create-TextBox -Location (New-Object System.Drawing.Point(150, 50)) -Size (New-Object System.Drawing.Size(50, 20))
-        $ipAssignTextBox3.MaxLength = 3
-        $ipAssignTextBox3.Add_KeyPress({
-            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8 -and $_.KeyChar -ne '.') { $_.Handled = $true }
-            if ($_.KeyChar -eq '.') {
-                $ipAssignTextBox4.Focus()
-                $_.Handled = $true
-            }
-        })
-        $ipAssignTextBox3.Add_TextChanged({
-            if ($ipAssignTextBox3.Text.Length -eq 3) { $ipAssignTextBox4.Focus() }
-        })
-        $formIpAssign.Controls.Add($ipAssignTextBox3)
-    
-        $lblipAssignERDot3 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(205, 53))
-        $lblipAssignERDot3.AutoSize = $true
-        $formIpAssign.Controls.Add($lblipAssignERDot3)
-    
-        $ipAssignTextBox4 = Create-TextBox -Location (New-Object System.Drawing.Point(220, 50)) -Size (New-Object System.Drawing.Size(50, 20))
-        $ipAssignTextBox4.MaxLength = 3
-        $ipAssignTextBox4.Add_KeyPress({
-            if (-not [char]::IsDigit($_.KeyChar) -and $_.KeyChar -ne 8) { $_.Handled = $true }
-        })
-        $formIpAssign.Controls.Add($ipAssignTextBox4)
-        $bntipAssign = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(100, 80))  -Size (New-Object System.Drawing.Size(140, 30))
-        $bntipAssign.DialogResult = [System.Windows.Forms.DialogResult]::OK
-        $formIpAssign.AcceptButton = $bntipAssign
-        $formIpAssign.Controls.Add($bntipAssign)
-        $result = $formIpAssign.ShowDialog()
-        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-            $octet1 = [int]$ipAssignTextBox1.Text
-            $octet2 = [int]$ipAssignTextBox2.Text
-            $octet3 = [int]$ipAssignTextBox3.Text
-            $octet4 = [int]$ipAssignTextBox4.Text
-    
-            if ($octet1 -ge 0 -and $octet1 -le 255 -and
-                $octet2 -ge 0 -and $octet2 -le 255 -and
-                $octet3 -ge 0 -and $octet3 -le 255 -and
-                $octet4 -ge 0 -and $octet4 -le 255) {
-                $newIp = "$octet1.$octet2.$octet3.$octet4"
-    
-                if ($newIp -eq "0.0.0.0") {
-                    Write-Host "La dirección IP no puede ser 0.0.0.0." -ForegroundColor Red
-                    [System.Windows.Forms.MessageBox]::Show("La dirección IP no puede ser 0.0.0.0.", "Error")
-                    return $null
-                } else {
-                    Write-Host "Nueva IP ingresada: $newIp" -ForegroundColor Green
-                    return $newIp
-                }
-            } else {
-                Write-Host "Uno o más octetos están fuera del rango válido (0-255)." -ForegroundColor Red
-                [System.Windows.Forms.MessageBox]::Show("Uno o más octetos están fuera del rango válido (0-255).", "Error")
-                return $null
-            }
-        } else {
-            return $null
-        }
-    }
-# ------------------------------ funcion para impresoras
-    $btnConfigurarIPs.Add_Click({
+})
+# ------------------------------ Boton para configurar nuevas ips
+$btnConfigurarIPs.Add_Click({
             $formIpAssignAsignacion = Create-Form -Title "Asignación de IPs" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
             #interfaz
@@ -1903,49 +1904,40 @@ $btnInstallSQLManagement.Add_Click({
                 }
             })
             $formIpAssignAsignacion.ShowDialog()
-    })
+})
 # ICACLS para dar permisos cuando marca error driver de lector
 $btnModificarPermisos.Add_Click({
     Write-Host "`nIniciando modificación de permisos..." -ForegroundColor Cyan
-
     try {
         # Ruta de PsExec
         $psexecPath = "C:\Temp\PsExec\PsExec.exe"
         $psexecZip = "C:\Temp\PSTools.zip"
         $psexecUrl = "https://download.sysinternals.com/files/PSTools.zip"
         $psexecExtractPath = "C:\Temp\PsExec"
-
         # Validar si PsExec.exe existe
         if (-Not (Test-Path $psexecPath)) {
             Write-Host "`tPsExec no encontrado. Descargando desde Sysinternals..." -ForegroundColor Yellow
-            
             # Crear carpeta Temp si no existe
             if (-Not (Test-Path "C:\Temp")) {
                 New-Item -Path "C:\Temp" -ItemType Directory | Out-Null
             }
-
             # Descargar el archivo ZIP
             Invoke-WebRequest -Uri $psexecUrl -OutFile $psexecZip
-
             # Extraer PsExec.exe
             Write-Host "`tExtrayendo PsExec..." -ForegroundColor Cyan
             Expand-Archive -Path $psexecZip -DestinationPath $psexecExtractPath -Force
-
             # Verificar si PsExec fue extraído correctamente
             if (-Not (Test-Path $psexecPath)) {
                 Write-Host "`tError: No se pudo extraer PsExec.exe." -ForegroundColor Red
                 return
             }
-
             Write-Host "`tPsExec descargado y extraído correctamente." -ForegroundColor Green
         } else {
             Write-Host "`tPsExec ya está instalado en: $psexecPath" -ForegroundColor Green
         }
-
         # Detectar el nombre correcto del grupo de administradores
         $grupoAdmin = ""
         $gruposLocales = net localgroup | Where-Object { $_ -match "Administrators|Administradores" }
-
         if ($gruposLocales -match "Administrators") {
             $grupoAdmin = "Administrators"
         } elseif ($gruposLocales -match "Administradores") {
@@ -1956,32 +1948,25 @@ $btnModificarPermisos.Add_Click({
         }
         Write-Host "`tGrupo de administradores detectado: " -NoNewline
         Write-Host "$grupoAdmin" -ForegroundColor Green
-
         # Comandos con el nombre correcto del grupo
         $comando1 = "icacls C:\Windows\System32\en-us /grant `"$grupoAdmin`":F"
         $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
-       
         # Comandos con formato correcto
         $psexecCmd1 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando1`""
         $psexecCmd2 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando2`""
-        
         Write-Host "`nEjecutando primer comando: $comando1" -ForegroundColor Yellow
         $output1 = & cmd /c $psexecCmd1
         Write-Host $output1
-        
         Write-Host "`nEjecutando segundo comando: $comando2" -ForegroundColor Yellow
         $output2 = & cmd /c $psexecCmd2
         Write-Host $output2
-
         Write-Host "`nModificación de permisos completada." -ForegroundColor Cyan
-
             $ResponderDriver = [System.Windows.Forms.MessageBox]::Show(
                 "¿Desea descargar e instalar el driver del lector?",
                 "Descargar Driver",
                 [System.Windows.Forms.MessageBoxButtons]::YesNo,
                 [System.Windows.Forms.MessageBoxIcon]::Question
             )
-            
             if ($ResponderDriver -eq [System.Windows.Forms.DialogResult]::Yes) {
                 # Definir parámetros de la descarga
                 $url = "https://softrestaurant.com/drivers?download=120:dp"
@@ -1999,7 +1984,7 @@ $btnModificarPermisos.Add_Click({
     }
 })
 # Evento de clic para el botón de respaldo
-    $btnRespaldarRestcard.Add_Click({
+$btnRespaldarRestcard.Add_Click({
         Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
         # Crear la segunda ventana para ingresar los datos de conexión
         $formRespaldarRestcard = Create-Form -Title "Datos de Conexión para Respaldar" -Size (New-Object System.Drawing.Size(350, 210)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
@@ -2036,10 +2021,8 @@ $btnModificarPermisos.Add_Click({
                 $txtHostnameRestcard.Clear()
             }
         })
-    
         # Crear botón para ejecutar el respaldo
             $btnRespaldar = Create-Button -Text "Respaldar" -Location (New-Object System.Drawing.Point(20, 140))  -Size (New-Object System.Drawing.Size(140, 30))
-    
         # Evento de clic para el botón de respaldo
                     $btnRespaldar.Add_Click({
                         # Obtener los valores del formulario
@@ -2067,11 +2050,9 @@ $btnModificarPermisos.Add_Click({
                             # Crear la ruta con el timestamp
                             $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
                             $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
-                    
                             # Ejecutar el comando mysqldump para hacer el respaldo
                             $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`""
                             $process = Start-Process -FilePath "mysqldump" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
-                    
                             # Verificar si el respaldo se realizó correctamente
                             if ($process.ExitCode -eq 0) {
                                 # Obtener el tamaño del archivo generado
@@ -2087,21 +2068,17 @@ $btnModificarPermisos.Add_Click({
                                     Write-Host "`tArchivo de respaldo eliminado debido a un error." -ForegroundColor Yellow
                                 }
                             }
-                    
                             # Cerrar la segunda ventana después de completar el respaldo
                             $formRespaldarRestcard.Close()
                         }
                     })
-    
         # Crear botón para salir
         $btnSalirRestcard = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(185, 140))  -Size (New-Object System.Drawing.Size(140, 30))
-    
         # Evento de clic para el botón de salir
         $btnSalirRestcard.Add_Click({
             Write-Host "`tSalió sin realizar respaldo." -ForegroundColor Red
             $formRespaldarRestcard.Close()
         })
-    
         # Agregar controles a la segunda ventana
         $formRespaldarRestcard.Controls.Add($txtUsuarioRestcard)
         $formRespaldarRestcard.Controls.Add($txtBaseDeDatosRestcard)
@@ -2114,10 +2091,9 @@ $btnModificarPermisos.Add_Click({
         $formRespaldarRestcard.Controls.Add($chkLlenarDatos)
         $formRespaldarRestcard.Controls.Add($btnRespaldar)
         $formRespaldarRestcard.Controls.Add($btnSalirRestcard)
-    
         # Mostrar la segunda ventana
         $formRespaldarRestcard.ShowDialog()
-    })
+})
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

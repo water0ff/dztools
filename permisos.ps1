@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "permi_250207.1121"  # Valor predeterminado para la versión
+                                                                                                        $version = "permi_250207.1127"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -258,73 +258,78 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
 
 
 
-# Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
-function Check-Permissions {
-    $folderPath = "C:\NationalSoft"
-    $acl = Get-Acl -Path $folderPath
-    $permissions = @()
-
-    $everyonePermissions = @()
-    $everyoneHasFullControl = $false
-
-    foreach ($access in $acl.Access) {
-        # Almacenar los permisos de todos los usuarios
-        $permissions += [PSCustomObject]@{
-            Usuario = $access.IdentityReference
-            Permiso = $access.FileSystemRights
-            Tipo    = $access.AccessControlType
-        }
-
-        # Revisar si "Everyone" tiene permisos
-        if ($access.IdentityReference -eq "Everyone") {
-            $everyonePermissions += $access.FileSystemRights
-            # Verificar si "Everyone" tiene FullControl o Control total
-            if ($access.FileSystemRights -match "FullControl" -or $access.FileSystemRights -match "Control total") {
-                $everyoneHasFullControl = $true
+            # Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
+            function Check-Permissions {
+                $folderPath = "C:\NationalSoft"
+                $acl = Get-Acl -Path $folderPath
+                $permissions = @()
+            
+                $everyonePermissions = @()
+                $everyoneHasFullControl = $false
+            
+                foreach ($access in $acl.Access) {
+                    # Almacenar los permisos de todos los usuarios
+                    $permissions += [PSCustomObject]@{
+                        Usuario = $access.IdentityReference
+                        Permiso = $access.FileSystemRights
+                        Tipo    = $access.AccessControlType
+                    }
+            
+                    # Revisar si "Everyone" tiene permisos
+                    if ($access.IdentityReference -eq "Everyone") {
+                        $everyonePermissions += $access.FileSystemRights
+                        # Verificar si "Everyone" tiene FullControl o Control total
+                        if ($access.FileSystemRights -match "FullControl" -or $access.FileSystemRights -match "Control total") {
+                            $everyoneHasFullControl = $true
+                        }
+                    }
+                }
+            
+                # Mostrar los permisos en la consola
+                $permissions | ForEach-Object { 
+                    Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
+                    Write-Host "` $($_.Permiso)" -ForegroundColor Green
+                }
+            
+                # Mostrar los permisos de "Everyone" de forma consolidada
+                if ($everyonePermissions.Count -gt 0) {
+                    Write-Host "`n\tEveryone tiene los siguientes permisos: $($everyonePermissions -join ', ')" -ForegroundColor Green
+                } else {
+                    Write-Host "`n\tNo hay permisos para 'Everyone'" -ForegroundColor Red
+                }
+            
+                # Si "Everyone" no tiene Full Control o Control total, preguntar si se desea concederlo
+                if (-not $everyoneHasFullControl) {
+                    $message = "El usuario 'Everyone' no tiene permisos de 'Full Control' (o 'Control total'). ¿Deseas concederlo?"
+                    $title = "Permisos 'Everyone'"
+                    $buttons = [System.Windows.Forms.MessageBoxButtons]::YesNo
+                    $icon = [System.Windows.Forms.MessageBoxIcon]::Question
+            
+                    $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
+            
+                    if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                        # Agregar Full Control a "Everyone" en la carpeta
+                        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+                        $acl.AddAccessRule($accessRule)
+            
+                        # Forzar la herencia para subcarpetas y archivos
+                        $acl.SetAccessRuleProtection($false, $true)
+            
+                        Set-Acl -Path $folderPath -AclObject $acl
+                        Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
+                    }
+                }
             }
-        }
-    }
+            
+            # Asignar la función al botón (si sigue siendo necesario)
+            $btnCheckPermissions.Add_Click({
+                Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
+                Check-Permissions
+            })
+            
+            # Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
+            $tabAplicaciones.Controls.Add($btnCheckPermissions)
 
-    # Mostrar los permisos en la consola
-    $permissions | ForEach-Object { 
-        Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
-        Write-Host "` $($_.Permiso)" -ForegroundColor Green
-    }
-
-    # Mostrar los permisos de "Everyone" de forma consolidada
-    if ($everyonePermissions.Count -gt 0) {
-        Write-Host "`n\tEveryone tiene los siguientes permisos: $($everyonePermissions -join ', ')" -ForegroundColor Green
-    } else {
-        Write-Host "`n\tNo hay permisos para 'Everyone'" -ForegroundColor Red
-    }
-
-    # Si "Everyone" no tiene Full Control o Control total, preguntar si se desea concederlo
-    if (-not $everyoneHasFullControl) {
-        $message = "El usuario 'Everyone' no tiene permisos de 'Full Control' (o 'Control total'). ¿Deseas concederlo?"
-        $title = "Permisos 'Everyone'"
-        $buttons = [System.Windows.Forms.MessageBoxButtons]::YesNo
-        $icon = [System.Windows.Forms.MessageBoxIcon]::Question
-
-        $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
-
-        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-            # Agregar Full Control a "Everyone" en la carpeta
-            $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "FullControl", "Allow")
-            $acl.AddAccessRule($accessRule)
-            Set-Acl -Path $folderPath -AclObject $acl
-            Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
-        }
-    }
-}
-
-# Asignar la función al botón (si sigue siendo necesario)
-$btnCheckPermissions.Add_Click({
-    Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
-    Check-Permissions
-})
-
-# Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
-$tabAplicaciones.Controls.Add($btnCheckPermissions)
 
 
 
@@ -338,11 +343,6 @@ $tabAplicaciones.Controls.Add($btnCheckPermissions)
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
-    $tabAplicaciones.Controls.Add($btnDatabase)
-    $tabAplicaciones.Controls.Add($btnSQLManager)
-    $tabAplicaciones.Controls.Add($btnSQLManagement)
-    $tabAplicaciones.Controls.Add($btnClearPrintJobs)
-    $tabAplicaciones.Controls.Add($btnClearAnyDesk)
     $tabAplicaciones.Controls.Add($btnShowPrinters)
     $tabAplicaciones.Controls.Add($btnPrinterTool)
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1628888888"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.163111111111111"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1204,75 +1204,82 @@ $LZMAbtnBuscarCarpeta.Add_Click({
 #AplicacionesNS
 $btnAplicacionesNS.Add_Click({
             Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-    # Proceso 1: Buscar y analizar archivos .ini 
-# Definir una lista para almacenar los resultados
-                          $resultados = @()
-                          
-                          $pathsToCheck = @(
-                              "C:\NationalSoft\Softrestaurant11.0\restaurant.ini",
-                              "C:\NationalSoft\Softrestaurant10.0\restaurant.ini",
-                              "C:\NationalSoft\NationalSoftHoteles3.0\nshoteles.ini"
-                          )
-                          
-                          foreach ($path in $pathsToCheck) {
-                              if (Test-Path $path) {
-                                  $content = Get-Content $path
-                                  $dataSource = ($content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
-                                  $catalog = ($content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
-                                  $authType = $content | Select-String -Pattern "^autenticacion=(\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
-                          
-                                  $authUser = switch ($authType) {
-                                      "2" { "sa" }
-                                      "1" { "Windows" }
-                                      default { "Desconocido" }
-                                  }
-                          
-                                  # Extraer el nombre de la aplicación desde la ruta
-                                  $appName = $path -match "Softrestaurant(\d+\.\d+)" ? "SR$($matches[1])" : "Hoteles"
-                          
-                                  # Guardar los resultados en un objeto
-                                  $resultado = [PSCustomObject]@{
-                                      Aplicacion = $appName
-                                      INI        = [System.IO.Path]::GetFileName($path)
-                                      DataSource = $dataSource
-                                      Catalog    = $catalog
-                                      Usuario    = $authUser
-                                  }
-                                  $resultados += $resultado
-                              }
-                          }
-                          
-                          # Agregar información de checadorsql.ini
-                          $checadorsqlPath = "C:\NationalSoft\OnTheMinute4.5\checadorsql.ini"
-                          if (Test-Path $checadorsqlPath) {
-                              $content = Get-Content $checadorsqlPath
-                              $provider = ($content | Select-String -Pattern "^Provider=(.*)" | ForEach-Object { $_.Matches.Groups[1].Value }).Trim()
-                          
-                              if ($provider -eq "SQLOLEDB.1") {
-                                  $dataSource = $content | Select-String -Pattern "^DataSource=(.*)" | ForEach-Object { $_.Matches.Groups[1].Value }
-                                  $catalog = $content | Select-String -Pattern "^Catalog=(.*)" | ForEach-Object { $_.Matches.Groups[1].Value }
-                                  $authType = $content | Select-String -Pattern "^autenticacion=(\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
-                          
-                                  $authUser = switch ($authType) {
-                                      "2" { "sa" }
-                                      "1" { "Windows" }
-                                      default { "Desconocido" }
-                                  }
-                          
-                                  $resultado = [PSCustomObject]@{
-                                      Aplicacion = "OnTheMinute"
-                                      INI        = "checadorsql.ini"
-                                      DataSource = $dataSource
-                                      Catalog    = $catalog
-                                      Usuario    = $authUser
-                                  }
-                                  $resultados += $resultado
-                              }
-                          }
-                          
-                          # Mostrar resultados en una tabla
-                          $resultados | Format-Table -AutoSize
-
+            # Definir una lista para almacenar los resultados
+            $resultados = @()
+            
+            # Función para extraer valores de un archivo INI
+            function Leer-Ini($filePath) {
+                if (Test-Path $filePath) {
+                    $content = Get-Content $filePath
+                    $dataSource = ($content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
+                    $catalog = ($content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
+                    $authType = $content | Select-String -Pattern "^autenticacion=(\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
+            
+                    $authUser = switch ($authType) {
+                        "2" { "sa" }
+                        "1" { "Windows" }
+                        default { "Desconocido" }
+                    }
+            
+                    return @{
+                        DataSource = $dataSource
+                        Catalog    = $catalog
+                        Usuario    = $authUser
+                    }
+                }
+                return $null
+            }
+            
+            # Lista de rutas principales
+            $pathsToCheck = @(
+                "C:\NationalSoft\Softrestaurant11.0",
+                "C:\NationalSoft\Softrestaurant10.0",
+                "C:\NationalSoft\NationalSoftHoteles3.0",
+                "C:\NationalSoft\OnTheMinute4.5"
+            )
+            
+            foreach ($basePath in $pathsToCheck) {
+                $mainIniPath = "$basePath\restaurant.ini"
+                if (Test-Path $mainIniPath) {
+                    $iniData = Leer-Ini $mainIniPath
+                    if ($iniData) {
+                        $appName = $basePath -match "Softrestaurant(\d+\.\d+)" ? "SR$($matches[1])" : "Hoteles"
+            
+                        $resultado = [PSCustomObject]@{
+                            Aplicacion = $appName
+                            INI        = "restaurant.ini"
+                            DataSource = $iniData.DataSource
+                            Catalog    = $iniData.Catalog
+                            Usuario    = $iniData.Usuario
+                        }
+                        $resultados += $resultado
+                    }
+                }
+            
+                # Revisar si hay archivos .ini en la carpeta INIS
+                $inisFolder = "$basePath\INIS"
+                if (Test-Path $inisFolder) {
+                    $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
+                    foreach ($iniFile in $iniFiles) {
+                        $iniData = Leer-Ini $iniFile.FullName
+                        if ($iniData) {
+                            $appName = $basePath -match "Softrestaurant(\d+\.\d+)" ? "SR$($matches[1])" : "OnTheMinute"
+            
+                            $resultado = [PSCustomObject]@{
+                                Aplicacion = $appName
+                                INI        = $iniFile.Name
+                                DataSource = $iniData.DataSource
+                                Catalog    = $iniData.Catalog
+                                Usuario    = $iniData.Usuario
+                            }
+                            $resultados += $resultado
+                        }
+                    }
+                }
+            }
+            
+            # Mostrar resultados en una tabla
+            $resultados | Format-Table -AutoSize
 
             # Proceso 3: Detectar si existe RestCard.ini
             $restCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
@@ -1281,7 +1288,8 @@ $btnAplicacionesNS.Add_Click({
             } else {
                 Write-Host "`nArchivo no encontrado: $restCardPath" -ForegroundColor Red
             }
-        })
+})
+#Boton para instalar Management
 $btnInstallSQLManagement.Add_Click({
     $response = [System.Windows.Forms.MessageBox]::Show(
         "¿Desea proceder con la instalación de SQL Server Management Studio 2014 Express?",

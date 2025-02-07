@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.15044444444"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1512"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -404,7 +404,7 @@ $lblHostname.Add_Click({
     
         # Construir el texto para mostrar en el TextBox
         $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
-            "Ada: $($_.AdapterName) - IP: $($_.IPAddress)"
+            "Ada: $($_.AdapterName) - IP: $($_.IPAddress)`n"
         }) -join "`n"
     
         # Asignar el texto al TextBox
@@ -1579,11 +1579,11 @@ $btnInstallSQLManagement.Add_Click({
                 $cmbProfiles.Items.Add("Personalizado")
             }
             # Crear las demás etiquetas y campos de texto
-            $labelServer = Create-Label -Text "Servidor SQL" -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(100, 20)) `
+            $labelServer = Create-Label -Text "Servidor SQL" -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(100, 20))
             $txtServer = Create-TextBox -Location (New-Object System.Drawing.Point(120, 50)) -Size (New-Object System.Drawing.Size(250, 20))
-            $lblDatabase = Create-Label -Text "Base de Datos" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(100, 20)) `
+            $lblDatabase = Create-Label -Text "Base de Datos" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(100, 20))
             $txtDatabase = Create-TextBox -Location (New-Object System.Drawing.Point(120, 80)) -Size (New-Object System.Drawing.Size(250, 20))
-            $lblPassword = Create-Label -Text "Contraseña" -Location (New-Object System.Drawing.Point(10, 110)) -Size (New-Object System.Drawing.Size(100, 20)) `
+            $lblPassword = Create-Label -Text "Contraseña" -Location (New-Object System.Drawing.Point(10, 110)) -Size (New-Object System.Drawing.Size(100, 20))
             $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 110)) -Size (New-Object System.Drawing.Size(250, 20)) -UseSystemPasswordChar $true
 
         # Habilitar el botón "Conectar" si la contraseña tiene al menos un carácter

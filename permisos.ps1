@@ -195,12 +195,6 @@ function Create-TextBox {
 # Añadir las pestañas al TabControl
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
-$labelEjecutables = Create-Label -Text "Ejecutables" -Location (New-Object System.Drawing.Point(10, 10)) `
-                                -Font $boldFont
-$labelConsultas = Create-Label -Text "Consultas" -Location (New-Object System.Drawing.Point(240, 10)) `
-                                -Font $boldFont
-$labelWindowsTweaks = Create-Label -Text "Windows Tweaks" -Location (New-Object System.Drawing.Point(470, 10)) `
-                                -Font $boldFont
 # Crear los botones utilizando la función
     $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 50)) `
                                 -ToolTip "Instalación mediante choco de SQL Management 2014."
@@ -274,9 +268,6 @@ $labelWindowsTweaks = Create-Label -Text "Windows Tweaks" -Location (New-Object 
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
     $tabAplicaciones.Controls.Add($btnModificarPermisos)
-    $tabAplicaciones.Controls.Add($labelEjecutables)
-    $tabAplicaciones.Controls.Add($labelConsultas)
-    $tabAplicaciones.Controls.Add($labelWindowsTweaks)
     $tabAplicaciones.Controls.Add($lblHostname)
     #funciones al entrar con el mouse
         $lblHostname.Add_MouseEnter($changeColorOnHover)

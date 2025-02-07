@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "permi_250207.1041"  # Valor predeterminado para la versión
+                                                                                                        $version = "permi_250207.1024"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
 # Creación maestra de botones
@@ -263,9 +263,18 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
                                                 }
                                             }
                                         
+                                            # Construir el texto para mostrar
+                                            $permissionsText = $permissions | ForEach-Object { 
+                                                "$($_.Usuario) - $($_.Permiso) - $($_.Tipo)" 
+                                        } -join "`n"
+                                        
                                             # Mostrar los permisos en un cuadro de diálogo
-                                            $permissionsText = $permissions | ForEach-Object { "$($_.Usuario) - $($_.Permiso) - $($_.Tipo)" } -join "`n"
-                                            [System.Windows.Forms.MessageBox]::Show($permissionsText, "Permisos de C:\NationalSoft", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                                            [System.Windows.Forms.MessageBox]::Show(
+                                                $permissionsText, 
+                                                "Permisos de C:\NationalSoft", 
+                                                [System.Windows.Forms.MessageBoxButtons]::OK, 
+                                                [System.Windows.Forms.MessageBoxIcon]::Information
+                                            )
                                         }
                                         
                                         # Asignar la función al botón
@@ -275,6 +284,7 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
                                         
                                         # Agregar el botón a la pestaña de Aplicaciones
                                         $tabAplicaciones.Controls.Add($btnCheckPermissions)
+
 
 
 
@@ -292,15 +302,7 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
     $tabAplicaciones.Controls.Add($btnModificarPermisos)
-# Agregar controles a la pestaña Pro
-    $tabProSql.Controls.Add($chkSqlServer)
-    $tabProSql.Controls.Add($btnReviewPivot)
-    $tabProSql.Controls.Add($btnRespaldarRestcard)
-    $tabProSql.Controls.Add($btnFechaRevEstaciones)
-    $tabProSql.Controls.Add($btnEliminarServidorBDD)
-    $tabProSql.Controls.Add($lblConnectionStatus)
-    $tabProSql.Controls.Add($btnConnectDb)
-    $tabProSql.Controls.Add($btnDisconnectDb)
+
 #Funcion para copiar el puerto al portapapeles
     $lblPort.Add_Click({
         if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1418"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.142777777777"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -174,7 +174,7 @@ function Create-TextBox {
     $textBox.Multiline = $Multiline
     $textBox.ScrollBars = $ScrollBars
     $textBox.ReadOnly = $ReadOnly
-
+    $textBox.WordWrap = $false  # Evitar el ajuste de palabras, lo que habilita la barra de desplazamiento horizontal si es necesario
     # Si se requiere usar el sistema de contraseña, configurar el PasswordChar
     if ($UseSystemPasswordChar) {
         $textBox.UseSystemPasswordChar = $true
@@ -249,8 +249,12 @@ function Create-TextBox {
         -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
     $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
         -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
-    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
+# Crear el TextBox para mostrar las direcciones IP
+    $textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
+        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
+        -ScrollBars [System.Windows.Forms.ScrollBars]::Vertical -Multiline $true -ReadOnly $true
+#    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
+#        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
     $tabAplicaciones.Controls.Add($btnProfiler)
@@ -267,7 +271,8 @@ function Create-TextBox {
     $tabAplicaciones.Controls.Add($btnModificarPermisos)
     $tabAplicaciones.Controls.Add($lblHostname)
     $tabAplicaciones.Controls.Add($lblPort)
-    $tabAplicaciones.Controls.Add($lbIpAdress)
+#    $tabAplicaciones.Controls.Add($lbIpAdress)
+$tabAplicaciones.Controls.Add($textBoxIpAdress)
 # Agregar controles a la pestaña Pro
     $tabProSql.Controls.Add($chkSqlServer)
     $tabProSql.Controls.Add($btnReviewPivot)
@@ -369,43 +374,44 @@ $lblHostname.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
         Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
     })
-$lbIpAdress.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($lbIpAdress.Text)
-        Write-Host "`nIP's copiadas al equipo: $($lbIpAdress.Text)"
+# Manejar el evento de clic para copiar las IPs al portapapeles
+    $textBoxIpAdress.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($textBoxIpAdress.Text)
+        Write-Host "`nIP's copiadas al equipo: $($textBoxIpAdress.Text)"
     })
-    $lbIpAdress.Add_MouseEnter($changeColorOnHover)
-    $lbIpAdress.Add_MouseLeave($restoreColorOnLeave)
 # Obtener las direcciones IP y los adaptadores
-                $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
-                    Where-Object { $_.OperationalStatus -eq 'Up' } |
-                    ForEach-Object {
-                        $interface = $_
-                        $interface.GetIPProperties().UnicastAddresses |
-                        Where-Object { 
-                            $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' 
-                        } |
-                        ForEach-Object {
-                            @{
-                                AdapterName = $interface.Name
-                                IPAddress = $_.Address.ToString()
-                            }
-                        }
-                    }
+    $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
+        Where-Object { $_.OperationalStatus -eq 'Up' } |
+        ForEach-Object {
+            $interface = $_
+            $interface.GetIPProperties().UnicastAddresses |
+            Where-Object { 
+                $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' 
+            } |
+            ForEach-Object {
+                @{
+                    AdapterName = $interface.Name
+                    IPAddress = $_.Address.ToString()
+                }
+            }
+        }
 # Construir el texto para mostrar todas las IPs y adaptadores
-                    if ($ipsWithAdapters.Count -gt 0) {
-                        # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
-                        $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
-                            $_.IPAddress
-                        }) -join ", "
-                        # Construir el texto para mostrar en el Label
-                        $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
-                            "Dongle $($_.AdapterName) - IP: $($_.IPAddress)"
-                        }) -join "`n"
-                        # Asignar el texto al label
-                        $lbIpAdress.Text = "$ipsTextForLabel"
-                    } else {
-                        $lbIpAdress.Text = "No se encontraron direcciones IP"
-                    }
+    if ($ipsWithAdapters.Count -gt 0) {
+        # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
+        $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
+            $_.IPAddress
+        }) -join ", "
+    
+        # Construir el texto para mostrar en el TextBox
+        $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
+            "Dongle $($_.AdapterName) - IP: $($_.IPAddress)"
+        }) -join "`n"
+    
+        # Asignar el texto al TextBox
+        $textBoxIpAdress.Text = "$ipsTextForLabel"
+    } else {
+        $textBoxIpAdress.Text = "No se encontraron direcciones IP"
+    }
 # Función para obtener adaptadores y sus estados (modificada)
     function Get-NetworkAdapterStatus {
             $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }

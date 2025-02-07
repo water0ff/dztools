@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1732"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.17366666666"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1983,119 +1983,153 @@ $btnRespaldarRestcard.Add_Click({
 })
 #AplicacionesNS
 $btnAplicacionesNS.Add_Click({
-    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-    # Definir una lista para almacenar los resultados
-    $resultados = @()
-
-    # Función para extraer valores de un archivo INI
-    function Leer-Ini($filePath) {
-        if (Test-Path $filePath) {
-            $content = Get-Content $filePath
-            $dataSource = ($content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
-            $catalog = ($content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
-            $authType = $content | Select-String -Pattern "^autenticacion=(\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
-
-            $authUser = if ($authType -eq "2") { "sa" }
-                        elseif ($authType -eq "1") { "Windows" }
-                        else { "Desconocido" }
-
-            return @{
-                DataSource = $dataSource
-                Catalog    = $catalog
-                Usuario    = $authUser
-            }
-        }
-        return $null
-    }
-
-    # Lista de rutas principales con los archivos .ini correspondientes
-    $pathsToCheck = @(
-        @{ Path = "C:\NationalSoft\Softrestaurant11.0"; INI = "restaurant.ini"; Nombre = "SR11" },
-        @{ Path = "C:\NationalSoft\Softrestaurant10.0"; INI = "restaurant.ini"; Nombre = "SR10" },
-        @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0"; INI = "nshoteles.ini"; Nombre = "Hoteles" },
-        @{ Path = "C:\NationalSoft\OnTheMinute4.5"; INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
-    )
-
-    foreach ($entry in $pathsToCheck) {
-        $basePath = $entry.Path
-        $mainIniPath = "$basePath\$($entry.INI)"
-        $appName = $entry.Nombre
-
-        if (Test-Path $mainIniPath) {
-            $iniData = Leer-Ini $mainIniPath
-            if ($iniData) {
-                $resultado = [PSCustomObject]@{
-                    Aplicacion = $appName
-                    INI        = $entry.INI
-                    DataSource = $iniData.DataSource
-                    Catalog    = $iniData.Catalog
-                    Usuario    = $iniData.Usuario
+            Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+            # Definir una lista para almacenar los resultados
+            $resultados = @()
+        
+            # Función para extraer valores de un archivo INI
+            function Leer-Ini($filePath) {
+                if (Test-Path $filePath) {
+                    $content = Get-Content $filePath
+                    $dataSource = ($content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
+                    $catalog = ($content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
+                    $authType = $content | Select-String -Pattern "^autenticacion=(\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
+        
+                    $authUser = if ($authType -eq "2") { "sa" }
+                                elseif ($authType -eq "1") { "Windows" }
+                                else { "Desconocido" }
+        
+                    return @{
+                        DataSource = $dataSource
+                        Catalog    = $catalog
+                        Usuario    = $authUser
+                    }
                 }
-                $resultados += $resultado
+                return $null
             }
-        } else {
-            # Si no se encuentra el archivo INI, agregar a la tabla con "No encontrado"
-            $resultado = [PSCustomObject]@{
-                Aplicacion = $appName
-                INI        = "No encontrado"
-                DataSource = "NA"
-                Catalog    = "NA"
-                Usuario    = "NA"
-            }
-            $resultados += $resultado
-        }
-
-        # Revisar si hay archivos .ini en la carpeta INIS
-        $inisFolder = "$basePath\INIS"
-        if (Test-Path $inisFolder) {
-            $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
-            foreach ($iniFile in $iniFiles) {
-                $iniData = Leer-Ini $iniFile.FullName
-                if ($iniData) {
+        
+            # Lista de rutas principales con los archivos .ini correspondientes
+            $pathsToCheck = @(
+                @{ Path = "C:\NationalSoft\Softrestaurant11.0"; INI = "restaurant.ini"; Nombre = "SR11" },
+                @{ Path = "C:\NationalSoft\Softrestaurant10.0"; INI = "restaurant.ini"; Nombre = "SR10" },
+                @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0"; INI = "nshoteles.ini"; Nombre = "Hoteles" },
+                @{ Path = "C:\NationalSoft\OnTheMinute4.5"; INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
+            )
+        
+            foreach ($entry in $pathsToCheck) {
+                $basePath = $entry.Path
+                $mainIniPath = "$basePath\$($entry.INI)"
+                $appName = $entry.Nombre
+        
+                if (Test-Path $mainIniPath) {
+                    $iniData = Leer-Ini $mainIniPath
+                    if ($iniData) {
+                        $resultado = [PSCustomObject]@{
+                            Aplicacion = $appName
+                            INI        = $entry.INI
+                            DataSource = $iniData.DataSource
+                            Catalog    = $iniData.Catalog
+                            Usuario    = $iniData.Usuario
+                        }
+                        $resultados += $resultado
+                    }
+                } else {
+                    # Si no se encuentra el archivo INI, agregar a la tabla con "No encontrado"
                     $resultado = [PSCustomObject]@{
                         Aplicacion = $appName
-                        INI        = $iniFile.Name
-                        DataSource = $iniData.DataSource
-                        Catalog    = $iniData.Catalog
-                        Usuario    = $iniData.Usuario
+                        INI        = "No encontrado"
+                        DataSource = "NA"
+                        Catalog    = "NA"
+                        Usuario    = "NA"
                     }
                     $resultados += $resultado
                 }
+        
+                # Revisar si hay archivos .ini en la carpeta INIS
+                $inisFolder = "$basePath\INIS"
+                if (Test-Path $inisFolder) {
+                    $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
+                    foreach ($iniFile in $iniFiles) {
+                        $iniData = Leer-Ini $iniFile.FullName
+                        if ($iniData) {
+                            $resultado = [PSCustomObject]@{
+                                Aplicacion = $appName
+                                INI        = $iniFile.Name
+                                DataSource = $iniData.DataSource
+                                Catalog    = $iniData.Catalog
+                                Usuario    = $iniData.Usuario
+                            }
+                            $resultados += $resultado
+                        }
+                    }
+                }
             }
-        }
-    }
-
-    # Proceso 3: Detectar si existe RestCard.ini
-    $restCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
-    if (Test-Path $restCardPath) {
-        $resultado = [PSCustomObject]@{
-            Aplicacion = "Restcard"
-            INI        = "RestCard.ini"
-            DataSource = "existe"
-            Catalog    = "existe"
-            Usuario    = "existe"
-        }
-        $resultados += $resultado
-    } else {
-        # Si no se encuentra RestCard.ini, agregar con "No encontrado"
-        $resultado = [PSCustomObject]@{
-            Aplicacion = "Restcard"
-            INI        = "No encontrado"
-            DataSource = "NA"
-            Catalog    = "NA"
-            Usuario    = "NA"
-        }
-        $resultados += $resultado
-    }
-
-    # Mostrar resultados en una tabla con colores
-    foreach ($resultado in $resultados) {
-        if ($resultado.INI -eq "No encontrado") {
-            Write-Host ("{0,-15} {1,-20} {2,-20} {3,-20} {4,-20}" -f $resultado.Aplicacion, $resultado.INI, $resultado.DataSource, $resultado.Catalog, $resultado.Usuario) -ForegroundColor Red
-        } else {
-            Write-Host ("{0,-15} {1,-20} {2,-20} {3,-20} {4,-20}" -f $resultado.Aplicacion, $resultado.INI, $resultado.DataSource, $resultado.Catalog, $resultado.Usuario)
-        }
-    }
+        
+            # Proceso 3: Detectar si existe RestCard.ini
+            $restCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
+            if (Test-Path $restCardPath) {
+                $resultado = [PSCustomObject]@{
+                    Aplicacion = "Restcard"
+                    INI        = "RestCard.ini"
+                    DataSource = "existe"
+                    Catalog    = "existe"
+                    Usuario    = "existe"
+                }
+                $resultados += $resultado
+            } else {
+                # Si no se encuentra RestCard.ini, agregar con "No encontrado"
+                $resultado = [PSCustomObject]@{
+                    Aplicacion = "Restcard"
+                    INI        = "No encontrado"
+                    DataSource = "NA"
+                    Catalog    = "NA"
+                    Usuario    = "NA"
+                }
+                $resultados += $resultado
+            }
+        
+            # Calcular el ancho máximo de cada columna
+            $columnas = @("Aplicacion", "INI", "DataSource", "Catalog", "Usuario")
+            $anchos = @{}
+            foreach ($col in $columnas) {
+                $anchos[$col] = $col.Length # Inicializar con el ancho del título
+            }
+        
+            foreach ($resultado in $resultados) {
+                foreach ($col in $columnas) {
+                    $longitud = $resultado.$col.Length
+                    if ($longitud -gt $anchos[$col]) {
+                        $anchos[$col] = $longitud
+                    }
+                }
+            }
+        
+            # Mostrar los títulos de las columnas
+            $titulos = @()
+            foreach ($col in $columnas) {
+                $titulos += $col.PadRight($anchos[$col] + 2) # Agregar 2 espacios adicionales
+            }
+            Write-Host ($titulos -join "") -ForegroundColor Cyan
+        
+            # Mostrar una línea separadora
+            $separador = @()
+            foreach ($col in $columnas) {
+                $separador += ("-" * $anchos[$col]).PadRight($anchos[$col] + 2) # Agregar 2 espacios adicionales
+            }
+            Write-Host ($separador -join "") -ForegroundColor Cyan
+        
+            # Mostrar los resultados
+            foreach ($resultado in $resultados) {
+                $fila = @()
+                foreach ($col in $columnas) {
+                    $fila += $resultado.$col.PadRight($anchos[$col] + 2) # Agregar 2 espacios adicionales
+                }
+                if ($resultado.INI -eq "No encontrado") {
+                    Write-Host ($fila -join "") -ForegroundColor Red
+                } else {
+                    Write-Host ($fila -join "")
+                }
+            }
 })
 #Boton para salir
     $btnExit.Add_Click({

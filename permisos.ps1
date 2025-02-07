@@ -273,8 +273,8 @@ $btnCheckPermissions = Create-Button -Text "Revisar Permisos C:\NationalSoft" -L
                     
                         # Mostrar los permisos en la consola
                         $permissions | ForEach-Object { 
-                            Write-Host "`t$($_.Usuario) - $($_.Tipo)" -NoNewline
-                            Write-Host "`- $($_.Permiso)" -ForegroundColor Green
+                            Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
+                            Write-Host "` $($_.Permiso)" -ForegroundColor Green
                         }
                     
                         # Si "Everyone" no tiene Full Control o Control total, preguntar si se desea concederlo

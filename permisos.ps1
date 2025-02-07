@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.121000"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.1218"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -195,35 +195,41 @@ function Create-TextBox {
 # Añadir las pestañas al TabControl
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
+$labelEjecutables = Create-Label -Text "Ejecutables" -Location (New-Object System.Drawing.Point(10, 10)) `
+                                -Font $boldFont
+$labelConsultas = Create-Label -Text "Consultas" -Location (New-Object System.Drawing.Point(240, 10)) `
+                                -Font $boldFont
+$labelWindowsTweaks = Create-Label -Text "Windows Tweaks" -Location (New-Object System.Drawing.Point(470, 10)) `
+                                -Font $boldFont
 # Crear los botones utilizando la función
-    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 10)) `
+    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 50)) `
                                 -ToolTip "Instalación mediante choco de SQL Management 2014."
-    $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 50)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
-    $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 90)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
-    $btnSQLManager = Create-Button -Text "Ejecutar Manager" -Location (New-Object System.Drawing.Point(10, 130)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "De momento solo si es SQL 2014."
-    $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 170)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Busca SQL Management en tu equipo y te confirma la versión previo a ejecutarlo."
-    $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 210)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Herramienta de Star con funciones multiples para impresoras POS."
-    $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 10)) `
+    $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 90)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
+    $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 130)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
+    $btnSQLManager = Create-Button -Text "Ejecutar Manager" -Location (New-Object System.Drawing.Point(10, 170)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "De momento solo si es SQL 2014."
+    $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 210)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Busca SQL Management en tu equipo y te confirma la versión previo a ejecutarlo."
+    $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 250)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Herramienta de Star con funciones multiples para impresoras POS."
+    $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 76, 76)) -ToolTip "Detiene el programa y elimina los archivos para crear nuevos IDS."
-    $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 50)) `
+    $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 90)) `
                                 -BackColor ([System.Drawing.Color]::White) -ToolTip "Muestra en consola: Impresora, Puerto y Driver instaladas en Windows."
-    $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(240, 90)) `
+    $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(240, 130)) `
                                 -BackColor ([System.Drawing.Color]::White) -ToolTip "Limpia las impresiones pendientes y reinicia la cola de impresión."
-    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 130)) `
+    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 170)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
     $btnCheckPermissions = Create-Button -Text "Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(470, 50)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 100)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
     $btnModificarPermisos = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(470, 90)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 100)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
     $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Carpeta LZMA" -Location (New-Object System.Drawing.Point(470, 130)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 100)) -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
     $btnConfigurarIPs = Create-Button -Text "Configurar IPs" -Location (New-Object System.Drawing.Point(470, 170)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 100)) -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 50)) `
@@ -266,6 +272,9 @@ function Create-TextBox {
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
     $tabAplicaciones.Controls.Add($btnModificarPermisos)
+    $tabAplicaciones.Controls.Add($labelEjecutables)
+    $tabAplicaciones.Controls.Add($labelConsultas)
+    $tabAplicaciones.Controls.Add($labelWindowsTweaks)
 # Agregar controles a la pestaña Pro
     $tabProSql.Controls.Add($chkSqlServer)
     $tabProSql.Controls.Add($btnReviewPivot)

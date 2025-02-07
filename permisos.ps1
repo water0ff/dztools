@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1512"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.15211111"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -401,14 +401,14 @@ $lblHostname.Add_Click({
         $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
             $_.IPAddress
         }) -join ", "
-    
-        # Construir el texto para mostrar en el TextBox
-        $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
+        
+        # Construir el texto para mostrar en el TextBox (sin usar -join "`n" aquí)
+        $ipsTextForLabel = $ipsWithAdapters | ForEach-Object {
             "Ada: $($_.AdapterName) - IP: $($_.IPAddress)`n"
-        }) -join "`n"
+        }
     
         # Asignar el texto al TextBox
-        $textBoxIpAdress.Text = "$ipsTextForLabel"
+        $textBoxIpAdress.Text = $ipsTextForLabel
     } else {
         $textBoxIpAdress.Text = "No se encontraron direcciones IP"
     }

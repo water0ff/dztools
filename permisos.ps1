@@ -7,7 +7,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     Add-Type -AssemblyName System.Drawing
 # Crear el formulario
     $formPrincipal = New-Object System.Windows.Forms.Form
-    $formPrincipal.Size = New-Object System.Drawing.Size(750, 475)
+    $formPrincipal.Size = New-Object System.Drawing.Size(700, 475)
     $formPrincipal.StartPosition = "CenterScreen"
     $formPrincipal.BackColor = [System.Drawing.Color]::White
     $formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
@@ -184,7 +184,7 @@ function Create-TextBox {
 }
 # Crear las pestañas (TabControl)
     $tabControl = New-Object System.Windows.Forms.TabControl
-    $tabControl.Size = New-Object System.Drawing.Size(740, 315) #X,Y
+    $tabControl.Size = New-Object System.Drawing.Size(690, 315) #X,Y
     $tabControl.Location = New-Object System.Drawing.Point(0,0)
     $tabControl.BackColor = [System.Drawing.Color]::LightGray
 # Crear las tres pestañas (Aplicaciones, Consultas y Pro)

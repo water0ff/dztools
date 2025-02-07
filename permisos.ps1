@@ -404,7 +404,7 @@ $lblHostname.Add_Click({
     
         # Construir el texto para mostrar en el TextBox
         $ipsTextForLabel = ($ipsWithAdapters | ForEach-Object {
-            "Dongle $($_.AdapterName) - IP: $($_.IPAddress)"
+            "Ada: $($_.AdapterName) - IP: $($_.IPAddress)"
         }) -join "`n"
     
         # Asignar el texto al TextBox

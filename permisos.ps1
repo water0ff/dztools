@@ -250,7 +250,7 @@ function Create-TextBox {
     $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
         -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
 # Crear el TextBox para mostrar las direcciones IP
-$textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 150)) `
+$textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
     -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
     -ScrollBars 'Vertical' -Multiline $true -ReadOnly $true
 #    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
@@ -1447,7 +1447,7 @@ $btnInstallSQLManagement.Add_Click({
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
     
             # Crear las etiquetas y cajas de texto
-            $lblProfile = Create-Label -Text "Perfil de conexión" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(100, 20)) `
+            $lblProfile = Create-Label -Text "Perfil de conexión" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(100, 20))
             $cmbProfiles = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(250, 20)) -DropDownStyle DropDownList
             # Cargar archivos INI desde las rutas especificadas
             $profiles = @{ }

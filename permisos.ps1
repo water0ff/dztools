@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.1404"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.140999999999"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -191,6 +191,8 @@ function Create-TextBox {
 # Crear las tres pestañas (Aplicaciones, Consultas y Pro)
     $tabAplicaciones = New-Object System.Windows.Forms.TabPage
     $tabAplicaciones.Text = "Aplicaciones"
+    $tabAplicaciones.BackColor = [System.Drawing.Color]::Black
+    $tabAplicaciones.ForeColor = [System.Drawing.Color]::White
     $tabProSql = New-Object System.Windows.Forms.TabPage
     $tabProSql.Text = "Pro"
 # Añadir las pestañas al TabControl

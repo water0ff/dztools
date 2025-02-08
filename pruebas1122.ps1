@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250207.17366666666"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250207.18066666666666666666666"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -215,6 +215,9 @@ function Create-TextBox {
                                 -BackColor ([System.Drawing.Color]::White) -ToolTip "Limpia las impresiones pendientes y reinicia la cola de impresión."
     $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 170)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
+# Create the new button for changing configuration
+$btnChangeConfig = Create-Button -Text "Cambiar Configuración a SQL/DBF" -Location (New-Object System.Drawing.Point(240, 210)) `
+                                -ToolTip "Cambiar la configuración entre SQL y DBF."
     $btnCheckPermissions = Create-Button -Text "Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(470, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
     $btnLectorDPicacls = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(470, 90)) `
@@ -266,6 +269,7 @@ $textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470
     $tabAplicaciones.Controls.Add($btnShowPrinters)
     $tabAplicaciones.Controls.Add($btnPrinterTool)
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)
+$tabAplicaciones.Controls.Add($btnChangeConfig)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
     $tabAplicaciones.Controls.Add($btnLectorDPicacls)
@@ -2131,6 +2135,73 @@ $btnAplicacionesNS.Add_Click({
                 }
             }
 })
+# Define the button click event
+$btnChangeConfig.Add_Click({
+    # Path to the configuration file
+    $syscfgPath = "C:\Windows\SysWOW64\Syscfg45_2.0.dll"
+
+    # Check if the configuration file exists
+    if (Test-Path $syscfgPath) {
+        # Read the file to check current configuration
+        $fileContent = Get-Content $syscfgPath
+        
+        # Check if SQL or DBF configuration exists
+        $isSQL = $fileContent -contains "494E5354414C4C=1" -and $fileContent -contains "56455253495354454D41=3"
+        $isDBF = $fileContent -contains "494E5354414C4C=2" -and $fileContent -contains "56455253495354454D41=2"
+        
+        # If not SQL or DBF, check if On the Minute is installed
+        if (!$isSQL -and !$isDBF) {
+            [System.Windows.Forms.MessageBox]::Show("No se detectó una configuración válida de SQL o DBF.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
+            return
+        }
+
+        # Check for necessary INI files
+        $iniPath = "C:\NationalSoft\OnTheMinute4.5"
+        $iniFiles = Get-ChildItem -Path $iniPath -Filter "*.ini"
+        
+        # If there are more than two INI files, show a message and exit
+        if ($iniFiles.Count -gt 2) {
+            [System.Windows.Forms.MessageBox]::Show("Hay más de dos archivos INI en $iniPath.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
+            return
+        }
+
+        # Get the SQL and DBF INI files
+        $iniSQLFile = $iniFiles | Where-Object { $_.Name -like "checadorsql_SQL.ini" }
+        $iniDBFFile = $iniFiles | Where-Object { $_.Name -like "checadorsql_DBF.ini" }
+        
+        # Ask the user if they want to switch configurations
+        $currentConfig = if ($isSQL) { "SQL" } elseif ($isDBF) { "DBF" } else { "Ninguno" }
+        $newConfig = if ($isSQL) { "DBF" } else { "SQL" }
+
+        $message = "Actualmente tienes configurado: $currentConfig.`n¿Quieres cambiar a $newConfig?"
+        $result = [System.Windows.Forms.MessageBox]::Show($message, "Cambiar Configuración", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            # Modify the Syscfg45_2.0.dll file to switch configurations
+            if ($newConfig -eq "SQL") {
+                (Get-Content $syscfgPath) -replace "494E5354414C4C=2", "494E5354414C4C=1" | Set-Content $syscfgPath
+                (Get-Content $syscfgPath) -replace "56455253495354454D41=2", "56455253495354454D41=3" | Set-Content $syscfgPath
+            } else {
+                (Get-Content $syscfgPath) -replace "494E5354414C4C=1", "494E5354414C4C=2" | Set-Content $syscfgPath
+                (Get-Content $syscfgPath) -replace "56455253495354454D41=3", "56455253495354454D41=2" | Set-Content $syscfgPath
+            }
+
+            # Rename the INI files accordingly
+            if ($newConfig -eq "SQL") {
+                Rename-Item -Path $iniDBFFile.FullName -NewName "checadorsql_DBF_old.ini"
+                Rename-Item -Path $iniSQLFile.FullName -NewName "checadorsql.ini"
+            } else {
+                Rename-Item -Path $iniSQLFile.FullName -NewName "checadorsql_SQL_old.ini"
+                Rename-Item -Path $iniDBFFile.FullName -NewName "checadorsql.ini"
+            }
+
+            [System.Windows.Forms.MessageBox]::Show("Configuración cambiada exitosamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK)
+        }
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("El archivo de configuración no existe.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
+    }
+})
+
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

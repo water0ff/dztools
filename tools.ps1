@@ -2210,11 +2210,15 @@ $btnCambiarOTM.Add_Click({
     if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
         # Modificar Syscfg45_2.0.dll para cambiar configuración
         if ($newConfig -eq "SQL") {
-            Write-Host "`tCambiando a SQL" -ForegroundColor Yellow
+            Write-Host "`tCambiando a SQL: C:\Windows\SysWOW64\Syscfg45_2.0.dll" -ForegroundColor Yellow
+            Write-Host "`t494E5354414C4C=1"
+            Write-Host "`t56455253495354454D41=3"
             (Get-Content $syscfgPath) -replace "494E5354414C4C=2", "494E5354414C4C=1" | Set-Content $syscfgPath
             (Get-Content $syscfgPath) -replace "56455253495354454D41=2", "56455253495354454D41=3" | Set-Content $syscfgPath
         } else {
-            Write-Host "`tCambiando a DBF" -ForegroundColor Yellow
+            Write-Host "`tCambiando a DBF: C:\Windows\SysWOW64\Syscfg45_2.0.dll" -ForegroundColor Yellow
+            Write-Host "`t494E5354414C4C=2"
+            Write-Host "`t56455253495354454D41=1"
             (Get-Content $syscfgPath) -replace "494E5354414C4C=1", "494E5354414C4C=2" | Set-Content $syscfgPath
             (Get-Content $syscfgPath) -replace "56455253495354454D41=3", "56455253495354454D41=2" | Set-Content $syscfgPath
         }

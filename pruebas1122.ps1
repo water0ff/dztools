@@ -215,9 +215,8 @@ function Create-TextBox {
                                 -BackColor ([System.Drawing.Color]::White) -ToolTip "Limpia las impresiones pendientes y reinicia la cola de impresión."
     $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 170)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
-# Create the new button for changing configuration
-$btnChangeConfig = Create-Button -Text "Cambiar Configuración a SQL/DBF" -Location (New-Object System.Drawing.Point(240, 210)) `
-                                -ToolTip "Cambiar la configuración entre SQL y DBF."
+    $btnCambiarOTM = Create-Button -Text "Cambiar OTM a SQL/DBF" -Location (New-Object System.Drawing.Point(240, 210)) `
+                                -ToolTip "Cambiar la configuración entre SQL y DBF para On The Minute."
     $btnCheckPermissions = Create-Button -Text "Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(470, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
     $btnLectorDPicacls = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(470, 90)) `
@@ -269,7 +268,7 @@ $textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470
     $tabAplicaciones.Controls.Add($btnShowPrinters)
     $tabAplicaciones.Controls.Add($btnPrinterTool)
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)
-$tabAplicaciones.Controls.Add($btnChangeConfig)
+$tabAplicaciones.Controls.Add($btnCambiarOTM)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
     $tabAplicaciones.Controls.Add($btnLectorDPicacls)
@@ -2136,7 +2135,7 @@ $btnAplicacionesNS.Add_Click({
             }
 })
 # Define el evento del botón
-$btnChangeConfig.Add_Click({
+$btnCambiarOTM.Add_Click({
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
     # Ruta de configuración
     $syscfgPath = "C:\Windows\SysWOW64\Syscfg45_2.0.dll"
@@ -2211,11 +2210,15 @@ $btnChangeConfig.Add_Click({
     if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
         # Modificar Syscfg45_2.0.dll para cambiar configuración
         if ($newConfig -eq "SQL") {
-            Write-Host "`tCambiando a SQL" -ForegroundColor Yellow
+            Write-Host "`tCambiando a SQL: C:\Windows\SysWOW64\Syscfg45_2.0.dll" -ForegroundColor Yellow
+            Write-Host "`t494E5354414C4C=1"
+            Write-Host "`t56455253495354454D41=3"
             (Get-Content $syscfgPath) -replace "494E5354414C4C=2", "494E5354414C4C=1" | Set-Content $syscfgPath
             (Get-Content $syscfgPath) -replace "56455253495354454D41=2", "56455253495354454D41=3" | Set-Content $syscfgPath
         } else {
-            Write-Host "`tCambiando a DBF" -ForegroundColor Yellow
+            Write-Host "`tCambiando a DBF: C:\Windows\SysWOW64\Syscfg45_2.0.dll" -ForegroundColor Yellow
+            Write-Host "`t494E5354414C4C=2"
+            Write-Host "`t56455253495354454D41=1"
             (Get-Content $syscfgPath) -replace "494E5354414C4C=1", "494E5354414C4C=2" | Set-Content $syscfgPath
             (Get-Content $syscfgPath) -replace "56455253495354454D41=3", "56455253495354454D41=2" | Set-Content $syscfgPath
         }
@@ -2233,6 +2236,65 @@ $btnChangeConfig.Add_Click({
         Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
     }
 })
+
+
+# ... (Código existente) ...
+
+$btnDetenerSync = Create-Button -Text "Detener Sincronización" -Location (New-Object System.Drawing.Point(240, 250)) `
+    -ToolTip "Detiene los procesos de sincronización y Marketplace."
+
+$tabAplicaciones.Controls.Add($btnDetenerSync)
+
+$btnDetenerSync.Add_Click({
+    # 1. Preguntar versión de Softrestaurant con MessageBox
+    $messageBoxResult = [System.Windows.Forms.MessageBox]::Show(
+        "Seleccione la versión de Softrestaurant:",
+        "Versión de Softrestaurant",
+        [System.Windows.Forms.MessageBoxButtons]::YesNoCancel, # Botones Yes, No y Cancel
+        [System.Windows.Forms.MessageBoxIcon]::Question
+    )
+
+    if ($messageBoxResult -eq [System.Windows.Forms.DialogResult]::Yes) {
+        $softVersion = "10"
+    } elseif ($messageBoxResult -eq [System.Windows.Forms.DialogResult]::No) {
+        $softVersion = "11"
+    } else {
+        Write-Host "Operación cancelada." -ForegroundColor Yellow
+        return # Salir si el usuario cancela
+    }
+
+    $basePath = if ($softVersion -eq "10") {
+        "C:\Program Files (x86)\Softrestaurant10"
+    } else { # Ya se manejó el caso de Cancel
+        "C:\Program Files (x86)\Softrestaurant11"
+    }
+
+    $marketPlaceBin = Join-Path $basePath "MarketPlace\bin"
+
+    # ... (Resto del código para detener procesos y renombrar carpeta) ...
+
+    # 5. Renombrar carpeta bin (SOLUCIÓN AL ERROR)
+    $binBackup = Join-Path $marketPlaceBin "bin_backup"
+        try {
+            if (Test-Path $marketPlaceBin) {
+                # Primero, asegúrate de que no haya procesos usando la carpeta
+                Get-ChildItem -Path $marketPlaceBin | Get-Process | Stop-Process -Force -ErrorAction SilentlyContinue
+                # Espera un poco para que los procesos se cierren
+                Start-Sleep -Seconds 2
+                Rename-Item -Path $marketPlaceBin -NewName $binBackup -Force
+                Write-Host "Renombrando carpeta bin para forzar actualización."
+            } else {
+                Write-Host "La carpeta bin no existe." -ForegroundColor Red
+            }
+        }
+        catch {
+            Write-Host "Error al renombrar la carpeta bin: $_" -ForegroundColor Red
+        }
+
+    Write-Host "Proceso de detención y actualización completado." -ForegroundColor Green
+})
+
+# ... (Resto del código) ...
 
 
 

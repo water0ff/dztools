@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250211.1951"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250211.2003"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -2248,6 +2248,10 @@ $btnCambiarOTM.Add_Click({
 
 
 # ... (Código anterior sin cambios hasta la línea 219) ...
+$btnDetenerSync = Create-Button -Text "Detener Sincronización" -Location (New-Object System.Drawing.Point(240, 250)) `
+    -ToolTip "Detiene los procesos de sincronización y Marketplace."
+
+$tabAplicaciones.Controls.Add($btnDetenerSync)
 
 $btnDetenerSync.Add_Click({
     # 1. Buscar versiones instaladas y crear ComboBox

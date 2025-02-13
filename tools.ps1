@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250213.1323"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250213.1330"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -962,7 +962,7 @@ $btnDatabase.Add_Click({
 
         DownloadAndRun -url $DatabaseUrl -zipPath $DatabaseZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
     })
-#btn Manager
+#seleccion de managers BOTON
 $btnSQLManager.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
     
@@ -988,10 +988,33 @@ $btnSQLManager.Add_Click({
             return
         }
     
-        $formSelectionManager = Create-Form -Title "Seleccionar versión de Configuration Manager" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+        $formSelectionManager = Create-Form -Title "Seleccionar versión de Configuration Manager" -Size (New-Object System.Drawing.Size(350, 250)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
             -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+    
         $labelManager = Create-Label -Text "Seleccione la versión de Configuration Manager:" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
         $formSelectionManager.Controls.Add($labelManager)
+    
+        $labelManagerInfo = Create-Label -Text "" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+        $formSelectionManager.Controls.Add($labelManagerInfo)
+    
+        function Get-ManagerInfo($path) {
+            if ($path -match "SQLServerManager(\d+)") {
+                $version = $matches[1]
+                if ($path -match "SysWOW64") {
+                    return "SQLServerManager${version} 64bits"
+                } else {
+                    return "SQLServerManager${version} 32bits"
+                }
+            } else {
+                return "Información no disponible"
+            }
+        }
+    
+        $UpdateManagerInfo = {
+            $selectedManager = $comboBoxManager.SelectedItem
+            $managerInfo = Get-ManagerInfo $selectedManager
+            $labelManagerInfo.Text = $managerInfo
+        }
     
         $comboBoxManager = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(310, 20)) -DropDownStyle DropDownList
     
@@ -1002,6 +1025,11 @@ $btnSQLManager.Add_Click({
         $comboBoxManager.SelectedIndex = 0
         $formSelectionManager.Controls.Add($comboBoxManager)
     
+        $UpdateManagerInfo.Invoke() # Actualizar al inicio
+    
+        $comboBoxManager.Add_SelectedIndexChanged({
+            $UpdateManagerInfo.Invoke()
+        })
     
         $btnOKManager = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30))
         $btnOKManager.DialogResult = [System.Windows.Forms.DialogResult]::OK

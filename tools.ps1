@@ -962,17 +962,71 @@ $btnDatabase.Add_Click({
 
         DownloadAndRun -url $DatabaseUrl -zipPath $DatabaseZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
     })
+#btn Manager
 $btnSQLManager.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-        try {
-            Write-Host "`tEjecutando SQL Server Configuration Manager..."
-            Start-Process "SQLServerManager12.msc"
+    
+        function Get-SQLServerManagers {
+            $managers = @()
+            $possiblePaths = @(
+                "${env:SystemRoot}\System32\SQLServerManager*.msc",
+                "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc"
+            )
+    
+            foreach ($path in $possiblePaths) {
+                $foundManagers = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+                if ($foundManagers) {
+                    $managers += $foundManagers.FullName
+                }
+            }
+            return $managers
         }
-        catch {
-            Write-Host "`tError al ejecutar SQL Server Configuration Manager: $_"  -ForegroundColor Red
-            [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    
+        $managers = Get-SQLServerManagers
+        if ($managers.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            return
         }
-    })
+    
+        $formSelectionManager = Create-Form -Title "Seleccionar versión de Configuration Manager" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+            -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+        $labelManager = Create-Label -Text "Seleccione la versión de Configuration Manager:" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+        $formSelectionManager.Controls.Add($labelManager)
+    
+        $comboBoxManager = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(310, 20)) -DropDownStyle DropDownList
+    
+        foreach ($manager in $managers) {
+            $comboBoxManager.Items.Add($manager)
+        }
+    
+        $comboBoxManager.SelectedIndex = 0
+        $formSelectionManager.Controls.Add($comboBoxManager)
+    
+    
+        $btnOKManager = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30))
+        $btnOKManager.DialogResult = [System.Windows.Forms.DialogResult]::OK
+        $btnCancelManager = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(180, 120)) -Size (New-Object System.Drawing.Size(140, 30))
+        $btnCancelManager.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+        $formSelectionManager.AcceptButton = $btnOKManager
+        $formSelectionManager.Controls.Add($btnOKManager)
+        $formSelectionManager.CancelButton = $btnCancelManager
+        $formSelectionManager.Controls.Add($btnCancelManager)
+    
+        $result = $formSelectionManager.ShowDialog()
+        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+            $selectedManager = $comboBoxManager.SelectedItem
+            try {
+                Write-Host "`tEjecutando SQL Server Configuration Manager desde: $selectedManager" -ForegroundColor Green
+                Start-Process -FilePath $selectedManager
+            } catch {
+                Write-Host "`tError al intentar ejecutar SQL Server Configuration Manager desde la ruta seleccionada." -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show("No se pudo iniciar SQL Server Configuration Manager. Verifique la ruta seleccionada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        } else {
+            Write-Host "`tOperación cancelada por el usuario." -ForegroundColor Yellow
+        }
+})
+#Clear Anydesk
 $btnClearAnyDesk.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         # Mostrar cuadro de confirmación

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250213.123222222"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250213.1242"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -33,6 +33,7 @@ function Create-Button {
                     [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
                     [string]$ToolTipText = $null,
                     [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(220, 35)),
+[System.Drawing.Font]$Font = $defaultFont, # Agregar parámetro Font con valor predeterminado
                     [bool]$Enabled = $true
                 )
                 # Estilo del botón
@@ -56,7 +57,8 @@ function Create-Button {
                 $button.Location = $Location
                 $button.BackColor = $BackColor
                 $button.ForeColor = $ForeColor
-                $button.Font = $buttonStyle.Font
+#$button.Font = $buttonStyle.Font
+$button.Font = $Font # Usar el parámetro Font
                 $button.FlatStyle = $buttonStyle.FlatStyle
                 $button.Tag = $BackColor  # Almacena el color original en Tag
                 $button.Add_MouseEnter($button_MouseEnter)
@@ -195,10 +197,10 @@ function Create-TextBox {
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
 # Crear los botones utilizando la función
-$btnInstallSQLManagement = Create-Button -Text "Install:Management14" -Location (New-Object System.Drawing.Point(10, 50)) `
-    -Size (New-Object System.Drawing.Size(110, 35)) -ToolTip "Instalación mediante choco de SQL Management 2014."
-$btnInstallSQL2019 = Create-Button -Text "Install:SQL2019" -Location (New-Object System.Drawing.Point(120, 50)) `
-    -Size (New-Object System.Drawing.Size(110, 35)) -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
+$btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 50)) `
+    -Size (New-Object System.Drawing.Size(110, 50)) -ToolTip "Instalación mediante choco de SQL Management 2014." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
+$btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(120, 50)) `
+    -Size (New-Object System.Drawing.Size(110, 50)) -ToolTip "Instalación mediante choco de SQL Server 2019 Express." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
     $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 90)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
     $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 130)) `

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250213.1242"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250213.1247"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1209,6 +1209,18 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                         [System.Windows.Forms.MessageBox]::Show("La ruta del registro no existe: $LZMAregistryPath", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                     }
                 })
+
+
+
+
+
+
+
+
+
+
+
+
 # Función para verificar e instalar Chocolatey
 function Check-Chocolatey {
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
@@ -1262,8 +1274,6 @@ function Check-Chocolatey {
         return $true # Retorna verdadero si Chocolatey ya está instalado
     }
 }
-
-
 #Boton para instalar Management
 $btnInstallSQLManagement.Add_Click({
     $response = [System.Windows.Forms.MessageBox]::Show(
@@ -1321,6 +1331,15 @@ $btnInstallSQL2019.Add_Click({
         [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2019 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 })
+
+
+
+
+
+
+
+
+
 #Pivot new
                                     $btnReviewPivot.Add_Click({
                                         try {

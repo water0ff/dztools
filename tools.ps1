@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250212.1132"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250213.1247"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -33,6 +33,7 @@ function Create-Button {
                     [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
                     [string]$ToolTipText = $null,
                     [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(220, 35)),
+[System.Drawing.Font]$Font = $defaultFont, # Agregar parámetro Font con valor predeterminado
                     [bool]$Enabled = $true
                 )
                 # Estilo del botón
@@ -56,7 +57,8 @@ function Create-Button {
                 $button.Location = $Location
                 $button.BackColor = $BackColor
                 $button.ForeColor = $ForeColor
-                $button.Font = $buttonStyle.Font
+#$button.Font = $buttonStyle.Font
+$button.Font = $Font # Usar el parámetro Font
                 $button.FlatStyle = $buttonStyle.FlatStyle
                 $button.Tag = $BackColor  # Almacena el color original en Tag
                 $button.Add_MouseEnter($button_MouseEnter)
@@ -195,8 +197,10 @@ function Create-TextBox {
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
 # Crear los botones utilizando la función
-    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 50)) `
-                                -ToolTip "Instalación mediante choco de SQL Management 2014."
+$btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 50)) `
+    -Size (New-Object System.Drawing.Size(110, 35)) -ToolTip "Instalación mediante choco de SQL Management 2014." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
+$btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(120, 50)) `
+    -Size (New-Object System.Drawing.Size(110, 35)) -ToolTip "Instalación mediante choco de SQL Server 2019 Express." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
     $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 90)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
     $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 130)) `
@@ -259,6 +263,7 @@ $textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470
 #        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
+$tabAplicaciones.Controls.Add($btnInstallSQL2019) # Añadir el nuevo botón de SQL2019
     $tabAplicaciones.Controls.Add($btnProfiler)
     $tabAplicaciones.Controls.Add($btnDatabase)
     $tabAplicaciones.Controls.Add($btnSQLManager)
@@ -1204,73 +1209,137 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                         [System.Windows.Forms.MessageBox]::Show("La ruta del registro no existe: $LZMAregistryPath", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                     }
                 })
+
+
+
+
+
+
+
+
+
+
+
+
+# Función para verificar e instalar Chocolatey
+function Check-Chocolatey {
+    if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+        $response = [System.Windows.Forms.MessageBox]::Show(
+            "Chocolatey no está instalado. ¿Desea instalarlo ahora?",
+            "Chocolatey no encontrado",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+
+        if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+            Write-Host "`nEl usuario canceló la instalación de Chocolatey." -ForegroundColor Red
+            return $false  # Retorna falso si el usuario cancela
+        }
+
+        Write-Host "`nInstalando Chocolatey..." -ForegroundColor Cyan
+        try {
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+            Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
+
+            # Configurar cacheLocation
+            Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
+            choco config set cacheLocation C:\Choco\cache
+
+            [System.Windows.Forms.MessageBox]::Show(
+                "Chocolatey se instaló correctamente y ha sido configurado. Por favor, reinicie PowerShell antes de continuar.",
+                "Reinicio requerido",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            )
+
+            # Cerrar el programa automáticamente
+            Write-Host "`nCerrando la aplicación para permitir reinicio de PowerShell..." -ForegroundColor Red
+            Stop-Process -Id $PID -Force
+            return $false # Retorna falso para indicar que se debe reiniciar
+        } catch {
+            Write-Host "`nError al instalar Chocolatey: $_" -ForegroundColor Red
+            [System.Windows.Forms.MessageBox]::Show(
+                "Error al instalar Chocolatey. Por favor, inténtelo manualmente.",
+                "Error de instalación",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Error
+            )
+            return $false # Retorna falso en caso de error
+        }
+    } else {
+        Write-Host "`nChocolatey ya está instalado." -ForegroundColor Green
+        return $true # Retorna verdadero si Chocolatey ya está instalado
+    }
+}
 #Boton para instalar Management
 $btnInstallSQLManagement.Add_Click({
-                $response = [System.Windows.Forms.MessageBox]::Show(
-                    "¿Desea proceder con la instalación de SQL Server Management Studio 2014 Express?",
-                    "Advertencia de instalación",
-                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
-                    [System.Windows.Forms.MessageBoxIcon]::Warning
-                )
-            
-                if ($response -eq [System.Windows.Forms.DialogResult]::No) {
-                    Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
-                    return
-                }
-            
-                Write-Host "`nVerificando si Chocolatey está instalado..." -ForegroundColor Yellow
-            
-                if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-                    Write-Host "`nChocolatey no está instalado. Instalándolo ahora..." -ForegroundColor Cyan
-                    try {
-                        Set-ExecutionPolicy Bypass -Scope Process -Force
-                        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-                        iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-            
-                        Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
-            
-                        # Configurar cacheLocation
-                        Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
-                        choco config set cacheLocation C:\Choco\cache
-            
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "Chocolatey se instaló correctamente y ha sido configurado. Por favor, reinicie PowerShell antes de continuar.",
-                            "Reinicio requerido",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Information
-                        )
-            
-                        # Cerrar el programa automáticamente
-                        Write-Host "`nCerrando la aplicación para permitir reinicio de PowerShell..." -ForegroundColor Red
-                        Stop-Process -Id $PID -Force
-                        return
-                    } catch {
-                        Write-Host "`nError al instalar Chocolatey: $_" -ForegroundColor Red
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "Error al instalar Chocolatey. Por favor, inténtelo manualmente.",
-                            "Error de instalación",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Error
-                        )
-                        return
-                    }
-                } else {
-                    Write-Host "`nChocolatey ya está instalado." -ForegroundColor Green
-                }
-            
-                Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-            
-                try {
-                    Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
-                    choco config set cacheLocation C:\Choco\cache
-            
-                    Write-Host "`nInstalando SQL Server Management Studio 2014 Express usando Chocolatey..." -ForegroundColor Cyan
-                    Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express --confirm --yes' -NoNewWindow -Wait
-                    Write-Host "`nInstalación completa." -ForegroundColor Green
-                } catch {
-                    Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
-                }
+    $response = [System.Windows.Forms.MessageBox]::Show(
+        "¿Desea proceder con la instalación de SQL Server Management Studio 2014 Express?",
+        "Advertencia de instalación",
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning
+    )
+
+    if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+        Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+        return
+    }
+
+    if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso (cancelado o error)
+
+    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+
+    try {
+        Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
+        choco config set cacheLocation C:\Choco\cache
+
+        Write-Host "`nInstalando SQL Server Management Studio 2014 Express usando Chocolatey..." -ForegroundColor Cyan
+        Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express --confirm --yes' -NoNewWindow -Wait
+        Write-Host "`nInstalación completa." -ForegroundColor Green
+    } catch {
+        Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
+    }
 })
+
+# Instalador de SQL 2019
+$btnInstallSQL2019.Add_Click({
+    $response = [System.Windows.Forms.MessageBox]::Show(
+        "¿Desea proceder con la instalación de SQL Server 2019 Express?",
+        "Advertencia de instalación",
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning
+    )
+
+    if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+        Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+        return
+    }
+
+    if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso
+
+    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+
+    try {
+        choco install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"
+        Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
+        sqlcmd -S SQL2019 -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
+        [System.Windows.Forms.MessageBox]::Show("SQL Server 2019 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2019 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+
+
+
+
+
+
+
+
+
 #Pivot new
                                     $btnReviewPivot.Add_Click({
                                         try {

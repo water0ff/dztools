@@ -198,9 +198,9 @@ function Create-TextBox {
     $tabControl.TabPages.Add($tabProSql)
 # Crear los botones utilizando la función
 $btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 50)) `
-    -Size (New-Object System.Drawing.Size(110, 50)) -ToolTip "Instalación mediante choco de SQL Management 2014." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
+    -Size (New-Object System.Drawing.Size(110, 35)) -ToolTip "Instalación mediante choco de SQL Management 2014." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
 $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(120, 50)) `
-    -Size (New-Object System.Drawing.Size(110, 50)) -ToolTip "Instalación mediante choco de SQL Server 2019 Express." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
+    -Size (New-Object System.Drawing.Size(110, 35)) -ToolTip "Instalación mediante choco de SQL Server 2019 Express." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
     $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 90)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
     $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 130)) `

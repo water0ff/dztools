@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250218.1202"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250218.1209"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1302,18 +1302,21 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                     }
                 })
 # Crear el nuevo formulario para los instaladores de Chocolatey
-        $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(275, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+        $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))   
 # Crear los botones dentro del nuevo formulario
-    $btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 10)) `
-        -ToolTip "Instalación mediante choco de SQL Management 2014."
-    $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(10, 50)) `
+    $btnInstallSQL2014 = Create-Button -Text "Install: SQL2014" -Location (New-Object System.Drawing.Point(10, 10)) `
+        -ToolTip "Instalación mediante choco de SQL Server 2014 Express."
+    $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(240, 10)) `
         -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
+    $btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 50)) `
+        -ToolTip "Instalación mediante choco de SQL Management 2014."
     $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 120)) `
         -ToolTip "Salir del formulario de instaladores."
 # Agregar los botones al nuevo formulario
-    $formInstaladoresChoco.Controls.Add($btnInstallSQLManagement)
+    $formInstaladoresChoco.Controls.Add($btnInstallSQL2014)
     $formInstaladoresChoco.Controls.Add($btnInstallSQL2019)
+    $formInstaladoresChoco.Controls.Add($btnInstallSQLManagement)
     $formInstaladoresChoco.Controls.Add($btnExitInstaladores)
 # Evento para el botón de salir del formulario de instaladores
 $btnExitInstaladores.Add_Click({
@@ -1385,6 +1388,44 @@ $btnInstallSQL2019.Add_Click({
     } catch {
         [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2019 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
+})
+# Instalador de SQL 2014
+$btnInstallSQL2014.Add_Click({
+            $response = [System.Windows.Forms.MessageBox]::Show(
+                "¿Desea proceder con la instalación de SQL Server 2014 Express?",
+                "Advertencia de instalación",
+                [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                [System.Windows.Forms.MessageBoxIcon]::Warning
+            )
+        
+            if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+                Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+                return
+            }
+        
+            if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso
+        
+            Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+        
+            try {
+                # Verificar si la instancia ya existe
+                $instanceExists = Get-Service -Name "MSSQL`$NationalSoft" -ErrorAction SilentlyContinue
+                if ($instanceExists) {
+                    Write-Host "`nLa instancia 'NationalSoft' ya existe. Cancelando la instalación." -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show("La instancia 'NationalSoft' ya existe. Cancelando la instalación.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                    return
+                }
+        
+                # Instalar SQL Server 2014 Express
+                choco install sql-server-express -y --version=2014.0.2000.8 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:NationalSoft /FEATURES:SQL"
+                Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
+        
+                # Configurar el idioma a español
+                sqlcmd -S NationalSoft -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
+                [System.Windows.Forms.MessageBox]::Show("SQL Server 2014 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            } catch {
+                [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2014 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
 })
 #Pivot new
                                     $btnReviewPivot.Add_Click({

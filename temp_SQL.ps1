@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250211.2014"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250213.1330"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -33,6 +33,7 @@ function Create-Button {
                     [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
                     [string]$ToolTipText = $null,
                     [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(220, 35)),
+[System.Drawing.Font]$Font = $defaultFont, # Agregar parámetro Font con valor predeterminado
                     [bool]$Enabled = $true
                 )
                 # Estilo del botón
@@ -56,7 +57,8 @@ function Create-Button {
                 $button.Location = $Location
                 $button.BackColor = $BackColor
                 $button.ForeColor = $ForeColor
-                $button.Font = $buttonStyle.Font
+#$button.Font = $buttonStyle.Font
+$button.Font = $Font # Usar el parámetro Font
                 $button.FlatStyle = $buttonStyle.FlatStyle
                 $button.Tag = $BackColor  # Almacena el color original en Tag
                 $button.Add_MouseEnter($button_MouseEnter)
@@ -195,8 +197,10 @@ function Create-TextBox {
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
 # Crear los botones utilizando la función
-    $btnInstallSQLManagement = Create-Button -Text "Instalar Management2014" -Location (New-Object System.Drawing.Point(10, 50)) `
-                                -ToolTip "Instalación mediante choco de SQL Management 2014."
+$btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 50)) `
+    -Size (New-Object System.Drawing.Size(110, 35)) -ToolTip "Instalación mediante choco de SQL Management 2014." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
+$btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(120, 50)) `
+    -Size (New-Object System.Drawing.Size(110, 35)) -ToolTip "Instalación mediante choco de SQL Server 2019 Express." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
     $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 90)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
     $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 130)) `
@@ -259,6 +263,7 @@ $textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470
 #        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
     $tabAplicaciones.Controls.Add($btnInstallSQLManagement)
+$tabAplicaciones.Controls.Add($btnInstallSQL2019) # Añadir el nuevo botón de SQL2019
     $tabAplicaciones.Controls.Add($btnProfiler)
     $tabAplicaciones.Controls.Add($btnDatabase)
     $tabAplicaciones.Controls.Add($btnSQLManager)
@@ -957,17 +962,99 @@ $btnDatabase.Add_Click({
 
         DownloadAndRun -url $DatabaseUrl -zipPath $DatabaseZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
     })
+#seleccion de managers BOTON
 $btnSQLManager.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-        try {
-            Write-Host "`tEjecutando SQL Server Configuration Manager..."
-            Start-Process "SQLServerManager12.msc"
+    
+        function Get-SQLServerManagers {
+            $managers = @()
+            $possiblePaths = @(
+                "${env:SystemRoot}\System32\SQLServerManager*.msc",
+                "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc"
+            )
+    
+            foreach ($path in $possiblePaths) {
+                $foundManagers = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+                if ($foundManagers) {
+                    $managers += $foundManagers.FullName
+                }
+            }
+            return $managers
         }
-        catch {
-            Write-Host "`tError al ejecutar SQL Server Configuration Manager: $_"  -ForegroundColor Red
-            [System.Windows.Forms.MessageBox]::Show("No se pudo abrir SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    
+        $managers = Get-SQLServerManagers
+        if ($managers.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            return
         }
-    })
+    
+        $formSelectionManager = Create-Form -Title "Seleccionar versión de Configuration Manager" -Size (New-Object System.Drawing.Size(350, 250)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+            -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+    
+        $labelManager = Create-Label -Text "Seleccione la versión de Configuration Manager:" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+        $formSelectionManager.Controls.Add($labelManager)
+    
+        $labelManagerInfo = Create-Label -Text "" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+        $formSelectionManager.Controls.Add($labelManagerInfo)
+    
+        function Get-ManagerInfo($path) {
+            if ($path -match "SQLServerManager(\d+)") {
+                $version = $matches[1]
+                if ($path -match "SysWOW64") {
+                    return "SQLServerManager${version} 64bits"
+                } else {
+                    return "SQLServerManager${version} 32bits"
+                }
+            } else {
+                return "Información no disponible"
+            }
+        }
+    
+        $UpdateManagerInfo = {
+            $selectedManager = $comboBoxManager.SelectedItem
+            $managerInfo = Get-ManagerInfo $selectedManager
+            $labelManagerInfo.Text = $managerInfo
+        }
+    
+        $comboBoxManager = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(310, 20)) -DropDownStyle DropDownList
+    
+        foreach ($manager in $managers) {
+            $comboBoxManager.Items.Add($manager)
+        }
+    
+        $comboBoxManager.SelectedIndex = 0
+        $formSelectionManager.Controls.Add($comboBoxManager)
+    
+        $UpdateManagerInfo.Invoke() # Actualizar al inicio
+    
+        $comboBoxManager.Add_SelectedIndexChanged({
+            $UpdateManagerInfo.Invoke()
+        })
+    
+        $btnOKManager = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30))
+        $btnOKManager.DialogResult = [System.Windows.Forms.DialogResult]::OK
+        $btnCancelManager = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(180, 120)) -Size (New-Object System.Drawing.Size(140, 30))
+        $btnCancelManager.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+        $formSelectionManager.AcceptButton = $btnOKManager
+        $formSelectionManager.Controls.Add($btnOKManager)
+        $formSelectionManager.CancelButton = $btnCancelManager
+        $formSelectionManager.Controls.Add($btnCancelManager)
+    
+        $result = $formSelectionManager.ShowDialog()
+        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+            $selectedManager = $comboBoxManager.SelectedItem
+            try {
+                Write-Host "`tEjecutando SQL Server Configuration Manager desde: $selectedManager" -ForegroundColor Green
+                Start-Process -FilePath $selectedManager
+            } catch {
+                Write-Host "`tError al intentar ejecutar SQL Server Configuration Manager desde la ruta seleccionada." -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show("No se pudo iniciar SQL Server Configuration Manager. Verifique la ruta seleccionada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        } else {
+            Write-Host "`tOperación cancelada por el usuario." -ForegroundColor Yellow
+        }
+})
+#Clear Anydesk
 $btnClearAnyDesk.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         # Mostrar cuadro de confirmación
@@ -1204,6 +1291,71 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                         [System.Windows.Forms.MessageBox]::Show("La ruta del registro no existe: $LZMAregistryPath", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                     }
                 })
+
+
+
+
+
+
+
+
+
+
+
+
+# Función para verificar e instalar Chocolatey
+function Check-Chocolatey {
+    if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+        $response = [System.Windows.Forms.MessageBox]::Show(
+            "Chocolatey no está instalado. ¿Desea instalarlo ahora?",
+            "Chocolatey no encontrado",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+
+        if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+            Write-Host "`nEl usuario canceló la instalación de Chocolatey." -ForegroundColor Red
+            return $false  # Retorna falso si el usuario cancela
+        }
+
+        Write-Host "`nInstalando Chocolatey..." -ForegroundColor Cyan
+        try {
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+            Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
+
+            # Configurar cacheLocation
+            Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
+            choco config set cacheLocation C:\Choco\cache
+
+            [System.Windows.Forms.MessageBox]::Show(
+                "Chocolatey se instaló correctamente y ha sido configurado. Por favor, reinicie PowerShell antes de continuar.",
+                "Reinicio requerido",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            )
+
+            # Cerrar el programa automáticamente
+            Write-Host "`nCerrando la aplicación para permitir reinicio de PowerShell..." -ForegroundColor Red
+            Stop-Process -Id $PID -Force
+            return $false # Retorna falso para indicar que se debe reiniciar
+        } catch {
+            Write-Host "`nError al instalar Chocolatey: $_" -ForegroundColor Red
+            [System.Windows.Forms.MessageBox]::Show(
+                "Error al instalar Chocolatey. Por favor, inténtelo manualmente.",
+                "Error de instalación",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Error
+            )
+            return $false # Retorna falso en caso de error
+        }
+    } else {
+        Write-Host "`nChocolatey ya está instalado." -ForegroundColor Green
+        return $true # Retorna verdadero si Chocolatey ya está instalado
+    }
+}
 #Boton para instalar Management
 $btnInstallSQLManagement.Add_Click({
     $response = [System.Windows.Forms.MessageBox]::Show(
@@ -1218,40 +1370,14 @@ $btnInstallSQLManagement.Add_Click({
         return
     }
 
-    Write-Host "`nVerificando si Chocolatey está instalado..." -ForegroundColor Yellow
-
-    if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-        Write-Host "`nChocolatey no está instalado. Instalándolo ahora..." -ForegroundColor Cyan
-        try {
-            Set-ExecutionPolicy Bypass -Scope Process -Force
-            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-
-            Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
-            [System.Windows.Forms.MessageBox]::Show(
-                "Chocolatey se instaló correctamente. Por favor, reinicie PowerShell antes de continuar.",
-                "Reinicio requerido",
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Information
-            )
-            return
-        } catch {
-            Write-Host "`nError al instalar Chocolatey: $_" -ForegroundColor Red
-            [System.Windows.Forms.MessageBox]::Show(
-                "Error al instalar Chocolatey. Por favor, inténtelo manualmente.",
-                "Error de instalación",
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Error
-            )
-            return
-        }
-    } else {
-        Write-Host "`nChocolatey ya está instalado." -ForegroundColor Green
-    }
+    if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso (cancelado o error)
 
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
 
     try {
+        Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
+        choco config set cacheLocation C:\Choco\cache
+
         Write-Host "`nInstalando SQL Server Management Studio 2014 Express usando Chocolatey..." -ForegroundColor Cyan
         Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express --confirm --yes' -NoNewWindow -Wait
         Write-Host "`nInstalación completa." -ForegroundColor Green
@@ -1259,6 +1385,43 @@ $btnInstallSQLManagement.Add_Click({
         Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
     }
 })
+
+# Instalador de SQL 2019
+$btnInstallSQL2019.Add_Click({
+    $response = [System.Windows.Forms.MessageBox]::Show(
+        "¿Desea proceder con la instalación de SQL Server 2019 Express?",
+        "Advertencia de instalación",
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning
+    )
+
+    if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+        Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+        return
+    }
+
+    if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso
+
+    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+
+    try {
+        choco install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"
+        Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
+        sqlcmd -S SQL2019 -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
+        [System.Windows.Forms.MessageBox]::Show("SQL Server 2019 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2019 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+
+
+
+
+
+
+
+
+
 #Pivot new
                                     $btnReviewPivot.Add_Click({
                                         try {
@@ -2236,158 +2399,6 @@ $btnCambiarOTM.Add_Click({
         Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
     }
 })
-
-
-
-
-
-
-
-
-
-
-
-# ... (Código anterior sin cambios hasta la línea 219) ...
-
-$btnDetenerSync = Create-Button -Text "Detener Sincronización" -Location (New-Object System.Drawing.Point(240, 250)) `
-    -ToolTip "Detiene los procesos de sincronización y Marketplace."
-
-$tabAplicaciones.Controls.Add($btnDetenerSync)
-
-$btnDetenerSync.Add_Click({
-    # 1. Buscar versiones instaladas y crear ComboBox
-    $versions = @()
-    if ((Test-Path "C:\Program Files (x86)\Softrestaurant10") -or (Test-Path "C:\Archivos de programa (x86)\Softrestaurant10")) {
-        $versions += "10"
-    }
-    if ((Test-Path "C:\Program Files (x86)\Softrestaurant11") -or (Test-Path "C:\Archivos de programa (x86)\Softrestaurant11")) {
-        $versions += "11"
-    }
-    if ($versions.Count -eq 0) {
-        [System.Windows.Forms.MessageBox]::Show(
-            "No se encontraron instalaciones de Softrestaurant.",
-            "Error",
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Error
-        )
-        return # Salir si no se encuentra ninguna versión
-    }
-
-    $formVersion = Create-Form -Title "Versión de Softrestaurant" -Size (New-Object System.Drawing.Size(250, 150))
-    $comboBoxVersion = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 10)) -Size (New-Object System.Drawing.Size(200, 30)) -Items $versions
-    $formVersion.Controls.Add($comboBoxVersion)
-    $comboBoxVersion.SelectedIndex = 0 # Seleccionar el primer elemento por defecto
-
-    $btnAceptar = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(70, 60)) -Size (New-Object System.Drawing.Size(100, 30))
-    $formVersion.Controls.Add($btnAceptar)
-
-    # Declarar $softVersion FUERA del evento Add_Click
-    $softVersion = $null  # Inicializar a null
-
-    $btnAceptar.Add_Click({
-        if ($comboBoxVersion.SelectedIndex -ge 0) {
-            $softVersion = $comboBoxVersion.SelectedItem
-            $formVersion.Close() # Cerrar el formulario de selección de versión
-        } else {
-            [System.Windows.Forms.MessageBox]::Show(
-                "Debe seleccionar una versión.",
-                "Advertencia",
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Warning
-            )
-        }
-    })
-
-    # Mostrar el formulario MODAL
-    $formVersion.ShowDialog()
-
-    # Verificar si se seleccionó una versión y actuar en consecuencia
-    if ($softVersion) {
-        Write-Host "Versión seleccionada: $softVersion" -ForegroundColor Green
-    } else {
-        Write-Host "No se seleccionó ninguna versión." -ForegroundColor Yellow
-        return  # Salir del script si no se seleccionó ninguna versión
-    }
-
-    # 2. Determinar la ruta base según el idioma del sistema
-    $programFilesX86 = if ((Get-Culture).Name -eq "es-ES") {
-        "C:\Archivos de programa (x86)" # Ruta en español
-    } else {
-        "C:\Program Files (x86)" # Ruta en inglés (por defecto)
-    }
-
-    $basePath = if ($softVersion -eq "10") {
-        Join-Path $programFilesX86 "Softrestaurant10"
-    } else { # Softrestaurant 11
-        Join-Path $programFilesX86 "Softrestaurant11"
-    }
-
-    $marketPlaceBin = Join-Path $basePath "MarketPlace\bin"
-
-    # 3. Detener procesos (CORRECCIÓN: usar $marketPlaceBin)
-    try {
-        Stop-Process -Name "NSSync.Agent" -Force -ErrorAction SilentlyContinue
-        Write-Host "WO: Buscando y deteniendo el sync. (NSSync.Agent)"
-    } catch { } # Capturar cualquier error al detener el proceso
-
-    try {
-        Stop-Process -Name "NSSync.IntegratorWorker" -Force -ErrorAction SilentlyContinue
-        Stop-Process -Name "NSSync.Worker" -Force -ErrorAction SilentlyContinue
-        Write-Host "WO: Buscando y deteniendo... (NSSync.IntegratorWorker, NSSync.Worker)"
-    } catch { }
-
-    try {
-        Stop-Process -Name "Marketplace" -Force -ErrorAction SilentlyContinue
-        Write-Host "WO: Buscando y deteniendo... (Marketplace)"
-    } catch { }
-
-    # 4. Remover servicios (CORRECCIÓN: no se requiere cambio)
-    try {
-        sc.exe delete integratorworker
-        sc.exe delete nsplatformworker
-        Write-Host "Servicios eliminados: integratorworker, nsplatformworker"
-    }
-    catch {
-        Write-Host "Error al eliminar servicios: $_" -ForegroundColor Red
-    }
-
-    # 5. Renombrar carpeta bin (SOLUCIÓN AL ERROR - OPCIÓN 2: INTENTAR VARIAS VECES - CORRECCIÓN: usar $marketPlaceBin)
-    $binBackup = Join-Path $marketPlaceBin "bin_backup"
-    $intentos = 0
-    $maxIntentos = 3 # Puedes ajustar el número de intentos
-    $renombradoExitoso = $false
-
-    while ($intentos -lt $maxIntentos -and -not $renombradoExitoso) {
-        $intentos++
-        try {
-            if (Test-Path $marketPlaceBin) { # CORRECCIÓN: usar $marketPlaceBin
-                # Esperar un poco
-                Start-Sleep -Seconds 2
-
-                Rename-Item -Path $marketPlaceBin -NewName $binBackup -Force # CORRECCIÓN: usar $marketPlaceBin
-                Write-Host "Renombrando carpeta bin para forzar actualización (intento $($intentos))."
-                $renombradoExitoso = $true # Salir del bucle si se renombra con éxito
-            } else {
-                Write-Host "La carpeta bin no existe." -ForegroundColor Red
-            }
-        }
-        catch {
-            Write-Host "Error al renombrar la carpeta bin (intento $($intentos)): $_" -ForegroundColor Red
-            Start-Sleep -Seconds 2 # Esperar un poco antes del siguiente intento
-        }
-    }
-
-    if (-not $renombradoExitoso) {
-        Write-Host "No se pudo renombrar la carpeta después de $($maxIntentos) intentos." -ForegroundColor Red
-    }
-
-    Write-Host "Proceso de detención y actualización completado." -ForegroundColor Green
-})
-
-# ... (Código posterior sin cambios) ...
-
-
-
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

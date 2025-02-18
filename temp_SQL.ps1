@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250213.1330"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250218.0854"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -241,11 +241,6 @@ function Create-TextBox {
                                 -ToolTip "Respaldo de Restcard, puede requerir MySQL instalado."
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(240, 320)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
-# Crear el CheckBox chkSqlServer
-    $chkSqlServer = New-Object System.Windows.Forms.CheckBox
-    $chkSqlServer.Text = "Instalar SQL Tools (opcional)"
-    $chkSqlServer.Size = New-Object System.Drawing.Size(290, 30)
-    $chkSqlServer.Location = New-Object System.Drawing.Point(10, 10)
     $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" -Location (New-Object System.Drawing.Point(10, 260)) -Size (New-Object System.Drawing.Size(290, 30)) `
                                      -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont
 # Usar la función Create-Label para crear la label de conexión
@@ -279,7 +274,6 @@ $tabAplicaciones.Controls.Add($btnCambiarOTM)
 #    $tabAplicaciones.Controls.Add($lbIpAdress)
 $tabAplicaciones.Controls.Add($textBoxIpAdress)
 # Agregar controles a la pestaña Pro
-    $tabProSql.Controls.Add($chkSqlServer)
     $tabProSql.Controls.Add($btnReviewPivot)
     $tabProSql.Controls.Add($btnRespaldarRestcard)
     $tabProSql.Controls.Add($btnFechaRevEstaciones)
@@ -526,40 +520,7 @@ $lblHostname.Add_Click({
     })
         $lblPort.Add_MouseEnter($changeColorOnHover)
         $lblPort.Add_MouseLeave($restoreColorOnLeave)
-##-------------------- FUNCIONES                                                          -------#
-$chkSqlServer.Add_CheckedChanged({
-    if ($chkSqlServer.Checked) {
-        # Confirmación con MsgBox
-        $result = [System.Windows.Forms.MessageBox]::Show("¿Estás seguro que deseas instalar las herramientas de SQL Server?", "Confirmar instalación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-            Write-Host "`nInstalando herramientas de SQL Server..."
-            $chkSqlServer.Enabled = $false
-            $installedSql = Check-SqlServerInstallation
-            if ($installedSql) {
-                $chkSqlServer.Checked = $true
-                $chkSqlServer.Enabled = $false  # Deshabilitar la edición si SQL Server está instalado
-            } else {
-                $chkSqlServer.Checked = $false
-            }
-            Install-Module -Name SqlServer -Force -Scope CurrentUser -AllowClobber
-            Write-Host "`nHerramientas de SQL Server instaladas."
-        } else {
-            # Desmarcar el checkbox si el usuario cancela
-            $chkSqlServer.Checked = $false
-            Write-Host "`nInstalación cancelada."
-        }
-    } else {
-        # Si el usuario desmarca el checkbox, se habilita para futuras instalaciones
-        $chkSqlServer.Enabled = $true
-    }
-    # Habilitar el botón de Conectar a BDD solo si las herramientas SQL Server están habilitadas
-    #$btnConnectDb.Enabled = $chkSqlServer.Checked
-})
-function Check-SqlServerInstallation {
-    $sqlInstalled = Get-WmiObject -Query "SELECT * FROM Win32_Product WHERE Name LIKE 'Microsoft SQL Server%'" | Select-Object -First 1
-    return $sqlInstalled
-}
-        function Execute-SqlQuery {
+function Execute-SqlQuery {
             param (
                 [string]$server,
                 [string]$database,
@@ -836,6 +797,59 @@ function Show-NewIpForm {
         } else {
             return $null
         }
+}
+# Función para verificar e instalar Chocolatey
+function Check-Chocolatey {
+            if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+                $response = [System.Windows.Forms.MessageBox]::Show(
+                    "Chocolatey no está instalado. ¿Desea instalarlo ahora?",
+                    "Chocolatey no encontrado",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Question
+                )
+        
+                if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+                    Write-Host "`nEl usuario canceló la instalación de Chocolatey." -ForegroundColor Red
+                    return $false  # Retorna falso si el usuario cancela
+                }
+        
+                Write-Host "`nInstalando Chocolatey..." -ForegroundColor Cyan
+                try {
+                    Set-ExecutionPolicy Bypass -Scope Process -Force
+                    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+                    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+        
+                    Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
+        
+                    # Configurar cacheLocation
+                    Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
+                    choco config set cacheLocation C:\Choco\cache
+        
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Chocolatey se instaló correctamente y ha sido configurado. Por favor, reinicie PowerShell antes de continuar.",
+                        "Reinicio requerido",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Information
+                    )
+        
+                    # Cerrar el programa automáticamente
+                    Write-Host "`nCerrando la aplicación para permitir reinicio de PowerShell..." -ForegroundColor Red
+                    Stop-Process -Id $PID -Force
+                    return $false # Retorna falso para indicar que se debe reiniciar
+                } catch {
+                    Write-Host "`nError al instalar Chocolatey: $_" -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Error al instalar Chocolatey. Por favor, inténtelo manualmente.",
+                        "Error de instalación",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    )
+                    return $false # Retorna falso en caso de error
+                }
+            } else {
+                Write-Host "`tChocolatey ya está instalado." -ForegroundColor Green
+                return $true # Retorna verdadero si Chocolatey ya está instalado
+            }
 }
 ##-------------------------------------------------------------------------------BOTONES#
 $btnSQLManagement.Add_Click({
@@ -1287,69 +1301,16 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                         [System.Windows.Forms.MessageBox]::Show("La ruta del registro no existe: $LZMAregistryPath", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                     }
                 })
-# Función para verificar e instalar Chocolatey
-function Check-Chocolatey {
-            if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-                $response = [System.Windows.Forms.MessageBox]::Show(
-                    "Chocolatey no está instalado. ¿Desea instalarlo ahora?",
-                    "Chocolatey no encontrado",
-                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
-                    [System.Windows.Forms.MessageBoxIcon]::Question
-                )
-        
-                if ($response -eq [System.Windows.Forms.DialogResult]::No) {
-                    Write-Host "`nEl usuario canceló la instalación de Chocolatey." -ForegroundColor Red
-                    return $false  # Retorna falso si el usuario cancela
-                }
-        
-                Write-Host "`nInstalando Chocolatey..." -ForegroundColor Cyan
-                try {
-                    Set-ExecutionPolicy Bypass -Scope Process -Force
-                    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-                    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-        
-                    Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
-        
-                    # Configurar cacheLocation
-                    Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
-                    choco config set cacheLocation C:\Choco\cache
-        
-                    [System.Windows.Forms.MessageBox]::Show(
-                        "Chocolatey se instaló correctamente y ha sido configurado. Por favor, reinicie PowerShell antes de continuar.",
-                        "Reinicio requerido",
-                        [System.Windows.Forms.MessageBoxButtons]::OK,
-                        [System.Windows.Forms.MessageBoxIcon]::Information
-                    )
-        
-                    # Cerrar el programa automáticamente
-                    Write-Host "`nCerrando la aplicación para permitir reinicio de PowerShell..." -ForegroundColor Red
-                    Stop-Process -Id $PID -Force
-                    return $false # Retorna falso para indicar que se debe reiniciar
-                } catch {
-                    Write-Host "`nError al instalar Chocolatey: $_" -ForegroundColor Red
-                    [System.Windows.Forms.MessageBox]::Show(
-                        "Error al instalar Chocolatey. Por favor, inténtelo manualmente.",
-                        "Error de instalación",
-                        [System.Windows.Forms.MessageBoxButtons]::OK,
-                        [System.Windows.Forms.MessageBoxIcon]::Error
-                    )
-                    return $false # Retorna falso en caso de error
-                }
-            } else {
-                Write-Host "`nChocolatey ya está instalado." -ForegroundColor Green
-                return $true # Retorna verdadero si Chocolatey ya está instalado
-            }
-}
 # Crear el nuevo formulario para los instaladores de Chocolatey
-        $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(300, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
+        $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(275, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))   
 # Crear los botones dentro del nuevo formulario
-    $btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 20)) `
-        -Size (New-Object System.Drawing.Size(250, 35)) -ToolTip "Instalación mediante choco de SQL Management 2014." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
-    $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(10, 70)) `
-        -Size (New-Object System.Drawing.Size(250, 35)) -ToolTip "Instalación mediante choco de SQL Server 2019 Express." -Font (New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Regular))
+    $btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 10)) `
+        -ToolTip "Instalación mediante choco de SQL Management 2014."
+    $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(10, 50)) `
+        -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
     $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 120)) `
-        -Size (New-Object System.Drawing.Size(250, 35)) -ToolTip "Salir del formulario de instaladores."
+        -ToolTip "Salir del formulario de instaladores."
 # Agregar los botones al nuevo formulario
     $formInstaladoresChoco.Controls.Add($btnInstallSQLManagement)
     $formInstaladoresChoco.Controls.Add($btnInstallSQL2019)
@@ -1360,6 +1321,7 @@ $btnExitInstaladores.Add_Click({
 })
 # Evento para el botón "Instalar Herramientas"
 $btnInstalarHerramientas.Add_Click({
+        Write-Host "`nValidando si tiene recursos para instalar."
         # Verificar si Chocolatey está instalado
         if (Check-Chocolatey) {
             # Mostrar el formulario de instaladores de Chocolatey
@@ -1368,16 +1330,6 @@ $btnInstalarHerramientas.Add_Click({
             Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
         }
 })
-
-
-
-
-
-
-
-
-
-
 #Pivot new
                                     $btnReviewPivot.Add_Click({
                                         try {
@@ -1484,7 +1436,7 @@ $btnInstalarHerramientas.Add_Click({
                                                 }
                                             })
 #Boton para actualizar los datos del servidor (borrarlo basicamente)
-    $btnEliminarServidorBDD.Add_Click({
+$btnEliminarServidorBDD.Add_Click({
         $formEliminarServidor = Create-Form -Title "Eliminar Servidor de BDD" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
             $cmbOpciones = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(360, 20)) `
@@ -1552,7 +1504,7 @@ $btnInstalarHerramientas.Add_Click({
             $formEliminarServidor.ShowDialog()
         })
 #Boton para conectar a la base de datos
-    $btnConnectDb.Add_Click({
+$btnConnectDb.Add_Click({
             # Crear el formulario para pedir los datos de conexión
                 $formBddConnection = Create-Form -Title "Conexión a SQL Server" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))

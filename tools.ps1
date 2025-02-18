@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250218.0901"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250218.1202"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1329,6 +1329,62 @@ $btnInstalarHerramientas.Add_Click({
         } else {
             Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
         }
+})
+#Boton para instalar Management
+$btnInstallSQLManagement.Add_Click({
+    $response = [System.Windows.Forms.MessageBox]::Show(
+        "¿Desea proceder con la instalación de SQL Server Management Studio 2014 Express?",
+        "Advertencia de instalación",
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning
+    )
+
+    if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+        Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+        return
+    }
+
+    if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso (cancelado o error)
+
+    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+
+    try {
+        Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
+        choco config set cacheLocation C:\Choco\cache
+
+        Write-Host "`nInstalando SQL Server Management Studio 2014 Express usando Chocolatey..." -ForegroundColor Cyan
+        Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express --confirm --yes' -NoNewWindow -Wait
+        Write-Host "`nInstalación completa." -ForegroundColor Green
+    } catch {
+        Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
+    }
+})
+# Instalador de SQL 2019
+$btnInstallSQL2019.Add_Click({
+    $response = [System.Windows.Forms.MessageBox]::Show(
+        "¿Desea proceder con la instalación de SQL Server 2019 Express?",
+        "Advertencia de instalación",
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning
+    )
+
+    if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+        Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+        return
+    }
+
+    if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso
+
+    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+
+    try {
+        choco install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"
+        Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
+        sqlcmd -S SQL2019 -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
+        [System.Windows.Forms.MessageBox]::Show("SQL Server 2019 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2019 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
 })
 #Pivot new
                                     $btnReviewPivot.Add_Click({

@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250218.1209"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250219.0757"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1302,11 +1302,11 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                     }
                 })
 # Crear el nuevo formulario para los instaladores de Chocolatey
-        $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+        $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))   
 # Crear los botones dentro del nuevo formulario
     $btnInstallSQL2014 = Create-Button -Text "Install: SQL2014" -Location (New-Object System.Drawing.Point(10, 10)) `
-        -ToolTip "Instalación mediante choco de SQL Server 2014 Express."
+        -ToolTip "Instalación mediante choco de SQL Server 2014 Express." -Enabled $false
     $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(240, 10)) `
         -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
     $btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 50)) `
@@ -1381,7 +1381,9 @@ $btnInstallSQL2019.Add_Click({
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
 
     try {
-        choco install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"
+            Write-Host "`nInstalando SQL Server 2019 Express usando Chocolatey..." -ForegroundColor Cyan
+            Start-Process choco -ArgumentList 'install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"' -NoNewWindow -Wait
+            Write-Host "`nInstalación completa." -ForegroundColor Green
         Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
         sqlcmd -S SQL2019 -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
         [System.Windows.Forms.MessageBox]::Show("SQL Server 2019 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -1417,10 +1419,10 @@ $btnInstallSQL2014.Add_Click({
                 }
         
                 # Instalar SQL Server 2014 Express
-                choco install sql-server-express -y --version=2014.0.2000.8 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:NationalSoft /FEATURES:SQL"
+                Write-Host "`nInstalando SQL Server 2014 Express usando Chocolatey..." -ForegroundColor Cyan
+                Start-Process choco -ArgumentList 'install sql-server-express -y --version=2014.0.2000.8 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:NationalSoft /FEATURES:SQL"' -NoNewWindow -Wait
+                Write-Host "`nInstalación completa." -ForegroundColor Green
                 Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
-        
-                # Configurar el idioma a español
                 sqlcmd -S NationalSoft -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
                 [System.Windows.Forms.MessageBox]::Show("SQL Server 2014 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
             } catch {

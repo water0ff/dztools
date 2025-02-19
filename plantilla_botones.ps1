@@ -1306,7 +1306,7 @@ $LZMAbtnBuscarCarpeta.Add_Click({
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))   
 # Crear los botones dentro del nuevo formulario
     $btnInstallSQL2014 = Create-Button -Text "Install: SQL2014" -Location (New-Object System.Drawing.Point(10, 10)) `
-        -ToolTip "Instalación mediante choco de SQL Server 2014 Express."
+        -ToolTip "Instalación mediante choco de SQL Server 2014 Express." -Enabled $false
     $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(240, 10)) `
         -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
     $btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 50)) `
@@ -1385,7 +1385,7 @@ $btnInstallSQL2019.Add_Click({
             Start-Process choco -ArgumentList 'install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"' -NoNewWindow -Wait
             Write-Host "`nInstalación completa." -ForegroundColor Green
         Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
-        #sqlcmd -S SQL2019 -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
+        sqlcmd -S SQL2019 -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
         [System.Windows.Forms.MessageBox]::Show("SQL Server 2019 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
     } catch {
         [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2019 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
@@ -1423,9 +1423,7 @@ $btnInstallSQL2014.Add_Click({
                 Start-Process choco -ArgumentList 'install sql-server-express -y --version=2014.0.2000.8 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:NationalSoft /FEATURES:SQL"' -NoNewWindow -Wait
                 Write-Host "`nInstalación completa." -ForegroundColor Green
                 Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
-        
-                # Configurar el idioma a español
-                #sqlcmd -S NationalSoft -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
+                sqlcmd -S NationalSoft -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
                 [System.Windows.Forms.MessageBox]::Show("SQL Server 2014 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
             } catch {
                 [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2014 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)

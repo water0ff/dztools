@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250219.0757"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250219.asd123"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1382,8 +1382,8 @@ $btnInstallSQL2019.Add_Click({
 
     try {
             Write-Host "`nInstalando SQL Server 2019 Express usando Chocolatey..." -ForegroundColor Cyan
-            Start-Process choco -ArgumentList 'install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:\"SQL2019\" /FEATURES:SQL"' -NoNewWindow -Wait
-            Write-Host "`nInstalación completa." -ForegroundColor Green
+        choco install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"
+        Write-Host "`nInstalación completa." -ForegroundColor Green
         Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
         sqlcmd -S SQL2019 -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
         [System.Windows.Forms.MessageBox]::Show("SQL Server 2019 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -2406,6 +2406,110 @@ $btnCambiarOTM.Add_Click({
         Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
     }
 })
+
+
+
+
+
+
+
+
+
+# Función para solicitar el nombre de la base de datos usando un formulario
+function Get-DatabaseName {
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = "Ingrese el nombre de la base de datos"
+    $form.Size = New-Object System.Drawing.Size(400, 180)
+    $form.StartPosition = "CenterScreen"
+    
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = "Nombre de la base de datos:"
+    $label.Location = New-Object System.Drawing.Point(20, 20)
+    $label.AutoSize = $true
+    
+    $textBox = New-Object System.Windows.Forms.TextBox
+    $textBox.Location = New-Object System.Drawing.Point(20, 50)
+    $textBox.Size = New-Object System.Drawing.Size(340, 20)
+    
+    $buttonOK = New-Object System.Windows.Forms.Button
+    $buttonOK.Text = "Aceptar"
+    $buttonOK.Location = New-Object System.Drawing.Point(150, 90)
+    $buttonOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    
+    $form.AcceptButton = $buttonOK
+    
+    $form.Controls.Add($label)
+    $form.Controls.Add($textBox)
+    $form.Controls.Add($buttonOK)
+    
+    $result = $form.ShowDialog()
+    
+    if ($result -eq [System.Windows.Forms.DialogResult]::OK -and -not [string]::IsNullOrWhiteSpace($textBox.Text)) {
+        return $textBox.Text
+    } else {
+        return $null
+    }
+}
+
+# Crear el botón para crear base de datos desde archivo .dat
+$btnCreateDatabaseFromDat = New-Object System.Windows.Forms.Button
+$btnCreateDatabaseFromDat.Text = "Crear BDD desde .dat"
+$btnCreateDatabaseFromDat.Location = New-Object System.Drawing.Point(240, 90)
+$btnCreateDatabaseFromDat.BackColor = [System.Drawing.Color]::FromArgb(150, 200, 255)
+
+# Modificar el evento del botón para usar Invoke-Sqlcmd
+$btnCreateDatabaseFromDat.add_Click({
+    Write-Host "Seleccionando archivo DAT."
+    # Abrir un cuadro de diálogo para seleccionar el archivo .dat
+    $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openFileDialog.Filter = "Archivos DAT (*.dat)|*.dat"
+    $openFileDialog.Title = "Seleccionar archivo .dat"
+    $result = $openFileDialog.ShowDialog()
+
+    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+        $datFilePath = $openFileDialog.FileName
+        Write-Host "Seleccionado: $datFilePath"
+        
+        # Solicitar al usuario el nombre de la base de datos
+        Write-Host "Pidiendo nombre de base de datos"
+        $databaseName = Get-DatabaseName
+        
+        if ($databaseName) {
+            $connectionString = "Server=localhost\NationalSoft;User Id=sa;Password=National09;"
+            
+            try {
+                # Crear la base de datos
+                Write-Host "Creando la base de datos"
+                Invoke-Sqlcmd -ServerInstance "localhost\NationalSoft" -Username "sa" -Password "National09" -Query "CREATE DATABASE [$databaseName]"
+                
+                # Ejecutar el archivo .dat usando Invoke-Sqlcmd
+                Write-Host "Ejecutando el archivo .dat"
+                Invoke-Sqlcmd -ServerInstance "localhost\NationalSoft" -Username "sa" -Password "National09" -Database $databaseName -InputFile $datFilePath
+                
+                Write-Host "Base de datos creada correctamente"
+                [System.Windows.Forms.MessageBox]::Show("Base de datos '$databaseName' creada correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            } catch {
+                Write-Host "Error al crear la base de datos o ejecutar el script: $($_.Exception.Message)"
+                [System.Windows.Forms.MessageBox]::Show("Error al crear la base de datos o ejecutar el script: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        } else {
+            Write-Host "Nombre inválido para la base de datos"
+            [System.Windows.Forms.MessageBox]::Show("Debe ingresar un nombre válido para la base de datos.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    }
+})
+
+# Agregar el botón a la pestaña Pro
+$tabProSql.Controls.Add($btnCreateDatabaseFromDat)
+
+
+
+
+
+
+
+
+
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

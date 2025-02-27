@@ -15,7 +15,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250219.asd123"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250219.0757"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1382,8 +1382,8 @@ $btnInstallSQL2019.Add_Click({
 
     try {
             Write-Host "`nInstalando SQL Server 2019 Express usando Chocolatey..." -ForegroundColor Cyan
-        Start-Process choco -ArgumentList 'install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"' -NoNewWindow -Wait
-        Write-Host "`nInstalación completa." -ForegroundColor Green
+            Start-Process choco -ArgumentList 'install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"' -NoNewWindow -Wait
+            Write-Host "`nInstalación completa." -ForegroundColor Green
         Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
         sqlcmd -S SQL2019 -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
         [System.Windows.Forms.MessageBox]::Show("SQL Server 2019 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -1534,74 +1534,101 @@ $btnInstallSQL2014.Add_Click({
                                                     Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
                                                 }
                                             })
-#Boton para actualizar los datos del servidor (borrarlo basicamente)
+# Boton para actualizar los datos del servidor (borrarlo básicamente)
 $btnEliminarServidorBDD.Add_Click({
-        $formEliminarServidor = Create-Form -Title "Eliminar Servidor de BDD" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
-            $cmbOpciones = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(360, 20)) `
-                               -DropDownStyle DropDownList -Items @("Seleccione una opción", "On The minute", "NS Hoteles", "Rest Card") -SelectedIndex 0
-            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
-            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(140, 30))
-            $cmbOpciones.Add_SelectedIndexChanged({
-                if ($cmbOpciones.SelectedIndex -gt 0) {
-                    $btnEliminar.Enabled = $true
-                } else {
-                    $btnEliminar.Enabled = $false
-                }
-            })
-            $btnEliminar.Add_Click({
-                $opcionSeleccionada = $cmbOpciones.SelectedItem
-                $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
-                    try {
-                        # Definir la consulta SQL según la opción seleccionada
-                        $query = $null
-                        switch ($opcionSeleccionada) {
-                            "On The minute" {
-                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
-                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-                                Write-Host "`t$query"
-                            }
-                            "NS Hoteles" {
-                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
-                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-                                Write-Host "`t$query"
-                            }
-                            "Rest Card" {
-                                Write-Host "`nFunción deshabilitada, ejecuta el Query en la base de datos:" -ForegroundColor Yellow
-                                Write-Host "`tupdate tabvariables set estacion='', ipservidor='';" -ForegroundColor Yellow
-                            }
-                        }
-            
-                        if ($query) {
-                            # Ejecutar la consulta y obtener el número de filas afectadas
-                            $rowsAffected = Execute-SqlQuery -server $global:server -database $global:database -query $query
-            
-                            if ($rowsAffected -gt 0) {
-                                Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
-                            } elseif ($rowsAffected -eq 0) {
-                                Write-Host "No se encontraron filas para actualizar en la tabla configuracion." -ForegroundColor Yellow
-                            } else {
-                                Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
-                            }
-                        }
-                    } catch {
-                        Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
+    $formEliminarServidor = Create-Form -Title "Eliminar Servidor de BDD" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+            -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
+    $cmbOpciones = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(360, 20)) `
+                           -DropDownStyle DropDownList -Items @("Seleccione una opción", "On The minute", "NS Hoteles", "Rest Card") -SelectedIndex 0
+    $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
+    $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(140, 30))
+    
+    $cmbOpciones.Add_SelectedIndexChanged({
+        if ($cmbOpciones.SelectedIndex -gt 0) {
+            $btnEliminar.Enabled = $true
+        } else {
+            $btnEliminar.Enabled = $false
+        }
+    })
+    
+    $btnEliminar.Add_Click({
+        $opcionSeleccionada = $cmbOpciones.SelectedItem
+        $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
+            try {
+                # Definir la consulta SQL según la opción seleccionada
+                $query = $null
+                switch ($opcionSeleccionada) {
+                    "On The minute" {
+                        Write-Host "`tEjecutando Query" -ForegroundColor Yellow
+                        $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+                        Write-Host "`t$query"
                     }
-                    $formEliminarServidor.Close()
+                    "NS Hoteles" {
+                        Write-Host "`tEjecutando Query" -ForegroundColor Yellow
+                        $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+                        Write-Host "`t$query"
+                    }
+                    "Rest Card" {
+                        Write-Host "`nFunción deshabilitada, ejecuta el Query en la base de datos:" -ForegroundColor Yellow
+                        Write-Host "`tupdate tabvariables set estacion='', ipservidor='';" -ForegroundColor Yellow
+                    }
                 }
-            })
-            # Manejar el evento Click del botón Cancelar
-            $btnCancelar.Add_Click({
-                $formEliminarServidor.Close()
-            })
-            # Agregar los controles al formulario
-            $formEliminarServidor.Controls.Add($cmbOpciones)
-            $formEliminarServidor.Controls.Add($btnEliminar)
-            $formEliminarServidor.Controls.Add($btnCancelar)
-            # Mostrar el formulario
-            $formEliminarServidor.ShowDialog()
-        })
+    
+                if ($query) {
+                    # Ejecutar la consulta y obtener el número de filas afectadas
+                    $rowsAffected = Execute-SqlQuery -server $global:server -database $global:database -query $query
+    
+                    if ($rowsAffected -gt 0) {
+                        Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
+                    } elseif ($rowsAffected -eq 0) {
+                        Write-Host "No se encontraron filas para actualizar en la tabla configuracion." -ForegroundColor Yellow
+                    } else {
+                        Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
+                    }
+                }
+    
+                # Si la opción es "On The minute", preguntar por el cambio de contraseña
+                if ($opcionSeleccionada -eq "On The minute") {
+                    $respuesta = [System.Windows.Forms.MessageBox]::Show("¿Quieres cambiar la contraseña del administrador?", "Cambio de Contraseña", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+                    if ($respuesta -eq [System.Windows.Forms.DialogResult]::Yes) {
+                        $queryPassword = "update usuarios set contraseña = '0616EEFF35CCB0406090' output inserted.usuario where usuario = (select top 1 usuario from usuarios where administrador = 1);"
+                        Write-Host "`tEjecutando query para cambiar la contraseña" -ForegroundColor Yellow
+                        Write-Host "`t$queryPassword"
+                        
+                        # Ejecutar el query de cambio de contraseña y capturar el usuario afectado
+                        $result = Execute-SqlQuery -server $global:server -database $global:database -query $queryPassword
+                        if ($result -and $result.Count -gt 0) {
+                            $username = $result[0].usuario
+                            $mensaje = "Contraseña para usuario: $username es: 'admin'."
+                            Write-Host $mensaje -ForegroundColor Cyan
+                            [System.Windows.Forms.MessageBox]::Show($mensaje, "Información", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                        } else {
+                            Write-Host "No se pudo obtener el nombre del usuario afectado." -ForegroundColor Red
+                            [System.Windows.Forms.MessageBox]::Show("No se pudo obtener el nombre del usuario afectado.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                        }
+                    }
+                }
+            } catch {
+                Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
+            }
+            $formEliminarServidor.Close()
+        }
+    })
+    
+    # Manejar el evento Click del botón Cancelar
+    $btnCancelar.Add_Click({
+        $formEliminarServidor.Close()
+    })
+    
+    # Agregar los controles al formulario
+    $formEliminarServidor.Controls.Add($cmbOpciones)
+    $formEliminarServidor.Controls.Add($btnEliminar)
+    $formEliminarServidor.Controls.Add($btnCancelar)
+    
+    # Mostrar el formulario
+    $formEliminarServidor.ShowDialog()
+})
 #Boton para conectar a la base de datos
 $btnConnectDb.Add_Click({
             # Crear el formulario para pedir los datos de conexión
@@ -2406,110 +2433,6 @@ $btnCambiarOTM.Add_Click({
         Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
     }
 })
-
-
-
-
-
-
-
-
-
-# Función para solicitar el nombre de la base de datos usando un formulario
-function Get-DatabaseName {
-    $form = New-Object System.Windows.Forms.Form
-    $form.Text = "Ingrese el nombre de la base de datos"
-    $form.Size = New-Object System.Drawing.Size(400, 180)
-    $form.StartPosition = "CenterScreen"
-    
-    $label = New-Object System.Windows.Forms.Label
-    $label.Text = "Nombre de la base de datos:"
-    $label.Location = New-Object System.Drawing.Point(20, 20)
-    $label.AutoSize = $true
-    
-    $textBox = New-Object System.Windows.Forms.TextBox
-    $textBox.Location = New-Object System.Drawing.Point(20, 50)
-    $textBox.Size = New-Object System.Drawing.Size(340, 20)
-    
-    $buttonOK = New-Object System.Windows.Forms.Button
-    $buttonOK.Text = "Aceptar"
-    $buttonOK.Location = New-Object System.Drawing.Point(150, 90)
-    $buttonOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
-    
-    $form.AcceptButton = $buttonOK
-    
-    $form.Controls.Add($label)
-    $form.Controls.Add($textBox)
-    $form.Controls.Add($buttonOK)
-    
-    $result = $form.ShowDialog()
-    
-    if ($result -eq [System.Windows.Forms.DialogResult]::OK -and -not [string]::IsNullOrWhiteSpace($textBox.Text)) {
-        return $textBox.Text
-    } else {
-        return $null
-    }
-}
-
-# Crear el botón para crear base de datos desde archivo .dat
-$btnCreateDatabaseFromDat = New-Object System.Windows.Forms.Button
-$btnCreateDatabaseFromDat.Text = "Crear BDD desde .dat"
-$btnCreateDatabaseFromDat.Location = New-Object System.Drawing.Point(240, 90)
-$btnCreateDatabaseFromDat.BackColor = [System.Drawing.Color]::FromArgb(150, 200, 255)
-
-# Modificar el evento del botón para usar Invoke-Sqlcmd
-$btnCreateDatabaseFromDat.add_Click({
-    Write-Host "Seleccionando archivo DAT."
-    # Abrir un cuadro de diálogo para seleccionar el archivo .dat
-    $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $openFileDialog.Filter = "Archivos DAT (*.dat)|*.dat"
-    $openFileDialog.Title = "Seleccionar archivo .dat"
-    $result = $openFileDialog.ShowDialog()
-
-    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-        $datFilePath = $openFileDialog.FileName
-        Write-Host "Seleccionado: $datFilePath"
-        
-        # Solicitar al usuario el nombre de la base de datos
-        Write-Host "Pidiendo nombre de base de datos"
-        $databaseName = Get-DatabaseName
-        
-        if ($databaseName) {
-            $connectionString = "Server=localhost\NationalSoft;User Id=sa;Password=National09;"
-            
-            try {
-                # Crear la base de datos
-                Write-Host "Creando la base de datos"
-                Invoke-Sqlcmd -ServerInstance "localhost\NationalSoft" -Username "sa" -Password "National09" -Query "CREATE DATABASE [$databaseName]"
-                
-                # Ejecutar el archivo .dat usando Invoke-Sqlcmd
-                Write-Host "Ejecutando el archivo .dat"
-                Invoke-Sqlcmd -ServerInstance "localhost\NationalSoft" -Username "sa" -Password "National09" -Database $databaseName -InputFile $datFilePath
-                
-                Write-Host "Base de datos creada correctamente"
-                [System.Windows.Forms.MessageBox]::Show("Base de datos '$databaseName' creada correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-            } catch {
-                Write-Host "Error al crear la base de datos o ejecutar el script: $($_.Exception.Message)"
-                [System.Windows.Forms.MessageBox]::Show("Error al crear la base de datos o ejecutar el script: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            }
-        } else {
-            Write-Host "Nombre inválido para la base de datos"
-            [System.Windows.Forms.MessageBox]::Show("Debe ingresar un nombre válido para la base de datos.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        }
-    }
-})
-
-# Agregar el botón a la pestaña Pro
-$tabProSql.Controls.Add($btnCreateDatabaseFromDat)
-
-
-
-
-
-
-
-
-
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

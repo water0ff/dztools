@@ -3,6 +3,31 @@ if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
 }
+# Mostrar advertencia ALFA y solicitar confirmación
+Write-Host "`n==============================================" -ForegroundColor Red
+Write-Host "           ADVERTENCIA DE VERSIÓN ALFA          " -ForegroundColor Red
+Write-Host "==============================================" -ForegroundColor Red
+Write-Host "Esta aplicación se encuentra en fase de desarrollo ALFA.`n" -ForegroundColor Yellow
+Write-Host "Algunas funciones pueden realizar cambios irreversibles en: `n"
+Write-Host " - Su equipo" -ForegroundColor Red
+Write-Host " - Bases de datos" -ForegroundColor Red
+Write-Host " - Configuraciones del sistema`n" -ForegroundColor Red
+Write-Host "¿Acepta ejecutar esta aplicación bajo su propia responsabilidad? (Y/N)" -ForegroundColor Yellow
+
+$response = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+while ($response.Character -notin 'Y','N') {
+    $response = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+}
+
+if ($response.Character -ne 'Y') {
+    Write-Host "`nEjecución cancelada por el usuario.`n" -ForegroundColor Red
+    exit
+}
+
+# Continuar con la carga de la aplicación
+Write-Host "`nIniciando aplicación...`n" -ForegroundColor Green
+
+
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
 # Crear el formulario
@@ -15,7 +40,7 @@ if (!(Test-Path -Path "C:\Temp")) {
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250227.113333333333"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250429.1151"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -227,6 +252,9 @@ function Create-TextBox {
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
     $btnConfigurarIPs = Create-Button -Text "Agregar IPs" -Location (New-Object System.Drawing.Point(470, 170)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
+    # Agregar este botón debajo del botón "Agregar IPs" (ajusta la ubicación según tu layout)
+    $btnAddUser = Create-Button -Text "Agregar usuario de Windows" -Location (New-Object System.Drawing.Point(470, 210)) `
+        -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Crear nuevo usuario local en Windows"
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 50)) `
@@ -267,6 +295,7 @@ $tabAplicaciones.Controls.Add($btnInstalarHerramientas)
     $tabAplicaciones.Controls.Add($btnAplicacionesNS)
 $tabAplicaciones.Controls.Add($btnCambiarOTM)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
+    $tabAplicaciones.Controls.Add($btnAddUser)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
     $tabAplicaciones.Controls.Add($btnLectorDPicacls)
     $tabAplicaciones.Controls.Add($lblHostname)
@@ -521,59 +550,62 @@ $lblHostname.Add_Click({
         $lblPort.Add_MouseEnter($changeColorOnHover)
         $lblPort.Add_MouseLeave($restoreColorOnLeave)
 function Execute-SqlQuery {
-    param (
-        [string]$server,
-        [string]$database,
-        [string]$query
-    )
-    try {
-        # Cadena de conexión
-        $connectionString = "Server=$server;Database=$database;User Id=sa;Password=$($global:password);"
-        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        $connection.Open()
+            param (
+                [string]$server,
+                [string]$database,
+                [string]$query
+            )
+            try {
+                # Cadena de conexión
+                $connectionString = "Server=$server;Database=$database;User Id=sa;Password=$($global:password);"
+                $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+                $connection.Open()
         
-        # Si la consulta es SELECT o contiene una cláusula OUTPUT (que devuelve resultados)
-        if ($query -match "^\s*SELECT" -or $query -match "(?i)output\s+inserted") {
-            $command = $connection.CreateCommand()
-            $command.CommandText = $query
-            $reader = $command.ExecuteReader()
-            
-            # Obtener los nombres de las columnas
-            $columns = @()
-            for ($i = 0; $i -lt $reader.FieldCount; $i++) {
-                $columns += $reader.GetName($i)
-            }
-            
-            # Leer los resultados
-            $results = @()
-            while ($reader.Read()) {
-                $row = @{}
-                for ($i = 0; $i -lt $reader.FieldCount; $i++) {
-                    $row[$columns[$i]] = $reader[$i]
+                # Determinar si la consulta es de tipo SELECT (devuelve resultados) o no (afecta filas)
+                if ($query -match "^\s*SELECT") {
+                    # Consulta que devuelve resultados (SELECT)
+                    $command = $connection.CreateCommand()
+                    $command.CommandText = $query
+                    $reader = $command.ExecuteReader()
+        
+                    # Obtener los nombres de las columnas
+                    $columns = @()
+                    for ($i = 0; $i -lt $reader.FieldCount; $i++) {
+                        $columns += $reader.GetName($i)
+                    }
+        
+                    # Leer los resultados
+                    $results = @()
+                    while ($reader.Read()) {
+                        $row = @{}
+                        for ($i = 0; $i -lt $reader.FieldCount; $i++) {
+                            $row[$columns[$i]] = $reader[$i]
+                        }
+                        $results += $row
+                    }
+        
+                    # Cerrar la conexión y liberar recursos
+                    $connection.Close()
+                    $connection.Dispose()
+        
+                    return $results  # Devolver los resultados como una lista de objetos
+                } else {
+                    # Consulta que no devuelve resultados (UPDATE, DELETE, etc.)
+                    $command = $connection.CreateCommand()
+                    $command.CommandText = $query
+                    $rowsAffected = $command.ExecuteNonQuery()  # Obtener el número de filas afectadas
+        
+                    # Cerrar la conexión y liberar recursos
+                    $connection.Close()
+                    $connection.Dispose()
+        
+                    return $rowsAffected  # Devolver el número de filas afectadas
                 }
-                $results += $row
+            } catch {
+                Write-Host "Error al ejecutar la consulta: $_" -ForegroundColor Red
+                return $null  # Devolver $null en caso de error
             }
-            
-            $connection.Close()
-            $connection.Dispose()
-            
-            return $results  # Devolver los resultados como una lista de objetos
-        } else {
-            # Consulta que no devuelve resultados (UPDATE, DELETE, etc.)
-            $command = $connection.CreateCommand()
-            $command.CommandText = $query
-            $rowsAffected = $command.ExecuteNonQuery()  # Obtener el número de filas afectadas
-            
-            $connection.Close()
-            $connection.Dispose()
-            
-            return $rowsAffected  # Devolver el número de filas afectadas
         }
-    } catch {
-        Write-Host "Error al ejecutar la consulta: $_" -ForegroundColor Red
-        return $null  # Devolver $null en caso de error
-    }
-}
 function Show-ResultsConsole {
     param (
         [string]$query
@@ -847,6 +879,25 @@ function Check-Chocolatey {
                 Write-Host "`tChocolatey ya está instalado." -ForegroundColor Green
                 return $true # Retorna verdadero si Chocolatey ya está instalado
             }
+}
+# Función para detectar el nombre del grupo de administradores
+function Get-AdminGroupName {
+    $groups = net localgroup | Where-Object { $_ -match "Administrador|Administrators" }
+    
+    # Buscar coincidencia exacta
+    if ($groups -match "\bAdministradores\b") {
+        return "Administradores"
+    } elseif ($groups -match "\bAdministrators\b") {
+        return "Administrators"
+    }
+    
+    # Si no se encuentra, intentar con otro método
+    try {
+        $adminGroup = Get-LocalGroup | Where-Object { $_.SID -like "S-1-5-32-544" }
+        return $adminGroup.Name
+    } catch {
+        return "Administrators" # Valor por defecto
+    }
 }
 ##-------------------------------------------------------------------------------BOTONES#
 $btnSQLManagement.Add_Click({
@@ -1531,101 +1582,74 @@ $btnInstallSQL2014.Add_Click({
                                                     Write-Host "`nError al ejecutar consulta: $($_.Exception.Message)" -ForegroundColor Red
                                                 }
                                             })
-# Boton para actualizar los datos del servidor (borrarlo básicamente)
+#Boton para actualizar los datos del servidor (borrarlo basicamente)
 $btnEliminarServidorBDD.Add_Click({
-    $formEliminarServidor = Create-Form -Title "Eliminar Servidor de BDD" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-            -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
-    $cmbOpciones = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(360, 20)) `
-                           -DropDownStyle DropDownList -Items @("Seleccione una opción", "On The minute", "NS Hoteles", "Rest Card") -SelectedIndex 0
-    $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
-    $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(140, 30))
-    
-    $cmbOpciones.Add_SelectedIndexChanged({
-        if ($cmbOpciones.SelectedIndex -gt 0) {
-            $btnEliminar.Enabled = $true
-        } else {
-            $btnEliminar.Enabled = $false
-        }
-    })
-    
-    $btnEliminar.Add_Click({
-        $opcionSeleccionada = $cmbOpciones.SelectedItem
-        $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
-        if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
-            try {
-                # Definir la consulta SQL según la opción seleccionada
-                $query = $null
-                switch ($opcionSeleccionada) {
-                    "On The minute" {
-                        Write-Host "`tEjecutando Query" -ForegroundColor Yellow
-                        $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-                        Write-Host "`t$query"
-                    }
-                    "NS Hoteles" {
-                        Write-Host "`tEjecutando Query" -ForegroundColor Yellow
-                        $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-                        Write-Host "`t$query"
-                    }
-                    "Rest Card" {
-                        Write-Host "`nFunción deshabilitada, ejecuta el Query en la base de datos:" -ForegroundColor Yellow
-                        Write-Host "`tupdate tabvariables set estacion='', ipservidor='';" -ForegroundColor Yellow
-                    }
+        $formEliminarServidor = Create-Form -Title "Eliminar Servidor de BDD" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
+            $cmbOpciones = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(360, 20)) `
+                               -DropDownStyle DropDownList -Items @("Seleccione una opción", "On The minute", "NS Hoteles", "Rest Card") -SelectedIndex 0
+            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
+            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(140, 30))
+            $cmbOpciones.Add_SelectedIndexChanged({
+                if ($cmbOpciones.SelectedIndex -gt 0) {
+                    $btnEliminar.Enabled = $true
+                } else {
+                    $btnEliminar.Enabled = $false
                 }
-    
-                if ($query) {
-                    # Ejecutar la consulta y obtener el número de filas afectadas
-                    $rowsAffected = Execute-SqlQuery -server $global:server -database $global:database -query $query
-    
-                    if ($rowsAffected -gt 0) {
-                        Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
-                    } elseif ($rowsAffected -eq 0) {
-                        Write-Host "No se encontraron filas para actualizar en la tabla configuracion." -ForegroundColor Yellow
-                    } else {
-                        Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
+            })
+            $btnEliminar.Add_Click({
+                $opcionSeleccionada = $cmbOpciones.SelectedItem
+                $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    try {
+                        # Definir la consulta SQL según la opción seleccionada
+                        $query = $null
+                        switch ($opcionSeleccionada) {
+                            "On The minute" {
+                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
+                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+                                Write-Host "`t$query"
+                            }
+                            "NS Hoteles" {
+                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
+                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+                                Write-Host "`t$query"
+                            }
+                            "Rest Card" {
+                                Write-Host "`nFunción deshabilitada, ejecuta el Query en la base de datos:" -ForegroundColor Yellow
+                                Write-Host "`tupdate tabvariables set estacion='', ipservidor='';" -ForegroundColor Yellow
+                            }
+                        }
+            
+                        if ($query) {
+                            # Ejecutar la consulta y obtener el número de filas afectadas
+                            $rowsAffected = Execute-SqlQuery -server $global:server -database $global:database -query $query
+            
+                            if ($rowsAffected -gt 0) {
+                                Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
+                            } elseif ($rowsAffected -eq 0) {
+                                Write-Host "No se encontraron filas para actualizar en la tabla configuracion." -ForegroundColor Yellow
+                            } else {
+                                Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
+                            }
+                        }
+                    } catch {
+                        Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
                     }
+                    $formEliminarServidor.Close()
                 }
-    
-                # Si la opción es "On The minute", preguntar por el cambio de contraseña
-              if ($opcionSeleccionada -eq "On The minute") {
-                  $respuesta = [System.Windows.Forms.MessageBox]::Show("¿Quieres cambiar la contraseña del administrador?", "Cambio de Contraseña", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
-                  if ($respuesta -eq [System.Windows.Forms.DialogResult]::Yes) {
-                      $queryPassword = "update usuarios set contraseña = '0616EEFF35CCB0406090' output inserted.usuario as Usuario where usuario = (select top 1 usuario from usuarios where administrador = 1);"
-                      Write-Host "`tEjecutando query para cambiar la contraseña" -ForegroundColor Yellow
-                      Write-Host "`t$queryPassword"
-                      
-                      # Ejecutar el query que retorna el usuario afectado
-                      $result = Execute-SqlQuery -server $global:server -database $global:database -query $queryPassword
-                      if ($result -and $result.Count -gt 0) {
-                          $username = $result[0].Usuario
-                          $mensaje = "Contraseña para usuario: $username es: 'admin'."
-                          Write-Host $mensaje -ForegroundColor Cyan
-                          [System.Windows.Forms.MessageBox]::Show($mensaje, "Información", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                      } else {
-                          Write-Host "No se pudo obtener el nombre del usuario afectado." -ForegroundColor Red
-                          [System.Windows.Forms.MessageBox]::Show("No se pudo obtener el nombre del usuario afectado.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                      }
-                  }
-              }
-            } catch {
-                Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
-            }
-            $formEliminarServidor.Close()
-        }
-    })
-    
-    # Manejar el evento Click del botón Cancelar
-    $btnCancelar.Add_Click({
-        $formEliminarServidor.Close()
-    })
-    
-    # Agregar los controles al formulario
-    $formEliminarServidor.Controls.Add($cmbOpciones)
-    $formEliminarServidor.Controls.Add($btnEliminar)
-    $formEliminarServidor.Controls.Add($btnCancelar)
-    
-    # Mostrar el formulario
-    $formEliminarServidor.ShowDialog()
-})
+            })
+            # Manejar el evento Click del botón Cancelar
+            $btnCancelar.Add_Click({
+                $formEliminarServidor.Close()
+            })
+            # Agregar los controles al formulario
+            $formEliminarServidor.Controls.Add($cmbOpciones)
+            $formEliminarServidor.Controls.Add($btnEliminar)
+            $formEliminarServidor.Controls.Add($btnCancelar)
+            # Mostrar el formulario
+            $formEliminarServidor.ShowDialog()
+        })
 #Boton para conectar a la base de datos
 $btnConnectDb.Add_Click({
             # Crear el formulario para pedir los datos de conexión
@@ -2180,154 +2204,155 @@ $btnRespaldarRestcard.Add_Click({
 })
 #AplicacionesNS
 $btnAplicacionesNS.Add_Click({
-            Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-            # Definir una lista para almacenar los resultados
-            $resultados = @()
-        
-            # Función para extraer valores de un archivo INI
-            function Leer-Ini($filePath) {
-                if (Test-Path $filePath) {
-                    $content = Get-Content $filePath
-                    $dataSource = ($content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
-                    $catalog = ($content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
-                    $authType = $content | Select-String -Pattern "^autenticacion=(\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
-        
-                    $authUser = if ($authType -eq "2") { "sa" }
-                                elseif ($authType -eq "1") { "Windows" }
-                                else { "Desconocido" }
-        
-                    return @{
-                        DataSource = $dataSource
-                        Catalog    = $catalog
-                        Usuario    = $authUser
-                    }
-                }
-                return $null
+    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+    # Definir una lista para almacenar los resultados
+    $resultados = @()
+
+    # Función para extraer valores de un archivo INI
+    function Leer-Ini($filePath) {
+        if (Test-Path $filePath) {
+            $content     = Get-Content $filePath
+            $dataSource  = ($content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
+            $catalog     = ($content | Select-String -Pattern "^Catalog=(.*)"    | Select-Object -First 1).Matches.Groups[1].Value
+            $authType    = ($content | Select-String -Pattern "^autenticacion=(\d+)").Matches.Groups[1].Value
+            $authUser    = if ($authType -eq "2") { "sa" } elseif ($authType -eq "1") { "Windows" } else { "Desconocido" }
+
+            return @{
+                DataSource = $dataSource
+                Catalog    = $catalog
+                Usuario    = $authUser
             }
-        
-            # Lista de rutas principales con los archivos .ini correspondientes
-            $pathsToCheck = @(
-                @{ Path = "C:\NationalSoft\Softrestaurant11.0"; INI = "restaurant.ini"; Nombre = "SR11" },
-                @{ Path = "C:\NationalSoft\Softrestaurant10.0"; INI = "restaurant.ini"; Nombre = "SR10" },
-                @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0"; INI = "nshoteles.ini"; Nombre = "Hoteles" },
-                @{ Path = "C:\NationalSoft\OnTheMinute4.5"; INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
-            )
-        
-            foreach ($entry in $pathsToCheck) {
-                $basePath = $entry.Path
-                $mainIniPath = "$basePath\$($entry.INI)"
-                $appName = $entry.Nombre
-        
-                if (Test-Path $mainIniPath) {
-                    $iniData = Leer-Ini $mainIniPath
+        }
+        return $null
+    }
+
+    # Lista de rutas principales con los archivos .ini correspondientes
+    $pathsToCheck = @(
+        @{ Path = "C:\NationalSoft\Softrestaurant9.5.0Pro"; INI = "restaurant.ini"; Nombre = "SR9.5" },
+        @{ Path = "C:\NationalSoft\Softrestaurant12.0";    INI = "restaurant.ini"; Nombre = "SR12" },
+        @{ Path = "C:\NationalSoft\Softrestaurant11.0";    INI = "restaurant.ini"; Nombre = "SR11" },
+        @{ Path = "C:\NationalSoft\Softrestaurant10.0";    INI = "restaurant.ini"; Nombre = "SR10" },
+        @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0";INI = "nshoteles.ini";   Nombre = "Hoteles" },
+        @{ Path = "C:\NationalSoft\OnTheMinute4.5";        INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
+    )
+
+    foreach ($entry in $pathsToCheck) {
+        $basePath   = $entry.Path
+        $mainIni    = "$basePath\$($entry.INI)"
+        $appName    = $entry.Nombre
+
+        # Procesar archivo INI principal
+        if (Test-Path $mainIni) {
+            $iniData = Leer-Ini $mainIni
+            if ($iniData) {
+                $resultados += [PSCustomObject]@{
+                    Aplicacion = $appName
+                    INI        = $entry.INI
+                    DataSource = $iniData.DataSource
+                    Catalog    = $iniData.Catalog
+                    Usuario    = $iniData.Usuario
+                }
+            }
+        } else {
+            # Si no se encuentra el INI principal
+            $resultados += [PSCustomObject]@{
+                Aplicacion = $appName
+                INI        = "No encontrado"
+                DataSource = "NA"
+                Catalog    = "NA"
+                Usuario    = "NA"
+            }
+        }
+
+        # Procesar INIS adicionales sólo si aplica
+        $inisFolder = "$basePath\INIS"
+        if ($appName -eq "OnTheMinute" -and (Test-Path $inisFolder)) {
+            $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
+            if ($iniFiles.Count -gt 1) {
+                # Multiempresa: agregar cada INI adicional
+                foreach ($iniFile in $iniFiles) {
+                    $iniData = Leer-Ini $iniFile.FullName
                     if ($iniData) {
-                        $resultado = [PSCustomObject]@{
+                        $resultados += [PSCustomObject]@{
                             Aplicacion = $appName
-                            INI        = $entry.INI
+                            INI        = $iniFile.Name
                             DataSource = $iniData.DataSource
                             Catalog    = $iniData.Catalog
                             Usuario    = $iniData.Usuario
                         }
-                        $resultados += $resultado
                     }
-                } else {
-                    # Si no se encuentra el archivo INI, agregar a la tabla con "No encontrado"
-                    $resultado = [PSCustomObject]@{
+                }
+            }
+        }
+        elseif (Test-Path $inisFolder) {
+            # Para todas las demás aplicaciones, conservar el comportamiento anterior
+            $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
+            foreach ($iniFile in $iniFiles) {
+                $iniData = Leer-Ini $iniFile.FullName
+                if ($iniData) {
+                    $resultados += [PSCustomObject]@{
                         Aplicacion = $appName
-                        INI        = "No encontrado"
-                        DataSource = "NA"
-                        Catalog    = "NA"
-                        Usuario    = "NA"
-                    }
-                    $resultados += $resultado
-                }
-        
-                # Revisar si hay archivos .ini en la carpeta INIS
-                $inisFolder = "$basePath\INIS"
-                if (Test-Path $inisFolder) {
-                    $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
-                    foreach ($iniFile in $iniFiles) {
-                        $iniData = Leer-Ini $iniFile.FullName
-                        if ($iniData) {
-                            $resultado = [PSCustomObject]@{
-                                Aplicacion = $appName
-                                INI        = $iniFile.Name
-                                DataSource = $iniData.DataSource
-                                Catalog    = $iniData.Catalog
-                                Usuario    = $iniData.Usuario
-                            }
-                            $resultados += $resultado
-                        }
+                        INI        = $iniFile.Name
+                        DataSource = $iniData.DataSource
+                        Catalog    = $iniData.Catalog
+                        Usuario    = $iniData.Usuario
                     }
                 }
             }
-        
-            # Proceso 3: Detectar si existe RestCard.ini
-            $restCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
-            if (Test-Path $restCardPath) {
-                $resultado = [PSCustomObject]@{
-                    Aplicacion = "Restcard"
-                    INI        = "RestCard.ini"
-                    DataSource = "existe"
-                    Catalog    = "existe"
-                    Usuario    = "existe"
-                }
-                $resultados += $resultado
-            } else {
-                # Si no se encuentra RestCard.ini, agregar con "No encontrado"
-                $resultado = [PSCustomObject]@{
-                    Aplicacion = "Restcard"
-                    INI        = "No encontrado"
-                    DataSource = "NA"
-                    Catalog    = "NA"
-                    Usuario    = "NA"
-                }
-                $resultados += $resultado
+        }
+    }
+
+    # Procesar RestCard.ini
+    $restCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
+    if (Test-Path $restCardPath) {
+        $resultados += [PSCustomObject]@{
+            Aplicacion = "Restcard"
+            INI        = "RestCard.ini"
+            DataSource = "existe"
+            Catalog    = "existe"
+            Usuario    = "existe"
+        }
+    } else {
+        $resultados += [PSCustomObject]@{
+            Aplicacion = "Restcard"
+            INI        = "No encontrado"
+            DataSource = "NA"
+            Catalog    = "NA"
+            Usuario    = "NA"
+        }
+    }
+
+    # Cálculo de anchos para presentación
+    $columnas = @("Aplicacion","INI","DataSource","Catalog","Usuario")
+    $anchos   = @{}
+    foreach ($col in $columnas) { $anchos[$col] = $col.Length }
+    foreach ($res in $resultados) {
+        foreach ($col in $columnas) {
+            if ($res.$col.Length -gt $anchos[$col]) {
+                $anchos[$col] = $res.$col.Length
             }
-        
-            # Calcular el ancho máximo de cada columna
-            $columnas = @("Aplicacion", "INI", "DataSource", "Catalog", "Usuario")
-            $anchos = @{}
-            foreach ($col in $columnas) {
-                $anchos[$col] = $col.Length # Inicializar con el ancho del título
-            }
-        
-            foreach ($resultado in $resultados) {
-                foreach ($col in $columnas) {
-                    $longitud = $resultado.$col.Length
-                    if ($longitud -gt $anchos[$col]) {
-                        $anchos[$col] = $longitud
-                    }
-                }
-            }
-        
-            # Mostrar los títulos de las columnas
-            $titulos = @()
-            foreach ($col in $columnas) {
-                $titulos += $col.PadRight($anchos[$col] + 2) # Agregar 2 espacios adicionales
-            }
-            Write-Host ($titulos -join "") -ForegroundColor Cyan
-        
-            # Mostrar una línea separadora
-            $separador = @()
-            foreach ($col in $columnas) {
-                $separador += ("-" * $anchos[$col]).PadRight($anchos[$col] + 2) # Agregar 2 espacios adicionales
-            }
-            Write-Host ($separador -join "") -ForegroundColor Cyan
-        
-            # Mostrar los resultados
-            foreach ($resultado in $resultados) {
-                $fila = @()
-                foreach ($col in $columnas) {
-                    $fila += $resultado.$col.PadRight($anchos[$col] + 2) # Agregar 2 espacios adicionales
-                }
-                if ($resultado.INI -eq "No encontrado") {
-                    Write-Host ($fila -join "") -ForegroundColor Red
-                } else {
-                    Write-Host ($fila -join "")
-                }
-            }
+        }
+    }
+
+    # Mostrar encabezados
+    $titulos = $columnas | ForEach-Object { $_.PadRight($anchos[$_] + 2) }
+    Write-Host ($titulos -join "") -ForegroundColor Cyan
+
+    # Línea separadora
+    $separador = $columnas | ForEach-Object { ("-" * $anchos[$_]).PadRight($anchos[$_] + 2) }
+    Write-Host ($separador -join "") -ForegroundColor Cyan
+
+    # Mostrar resultados
+    foreach ($res in $resultados) {
+        $fila = $columnas | ForEach-Object { $res.$_.PadRight($anchos[$_] + 2) }
+        if ($res.INI -eq "No encontrado") {
+            Write-Host ($fila -join "") -ForegroundColor Red
+        } else {
+            Write-Host ($fila -join "")
+        }
+    }
 })
+
 # Define el evento del botón
 $btnCambiarOTM.Add_Click({
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
@@ -2429,6 +2454,79 @@ $btnCambiarOTM.Add_Click({
         [System.Windows.Forms.MessageBox]::Show("Configuración cambiada exitosamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK)
         Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
     }
+})
+
+
+
+
+$btnAddUser.Add_Click({
+    # Crear formulario
+    $formAddUser = Create-Form -Title "Crear Usuario de Windows" -Size (New-Object System.Drawing.Size(350, 250))
+    
+    # Controles del formulario
+    $lblUsernameAddUser = Create-Label -Text "Nombre de usuario:" -Location (New-Object System.Drawing.Point(10, 20))
+    $txtUsernameAddUser = Create-TextBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(200, 20))
+    
+    $lblPasswordAddUser = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(10, 60))
+    $txtPasswordAddUser = Create-TextBox -Location (New-Object System.Drawing.Point(120, 60)) -Size (New-Object System.Drawing.Size(200, 20)) -UseSystemPasswordChar $true
+    
+    $lblUserTypeAddUser = Create-Label -Text "Tipo de usuario:" -Location (New-Object System.Drawing.Point(10, 100))
+    $cmbUserTypeAddUser = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 100)) -Size (New-Object System.Drawing.Size(200, 20)) -Items @("Usuario estándar", "Administrador")
+    
+    # Obtener nombres reales de grupos
+    $adminGroup = Get-AdminGroupName
+    $userGroup = if ($adminGroup -eq "Administradores") { "Usuarios" } else { "Users" }
+    
+    # Botones
+    $btnOKAddUser = Create-Button -Text "Crear" -Location (New-Object System.Drawing.Point(80, 150)) -Size (New-Object System.Drawing.Size(100, 30))
+    $btnCancelAddUser = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(190, 150)) -Size (New-Object System.Drawing.Size(100, 30))
+
+    # Evento del botón Crear
+    $btnOKAddUser.Add_Click({
+        $username = $txtUsernameAddUser.Text.Trim()
+        $password = $txtPasswordAddUser.Text
+        $userType = $cmbUserTypeAddUser.SelectedItem
+        
+        if (-not $username -or -not $password -or -not $userType) {
+            [System.Windows.Forms.MessageBox]::Show("Complete todos los campos", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+            return
+        }
+        
+        try {
+            # Crear usuario
+            $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+            New-LocalUser -Name $username -Password $securePassword -ErrorAction Stop
+            # Agregar a grupo
+            $group = if ($userType -eq "Administrador") { $adminGroup } else { $userGroup }
+            if (-not (Get-LocalGroup -Name $group -ErrorAction SilentlyContinue)) {
+                [System.Windows.Forms.MessageBox]::Show("Grupo $group no encontrado", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                return
+            }
+            Add-LocalGroupMember -Group $group -Member $username -ErrorAction Stop
+            [System.Windows.Forms.MessageBox]::Show("Usuario creado exitosamente", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            $formAddUser.Close()
+        } catch {
+            $errorMsg = if ($_.Exception.Message -match "password does not meet complexity requirements") {
+                "La contraseña no cumple con los requisitos de complejidad:`n- Mínimo 6 caracteres`n- Mayúsculas y minúsculas`n- Números y/o símbolos"
+            } else {
+                $_.Exception.Message
+            }
+            [System.Windows.Forms.MessageBox]::Show("Error al crear usuario:`n$errorMsg", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+    # Evento del botón Cancelar
+    $btnCancelAddUser.Add_Click({
+        $formAddUser.Close()
+    })
+    # Agregar controles al formulario
+    $formAddUser.Controls.AddRange(@(
+        $lblUsernameAddUser, $txtUsernameAddUser,
+        $lblPasswordAddUser, $txtPasswordAddUser,
+        $lblUserTypeAddUser, $cmbUserTypeAddUser,
+        $btnOKAddUser, $btnCancelAddUser
+    ))
+    
+    $formAddUser.ShowDialog()
 })
 #Boton para salir
     $btnExit.Add_Click({

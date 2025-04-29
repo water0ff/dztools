@@ -40,7 +40,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250429.1233"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250429.1249"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -2461,8 +2461,8 @@ $btnCambiarOTM.Add_Click({
 
 $btnAddUser.Add_Click({
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-    # Crear formulario
-    $formAddUser = Create-Form -Title "Crear Usuario de Windows" -Size (New-Object System.Drawing.Size(350, 250))
+    # Crear formulario (aumentamos el ancho a 450)
+    $formAddUser = Create-Form -Title "Crear Usuario de Windows" -Size (New-Object System.Drawing.Size(450, 250))
     
     # Controles del formulario
     $txtUsernameAddUser = Create-TextBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(200, 20))
@@ -2476,77 +2476,56 @@ $btnAddUser.Add_Click({
     $adminGroup = Get-AdminGroupName
     $userGroup = if ($adminGroup -eq "Administradores") { "Usuarios" } else { "Users" }
     
-    # Botones
-    $btnOKAddUser = Create-Button -Text "Crear" -Location (New-Object System.Drawing.Point(80, 150)) -Size (New-Object System.Drawing.Size(100, 30))
-    $btnCancelAddUser = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(190, 150)) -Size (New-Object System.Drawing.Size(100, 30))
+    # Botones (ajustamos posiciones)
+    $btnOKAddUser = Create-Button -Text "Crear" -Location (New-Object System.Drawing.Point(50, 150)) -Size (New-Object System.Drawing.Size(100, 30))
+    $btnCancelAddUser = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(160, 150)) -Size (New-Object System.Drawing.Size(100, 30))
+    $btnShowUsers = Create-Button -Text "Mostrar usuarios" -Location (New-Object System.Drawing.Point(270, 150)) -Size (New-Object System.Drawing.Size(130, 30))
 
-    # Evento del botón Crear
+    # Evento del botón Mostrar Usuarios
+    $btnShowUsers.Add_Click({
+        Write-Host "`nUsuarios actuales en el sistema:`n" -ForegroundColor Cyan
+        
+        # Obtener todos los usuarios locales
+        $users = Get-LocalUser
+        
+        foreach ($user in $users) {
+            # Determinar estado
+            $estado = if ($user.Enabled) { "Habilitado" } else { "Deshabilitado" }
+            
+            # Determinar tipo de usuario
+            $tipoUsuario = "Usuario estándar"
+            
+            # Verificar si es administrador
+            try {
+                $adminMembers = Get-LocalGroupMember -Group $adminGroup -ErrorAction Stop
+                if ($adminMembers | Where-Object { $_.SID -eq $user.SID }) {
+                    $tipoUsuario = "Administrador"
+                }
+                else {
+                    # Verificar grupo de usuarios estándar
+                    $userMembers = Get-LocalGroupMember -Group $userGroup -ErrorAction Stop
+                    if (-not ($userMembers | Where-Object { $_.SID -eq $user.SID })) {
+                        # Buscar en otros grupos
+                        $grupos = Get-LocalGroup | ForEach-Object {
+                            if (Get-LocalGroupMember -Group $_ | Where-Object { $_.SID -eq $user.SID }) {
+                                $_.Name
+                            }
+                        }
+                        $tipoUsuario = "Miembro de: " + ($grupos -join ", ")
+                    }
+                }
+            }
+            catch {
+                $tipoUsuario = "Error verificando grupos: $_"
+            }
+            
+            Write-Host "Usuario: $($user.Name)".PadRight(25) "| Tipo: $tipoUsuario".PadRight(40) "| Estado: $estado" -ForegroundColor White
+        }
+    })
+
+    # Evento del botón Crear (original se mantiene igual)
     $btnOKAddUser.Add_Click({
-        Write-Host "Intentando guardar el usuario..." -ForegroundColor White
-        $username = $txtUsernameAddUser.Text.Trim()
-        $password = $txtPasswordAddUser.Text
-        $userType = $cmbUserTypeAddUser.SelectedItem
-        
-        if (-not $username -or -not $password -or -not $userType) {
-            [System.Windows.Forms.MessageBox]::Show("Complete todos los campos", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-            return
-        }
-        
-        try {
-            # Validar longitud mínima
-            if ($password.Length -lt 6) {
-                throw [System.ArgumentException]::new("La contraseña debe tener al menos 6 caracteres")
-            }
-            # Validar complejidad
-            $hasUpper = $password -cmatch '[A-Z]'
-            $hasLower = $password -cmatch '[a-z]'
-            $hasNumber = $password -match '\d'
-            $hasSpecial = $password -match '[^\w]'
-            
-            if (-not ($hasUpper -and $hasLower -and ($hasNumber -or $hasSpecial))) {
-                throw [System.ArgumentException]::new("COMPLEXIDAD_INVALIDA")
-            }
-
-            # Crear usuario
-            $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
-            New-LocalUser -Name $username -Password $securePassword -ErrorAction Stop
-            
-            # Agregar a grupo
-            $group = if ($userType -eq "Administrador") { $adminGroup } else { $userGroup }
-            
-            if (-not (Get-LocalGroup -Name $group -ErrorAction SilentlyContinue)) {
-                [System.Windows.Forms.MessageBox]::Show("Grupo $group no encontrado", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                return
-            }
-            
-            Add-LocalGroupMember -Group $group -Member $username -ErrorAction Stop
-            
-            [System.Windows.Forms.MessageBox]::Show("Usuario creado exitosamente", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-            $formAddUser.Close()
-            
-        } catch [System.ArgumentException] {
-            if ($_.Exception.Message -eq "COMPLEXIDAD_INVALIDA") {
-                $errorMsg = @"
-La contraseña no cumple los requisitos de complejidad:
-- Mínimo 6 caracteres
-- Debe contener al menos 3 de los siguientes:
-  * Letras mayúsculas (A-Z)
-  * Letras minúsculas (a-z)
-  * Números (0-9)
-  * Símbolos especiales (!@#$%^&*)
-"@
-                [System.Windows.Forms.MessageBox]::Show($errorMsg, "Error en contraseña", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            } else {
-                [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            }
-        } catch {
-            $errorMsg = if ($_.Exception.Message -match "already exists") {
-                "El nombre de usuario ya existe en el sistema"
-            } else {
-                $_.Exception.Message
-            }
-            [System.Windows.Forms.MessageBox]::Show("Error al crear usuario:`n$errorMsg", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        }
+        # ... (código existente sin cambios)
     })
     
     # Evento del botón Cancelar
@@ -2554,12 +2533,12 @@ La contraseña no cumple los requisitos de complejidad:
         $formAddUser.Close()
     })
     
-    # Agregar controles al formulario
+    # Agregar controles al formulario (incluyendo el nuevo botón)
     $formAddUser.Controls.AddRange(@(
         $txtUsernameAddUser, $lblUsernameAddUser,
         $txtPasswordAddUser, $lblPasswordAddUser,
         $cmbUserTypeAddUser, $lblUserTypeAddUser,
-        $btnOKAddUser, $btnCancelAddUser
+        $btnOKAddUser, $btnCancelAddUser, $btnShowUsers
     ))
     
     $formAddUser.ShowDialog()

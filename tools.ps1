@@ -40,7 +40,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250429.1249"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250430.1128"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -252,9 +252,10 @@ function Create-TextBox {
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
     $btnConfigurarIPs = Create-Button -Text "Agregar IPs" -Location (New-Object System.Drawing.Point(470, 170)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
-    # Agregar este botón debajo del botón "Agregar IPs" (ajusta la ubicación según tu layout)
     $btnAddUser = Create-Button -Text "Agregar usuario de Windows" -Location (New-Object System.Drawing.Point(470, 210)) `
-        -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Crear nuevo usuario local en Windows"
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Crear nuevo usuario local en Windows"
+    $btnForzarActualizacion = Create-Button -Text "Actualizar datos del sistema" -Location (New-Object System.Drawing.Point(470, 250)) `
+        -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Actualiza información de hardware del sistema"
     $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
     $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 50)) `
@@ -296,6 +297,7 @@ $tabAplicaciones.Controls.Add($btnInstalarHerramientas)
 $tabAplicaciones.Controls.Add($btnCambiarOTM)
     $tabAplicaciones.Controls.Add($btnConfigurarIPs)
     $tabAplicaciones.Controls.Add($btnAddUser)
+    $tabAplicaciones.Controls.Add($btnForzarActualizacion)
     $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
     $tabAplicaciones.Controls.Add($btnLectorDPicacls)
     $tabAplicaciones.Controls.Add($lblHostname)
@@ -899,7 +901,138 @@ function Get-AdminGroupName {
         return "Administrators" # Valor por defecto
     }
 }
+function Show-SystemComponents {
+    Write-Host "`n=== Componentes del sistema detectados ===" -ForegroundColor Cyan
+    
+    # Versión de Windows
+    try {
+        $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop | 
+              Select-Object Caption, Version
+        Write-Host "`n[Windows]" -ForegroundColor Yellow
+        Write-Host "Versión: $($os.Caption) (Build $($os.Version))" -ForegroundColor White
+    }
+    catch {
+        Write-Host "`n[Windows]" -ForegroundColor Yellow
+        Write-Host "No se pudo obtener la versión - $($_.Exception.Message)" -ForegroundColor Red
+    }
+
+    # Procesador
+    try {
+        $procesador = Get-CimInstance -ClassName CIM_Processor -ErrorAction Stop | 
+            Select-Object Name, Manufacturer, NumberOfCores, MaxClockSpeed
+        Write-Host "`n[Procesador]" -ForegroundColor Yellow
+        $procesador | Format-List | Out-String | ForEach-Object { $_.Trim() } | Write-Host
+    }
+    catch {
+        Write-Host "`n[Procesador]" -ForegroundColor Yellow
+        Write-Host "Error de lectura - $($_.Exception.Message)" -ForegroundColor Red
+    }
+
+    # Memoria RAM
+    try {
+        $memoria = Get-CimInstance -ClassName CIM_PhysicalMemory -ErrorAction Stop | 
+            Select-Object Manufacturer, @{n='CapacityGB'; e={[math]::Round($_.Capacity/1GB, 2)}}, Speed
+        Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
+        $memoria | Format-Table -AutoSize | Out-String | ForEach-Object { $_.Trim() } | Write-Host
+    }
+    catch {
+        Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
+        Write-Host "Error de lectura - $($_.Exception.Message)" -ForegroundColor Red
+    }
+
+    # Discos duros
+    try {
+        $discos = Get-CimInstance -ClassName CIM_DiskDrive -ErrorAction Stop | 
+            Select-Object Model, @{n='SizeGB'; e={[math]::Round($_.Size/1GB, 2)}}
+        Write-Host "`n[Discos duros]" -ForegroundColor Yellow
+        $discos | Format-Table -AutoSize | Out-String | ForEach-Object { $_.Trim() } | Write-Host
+    }
+    catch {
+        Write-Host "`n[Discos duros]" -ForegroundColor Yellow
+        Write-Host "Error de lectura - $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+function Start-SystemUpdate {
+    Write-Host "`nIniciando proceso de actualización..." -ForegroundColor Cyan
+    
+    try {
+        Write-Host "`nDeteniendo servicio winmgmt..." -ForegroundColor Yellow
+        net stop winmgmt *>&1 | Write-Host
+        Write-Host "Servicio detenido correctamente" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Error al detener servicio: $_" -ForegroundColor Red
+        return
+    }
+
+    try {
+        $repoPath = Join-Path $env:windir "System32\Wbem\Repository"
+        if (Test-Path $repoPath) {
+            Write-Host "`nRenombrando carpeta Repository..." -ForegroundColor Yellow
+            $newName = "Repository_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+            Rename-Item -Path $repoPath -NewName $newName -Force
+            Write-Host "Carpeta renombrada: $newName" -ForegroundColor Green
+        }
+    }
+    catch {
+        Write-Host "Error al renombrar carpeta: $_" -ForegroundColor Red
+        return
+    }
+
+    try {
+        Write-Host "`nReiniciando servicio winmgmt..." -ForegroundColor Yellow
+        net start winmgmt *>&1 | Write-Host
+        Write-Host "Servicio iniciado correctamente" -ForegroundColor Green
+        
+        Write-Host "`nEsperando inicialización del servicio..." -ForegroundColor Yellow
+        # Espera progresiva con retroalimentación visual
+        1..3 | ForEach-Object {
+            Write-Host "Esperando... ($_/3)" -ForegroundColor Gray
+            Start-Sleep -Seconds 10
+        }
+    }
+    catch {
+        Write-Host "Error al iniciar servicio: $_" -ForegroundColor Red
+        return
+    }
+
+    # Intentar mostrar componentes 3 veces con reintentos
+    $maxIntentos = 3
+    for ($i = 1; $i -le $maxIntentos; $i++) {
+        try {
+            Write-Host "`n=== Intentando obtener componentes actualizados (Intento $i/$maxIntentos) ===" -ForegroundColor Cyan
+            Show-SystemComponents
+            break
+        }
+        catch {
+            Write-Host "Error al obtener componentes: $($_.Exception.Message)" -ForegroundColor Red
+            if ($i -lt $maxIntentos) {
+                Write-Host "Reintentando en 10 segundos..." -ForegroundColor Yellow
+                Start-Sleep -Seconds 10
+            }
+        }
+    }
+}
 ##-------------------------------------------------------------------------------BOTONES#
+# Modificar el evento del botón
+$btnForzarActualizacion.Add_Click({
+    Show-SystemComponents
+    
+    do {
+        $respuesta = Read-Host "`n¿Desea forzar la actualización de datos? (S/N)"
+        $respuesta = $respuesta.ToUpper()
+    } while ($respuesta -notin 'S','N')
+
+    if ($respuesta -eq 'S') {
+        Start-SystemUpdate
+        Write-Host "`nActualización completada" -ForegroundColor Green
+    }
+    else {
+        Write-Host "`nOperación cancelada por el usuario" -ForegroundColor Yellow
+    }
+})
+
 $btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         

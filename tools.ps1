@@ -40,7 +40,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250430.1128"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250501.1039"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -901,137 +901,176 @@ function Get-AdminGroupName {
         return "Administrators" # Valor por defecto
     }
 }
+#componentes
+function Clear-TemporaryFiles {
+    param([string]$folderPath)
+    
+    try {
+        $items = Get-ChildItem -Path $folderPath -Recurse -Force -ErrorAction Stop
+        $count = $items.Count
+        Remove-Item -Path "$folderPath\*" -Recurse -Force -ErrorAction Stop
+        Write-Host "Eliminados $count archivos en $folderPath" -ForegroundColor Green
+        return $count
+    }
+    catch {
+        Write-Host "Error limpiando $folderPath : $($_.Exception.Message)" -ForegroundColor Red
+        return 0
+    }
+}
+
+function Invoke-DiskCleanup {
+    try {
+        Write-Host "`nEjecutando Liberador de espacio en disco..." -ForegroundColor Cyan
+        # Configurar parámetros de limpieza
+        $cleanmgr = "$env:SystemDrive\Windows\System32\cleanmgr.exe"
+        $sagerun = "9999"
+        
+        # Crear registro para limpieza completa
+        Start-Process $cleanmgr -ArgumentList "/sageset:$sagerun" -Wait
+        Start-Process $cleanmgr -ArgumentList "/sagerun:$sagerun" -Wait
+        
+        Write-Host "Limpieza de disco completada correctamente" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Error en limpieza de disco: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
 function Show-SystemComponents {
+    $criticalError = $false
+    
     Write-Host "`n=== Componentes del sistema detectados ===" -ForegroundColor Cyan
     
-    # Versión de Windows
+    # Versión de Windows (componente crítico)
     try {
-        $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop | 
-              Select-Object Caption, Version
+        $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop
         Write-Host "`n[Windows]" -ForegroundColor Yellow
         Write-Host "Versión: $($os.Caption) (Build $($os.Version))" -ForegroundColor White
     }
     catch {
+        $criticalError = $true
         Write-Host "`n[Windows]" -ForegroundColor Yellow
-        Write-Host "No se pudo obtener la versión - $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "ERROR CRÍTICO: $($_.Exception.Message)" -ForegroundColor Red
+        throw "No se pudo obtener información crítica del sistema"
     }
 
-    # Procesador
-    try {
-        $procesador = Get-CimInstance -ClassName CIM_Processor -ErrorAction Stop | 
-            Select-Object Name, Manufacturer, NumberOfCores, MaxClockSpeed
-        Write-Host "`n[Procesador]" -ForegroundColor Yellow
-        $procesador | Format-List | Out-String | ForEach-Object { $_.Trim() } | Write-Host
-    }
-    catch {
-        Write-Host "`n[Procesador]" -ForegroundColor Yellow
-        Write-Host "Error de lectura - $($_.Exception.Message)" -ForegroundColor Red
-    }
+    # Resto de componentes (no críticos)
+    if (-not $criticalError) {
+        # Procesador
+        try {
+            $procesador = Get-CimInstance -ClassName CIM_Processor -ErrorAction Stop
+            Write-Host "`n[Procesador]" -ForegroundColor Yellow
+            Write-Host "Modelo: $($procesador.Name)" -ForegroundColor White
+            Write-Host "Núcleos: $($procesador.NumberOfCores)" -ForegroundColor White
+        }
+        catch {
+            Write-Host "`n[Procesador]" -ForegroundColor Yellow
+            Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
+        }
 
-    # Memoria RAM
-    try {
-        $memoria = Get-CimInstance -ClassName CIM_PhysicalMemory -ErrorAction Stop | 
-            Select-Object Manufacturer, @{n='CapacityGB'; e={[math]::Round($_.Capacity/1GB, 2)}}, Speed
-        Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
-        $memoria | Format-Table -AutoSize | Out-String | ForEach-Object { $_.Trim() } | Write-Host
-    }
-    catch {
-        Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
-        Write-Host "Error de lectura - $($_.Exception.Message)" -ForegroundColor Red
-    }
+        # Memoria RAM
+        try {
+            $memoria = Get-CimInstance -ClassName CIM_PhysicalMemory -ErrorAction Stop
+            Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
+            $memoria | ForEach-Object {
+                Write-Host "Módulo: $([math]::Round($_.Capacity/1GB, 2)) GB $($_.Manufacturer) ($($_.Speed) MHz)" -ForegroundColor White
+            }
+        }
+        catch {
+            Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
+            Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
+        }
 
-    # Discos duros
-    try {
-        $discos = Get-CimInstance -ClassName CIM_DiskDrive -ErrorAction Stop | 
-            Select-Object Model, @{n='SizeGB'; e={[math]::Round($_.Size/1GB, 2)}}
-        Write-Host "`n[Discos duros]" -ForegroundColor Yellow
-        $discos | Format-Table -AutoSize | Out-String | ForEach-Object { $_.Trim() } | Write-Host
-    }
-    catch {
-        Write-Host "`n[Discos duros]" -ForegroundColor Yellow
-        Write-Host "Error de lectura - $($_.Exception.Message)" -ForegroundColor Red
+        # Discos duros
+        try {
+            $discos = Get-CimInstance -ClassName CIM_DiskDrive -ErrorAction Stop
+            Write-Host "`n[Discos duros]" -ForegroundColor Yellow
+            $discos | ForEach-Object {
+                Write-Host "Disco: $($_.Model) ($([math]::Round($_.Size/1GB, 2)) GB)" -ForegroundColor White
+            }
+        }
+        catch {
+            Write-Host "`n[Discos duros]" -ForegroundColor Yellow
+            Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
+        }
     }
 }
 
 function Start-SystemUpdate {
-    Write-Host "`nIniciando proceso de actualización..." -ForegroundColor Cyan
-    
     try {
+        Write-Host "`nIniciando proceso de actualización..." -ForegroundColor Cyan
+        
+        # Detener servicio WMI
         Write-Host "`nDeteniendo servicio winmgmt..." -ForegroundColor Yellow
         net stop winmgmt *>&1 | Write-Host
-        Write-Host "Servicio detenido correctamente" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "Error al detener servicio: $_" -ForegroundColor Red
-        return
-    }
-
-    try {
+        
+        # Limpieza de repositorio
         $repoPath = Join-Path $env:windir "System32\Wbem\Repository"
         if (Test-Path $repoPath) {
             Write-Host "`nRenombrando carpeta Repository..." -ForegroundColor Yellow
             $newName = "Repository_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
             Rename-Item -Path $repoPath -NewName $newName -Force
-            Write-Host "Carpeta renombrada: $newName" -ForegroundColor Green
         }
-    }
-    catch {
-        Write-Host "Error al renombrar carpeta: $_" -ForegroundColor Red
-        return
-    }
-
-    try {
+        
+        # Reiniciar servicio
         Write-Host "`nReiniciando servicio winmgmt..." -ForegroundColor Yellow
         net start winmgmt *>&1 | Write-Host
-        Write-Host "Servicio iniciado correctamente" -ForegroundColor Green
         
-        Write-Host "`nEsperando inicialización del servicio..." -ForegroundColor Yellow
-        # Espera progresiva con retroalimentación visual
-        1..3 | ForEach-Object {
-            Write-Host "Esperando... ($_/3)" -ForegroundColor Gray
-            Start-Sleep -Seconds 10
-        }
+        # Limpieza de temporales
+        Write-Host "`nLimpiando archivos temporales..." -ForegroundColor Cyan
+        $totalDeleted = 0
+        $totalDeleted += Clear-TemporaryFiles -folderPath $env:TEMP
+        $totalDeleted += Clear-TemporaryFiles -folderPath "$env:SystemDrive\Windows\Temp"
+        Write-Host "Total archivos eliminados: $totalDeleted" -ForegroundColor Green
+        
+        # Ejecutar cleanmgr
+        Invoke-DiskCleanup
+        
+        # Intentar mostrar componentes
+        Write-Host "`nIntentando obtener información del sistema..." -ForegroundColor Cyan
+        Show-SystemComponents
+        
+        Write-Host "`nProceso completado con éxito" -ForegroundColor Green
     }
     catch {
-        Write-Host "Error al iniciar servicio: $_" -ForegroundColor Red
-        return
-    }
-
-    # Intentar mostrar componentes 3 veces con reintentos
-    $maxIntentos = 3
-    for ($i = 1; $i -le $maxIntentos; $i++) {
-        try {
-            Write-Host "`n=== Intentando obtener componentes actualizados (Intento $i/$maxIntentos) ===" -ForegroundColor Cyan
-            Show-SystemComponents
-            break
-        }
-        catch {
-            Write-Host "Error al obtener componentes: $($_.Exception.Message)" -ForegroundColor Red
-            if ($i -lt $maxIntentos) {
-                Write-Host "Reintentando en 10 segundos..." -ForegroundColor Yellow
-                Start-Sleep -Seconds 10
-            }
-        }
+        Write-Host "`nERROR GRAVE: No se pudo recuperar la información del sistema" -ForegroundColor Red
+        Write-Host "Se recomienda reiniciar el equipo y volver a intentar" -ForegroundColor Yellow
+        [System.Windows.Forms.MessageBox]::Show(
+            "Se requiere reinicio del sistema para completar la operación",
+            "Reinicio necesario",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        ) | Out-Null
     }
 }
 ##-------------------------------------------------------------------------------BOTONES#
-# Modificar el evento del botón
 $btnForzarActualizacion.Add_Click({
-    Show-SystemComponents
-    
-    do {
-        $respuesta = Read-Host "`n¿Desea forzar la actualización de datos? (S/N)"
-        $respuesta = $respuesta.ToUpper()
-    } while ($respuesta -notin 'S','N')
-
-    if ($respuesta -eq 'S') {
-        Start-SystemUpdate
-        Write-Host "`nActualización completada" -ForegroundColor Green
-    }
-    else {
-        Write-Host "`nOperación cancelada por el usuario" -ForegroundColor Yellow
-    }
-})
+                    Show-SystemComponents
+                    
+                    # Cargar ensamblado necesario para MessageBox
+                    [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
+                    
+                    # Mostrar MessageBox en español
+                    $resultado = [System.Windows.Forms.MessageBox]::Show(
+                        "¿Desea forzar la actualización de datos?",  # Texto de la pregunta
+                        "Confirmación",                              # Título de la ventana
+                        [System.Windows.Forms.MessageBoxButtons]::YesNo,  # Botones
+                        [System.Windows.Forms.MessageBoxIcon]::Question   # Icono
+                    )
+                
+                    if ($resultado -eq [System.Windows.Forms.DialogResult]::Yes) {
+                        Start-SystemUpdate
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "Actualización completada",
+                            "Éxito",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Information
+                        ) | Out-Null
+                    }
+                    else {
+                        Write-Host "`tOperación cancelada por el usuario." -ForegroundColor Yellow
+                    }
+                })
 
 $btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
@@ -2677,12 +2716,49 @@ $btnAddUser.Add_Click({
 })
 
     # Evento del botón Crear (original se mantiene igual)
-    $btnOKAddUser.Add_Click({
-        # ... (código existente sin cambios)
-    })
-    
+$btnOKAddUser.Add_Click({
+                        # Capturar valores
+                        $username = $txtUsernameAddUser.Text.Trim()
+                        $password = $txtPasswordAddUser.Text
+                        $userType = $cmbUserTypeAddUser.SelectedItem.ToString()
+                    
+                        # Validar campos vacíos
+                        if (-not $username -or -not $password) {
+                            Write-Host "`nError: Nombre y contraseña son requeridos" -ForegroundColor Red
+                            return
+                        }
+                    
+                        try {
+                            # Verificar si el usuario ya existe
+                            if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
+                                Write-Host "`nError: El usuario '$username' ya existe" -ForegroundColor Red
+                                return
+                            }
+                    
+                            # Crear el usuario
+                            $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+                            New-LocalUser -Name $username -Password $securePassword -AccountNeverExpires -PasswordNeverExpires
+                            Write-Host "`nUsuario '$username' creado exitosamente" -ForegroundColor Green
+                    
+                            # Asignar al grupo correspondiente
+                            if ($userType -eq "Administrador") {
+                                Add-LocalGroupMember -Group $adminGroup -Member $username
+                                Write-Host "`tUsuario agregado al grupo $adminGroup" -ForegroundColor Cyan
+                            } else {
+                                Add-LocalGroupMember -Group $userGroup -Member $username
+                                Write-Host "`tUsuario agregado al grupo $userGroup" -ForegroundColor Cyan
+                            }
+                    
+                            # Cerrar el formulario
+                            $formAddUser.Close()
+                    
+                        } catch {
+                            Write-Host "`nError durante la creación del usuario: $_" -ForegroundColor Red
+                        }
+                    })    
     # Evento del botón Cancelar
     $btnCancelAddUser.Add_Click({
+        Write-Host "`tOperación cancelada por el usuario." -ForegroundColor Yellow
         $formAddUser.Close()
     })
     

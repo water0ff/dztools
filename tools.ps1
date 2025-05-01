@@ -40,7 +40,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250501.1112"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250501.1120"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1007,7 +1007,7 @@ function Start-SystemUpdate {
         Write-Host "`nIniciando proceso de actualización..." -ForegroundColor Cyan
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
 
-        # Paso 1: Detener servicio WMI (agregar validación)
+        # Paso 1: Detener servicio WMI
         Write-Host "`n[Paso 1/$totalSteps] Deteniendo servicio winmgmt..." -ForegroundColor Yellow
         $service = Get-Service -Name "winmgmt" -ErrorAction Stop
         if ($service.Status -eq "Running") {
@@ -1017,7 +1017,7 @@ function Start-SystemUpdate {
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
 
-        # Paso 2: Limpieza de repositorio (agregar try/catch interno)
+        # Paso 2: Limpieza de repositorio
         Write-Host "`n[Paso 2/$totalSteps] Renombrando carpeta Repository..." -ForegroundColor Yellow
         try {
             $repoPath = Join-Path $env:windir "System32\Wbem\Repository"
@@ -1026,20 +1026,21 @@ function Start-SystemUpdate {
                 Rename-Item -Path $repoPath -NewName $newName -Force -ErrorAction Stop
                 Write-Host "Carpeta renombrada: $newName" -ForegroundColor Green
             }
-        } catch {
+        }
+        catch {
             Write-Host "Advertencia: No se pudo renombrar la carpeta Repository. Continuando..." -ForegroundColor Yellow
         }
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
         
         # Paso 3: Reiniciar servicio
-        Write-Host "`nReiniciando servicio winmgmt..." -ForegroundColor Yellow
+        Write-Host "`n[Paso 3/$totalSteps] Reiniciando servicio winmgmt..." -ForegroundColor Yellow
         net start winmgmt *>&1 | Write-Host
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
 
         # Paso 4: Limpieza de temporales
-        Write-Host "`nLimpiando archivos temporales..." -ForegroundColor Cyan
+        Write-Host "`n[Paso 4/$totalSteps] Limpiando archivos temporales..." -ForegroundColor Cyan
         $totalDeleted = 0
         $totalDeleted += Clear-TemporaryFiles -folderPath $env:TEMP
         $totalDeleted += Clear-TemporaryFiles -folderPath "$env:SystemDrive\Windows\Temp"
@@ -1048,30 +1049,31 @@ function Start-SystemUpdate {
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
 
         # Paso 5: Ejecutar cleanmgr
+        Write-Host "`n[Paso 5/$totalSteps] Ejecutando Liberador de espacio..." -ForegroundColor Cyan
         Invoke-DiskCleanup
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
 
         # Paso 6: Mostrar componentes
-        Write-Host "`nIntentando obtener información del sistema..." -ForegroundColor Cyan
+        Write-Host "`n[Paso 6/$totalSteps] Obteniendo información del sistema..." -ForegroundColor Cyan
         Show-SystemComponents
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
 
         Write-Host "`nProceso completado con éxito" -ForegroundColor Green
     }
-        } 
     catch {
         Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "Detalles: $($_.ScriptStackTrace)" -ForegroundColor DarkGray # Log adicional
+        Write-Host "Detalles: $($_.ScriptStackTrace)" -ForegroundColor DarkGray
         [System.Windows.Forms.MessageBox]::Show(
             "Error: $($_.Exception.Message)`nRevise los logs antes de reiniciar.",
             "Error crítico",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         )
-    } finally {
-        if ($progressForm -ne $null) {
+    }
+    finally {
+        if ($progressForm -ne $null -and -not $progressForm.IsDisposed) {
             Close-ProgressBar $progressForm
         }
     }
@@ -1112,6 +1114,7 @@ function Show-ProgressBar {
 
 # Función para actualizar la barra de progreso
 function Update-ProgressBar {
+
     param($ProgressForm, $CurrentStep, $TotalSteps)
     $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)
     if (-not $ProgressForm.IsDisposed) {

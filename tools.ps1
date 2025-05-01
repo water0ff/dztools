@@ -40,7 +40,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250501.1039"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250501.1101"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -901,6 +901,8 @@ function Get-AdminGroupName {
         return "Administrators" # Valor por defecto
     }
 }
+
+
 #componentes
 function Clear-TemporaryFiles {
     param([string]$folderPath)
@@ -995,41 +997,59 @@ function Show-SystemComponents {
         }
     }
 }
-
 function Start-SystemUpdate {
+    $progressForm = $null
     try {
+        # Mostrar barra de progreso
+        $progressForm = Show-ProgressBar
+        $totalSteps = 6  # Total de pasos en el proceso
+        $currentStep = 0
+
         Write-Host "`nIniciando proceso de actualización..." -ForegroundColor Cyan
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
         
-        # Detener servicio WMI
+        # Paso 1: Detener servicio WMI
         Write-Host "`nDeteniendo servicio winmgmt..." -ForegroundColor Yellow
         net stop winmgmt *>&1 | Write-Host
-        
-        # Limpieza de repositorio
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # Paso 2: Limpieza de repositorio
         $repoPath = Join-Path $env:windir "System32\Wbem\Repository"
         if (Test-Path $repoPath) {
             Write-Host "`nRenombrando carpeta Repository..." -ForegroundColor Yellow
             $newName = "Repository_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
             Rename-Item -Path $repoPath -NewName $newName -Force
         }
-        
-        # Reiniciar servicio
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # Paso 3: Reiniciar servicio
         Write-Host "`nReiniciando servicio winmgmt..." -ForegroundColor Yellow
         net start winmgmt *>&1 | Write-Host
-        
-        # Limpieza de temporales
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # Paso 4: Limpieza de temporales
         Write-Host "`nLimpiando archivos temporales..." -ForegroundColor Cyan
         $totalDeleted = 0
         $totalDeleted += Clear-TemporaryFiles -folderPath $env:TEMP
         $totalDeleted += Clear-TemporaryFiles -folderPath "$env:SystemDrive\Windows\Temp"
         Write-Host "Total archivos eliminados: $totalDeleted" -ForegroundColor Green
-        
-        # Ejecutar cleanmgr
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # Paso 5: Ejecutar cleanmgr
         Invoke-DiskCleanup
-        
-        # Intentar mostrar componentes
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # Paso 6: Mostrar componentes
         Write-Host "`nIntentando obtener información del sistema..." -ForegroundColor Cyan
         Show-SystemComponents
-        
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
         Write-Host "`nProceso completado con éxito" -ForegroundColor Green
     }
     catch {
@@ -1042,6 +1062,67 @@ function Start-SystemUpdate {
             [System.Windows.Forms.MessageBoxIcon]::Warning
         ) | Out-Null
     }
+    finally {
+        # Cerrar barra de progreso
+        if ($progressForm -ne $null) {
+            Close-ProgressBar $progressForm
+        }
+    }
+}
+# Función para mostrar la barra de progreso
+function Show-ProgressBar {
+    $formProgress = New-Object System.Windows.Forms.Form
+    $formProgress.Text = "Progreso"
+    $formProgress.Size = New-Object System.Drawing.Size(400, 150)
+    $formProgress.StartPosition = "CenterScreen"
+    $formProgress.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $formProgress.TopMost = $true
+    $formProgress.ControlBox = $false
+
+    $progressBar = New-Object System.Windows.Forms.ProgressBar
+    $progressBar.Size = New-Object System.Drawing.Size(360, 20)
+    $progressBar.Location = New-Object System.Drawing.Point(10, 50)
+    $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
+    $progressBar.Maximum = 100
+
+    $lblPercentage = New-Object System.Windows.Forms.Label
+    $lblPercentage.Location = New-Object System.Drawing.Point(10, 20)
+    $lblPercentage.Size = New-Object System.Drawing.Size(360, 20)
+    $lblPercentage.Text = "0% Completado"
+    $lblPercentage.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+
+    $formProgress.Controls.Add($progressBar)
+    $formProgress.Controls.Add($lblPercentage)
+    
+    # Exponer controles para actualización
+    $formProgress | Add-Member -NotePropertyName Controls -NotePropertyValue @{
+        ProgressBar = $progressBar
+        Label = $lblPercentage
+    }
+
+    $formProgress.Show()
+    return $formProgress
+}
+
+# Función para actualizar la barra de progreso
+function Update-ProgressBar {
+    param(
+        [Parameter(Mandatory)]$ProgressForm,
+        [int]$CurrentStep,
+        [int]$TotalSteps
+    )
+    
+    $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)
+    $ProgressForm.Controls.ProgressBar.Value = $percent
+    $ProgressForm.Controls.Label.Text = "$percent% Completado"
+    $ProgressForm.Refresh()
+    [System.Windows.Forms.Application]::DoEvents()
+}
+
+# Función para cerrar la barra de progreso
+function Close-ProgressBar {
+    param($ProgressForm)
+    $ProgressForm.Close()
 }
 ##-------------------------------------------------------------------------------BOTONES#
 $btnForzarActualizacion.Add_Click({

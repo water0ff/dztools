@@ -1040,7 +1040,7 @@ function Start-SystemUpdate {
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
 
         # Paso 4: Limpieza de temporales
-        Write-Host "`n[Paso 4/$totalSteps] Limpiando archivos temporales..." -ForegroundColor Cyan
+        Write-Host "`n[Paso 4/$totalSteps] Limpiando archivos temporales (ignorar si hay errores)..." -ForegroundColor Cyan
         $totalDeleted = 0
         $totalDeleted += Clear-TemporaryFiles -folderPath $env:TEMP
         $totalDeleted += Clear-TemporaryFiles -folderPath "$env:SystemDrive\Windows\Temp"

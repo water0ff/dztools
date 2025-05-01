@@ -915,7 +915,7 @@ function Clear-TemporaryFiles {
         return $count
     }
     catch {
-        Write-Host "Error limpiando $folderPath : $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "`n`tError limpiando $folderPath : $($_.Exception.Message)" -ForegroundColor Red
         return 0
     }
 }

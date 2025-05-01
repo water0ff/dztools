@@ -40,7 +40,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250501.1101"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250501.1106"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1071,37 +1071,36 @@ function Start-SystemUpdate {
 }
 # Función para mostrar la barra de progreso
 function Show-ProgressBar {
-    $formProgress = New-Object System.Windows.Forms.Form
-    $formProgress.Text = "Progreso"
-    $formProgress.Size = New-Object System.Drawing.Size(400, 150)
-    $formProgress.StartPosition = "CenterScreen"
-    $formProgress.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-    $formProgress.TopMost = $true
-    $formProgress.ControlBox = $false
-
-    $progressBar = New-Object System.Windows.Forms.ProgressBar
-    $progressBar.Size = New-Object System.Drawing.Size(360, 20)
-    $progressBar.Location = New-Object System.Drawing.Point(10, 50)
-    $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
-    $progressBar.Maximum = 100
-
-    $lblPercentage = New-Object System.Windows.Forms.Label
-    $lblPercentage.Location = New-Object System.Drawing.Point(10, 20)
-    $lblPercentage.Size = New-Object System.Drawing.Size(360, 20)
-    $lblPercentage.Text = "0% Completado"
-    $lblPercentage.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-
-    $formProgress.Controls.Add($progressBar)
-    $formProgress.Controls.Add($lblPercentage)
-    
-    # Exponer controles para actualización
-    $formProgress | Add-Member -NotePropertyName Controls -NotePropertyValue @{
-        ProgressBar = $progressBar
-        Label = $lblPercentage
-    }
-
-    $formProgress.Show()
-    return $formProgress
+                $formProgress = New-Object System.Windows.Forms.Form
+                $formProgress.Text = "Progreso"
+                $formProgress.Size = New-Object System.Drawing.Size(400, 150)
+                $formProgress.StartPosition = "CenterScreen"
+                $formProgress.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+                $formProgress.TopMost = $true
+                $formProgress.ControlBox = $false
+            
+                $progressBar = New-Object System.Windows.Forms.ProgressBar
+                $progressBar.Size = New-Object System.Drawing.Size(360, 20)
+                $progressBar.Location = New-Object System.Drawing.Point(10, 50)
+                $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
+                $progressBar.Maximum = 100
+            
+                $lblPercentage = New-Object System.Windows.Forms.Label
+                $lblPercentage.Location = New-Object System.Drawing.Point(10, 20)
+                $lblPercentage.Size = New-Object System.Drawing.Size(360, 20)
+                $lblPercentage.Text = "0% Completado"
+                $lblPercentage.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+            
+                # Agregar controles al formulario usando la propiedad Controls nativa
+                $formProgress.Controls.Add($progressBar)
+                $formProgress.Controls.Add($lblPercentage)
+                
+                # Exponer los controles como propiedades personalizadas (opcional, si es necesario)
+                $formProgress | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $progressBar -Force
+                $formProgress | Add-Member -MemberType NoteProperty -Name Label -Value $lblPercentage -Force
+            
+                $formProgress.Show()
+                return $formProgress
 }
 
 # Función para actualizar la barra de progreso

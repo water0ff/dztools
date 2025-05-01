@@ -2617,44 +2617,64 @@ $btnAddUser.Add_Click({
     # Evento del botón Mostrar Usuarios
     $btnShowUsers.Add_Click({
         Write-Host "`nUsuarios actuales en el sistema:`n" -ForegroundColor Cyan
+    # Obtener todos los usuarios locales
+    $users = Get-LocalUser
+    # Crear objetos con formato similar al de impresoras
+    $usersTable = $users | ForEach-Object {
+        $user = $_
+        # Determinar estado
+        $estado = if ($user.Enabled) { "Habilitado" } else { "Deshabilitado" }
         
-        # Obtener todos los usuarios locales
-        $users = Get-LocalUser
+        # Determinar tipo de usuario
+        $tipoUsuario = "Usuario estándar"
         
-        foreach ($user in $users) {
-            # Determinar estado
-            $estado = if ($user.Enabled) { "Habilitado" } else { "Deshabilitado" }
-            
-            # Determinar tipo de usuario
-            $tipoUsuario = "Usuario estándar"
-            
-            # Verificar si es administrador
-            try {
-                $adminMembers = Get-LocalGroupMember -Group $adminGroup -ErrorAction Stop
-                if ($adminMembers | Where-Object { $_.SID -eq $user.SID }) {
-                    $tipoUsuario = "Administrador"
-                }
-                else {
-                    # Verificar grupo de usuarios estándar
-                    $userMembers = Get-LocalGroupMember -Group $userGroup -ErrorAction Stop
-                    if (-not ($userMembers | Where-Object { $_.SID -eq $user.SID })) {
-                        # Buscar en otros grupos
-                        $grupos = Get-LocalGroup | ForEach-Object {
-                            if (Get-LocalGroupMember -Group $_ | Where-Object { $_.SID -eq $user.SID }) {
-                                $_.Name
-                            }
+        # Verificar si es administrador
+        try {
+            $adminMembers = Get-LocalGroupMember -Group $adminGroup -ErrorAction Stop
+            if ($adminMembers | Where-Object { $_.SID -eq $user.SID }) {
+                $tipoUsuario = "Administrador"
+            }
+            else {
+                # Verificar grupo de usuarios estándar
+                $userMembers = Get-LocalGroupMember -Group $userGroup -ErrorAction Stop
+                if (-not ($userMembers | Where-Object { $_.SID -eq $user.SID })) {
+                    # Buscar en otros grupos
+                    $grupos = Get-LocalGroup | ForEach-Object {
+                        if (Get-LocalGroupMember -Group $_ | Where-Object { $_.SID -eq $user.SID }) {
+                            $_.Name
                         }
-                        $tipoUsuario = "Miembro de: " + ($grupos -join ", ")
                     }
+                    $tipoUsuario = "Miembro de: " + ($grupos -join ", ")
                 }
             }
-            catch {
-                $tipoUsuario = "Error verificando grupos: $_"
-            }
-            
-            Write-Host "Usuario: $($user.Name)".PadRight(25) "| Tipo: $tipoUsuario".PadRight(40) "| Estado: $estado" -ForegroundColor White
         }
-    })
+        catch {
+            $tipoUsuario = "Error verificando grupos"
+        }
+        
+        # Acortar texto si es muy largo (como en impresoras)
+        $nombre = $user.Name.Substring(0, [Math]::Min(25, $user.Name.Length))
+        $tipo = $tipoUsuario.Substring(0, [Math]::Min(40, $tipoUsuario.Length))
+        
+        [PSCustomObject]@{
+            Nombre = $nombre
+            Tipo   = $tipo
+            Estado = $estado
+        }
+    }
+
+    # Mostrar en tabla formateada
+    if ($usersTable.Count -gt 0) {
+        Write-Host ("{0,-25} {1,-40} {2,-15}" -f "Nombre", "Tipo", "Estado")
+        Write-Host ("{0,-25} {1,-40} {2,-15}" -f "------", "------", "------")
+        
+        $usersTable | ForEach-Object { 
+            Write-Host ("{0,-25} {1,-40} {2,-15}" -f $_.Nombre, $_.Tipo, $_.Estado) 
+        }
+    } else {
+        Write-Host "No se encontraron usuarios."
+    }
+})
 
     # Evento del botón Crear (original se mantiene igual)
     $btnOKAddUser.Add_Click({

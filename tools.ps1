@@ -1154,7 +1154,7 @@ $btnForzarActualizacion.Add_Click({
                         ) | Out-Null
                     }
                     else {
-                        Write-Host "`tOperación cancelada por el usuario." -ForegroundColor Yellow
+            Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
                     }
                 })
 
@@ -1242,7 +1242,7 @@ $btnSQLManagement.Add_Click({
                 [System.Windows.Forms.MessageBox]::Show("No se pudo iniciar SSMS. Verifique la ruta seleccionada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             }
         } else {
-            Write-Host "`tOperación cancelada por el usuario." -ForegroundColor Yellow
+            Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
         }
 })
 #Profiler:
@@ -1367,7 +1367,7 @@ $btnSQLManager.Add_Click({
                 [System.Windows.Forms.MessageBox]::Show("No se pudo iniciar SQL Server Configuration Manager. Verifique la ruta seleccionada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             }
         } else {
-            Write-Host "`tOperación cancelada por el usuario." -ForegroundColor Yellow
+            Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
         }
 })
 #Clear Anydesk
@@ -1430,7 +1430,7 @@ $btnClearAnyDesk.Add_Click({
         }
         else {
             # Si el usuario selecciona "No", simplemente no hace nada
-            Write-Host "`tRenovación de AnyDesk cancelada por el usuario."
+            Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
         }
     })
 $btnShowPrinters.Add_Click({
@@ -2844,7 +2844,7 @@ $btnOKAddUser.Add_Click({
                     })    
     # Evento del botón Cancelar
     $btnCancelAddUser.Add_Click({
-        Write-Host "`tOperación cancelada por el usuario." -ForegroundColor Yellow
+            Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
         $formAddUser.Close()
     })
     

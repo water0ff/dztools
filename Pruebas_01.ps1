@@ -3,9 +3,6 @@ if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
 }
-# Cargar imágenes con rutas absolutas y manejo de errores
-$redLedPath = "C:\Temp\red_led.png"
-$greenLedPath = "C:\Temp\green_led.png"
 # Mostrar advertencia ALFA y solicitar confirmación
 Write-Host "`n==============================================" -ForegroundColor Red
 Write-Host "           ADVERTENCIA DE VERSIÓN ALFA          " -ForegroundColor Red
@@ -43,7 +40,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250507.1426"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250501.1120"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -220,8 +217,20 @@ function Create-TextBox {
     $tabAplicaciones = New-Object System.Windows.Forms.TabPage
     $tabAplicaciones.Text = "Aplicaciones"
     $tabProSql = New-Object System.Windows.Forms.TabPage
-    $tabProSql.Text = "Bases de Datos"
-    $tabProSql.BackColor = [System.Drawing.Color]::FromArgb(240,240,240)
+    $tabProSql.Text = "Base de datos"
+# Crear SplitContainer
+    $splitContainer = New-Object System.Windows.Forms.SplitContainer
+    $splitContainer.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $splitContainer.SplitterDistance = 200  # Ancho del panel izquierdo
+# Panel izquierdo (conexión y bases de datos)
+    $panelLeft = New-Object System.Windows.Forms.Panel
+    $panelLeft.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $splitContainer.Panel1.Controls.Add($panelLeft)
+# Panel derecho (consultas y resultados)
+    $panelRight = New-Object System.Windows.Forms.Panel
+    $panelRight.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $splitContainer.Panel2.Controls.Add($panelRight)
+    $tabProSql.Controls.Add($splitContainer)
 # Añadir las pestañas al TabControl
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
@@ -260,10 +269,75 @@ function Create-TextBox {
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Crear nuevo usuario local en Windows"
     $btnForzarActualizacion = Create-Button -Text "Actualizar datos del sistema" -Location (New-Object System.Drawing.Point(470, 250)) `
         -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Actualiza información de hardware del sistema"
-    $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 50)) `
+    $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 20)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
-    $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(240, 50)) `
+    $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(10, 60)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -Enabled $false
+    # Lista de bases de datos
+$lstDatabases = New-Object System.Windows.Forms.CheckedListBox
+$lstDatabases.Location = New-Object System.Drawing.Point(10, 100)
+$lstDatabases.Size = New-Object System.Drawing.Size(180, 200)
+$lstDatabases.CheckOnClick = $true
+$panelLeft.Controls.AddRange(@($btnConnectDb, $btnDisconnectDb, $lstDatabases, $lblConnectionStatus))
+# TextBox para consultas
+$txtQuery = New-Object System.Windows.Forms.TextBox
+$txtQuery.Multiline = $true
+$txtQuery.ScrollBars = "Both"
+$txtQuery.Dock = [System.Windows.Forms.DockStyle]::Fill
+$txtQuery.Font = New-Object System.Drawing.Font("Consolas", 10)
+
+# Botón de ejecución
+$btnExecute = Create-Button -Text "Ejecutar" -Location (New-Object System.Drawing.Point(0, 0)) 
+$btnExecute.Size = New-Object System.Drawing.Size(100, 30)
+
+# CheckBox y ComboBox para consultas predefinidas
+$chkPredefined = New-Object System.Windows.Forms.CheckBox
+$chkPredefined.Text = "Sentencias predefinidas"
+$chkPredefined.Location = New-Object System.Drawing.Point(110, 5)
+$chkPredefined.Size = New-Object System.Drawing.Size(150, 20)
+
+$cmbQueries = New-Object System.Windows.Forms.ComboBox
+$cmbQueries.Location = New-Object System.Drawing.Point(260, 5)
+$cmbQueries.Size = New-Object System.Drawing.Size(200, 20)
+$cmbQueries.Visible = $false
+
+# DataGridView para resultados
+$dgvResults = New-Object System.Windows.Forms.DataGridView
+$dgvResults.Dock = [System.Windows.Forms.DockStyle]::Fill
+$dgvResults.AutoSizeColumnsMode = "Fill"
+
+# Panel superior para controles
+$panelTop = New-Object System.Windows.Forms.Panel
+$panelTop.Height = 40
+$panelTop.Dock = [System.Windows.Forms.DockStyle]::Top
+$panelTop.Controls.AddRange(@($btnExecute, $chkPredefined, $cmbQueries))
+
+# Contenedor principal
+$panelRight.Controls.Add($dgvResults)
+$panelRight.Controls.Add($txtQuery)
+$panelRight.Controls.Add($panelTop)
+
+# Hashtable con consultas predefinidas
+$script:predefinedQueries = @{
+    "Revisar Pivot Table" = "SELECT app_id, field, COUNT(*) FROM app_settings GROUP BY app_id, field HAVING COUNT(*) > 1"
+    "Fecha Revisiones" = "SELECT e.FECHAREV, b.estacion FROM bitacorasistema b INNER JOIN estaciones e ON b.estacion = e.idestacion"
+    "Eliminar Servidor" = "UPDATE configuracion SET serievalida = ''"
+    "Respaldar Restcard" = "BACKUP DATABASE restcard TO DISK = 'C:\Temp\restcard.bak'"
+}
+
+$cmbQueries.Items.AddRange($script:predefinedQueries.Keys)
+
+# Eventos para controles
+$chkPredefined.Add_CheckedChanged({
+    $cmbQueries.Visible = $chkPredefined.Checked
+    if (-not $chkPredefined.Checked) { $txtQuery.Clear() }
+})
+
+$cmbQueries.Add_SelectedIndexChanged({
+    $txtQuery.Text = $script:predefinedQueries[$cmbQueries.SelectedItem]
+})
+
+
     $btnReviewPivot = Create-Button -Text "Revisar Pivot Table" -Location (New-Object System.Drawing.Point(10, 90)) `
                                 -ToolTip "Para SR, busca y elimina duplicados en app_settings" -Enabled $false
     $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(470, 50)) `
@@ -276,72 +350,6 @@ function Create-TextBox {
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
     $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" -Location (New-Object System.Drawing.Point(10, 260)) -Size (New-Object System.Drawing.Size(290, 30)) `
                                      -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) -Font $defaultFont
-# Crear grupo para el proceso de conexión
-$grpConexion = New-Object System.Windows.Forms.GroupBox
-$grpConexion.Text = "Paso 1: Conexión a SQL Server"
-$grpConexion.Size = New-Object System.Drawing.Size(680, 100)
-$grpConexion.Location = New-Object System.Drawing.Point(10, 10)
-$tabProSql.Controls.Add($grpConexion)
-
-# --- Agregar controles al grupo $grpConexion ---
-$grpConexion.Controls.Add($btnConnectDb)       # Botón dentro del grupo
-$grpConexion.Controls.Add($btnDisconnectDb)    # Botón dentro del grupo
-$grpConexion.Controls.Add($lblInstrucciones)
-$grpConexion.Controls.Add($picConnectionStatus)
-
-# Grupo para acciones SQL (Paso 2)
-$grpAccionesSQL = New-Object System.Windows.Forms.GroupBox
-$grpAccionesSQL.Text = "Paso 2: Acciones disponibles"
-$grpAccionesSQL.Size = New-Object System.Drawing.Size(680, 150)
-$grpAccionesSQL.Location = New-Object System.Drawing.Point(10, 120)  # Debajo de $grpConexion
-$grpAccionesSQL.Visible = $false
-$tabProSql.Controls.Add($grpAccionesSQL)
-
-# --- Agregar botones al grupo $grpAccionesSQL ---
-$grpAccionesSQL.Controls.Add($btnReviewPivot)
-$grpAccionesSQL.Controls.Add($btnFechaRevEstaciones)
-$grpAccionesSQL.Controls.Add($btnEliminarServidorBDD)
-
-# Grupo MySQL (Posición ajustada)
-$grpMySQL = New-Object System.Windows.Forms.GroupBox
-$grpMySQL.Text = "Respaldo MySQL"
-$grpMySQL.Size = New-Object System.Drawing.Size(680, 80)
-$grpMySQL.Location = New-Object System.Drawing.Point(10, 280)  # Ajusta según necesidad
-$tabProSql.Controls.Add($grpMySQL)
-
-# --- Agregar botón de respaldo al grupo MySQL ---
-$btnRespaldarRestcard.Parent = $grpMySQL
-$btnRespaldarRestcard.Location = New-Object System.Drawing.Point(20, 20)
-
-# Eliminar estos controles de la pestaña (ya están en grupos)
-# $tabProSql.Controls.Add($btnReviewPivot)   # <- Eliminar
-# $tabProSql.Controls.Add($btnRespaldarRestcard) # <- Eliminar
-
-# En el evento de conexión exitosa añadir:
-      $grpAccionesSQL.Visible = $true
-# Verificar y cargar red_led.png
-if (Test-Path $GreenLedPath) {
-    $picConnectionStatus.Image = [System.Drawing.Image]::FromFile($GreenLedPath)
-} else {
-    Write-Host "Error: No se encontró $GreenLedPath. Usando color verde como respaldo." -ForegroundColor Yellow
-    $picConnectionStatus.BackColor = [System.Drawing.Color]::Green  # Respaldo visual
-}
-# En la desconexión añadir:
-      $grpAccionesSQL.Visible = $false
-if (Test-Path $redLedPath) {
-    $picConnectionStatus.Image = [System.Drawing.Image]::FromFile($redLedPath)
-} else {
-    Write-Host "Error: No se encontró $redLedPath. Usando color rojo como respaldo." -ForegroundColor Yellow
-    $picConnectionStatus.BackColor = [System.Drawing.Color]::Red  # Respaldo visual
-}
-
-# Crear etiqueta informativa
-        $lblInstrucciones = Create-Label -Text "Primero conecte a una base de datos SQL Server para habilitar las herramientas" `
-            -Location (New-Object System.Drawing.Point(20, 30)) -Size (New-Object System.Drawing.Size(400,40)) `
-            -ForeColor ([System.Drawing.Color]::DarkBlue)
-        $grpConexion.Controls.Add($lblInstrucciones)
-# Actualizar tooltips
-        $toolTip.SetToolTip($btnReviewPivot, "Requerido: Conexión activa a SQL Server`nAcción: Busca y elimina duplicados en app_settings")
 # Usar la función Create-Label para crear la label de conexión
     $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
         -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
@@ -375,13 +383,13 @@ $tabAplicaciones.Controls.Add($btnCambiarOTM)
 #    $tabAplicaciones.Controls.Add($lbIpAdress)
 $tabAplicaciones.Controls.Add($textBoxIpAdress)
 # Agregar controles a la pestaña Pro
-#    $tabProSql.Controls.Add($btnReviewPivot)
-#    $tabProSql.Controls.Add($btnRespaldarRestcard)
-#    $tabProSql.Controls.Add($btnFechaRevEstaciones)
-#    $tabProSql.Controls.Add($btnEliminarServidorBDD)
-#    $tabProSql.Controls.Add($lblConnectionStatus)
-#    $tabProSql.Controls.Add($btnConnectDb)
-#    $tabProSql.Controls.Add($btnDisconnectDb)
+    $tabProSql.Controls.Add($btnReviewPivot)
+    $tabProSql.Controls.Add($btnRespaldarRestcard)
+    $tabProSql.Controls.Add($btnFechaRevEstaciones)
+    $tabProSql.Controls.Add($btnEliminarServidorBDD)
+    $tabProSql.Controls.Add($lblConnectionStatus)
+    $tabProSql.Controls.Add($btnConnectDb)
+    $tabProSql.Controls.Add($btnDisconnectDb)
 # Función para manejar MouseEnter y cambiar el color
 $changeColorOnHover = {
     param($sender, $eventArgs)
@@ -1980,148 +1988,98 @@ $btnEliminarServidorBDD.Add_Click({
         })
 #Boton para conectar a la base de datos
 $btnConnectDb.Add_Click({
-            # Crear el formulario para pedir los datos de conexión
-                $formBddConnection = Create-Form -Title "Conexión a SQL Server" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+    # Crear formulario de conexión
+    $formBddConnection = Create-Form -Title "Conexión a SQL Server" -Size (400, 200)
     
-            # Crear las etiquetas y cajas de texto
-            $lblProfile = Create-Label -Text "Perfil de conexión" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(100, 20))
-            $cmbProfiles = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(250, 20)) -DropDownStyle DropDownList
-            # Cargar archivos INI desde las rutas especificadas
-            $profiles = @{ }
-            $iniFiles = @(
-                "C:\NationalSoft\OnTheMinute4.5\checadorsql.ini",
-                "C:\NationalSoft\Softrestaurant11.0\INIS\*.ini",
-                "C:\NationalSoft\Softrestaurant10.0\INIS\*.ini"
-            )
-    
-                foreach ($path in $iniFiles) {
-                    $files = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
-                    foreach ($file in $files) {
-                        # Obtener la ruta de las dos carpetas anteriores
-                        $relativePath = $file.DirectoryName -replace "^.*\\([^\\]+\\[^\\]+)\\.*$", '$1'
-            
-                        # Concatenar la ruta relativa con el nombre del archivo
-                        $profileName = "$relativePath\$($file.Name)"
-            
-                        # Agregar el perfil a la lista
-                        $profiles[$profileName] = $file.FullName
-                        $cmbProfiles.Items.Add($profileName)
-                    }
-                }
-    
-            # Agregar opción "Personalizado" si no existe ya en la lista
-            if (-not $cmbProfiles.Items.Contains("Personalizado")) {
-                $cmbProfiles.Items.Add("Personalizado")
-            }
-            # Crear las demás etiquetas y campos de texto
-            $labelServer = Create-Label -Text "Servidor SQL" -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(100, 20))
-            $txtServer = Create-TextBox -Location (New-Object System.Drawing.Point(120, 50)) -Size (New-Object System.Drawing.Size(250, 20))
-            $lblDatabase = Create-Label -Text "Base de Datos" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(100, 20))
-            $txtDatabase = Create-TextBox -Location (New-Object System.Drawing.Point(120, 80)) -Size (New-Object System.Drawing.Size(250, 20))
-            $lblPassword = Create-Label -Text "Contraseña" -Location (New-Object System.Drawing.Point(10, 110)) -Size (New-Object System.Drawing.Size(100, 20))
-            $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 110)) -Size (New-Object System.Drawing.Size(250, 20)) -UseSystemPasswordChar $true
+    #... (código existente del formulario de conexión)
 
-        # Habilitar el botón "Conectar" si la contraseña tiene al menos un carácter
-        $txtPassword.Add_TextChanged({
-            if ($txtPassword.Text.Length -ge 1) {
-                $btnOK.Enabled = $true
-            } else {
-                $btnOK.Enabled = $false
+    $result = $formBddConnection.ShowDialog()
+    
+    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+        try {
+            # Establecer conexión
+            $connectionString = "Server=$($txtServer.Text);Database=master;User Id=sa;Password=$($txtPassword.Text);"
+            $global:connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+            $global:connection.Open()
+
+            # Obtener lista de bases de datos
+            $query = @"
+            SELECT name 
+            FROM sys.databases 
+            WHERE name NOT IN ('master', 'tempdb', 'model', 'msdb')
+            AND state_desc = 'ONLINE'
+            ORDER BY name
+"@
+            $dbs = Execute-SqlQuery -server $global:server -database "master" -query $query
+
+            # Limpiar y cargar lista de bases de datos
+            $lstDatabases.Items.Clear()
+            foreach ($db in $dbs) {
+                $lstDatabases.Items.Add($db.name)
             }
-        })
-            # Manejar selección del ComboBox
-            $cmbProfiles.Add_SelectedIndexChanged({
-                if ($cmbProfiles.SelectedItem -eq "Personalizado") {
-                    $txtServer.Clear()
-                    $txtDatabase.Clear()
-                } else {
-                    $selectedFile = $profiles[$cmbProfiles.SelectedItem]
-                    if (Test-Path $selectedFile) {
-                        $content = Get-Content -Path $selectedFile -ErrorAction SilentlyContinue
-                        if ($content.Length -gt 0) {
-                            # Inicializar valores por defecto
-                            $server = "No especificado"
-                            $database = "No especificado"
-    
-                            # Obtener la primera coincidencia de DataSource y Catalog usando Select-String
-                            $dataSourceMatch = $content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1
-                            if ($dataSourceMatch) {
-                                $server = $dataSourceMatch.Matches.Groups[1].Value
-                            }
-    
-                            $catalogMatch = $content | Select-String -Pattern "^Catalog=(.*)" | Select-Object -First 1
-                            if ($catalogMatch) {
-                                $database = $catalogMatch.Matches.Groups[1].Value
-                            }
-    
-                            # Verificar que los valores sean correctos antes de asignarlos
-                            if ($server -ne "No especificado") {
-                                $txtServer.Text = $server
-                            }
-    
-                            if ($database -ne "No especificado") {
-                                $txtDatabase.Text = $database
-                            }
-                        }
-                    }
-                }
-            })
-    
-            # Crear el botón para conectar
-            $btnOK = Create-Button -Text "Conectar" -Location (New-Object System.Drawing.Point(150, 140)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
-        # Variables globales para guardar la información de conexión
-        $global:server
-        $global:database
-        $global:password
-        $global:connection  # Variable global para la conexión
-        $btnOK.Add_Click({
-                try {
-                    # Cadena de conexión
-                    $connectionString = "Server=$($txtServer.Text);Database=$($txtDatabase.Text);User Id=sa;Password=$($txtPassword.Text);"
-                    $global:connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)  # Asignar la conexión a la variable global
-                    $global:connection.Open()
-        
-                    Write-Host "`nConexión exitosa" -ForegroundColor Green
-        
-                    # Guardar la información de conexión en variables globales
-                    $global:server = $txtServer.Text
-                    $global:database = $txtDatabase.Text
-                    $global:password = $txtPassword.Text
-        
-                    # Cerrar la ventana de conexión
-                    $formBddConnection.Close()
-        
-                    # Actualizar el texto del label de conexión
-                    $lblConnectionStatus.Text = "Conectado a BDD: $($txtDatabase.Text)"
-                    $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-                    Write-Host "`t$global:database"
-        
-                    # Habilitar o deshabilitar botones cuando hay conexiones existosas
-                    $btnReviewPivot.Enabled = $true
-                    $btnFechaRevEstaciones.Enabled = $true
-                    $btnEliminarServidorBDD.Enabled = $true
-                    $btnConnectDb.Enabled = $false
-                    $btnDisconnectDb.Enabled = $true
-        
-                } catch {
-                    Write-Host "`nError de conexión: $_" -ForegroundColor Red
-                    $lblConnectionStatus.Text = "Conexión fallida"
-                }
-            })
-                # Agregar los controles al formulario
-                $formBddConnection.Controls.Add($lblProfile)
-                $formBddConnection.Controls.Add($cmbProfiles)
-                $formBddConnection.Controls.Add($labelServer)
-                $formBddConnection.Controls.Add($txtServer)
-                $formBddConnection.Controls.Add($lblDatabase)
-                $formBddConnection.Controls.Add($txtDatabase)
-                $formBddConnection.Controls.Add($lblPassword)
-                $formBddConnection.Controls.Add($txtPassword)
-                $formBddConnection.Controls.Add($btnOK)
-                $formBddConnection.ShowDialog()
-            })
+
+            # Actualizar UI
+            $lblConnectionStatus.Text = "Conectado a: $($txtServer.Text)"
+            $btnDisconnectDb.Enabled = $true
+            $btnConnectDb.Enabled = $false
+            
+            # Habilitar controles relacionados
+            $btnExecute.Enabled = $true
+            $txtQuery.Enabled = $true
+            $chkPredefined.Enabled = $true
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show(
+                "Error al conectar: $($_.Exception.Message)",
+                "Error de conexión",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Error
+            )
+        }
+        finally {
+            $formBddConnection.Close()
+        }
+    }
+})
 #Boton para desconectar de la base de datos
+function ConvertTo-DataTable {
+    param($InputObject)
+    $dt = New-Object System.Data.DataTable
+    $InputObject | ForEach-Object {
+        if (!$dt.Columns.Count) {
+            $_.PSObject.Properties | ForEach-Object {
+                $dt.Columns.Add($_.Name, $_.Value.GetType())
+            }
+        }
+        $row = $dt.NewRow()
+        $_.PSObject.Properties | ForEach-Object {
+            $row[$_.Name] = $_.Value
+        }
+        $dt.Rows.Add($row)
+    }
+    return $dt
+}
+
+$btnExecute.Add_Click({
+    try {
+        $selectedDbs = $lstDatabases.CheckedItems
+        if ($selectedDbs.Count -eq 0) {
+            throw "Seleccione al menos una base de datos"
+        }
+        
+        $results = @()
+        foreach ($db in $selectedDbs) {
+            $result = Execute-SqlQuery -server $global:server -database $db -query $txtQuery.Text
+            $results += $result | Select-Object @{Name="Database";Expression={$db}}, *
+        }
+        
+        # Mostrar resultados en DataGridView
+        $dgvResults.DataSource = $results
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message)
+    }
+})
 $btnDisconnectDb.Add_Click({
         try {
             # Cerrar la conexión

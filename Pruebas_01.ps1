@@ -1729,393 +1729,6 @@ $btnInstallSQL2014.Add_Click({
                 [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2014 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             }
 })
-
-
-#Boton para actualizar los datos del servidor (borrarlo basicamente)
-$btnEliminarServidorBDD.Add_Click({
-        $formEliminarServidor = Create-Form -Title "Eliminar Servidor de BDD" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
-            $cmbOpciones = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(360, 20)) `
-                               -DropDownStyle DropDownList -Items @("Seleccione una opción", "On The minute", "NS Hoteles", "Rest Card") -SelectedIndex 0
-            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
-            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(140, 30))
-            $cmbOpciones.Add_SelectedIndexChanged({
-                if ($cmbOpciones.SelectedIndex -gt 0) {
-                    $btnEliminar.Enabled = $true
-                } else {
-                    $btnEliminar.Enabled = $false
-                }
-            })
-            $btnEliminar.Add_Click({
-                $opcionSeleccionada = $cmbOpciones.SelectedItem
-                $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
-                    try {
-                        # Definir la consulta SQL según la opción seleccionada
-                        $query = $null
-                        switch ($opcionSeleccionada) {
-                            "On The minute" {
-                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
-                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-                                Write-Host "`t$query"
-                            }
-                            "NS Hoteles" {
-                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
-                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-                                Write-Host "`t$query"
-                            }
-                            "Rest Card" {
-                                Write-Host "`nFunción deshabilitada, ejecuta el Query en la base de datos:" -ForegroundColor Yellow
-                                Write-Host "`tupdate tabvariables set estacion='', ipservidor='';" -ForegroundColor Yellow
-                            }
-                        }
-            
-                        if ($query) {
-                            # Ejecutar la consulta y obtener el número de filas afectadas
-                            $rowsAffected = Execute-SqlQuery -server $global:server -database $global:database -query $query
-            
-                            if ($rowsAffected -gt 0) {
-                                Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
-                            } elseif ($rowsAffected -eq 0) {
-                                Write-Host "No se encontraron filas para actualizar en la tabla configuracion." -ForegroundColor Yellow
-                            } else {
-                                Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
-                            }
-                        }
-                    } catch {
-                        Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
-                    }
-                    $formEliminarServidor.Close()
-                }
-            })
-            # Manejar el evento Click del botón Cancelar
-            $btnCancelar.Add_Click({
-                $formEliminarServidor.Close()
-            })
-            # Agregar los controles al formulario
-            $formEliminarServidor.Controls.Add($cmbOpciones)
-            $formEliminarServidor.Controls.Add($btnEliminar)
-            $formEliminarServidor.Controls.Add($btnCancelar)
-            # Mostrar el formulario
-            $formEliminarServidor.ShowDialog()
-        })
-function ConvertTo-DataTable {
-    param($InputObject)
-    $dt = New-Object System.Data.DataTable
-    if (-not $InputObject) { return $dt }
-
-    $columns = $InputObject[0].Keys
-    foreach ($col in $columns) {
-        $dt.Columns.Add($col) | Out-Null
-    }
-
-    foreach ($row in $InputObject) {
-        $dr = $dt.NewRow()
-        foreach ($col in $columns) {
-            $dr[$col] = $row[$col]
-        }
-        $dt.Rows.Add($dr)
-    }
-    return $dt
-}
-
-
-
-
-                                # Función ejecutar consulta MODIFICADA para mantener compatibilidad
-function Execute-SqlQuery {
-    param (
-        [string]$server,
-        [string]$database,
-        [string]$query
-    )
-    try {
-        #$connectionString = "Server=$server;Database=$database;User Id=sa;Password=$global:password;"
-        $connectionString = "Server=$server;Database=$database;User Id=$global:user;Password=$global:password;"
-        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        $connection.Open()
-
-        # Permitir consultas complejas (MARS)
-        $connectionString += ";MultipleActiveResultSets=True"
-        
-        $command = $connection.CreateCommand()
-        $command.CommandText = $query
-
-        if ($query -match "^\s*(WITH|SELECT)") {
-            $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
-            $dataTable = New-Object System.Data.DataTable
-            $adapter.Fill($dataTable) | Out-Null
-            
-            # Conversión para consola
-                   $consoleResults = @()
-                    $columns = $dataTable.Columns | Select-Object -ExpandProperty ColumnName
-                    
-                    foreach ($row in $dataTable.Rows) {
-                        $rowData = [ordered]@{}
-                        foreach ($col in $columns) {
-                            $rowData[$col] = $row[$col]
-                        }
-                        $consoleResults += [PSCustomObject]$rowData
-                    }
-                    
-                    return @{
-                        DataTable = $dataTable
-                        ConsoleData = $consoleResults
-                    }
-        } 
-        else {
-            $rowsAffected = $command.ExecuteNonQuery()
-            return $rowsAffected
-        }
-    }
-    catch {
-        Write-Host "Error en consulta: $($_.Exception.Message)" -ForegroundColor Red
-        throw $_
-    }
-    finally {
-        $connection.Close()
-    }
-}
-
-# Función original para mostrar resultados en consola (SIN CAMBIOS)
-function Show-ResultsConsole {
-    param (
-        [string]$query
-    )
-    try {
-        $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
-        
-        if ($results.GetType().Name -eq 'Hashtable') {
-            $consoleData = $results.ConsoleData
-            if ($consoleData.Count -gt 0) {
-                $columns = $consoleData[0].Keys
-                $columnWidths = @{}
-                foreach ($col in $columns) {
-                    $columnWidths[$col] = $col.Length
-                }
-                
-                Write-Host ""
-                $header = ""
-                foreach ($col in $columns) {
-                    $header += $col.PadRight($columnWidths[$col] + 4)
-                }
-                Write-Host $header
-                Write-Host ("-" * $header.Length)
-                
-                foreach ($row in $consoleData) {
-                    $rowText = ""
-                    foreach ($col in $columns) {
-                        $rowText += ($row[$col].ToString()).PadRight($columnWidths[$col] + 4)
-                    }
-                    Write-Host $rowText
-                }
-            } 
-            else {
-                Write-Host "`nNo se encontraron resultados." -ForegroundColor Yellow
-            }
-        }
-        else {
-            Write-Host "`nFilas afectadas: $results" -ForegroundColor Green
-        }
-    } 
-    catch {
-        Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
-    }
-}
-
-# Evento del botón Execute ACTUALIZADO
-$btnExecute.Add_Click({
-    try {
-        $selectedDb = $cmbDatabases.SelectedItem
-        if (-not $selectedDb) { throw "Selecciona una base de datos" }
-        
-        $query = $txtQuery.Text
-        $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $query
-
-        if ($result -is [hashtable]) {
-            # Debug: Mostrar metadatos
-            $dgvResults.DataSource = $result.DataTable.DefaultView # Usar DefaultView
-            $dgvResults.Enabled = $true
-            Clear-Host  # Limpia la consola al iniciar la ejecución
-            Write-Host "Columnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
-            
-            $dgvResults.DataSource = $result.DataTable
-            # Nuevo código para ajustar columnas
-            $dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
-            foreach ($col in $dgvResults.Columns) {
-                $col.AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::DisplayedCells
-                $col.Width = [Math]::Max($col.Width, $col.HeaderText.Length * 8)  # Ajuste basado en texto
-                }
-            # Mostrar en consola
-            if ($result.ConsoleData.Count -eq 0) {
-                Write-Host "La consulta no devolvió resultados" -ForegroundColor Yellow
-            } else {
-                $result.ConsoleData | Format-Table -AutoSize | Out-String | Write-Host
-            }
-        } else {
-            Write-Host "Filas afectadas: $result" -ForegroundColor Green
-        }
-    }
-    catch {
-        [System.Windows.Forms.MessageBox]::Show(
-            "Error grave:`n$($_.Exception.Message)`n`nConsulta ejecutada:`n$query",
-            "Error de ejecución",
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Error
-        )
-    }
-})
-    # ————— Crear el formulario de conexión —————
-$btnConnectDb.Add_Click({
-    try {
-        $global:server = $txtServer.Text
-        $global:user = $txtUser.Text
-        $global:password = $txtPassword.Text
-        
-        if (-not $global:server -or -not $global:user -or -not $global:password) {
-            throw "Complete todos los campos de conexión"
-        }
-        
-        $connStr = "Server=$global:server;User Id=$global:user;Password=$global:password;"
-        $global:connection = [System.Data.SqlClient.SqlConnection]::new($connStr)
-        $global:connection.Open()
-
-        # Obtener bases de datos
-        $query = "SELECT name FROM sys.databases WHERE name NOT IN ('master','tempdb','model','msdb') AND state_desc = 'ONLINE' ORDER BY name"
-        $result = Execute-SqlQuery -server $global:server -database "master" -query $query
-        
-        $cmbDatabases.Items.Clear()
-        foreach ($row in $result.DataTable.Rows) {
-            $cmbDatabases.Items.Add($row["name"])
-        }
-        
-        $cmbDatabases.Enabled = $true
-        $cmbDatabases.SelectedIndex = 0
-        $lblConnectionStatus.Text = "Conectado a: $global:server"
-        $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-        
-        $btnConnectDb.Enabled = $false
-        $btnDisconnectDb.Enabled = $true
-        $btnExecute.Enabled = $true
-        $txtQuery.Enabled = $true
-    }
-    catch {
-        [System.Windows.Forms.MessageBox]::Show(
-            "Error de conexión: $($_.Exception.Message)",
-            "Error",
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Error
-        )
-    }
-})
-# ————— Acción al pulsar Conectar —————
-$btnOK.Add_Click({
-              try {
-                  # 1. Crear y abrir conexión PRIMERO
-                  $connStr = "Server=$($txtServer.Text);User Id=sa;Password=$($txtPassword.Text);"
-                  $global:connection = [System.Data.SqlClient.SqlConnection]::new($connStr)
-                  $global:connection.Open()
-          
-                  # 2. Guardar variables GLOBALES correctamente
-                  $global:server = $txtServer.Text
-                  $global:password = $txtPassword.Text
-          
-                  # 3. Obtener bases de datos
-                  $query = "SELECT name FROM sys.databases WHERE name NOT IN ('master','tempdb','model','msdb') AND state_desc = 'ONLINE' ORDER BY name"
-                  $result = Execute-SqlQuery -server $global:server -database "master" -query $query
-          
-                  # 4. Llenar ComboBox
-                  $cmbDatabases.Items.Clear()
-                  foreach ($row in $result.DataTable.Rows) {
-                      $cmbDatabases.Items.Add($row["name"])
-                  }
-                  $cmbDatabases.Enabled = $true
-                  $cmbDatabases.SelectedIndex = 0
-          
-                  # 5. Actualizar estado CON DATOS REALES
-                  $global:database = $cmbDatabases.SelectedItem
-                  $lblConnectionStatus.Text = "Conectado a: $global:server | BDD: $global:database"
-                  $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-          
-                  # 6. Habilitar controles
-                  $btnConnectDb.Enabled = $false
-                  $btnDisconnectDb.Enabled = $true
-                  $btnExecute.Enabled = $true
-                  $txtQuery.Enabled = $true
-          
-                  Write-Host "`nConexión exitosa a $global:server" -ForegroundColor Green
-                  $formBddConnection.Close()
-              }
-              catch {
-                  [System.Windows.Forms.MessageBox]::Show(
-                      "Error de conexión: $($_.Exception.Message)",
-                      "Error",
-                      [System.Windows.Forms.MessageBoxButtons]::OK,
-                      [System.Windows.Forms.MessageBoxIcon]::Error
-                  )
-              }
-})
-# ————— Agregar controles y mostrar formulario —————
-$formBddConnection.Controls.AddRange(@(
-        $lblProfile, $cmbProfiles,
-        $labelServer, $txtServer,
-        $lblDatabase, $txtDatabase,
-        $lblPassword, $txtPassword,
-        $btnOK
-    ))
-    $formBddConnection.ShowDialog()
-  })
-#Boton para desconectar de la base de datos
-function ConvertTo-DataTable {
-    param($InputObject)
-    $dt = New-Object System.Data.DataTable
-    $InputObject | ForEach-Object {
-        if (!$dt.Columns.Count) {
-            $_.PSObject.Properties | ForEach-Object {
-                $dt.Columns.Add($_.Name, $_.Value.GetType())
-            }
-        }
-        $row = $dt.NewRow()
-        $_.PSObject.Properties | ForEach-Object {
-            $row[$_.Name] = $_.Value
-        }
-        $dt.Rows.Add($row)
-    }
-    return $dt
-}
-
-# Actualizar el evento SelectedIndexChanged
-$cmbDatabases.Add_SelectedIndexChanged({
-    if ($cmbDatabases.SelectedItem) {
-        $global:database = $cmbDatabases.SelectedItem
-        
-        # Actualizar etiqueta
-        $lblConnectionStatus.Text = "Conectado a: $global:server | BDD: $global:database"
-        $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-        
-        Write-Host "Base de datos seleccionada: $($cmbDatabases.SelectedItem)" -ForegroundColor Cyan
-    }
-})
-#boton para desconectar a la base de datos.
-$btnDisconnectDb.Add_Click({
-
-    try {
-        Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
-        $global:connection.Close()
-        $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
-        $listBoxDatabases.Items.Clear()
-        $listBoxDatabases.Enabled = $false  # Deshabilitar lista
-            $btnConnectDb.Enabled    = $True
-            $btnDisconnectDb.Enabled = $false
-            $btnExecute.Enabled      = $false
-            $txtQuery.Enabled        = $false
-            $chkPredefined.Enabled   = $false
-
-    }
-    catch {
-            Write-Host "`nError al desconectar: $_" -ForegroundColor Red
-        }
-})
 # ------------------------------ Boton para configurar nuevas ips
 $btnConfigurarIPs.Add_Click({
             $formIpAssignAsignacion = Create-Form -Title "Asignación de IPs" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
@@ -2845,7 +2458,7 @@ $btnAddUser.Add_Click({
     }
 })
 
-    # Evento del botón Crear (original se mantiene igual)
+# Evento del botón Crear (original se mantiene igual)
 $btnOKAddUser.Add_Click({
                         # Capturar valores
                         $username = $txtUsernameAddUser.Text.Trim()
@@ -2902,6 +2515,399 @@ $btnOKAddUser.Add_Click({
     
     $formAddUser.ShowDialog()
 })
+
+
+
+
+#Boton para actualizar los datos del servidor (borrarlo basicamente)
+$btnEliminarServidorBDD.Add_Click({
+        $formEliminarServidor = Create-Form -Title "Eliminar Servidor de BDD" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
+            $cmbOpciones = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(360, 20)) `
+                               -DropDownStyle DropDownList -Items @("Seleccione una opción", "On The minute", "NS Hoteles", "Rest Card") -SelectedIndex 0
+            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
+            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(140, 30))
+            $cmbOpciones.Add_SelectedIndexChanged({
+                if ($cmbOpciones.SelectedIndex -gt 0) {
+                    $btnEliminar.Enabled = $true
+                } else {
+                    $btnEliminar.Enabled = $false
+                }
+            })
+            $btnEliminar.Add_Click({
+                $opcionSeleccionada = $cmbOpciones.SelectedItem
+                $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    try {
+                        # Definir la consulta SQL según la opción seleccionada
+                        $query = $null
+                        switch ($opcionSeleccionada) {
+                            "On The minute" {
+                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
+                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+                                Write-Host "`t$query"
+                            }
+                            "NS Hoteles" {
+                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
+                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+                                Write-Host "`t$query"
+                            }
+                            "Rest Card" {
+                                Write-Host "`nFunción deshabilitada, ejecuta el Query en la base de datos:" -ForegroundColor Yellow
+                                Write-Host "`tupdate tabvariables set estacion='', ipservidor='';" -ForegroundColor Yellow
+                            }
+                        }
+            
+                        if ($query) {
+                            # Ejecutar la consulta y obtener el número de filas afectadas
+                            $rowsAffected = Execute-SqlQuery -server $global:server -database $global:database -query $query
+            
+                            if ($rowsAffected -gt 0) {
+                                Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
+                            } elseif ($rowsAffected -eq 0) {
+                                Write-Host "No se encontraron filas para actualizar en la tabla configuracion." -ForegroundColor Yellow
+                            } else {
+                                Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
+                            }
+                        }
+                    } catch {
+                        Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
+                    }
+                    $formEliminarServidor.Close()
+                }
+            })
+            # Manejar el evento Click del botón Cancelar
+            $btnCancelar.Add_Click({
+                $formEliminarServidor.Close()
+            })
+            # Agregar los controles al formulario
+            $formEliminarServidor.Controls.Add($cmbOpciones)
+            $formEliminarServidor.Controls.Add($btnEliminar)
+            $formEliminarServidor.Controls.Add($btnCancelar)
+            # Mostrar el formulario
+            $formEliminarServidor.ShowDialog()
+        })
+function ConvertTo-DataTable {
+    param($InputObject)
+    $dt = New-Object System.Data.DataTable
+    if (-not $InputObject) { return $dt }
+
+    $columns = $InputObject[0].Keys
+    foreach ($col in $columns) {
+        $dt.Columns.Add($col) | Out-Null
+    }
+
+    foreach ($row in $InputObject) {
+        $dr = $dt.NewRow()
+        foreach ($col in $columns) {
+            $dr[$col] = $row[$col]
+        }
+        $dt.Rows.Add($dr)
+    }
+    return $dt
+}
+
+
+
+
+                                # Función ejecutar consulta MODIFICADA para mantener compatibilidad
+function Execute-SqlQuery {
+    param (
+        [string]$server,
+        [string]$database,
+        [string]$query
+    )
+    try {
+        #$connectionString = "Server=$server;Database=$database;User Id=sa;Password=$global:password;"
+        $connectionString = "Server=$server;Database=$database;User Id=$global:user;Password=$global:password;"
+        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+        $connection.Open()
+
+        # Permitir consultas complejas (MARS)
+        $connectionString += ";MultipleActiveResultSets=True"
+        
+        $command = $connection.CreateCommand()
+        $command.CommandText = $query
+
+        if ($query -match "^\s*(WITH|SELECT)") {
+            $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
+            $dataTable = New-Object System.Data.DataTable
+            $adapter.Fill($dataTable) | Out-Null
+            
+            # Conversión para consola
+                   $consoleResults = @()
+                    $columns = $dataTable.Columns | Select-Object -ExpandProperty ColumnName
+                    
+                    foreach ($row in $dataTable.Rows) {
+                        $rowData = [ordered]@{}
+                        foreach ($col in $columns) {
+                            $rowData[$col] = $row[$col]
+                        }
+                        $consoleResults += [PSCustomObject]$rowData
+                    }
+                    
+                    return @{
+                        DataTable = $dataTable
+                        ConsoleData = $consoleResults
+                    }
+        } 
+        else {
+            $rowsAffected = $command.ExecuteNonQuery()
+            return $rowsAffected
+        }
+    }
+    catch {
+        Write-Host "Error en consulta: $($_.Exception.Message)" -ForegroundColor Red
+        throw $_
+    }
+    finally {
+        $connection.Close()
+    }
+}
+
+# Función original para mostrar resultados en consola (SIN CAMBIOS)
+function Show-ResultsConsole {
+    param (
+        [string]$query
+    )
+    try {
+        $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
+        
+        if ($results.GetType().Name -eq 'Hashtable') {
+            $consoleData = $results.ConsoleData
+            if ($consoleData.Count -gt 0) {
+                $columns = $consoleData[0].Keys
+                $columnWidths = @{}
+                foreach ($col in $columns) {
+                    $columnWidths[$col] = $col.Length
+                }
+                
+                Write-Host ""
+                $header = ""
+                foreach ($col in $columns) {
+                    $header += $col.PadRight($columnWidths[$col] + 4)
+                }
+                Write-Host $header
+                Write-Host ("-" * $header.Length)
+                
+                foreach ($row in $consoleData) {
+                    $rowText = ""
+                    foreach ($col in $columns) {
+                        $rowText += ($row[$col].ToString()).PadRight($columnWidths[$col] + 4)
+                    }
+                    Write-Host $rowText
+                }
+            } 
+            else {
+                Write-Host "`nNo se encontraron resultados." -ForegroundColor Yellow
+            }
+        }
+        else {
+            Write-Host "`nFilas afectadas: $results" -ForegroundColor Green
+        }
+    } 
+    catch {
+        Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
+    }
+}
+
+# Evento del botón Execute ACTUALIZADO
+$btnExecute.Add_Click({
+    try {
+        $selectedDb = $cmbDatabases.SelectedItem
+        if (-not $selectedDb) { throw "Selecciona una base de datos" }
+        
+        $query = $txtQuery.Text
+        $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $query
+
+        if ($result -is [hashtable]) {
+            # Debug: Mostrar metadatos
+            $dgvResults.DataSource = $result.DataTable.DefaultView # Usar DefaultView
+            $dgvResults.Enabled = $true
+            Clear-Host  # Limpia la consola al iniciar la ejecución
+            Write-Host "Columnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
+            
+            $dgvResults.DataSource = $result.DataTable
+            # Nuevo código para ajustar columnas
+            $dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
+            foreach ($col in $dgvResults.Columns) {
+                $col.AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::DisplayedCells
+                $col.Width = [Math]::Max($col.Width, $col.HeaderText.Length * 8)  # Ajuste basado en texto
+                }
+            # Mostrar en consola
+            if ($result.ConsoleData.Count -eq 0) {
+                Write-Host "La consulta no devolvió resultados" -ForegroundColor Yellow
+            } else {
+                $result.ConsoleData | Format-Table -AutoSize | Out-String | Write-Host
+            }
+        } else {
+            Write-Host "Filas afectadas: $result" -ForegroundColor Green
+        }
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Error grave:`n$($_.Exception.Message)`n`nConsulta ejecutada:`n$query",
+            "Error de ejecución",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        )
+    }
+})
+    # ————— Crear el formulario de conexión —————
+$btnConnectDb.Add_Click({
+    try {
+        $global:server = $txtServer.Text
+        $global:user = $txtUser.Text
+        $global:password = $txtPassword.Text
+        
+        if (-not $global:server -or -not $global:user -or -not $global:password) {
+            throw "Complete todos los campos de conexión"
+        }
+        
+        $connStr = "Server=$global:server;User Id=$global:user;Password=$global:password;"
+        $global:connection = [System.Data.SqlClient.SqlConnection]::new($connStr)
+        $global:connection.Open()
+
+        # Obtener bases de datos
+        $query = "SELECT name FROM sys.databases WHERE name NOT IN ('master','tempdb','model','msdb') AND state_desc = 'ONLINE' ORDER BY name"
+        $result = Execute-SqlQuery -server $global:server -database "master" -query $query
+        
+        $cmbDatabases.Items.Clear()
+        foreach ($row in $result.DataTable.Rows) {
+            $cmbDatabases.Items.Add($row["name"])
+        }
+        
+        $cmbDatabases.Enabled = $true
+        $cmbDatabases.SelectedIndex = 0
+        $lblConnectionStatus.Text = "Conectado a: $global:server"
+        $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
+        
+        $btnConnectDb.Enabled = $false
+        $btnDisconnectDb.Enabled = $true
+        $btnExecute.Enabled = $true
+        $txtQuery.Enabled = $true
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Error de conexión: $($_.Exception.Message)",
+            "Error",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        )
+    }
+})
+# ————— Acción al pulsar Conectar —————
+$btnOK.Add_Click({
+              try {
+                  # 1. Crear y abrir conexión PRIMERO
+                  $connStr = "Server=$($txtServer.Text);User Id=sa;Password=$($txtPassword.Text);"
+                  $global:connection = [System.Data.SqlClient.SqlConnection]::new($connStr)
+                  $global:connection.Open()
+          
+                  # 2. Guardar variables GLOBALES correctamente
+                  $global:server = $txtServer.Text
+                  $global:password = $txtPassword.Text
+          
+                  # 3. Obtener bases de datos
+                  $query = "SELECT name FROM sys.databases WHERE name NOT IN ('master','tempdb','model','msdb') AND state_desc = 'ONLINE' ORDER BY name"
+                  $result = Execute-SqlQuery -server $global:server -database "master" -query $query
+          
+                  # 4. Llenar ComboBox
+                  $cmbDatabases.Items.Clear()
+                  foreach ($row in $result.DataTable.Rows) {
+                      $cmbDatabases.Items.Add($row["name"])
+                  }
+                  $cmbDatabases.Enabled = $true
+                  $cmbDatabases.SelectedIndex = 0
+          
+                  # 5. Actualizar estado CON DATOS REALES
+                  $global:database = $cmbDatabases.SelectedItem
+                  $lblConnectionStatus.Text = "Conectado a: $global:server | BDD: $global:database"
+                  $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
+          
+                  # 6. Habilitar controles
+                  $btnConnectDb.Enabled = $false
+                  $btnDisconnectDb.Enabled = $true
+                  $btnExecute.Enabled = $true
+                  $txtQuery.Enabled = $true
+          
+                  Write-Host "`nConexión exitosa a $global:server" -ForegroundColor Green
+                  $formBddConnection.Close()
+              }
+              catch {
+                  [System.Windows.Forms.MessageBox]::Show(
+                      "Error de conexión: $($_.Exception.Message)",
+                      "Error",
+                      [System.Windows.Forms.MessageBoxButtons]::OK,
+                      [System.Windows.Forms.MessageBoxIcon]::Error
+                  )
+              }
+})
+# ————— Agregar controles y mostrar formulario —————
+$formBddConnection.Controls.AddRange(@(
+        $lblProfile, $cmbProfiles,
+        $labelServer, $txtServer,
+        $lblDatabase, $txtDatabase,
+        $lblPassword, $txtPassword,
+        $btnOK
+    ))
+    $formBddConnection.ShowDialog()
+  })
+#Boton para desconectar de la base de datos
+function ConvertTo-DataTable {
+    param($InputObject)
+    $dt = New-Object System.Data.DataTable
+    $InputObject | ForEach-Object {
+        if (!$dt.Columns.Count) {
+            $_.PSObject.Properties | ForEach-Object {
+                $dt.Columns.Add($_.Name, $_.Value.GetType())
+            }
+        }
+        $row = $dt.NewRow()
+        $_.PSObject.Properties | ForEach-Object {
+            $row[$_.Name] = $_.Value
+        }
+        $dt.Rows.Add($row)
+    }
+    return $dt
+}
+
+# Actualizar el evento SelectedIndexChanged
+$cmbDatabases.Add_SelectedIndexChanged({
+    if ($cmbDatabases.SelectedItem) {
+        $global:database = $cmbDatabases.SelectedItem
+        
+        # Actualizar etiqueta
+        $lblConnectionStatus.Text = "Conectado a: $global:server | BDD: $global:database"
+        $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
+        
+        Write-Host "Base de datos seleccionada: $($cmbDatabases.SelectedItem)" -ForegroundColor Cyan
+    }
+})
+#boton para desconectar a la base de datos.
+$btnDisconnectDb.Add_Click({
+
+    try {
+        Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
+        $global:connection.Close()
+        $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
+        $listBoxDatabases.Items.Clear()
+        $listBoxDatabases.Enabled = $false  # Deshabilitar lista
+            $btnConnectDb.Enabled    = $True
+            $btnDisconnectDb.Enabled = $false
+            $btnExecute.Enabled      = $false
+            $txtQuery.Enabled        = $false
+            $chkPredefined.Enabled   = $false
+
+    }
+    catch {
+            Write-Host "`nError al desconectar: $_" -ForegroundColor Red
+        }
+})
+
+
+
+
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

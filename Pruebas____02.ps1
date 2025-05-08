@@ -35,7 +35,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250508.1500"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250508.1617"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -237,9 +237,39 @@ $cmbQueries = New-Object System.Windows.Forms.ComboBox
 $btnExecute.Enabled = $false
 $chkPredefined.Enabled = $false
 $cmbQueries.Enabled = $false  # Since it's tied to the checkbox
-$txtQuery = Create-TextBox -Location (New-Object System.Drawing.Point(220, 60)) `
-    -Size (New-Object System.Drawing.Size(460, 100)) `
-    -Multiline $true -ScrollBars "Both"
+# En la creación de $rtbQuery
+#$rtbQuery = Create-TextBox -Location (New-Object System.Drawing.Point(220, 60)) `
+# Crear RichTextBox en lugar de TextBox
+$rtbQuery = New-Object System.Windows.Forms.RichTextBox
+$rtbQuery.Location   = New-Object System.Drawing.Point(220, 60)
+$rtbQuery.Size       = New-Object System.Drawing.Size(460, 100)
+$rtbQuery.Multiline  = $true
+$rtbQuery.ScrollBars = 'Vertical'
+$rtbQuery.WordWrap   = $true
+
+# Palabras clave SQL a resaltar (lista amplia)
+$keywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH'
+
+$rtbQuery.Add_TextChanged({
+    $pos = $rtbQuery.SelectionStart
+    $rtbQuery.SuspendLayout()
+
+    # Pintar todo de negro antes de resaltar
+    $rtbQuery.SelectAll()
+    $rtbQuery.SelectionColor = [System.Drawing.Color]::Black
+
+    # Resaltar cada keyword en azul
+    foreach ($m in [regex]::Matches($rtbQuery.Text, "\b($keywords)\b", 'IgnoreCase')) {
+        $rtbQuery.Select($m.Index, $m.Length)
+        $rtbQuery.SelectionColor = [System.Drawing.Color]::Blue
+    }
+
+    # Restaurar posición del cursor
+    $rtbQuery.Select($pos, 0)
+    $rtbQuery.ResumeLayout()
+})
+
+
 $dgvResults = New-Object System.Windows.Forms.DataGridView
     $dgvResults.Location = New-Object System.Drawing.Point(220, 170)
     $dgvResults.Size = New-Object System.Drawing.Size(460, 150)
@@ -260,7 +290,8 @@ $panelGrid = New-Object System.Windows.Forms.Panel
         $btnConnectDb.Enabled    = $True
         $btnDisconnectDb.Enabled = $false
         $btnExecute.Enabled      = $false
-        $txtQuery.Enabled        = $false
+        #$rtbQuery.Enabled        = $false
+        $rtbQuery.Enabled        = $false
         $chkPredefined.Enabled   = $false
         $txtServer.Enabled = $true
         $txtUser.Enabled = $true
@@ -276,7 +307,8 @@ $tabProSql.Controls.AddRange(@(
     $btnExecute,
     $chkPredefined,
     $cmbQueries,
-    $txtQuery,
+    #$rtbQuery,
+    $rtbQuery,
     $lblServer,
     $txtServer,
     $lblUser,
@@ -289,16 +321,17 @@ $tabProSql.Controls.AddRange(@(
 $script:predefinedQueries = @{
     "Revisar Pivot Table" = "SELECT app_id, field, COUNT(*) FROM app_settings GROUP BY app_id, field HAVING COUNT(*) > 1"
     "Fecha Revisiones" = "WITH CTE AS (SELECT b.estacion, b.fecha AS UltimoUso, ROW_NUMBER() OVER (PARTITION BY b.estacion ORDER BY b.fecha DESC) AS rn FROM bitacorasistema b) SELECT e.FECHAREV, c.estacion, c.UltimoUso FROM CTE c JOIN estaciones e ON c.estacion = e.idestacion WHERE c.rn = 1 ORDER BY c.UltimoUso DESC;"
-#    "Eliminar Servidor" = "UPDATE configuracion SET serievalida = ''"
-#    "Respaldar Restcard" = "BACKUP DATABASE restcard TO DISK = 'C:\Temp\restcard.bak'"
+    "Eliminar Server en OTM" = "SELECT serie, ipserver, nombreservidor FROM configuracion;  --UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+    "Eliminar Server en Hoteles"  = "SELECT serievalida, numserie, ipserver, nombreservidor, llave FROM configuracion; --UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+    "Eliminar Server en Rest Card" = "--update tabvariables set estacion='', ipservidor='';" 
 }
     $cmbQueries.Items.AddRange($script:predefinedQueries.Keys)
 $chkPredefined.Add_CheckedChanged({
     $cmbQueries.Visible = $chkPredefined.Checked
-    if (-not $chkPredefined.Checked) { $txtQuery.Clear() }
+    if (-not $chkPredefined.Checked) { $rtbQuery.Clear() }
 })
 $cmbQueries.Add_SelectedIndexChanged({
-    $txtQuery.Text = $script:predefinedQueries[$cmbQueries.SelectedItem]
+    $rtbQuery.Text = $script:predefinedQueries[$cmbQueries.SelectedItem]
 })
 # Crear los botones utilizando la función
     $btnInstalarHerramientas = Create-Button -Text "Instalar Herramientas" -Location (New-Object System.Drawing.Point(10, 50)) `
@@ -2343,10 +2376,6 @@ $btnOKAddUser.Add_Click({
     
     $formAddUser.ShowDialog()
 })
-#Boton para actualizar los datos del servidor (borrarlo basicamente)
-#    "On The minute" {    UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-#    "NS Hoteles" {    "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-#    "Rest Card" {    update tabvariables set estacion='', ipservidor='';" 
 # SQL SENTENCIAS QUERIES Y TODO
 function ConvertTo-DataTable {
     param($InputObject)
@@ -2490,7 +2519,7 @@ $btnExecute.Add_Click({
         $selectedDb = $cmbDatabases.SelectedItem
         if (-not $selectedDb) { throw "Selecciona una base de datos" }
         
-        $query  = $txtQuery.Text
+        $query  = $rtbQuery.Text
         $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $query
 
         if ($result -is [hashtable]) {
@@ -2571,7 +2600,7 @@ $btnConnectDb.Add_Click({
         $btnConnectDb.Enabled = $false
         $btnDisconnectDb.Enabled = $true
         $btnExecute.Enabled = $true
-        $txtQuery.Enabled = $true
+        $rtbQuery.Enabled = $true
     }
     catch {
         [System.Windows.Forms.MessageBox]::Show(
@@ -2603,7 +2632,7 @@ $btnDisconnectDb.Add_Click({
             $btnConnectDb.Enabled    = $True
             $btnDisconnectDb.Enabled = $false
             $btnExecute.Enabled      = $false
-            $txtQuery.Enabled        = $false
+            $rtbQuery.Enabled        = $false
             $chkPredefined.Enabled   = $false
             $txtServer.Enabled = $true
             $txtUser.Enabled = $true

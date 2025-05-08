@@ -35,7 +35,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250508.1500"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250508.1617"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -289,8 +289,9 @@ $tabProSql.Controls.AddRange(@(
 $script:predefinedQueries = @{
     "Revisar Pivot Table" = "SELECT app_id, field, COUNT(*) FROM app_settings GROUP BY app_id, field HAVING COUNT(*) > 1"
     "Fecha Revisiones" = "WITH CTE AS (SELECT b.estacion, b.fecha AS UltimoUso, ROW_NUMBER() OVER (PARTITION BY b.estacion ORDER BY b.fecha DESC) AS rn FROM bitacorasistema b) SELECT e.FECHAREV, c.estacion, c.UltimoUso FROM CTE c JOIN estaciones e ON c.estacion = e.idestacion WHERE c.rn = 1 ORDER BY c.UltimoUso DESC;"
-#    "Eliminar Servidor" = "UPDATE configuracion SET serievalida = ''"
-#    "Respaldar Restcard" = "BACKUP DATABASE restcard TO DISK = 'C:\Temp\restcard.bak'"
+    "On The minute" = "SELECT serie, ipserver, nombreservidor FROM configuracion;  --UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+    "NS Hoteles"  = "SELECT serievalida, numserie, ipserver, nombreservidor, llave FROM configuracion; --UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+    "Rest Card" = "--update tabvariables set estacion='', ipservidor='';" 
 }
     $cmbQueries.Items.AddRange($script:predefinedQueries.Keys)
 $chkPredefined.Add_CheckedChanged({
@@ -2343,10 +2344,6 @@ $btnOKAddUser.Add_Click({
     
     $formAddUser.ShowDialog()
 })
-#Boton para actualizar los datos del servidor (borrarlo basicamente)
-#    "On The minute" {    UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-#    "NS Hoteles" {    "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-#    "Rest Card" {    update tabvariables set estacion='', ipservidor='';" 
 # SQL SENTENCIAS QUERIES Y TODO
 function ConvertTo-DataTable {
     param($InputObject)

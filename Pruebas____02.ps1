@@ -2064,7 +2064,7 @@ $formBddConnection.Controls.AddRange(@(
         $btnOK
     ))
     $formBddConnection.ShowDialog()
-#ERROR?    })
+  })
 #Boton para desconectar de la base de datos
 function ConvertTo-DataTable {
     param($InputObject)

@@ -1935,7 +1935,7 @@ $btnExecute.Add_Click({
             foreach ($col in $dgvResults.Columns) {
                 $col.AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::DisplayedCells
                 $col.Width = [Math]::Max($col.Width, $col.HeaderText.Length * 8)  # Ajuste basado en texto
-                
+                }
             # Mostrar en consola
             if ($result.ConsoleData.Count -eq 0) {
                 Write-Host "La consulta no devolvió resultados" -ForegroundColor Yellow

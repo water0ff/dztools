@@ -13,21 +13,16 @@ Write-Host " - Su equipo" -ForegroundColor Red
 Write-Host " - Bases de datos" -ForegroundColor Red
 Write-Host " - Configuraciones del sistema`n" -ForegroundColor Red
 Write-Host "¿Acepta ejecutar esta aplicación bajo su propia responsabilidad? (Y/N)" -ForegroundColor Yellow
-
 $response = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 while ($response.Character -notin 'Y','N') {
     $response = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 }
-
 if ($response.Character -ne 'Y') {
     Write-Host "`nEjecución cancelada por el usuario.`n" -ForegroundColor Red
     exit
 }
-# Continuar con la carga de la aplicación
 Clear-Host
 Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundColor Green
-
-
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
 # Crear el formulario
@@ -61,12 +56,10 @@ function Create-Button {
 [System.Drawing.Font]$Font = $defaultFont, # Agregar parámetro Font con valor predeterminado
                     [bool]$Enabled = $true
                 )
-                # Estilo del botón
                 $buttonStyle = @{
                     FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
                     Font      = $defaultFont
                 }
-                # Eventos de mouse (definidos dentro de la función)
                 $button_MouseEnter = {
                     $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
                     $this.Font = $boldFont
@@ -75,21 +68,18 @@ function Create-Button {
                     $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
                     $this.Font = $defaultFont
                 }
-                # Crear el botón
                 $button = New-Object System.Windows.Forms.Button
                 $button.Text = $Text
                 $button.Size = $Size  # Usar el tamaño personalizado
                 $button.Location = $Location
                 $button.BackColor = $BackColor
                 $button.ForeColor = $ForeColor
-#$button.Font = $buttonStyle.Font
 $button.Font = $Font # Usar el parámetro Font
                 $button.FlatStyle = $buttonStyle.FlatStyle
                 $button.Tag = $BackColor  # Almacena el color original en Tag
                 $button.Add_MouseEnter($button_MouseEnter)
                 $button.Add_MouseLeave($button_MouseLeave)
                 $button.Enabled = $Enabled
-                # Agregar ToolTip si se proporciona
                 if ($ToolTipText) {
                     $toolTip.SetToolTip($button, $ToolTipText)
                 }
@@ -108,8 +98,6 @@ function Create-Label {
                         [System.Windows.Forms.BorderStyle]$BorderStyle = [System.Windows.Forms.BorderStyle]::None,
                         [System.Drawing.ContentAlignment]$TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
                     )
-                
-                    # Crear la etiqueta
                     $label = New-Object System.Windows.Forms.Label
                     $label.Text = $Text
                     $label.Size = $Size
@@ -119,9 +107,7 @@ function Create-Label {
                     $label.Font = $Font
                     $label.BorderStyle = $BorderStyle
                     $label.TextAlign = $TextAlign
-                
                     if ($ToolTipText) { $toolTip.SetToolTip($label, $ToolTipText) }
-                
                     return $label
                 }
     function Create-Form {
@@ -133,8 +119,6 @@ function Create-Label {
                     [bool]$MaximizeBox = $false,
                     [bool]$MinimizeBox = $false
                 )
-                
-                # Crear el formulario
                 $form = New-Object System.Windows.Forms.Form
                 $form.Text = $Title
                 $form.Size = $Size
@@ -142,7 +126,6 @@ function Create-Label {
                 $form.FormBorderStyle = $FormBorderStyle
                 $form.MaximizeBox = $MaximizeBox
                 $form.MinimizeBox = $MinimizeBox
-            
                 return $form
     }
 function Create-ComboBox {
@@ -155,25 +138,18 @@ function Create-ComboBox {
                 [int]$SelectedIndex = -1,
                 [string]$DefaultText = $null
             )
-        
-            # Crear el ComboBox
             $comboBox = New-Object System.Windows.Forms.ComboBox
             $comboBox.Location = $Location
             $comboBox.Size = $Size
             $comboBox.DropDownStyle = $DropDownStyle
             $comboBox.Font = $Font
-        
-            # Agregar elementos si hay disponibles
             if ($Items.Count -gt 0) {
                 $comboBox.Items.AddRange($Items)
                 $comboBox.SelectedIndex = $SelectedIndex
             }
-        
-            # Definir texto por defecto si se especifica
             if ($DefaultText) {
                 $comboBox.Text = $DefaultText
             }
-        
             return $comboBox
 }
 function Create-TextBox {
@@ -189,8 +165,6 @@ function Create-TextBox {
         [bool]$ReadOnly = $false,
         [bool]$UseSystemPasswordChar = $false
     )
-
-    # Crear el TextBox
     $textBox = New-Object System.Windows.Forms.TextBox
     $textBox.Location = $Location
     $textBox.Size = $Size
@@ -202,24 +176,21 @@ function Create-TextBox {
     $textBox.ScrollBars = $ScrollBars
     $textBox.ReadOnly = $ReadOnly
     $textBox.WordWrap = $false  # Evitar el ajuste de palabras, lo que habilita la barra de desplazamiento horizontal si es necesario
-    # Si se requiere usar el sistema de contraseña, configurar el PasswordChar
     if ($UseSystemPasswordChar) {
         $textBox.UseSystemPasswordChar = $true
     }
-
     return $textBox
 }
-# Crear las pestañas (TabControl)
-    $tabControl = New-Object System.Windows.Forms.TabControl
+$tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(710, 315) #X,Y
     $tabControl.Location = New-Object System.Drawing.Point(0,0)
-# Crear las tres pestañas (Aplicaciones, Consultas y Pro)
     $tabAplicaciones = New-Object System.Windows.Forms.TabPage
     $tabAplicaciones.Text = "Aplicaciones"
     $tabProSql = New-Object System.Windows.Forms.TabPage
     $tabProSql.Text = "Base de datos"
-$tabProSql.AutoScroll = $true  # Habilitar scrollbar si el contenido excede el área
-
+    $tabProSql.AutoScroll = $true  # Habilitar scrollbar si el contenido excede el área
+    $tabControl.TabPages.Add($tabAplicaciones)
+    $tabControl.TabPages.Add($tabProSql)
 # Panel izquierdo (controles manualmente posicionados)
 $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 140)) `
     -Size (New-Object System.Drawing.Size(180, 30)) `
@@ -246,70 +217,57 @@ $lblPassword = Create-Label -Text "Contraseña:" `
     -Size (New-Object System.Drawing.Size(180, 20)) -UseSystemPasswordChar $true
     $txtServer.Text = ".\NationalSoft"
     $txtUser.Text = "sa"
-
 $cmbDatabases = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 220)) `
     -Size (New-Object System.Drawing.Size(180, 20)) `
     -DropDownStyle DropDownList
 $cmbDatabases.Enabled = $false
-# Etiqueta de estado
 $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" `
     -Location (New-Object System.Drawing.Point(10, 260)) `
     -Size (New-Object System.Drawing.Size(180, 30))
-
-# Controles superiores
 $btnExecute = Create-Button -Text "Ejecutar" -Location (New-Object System.Drawing.Point(220, 20)) 
 $btnExecute.Size = New-Object System.Drawing.Size(100, 30)
-
 $chkPredefined = New-Object System.Windows.Forms.CheckBox
-$chkPredefined.Text = "Sentencias predefinidas"
-$chkPredefined.Location = New-Object System.Drawing.Point(330, 25)
-$chkPredefined.Size = New-Object System.Drawing.Size(150, 20)
-
+    $chkPredefined.Text = "Sentencias predefinidas"
+    $chkPredefined.Location = New-Object System.Drawing.Point(330, 25)
+    $chkPredefined.Size = New-Object System.Drawing.Size(150, 20)
 $cmbQueries = New-Object System.Windows.Forms.ComboBox
-$cmbQueries.Location = New-Object System.Drawing.Point(480, 25)
-$cmbQueries.Size = New-Object System.Drawing.Size(200, 20)
-$cmbQueries.Visible = $false
-# Disable Execute and Predefined buttons initially
+    $cmbQueries.Location = New-Object System.Drawing.Point(480, 25)
+    $cmbQueries.Size = New-Object System.Drawing.Size(200, 20)
+    $cmbQueries.Visible = $false
 $btnExecute.Enabled = $false
 $chkPredefined.Enabled = $false
 $cmbQueries.Enabled = $false  # Since it's tied to the checkbox
-# Área de consulta
 $txtQuery = Create-TextBox -Location (New-Object System.Drawing.Point(220, 60)) `
     -Size (New-Object System.Drawing.Size(460, 100)) `
     -Multiline $true -ScrollBars "Both"
-
-# Reemplazar la creación original del DataGridView con esto:
 $dgvResults = New-Object System.Windows.Forms.DataGridView
-$dgvResults.Location = New-Object System.Drawing.Point(220, 170)
-$dgvResults.Size = New-Object System.Drawing.Size(460, 150)
-$dgvResults.AutoSizeColumnsMode = "None"
-$dgvResults.ScrollBars = [System.Windows.Forms.ScrollBars]::Both
-$dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
-# Configuración de seguridad y modos
-$dgvResults.ReadOnly = $true                  # Bloquea edición de celdas
-$dgvResults.AllowUserToAddRows = $false       # Elimina la fila vacía final
-$dgvResults.AllowUserToDeleteRows = $false    # Previene borrado de filas
-$dgvResults.EditMode = [System.Windows.Forms.DataGridViewEditMode]::EditProgrammatically  # Solo lectura
-# Agregar un panel contenedor con scroll
+    $dgvResults.Location = New-Object System.Drawing.Point(220, 170)
+    $dgvResults.Size = New-Object System.Drawing.Size(460, 150)
+    $dgvResults.AutoSizeColumnsMode = "None"
+    $dgvResults.ScrollBars = [System.Windows.Forms.ScrollBars]::Both
+    $dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
+    $dgvResults.ReadOnly = $true                  # Bloquea edición de celdas
+    $dgvResults.AllowUserToAddRows = $false       # Elimina la fila vacía final
+    $dgvResults.AllowUserToDeleteRows = $false    # Previene borrado de filas
+    $dgvResults.EditMode = [System.Windows.Forms.DataGridViewEditMode]::EditProgrammatically  # Solo lectura
 $panelGrid = New-Object System.Windows.Forms.Panel
-$panelGrid.Location = $dgvResults.Location
-$panelGrid.Size = $dgvResults.Size
-$panelGrid.AutoScroll = $true
-$dgvResults.Dock = [System.Windows.Forms.DockStyle]::Fill
-$panelGrid.Controls.Add($dgvResults)
+    $panelGrid.Location = $dgvResults.Location
+    $panelGrid.Size = $dgvResults.Size
+    $panelGrid.AutoScroll = $true
+    $dgvResults.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $panelGrid.Controls.Add($dgvResults)
 #DISABLE:
-            $btnConnectDb.Enabled    = $True
-            $btnDisconnectDb.Enabled = $false
-            $btnExecute.Enabled      = $false
-            $txtQuery.Enabled        = $false
-            $chkPredefined.Enabled   = $false
-            $txtServer.Enabled = $true
-            $txtUser.Enabled = $true
-            $txtPassword.Enabled = $true
-            $btnExecute.Enabled = $false
-            $chkPredefined.Enabled = $false
-            $cmbQueries.Enabled = $false
-# Agregar todos los controles al tab
+        $btnConnectDb.Enabled    = $True
+        $btnDisconnectDb.Enabled = $false
+        $btnExecute.Enabled      = $false
+        $txtQuery.Enabled        = $false
+        $chkPredefined.Enabled   = $false
+        $txtServer.Enabled = $true
+        $txtUser.Enabled = $true
+        $txtPassword.Enabled = $true
+        $btnExecute.Enabled = $false
+        $chkPredefined.Enabled = $false
+        $cmbQueries.Enabled = $false
 $tabProSql.Controls.AddRange(@(
     $btnConnectDb,
     $btnDisconnectDb,
@@ -325,9 +283,7 @@ $tabProSql.Controls.AddRange(@(
     $txtUser,
     $lblPassword,
     $txtPassword,
-#    $dgvResults,
-        $panelGrid  # En lugar de $dgvResults
-
+    $panelGrid  # En lugar de $dgvResults
 ))
 # Hashtable con consultas predefinidas
 $script:predefinedQueries = @{
@@ -336,23 +292,14 @@ $script:predefinedQueries = @{
 #    "Eliminar Servidor" = "UPDATE configuracion SET serievalida = ''"
 #    "Respaldar Restcard" = "BACKUP DATABASE restcard TO DISK = 'C:\Temp\restcard.bak'"
 }
-
-$cmbQueries.Items.AddRange($script:predefinedQueries.Keys)
-
-# Eventos para controles
+    $cmbQueries.Items.AddRange($script:predefinedQueries.Keys)
 $chkPredefined.Add_CheckedChanged({
     $cmbQueries.Visible = $chkPredefined.Checked
     if (-not $chkPredefined.Checked) { $txtQuery.Clear() }
 })
-
 $cmbQueries.Add_SelectedIndexChanged({
     $txtQuery.Text = $script:predefinedQueries[$cmbQueries.SelectedItem]
 })
-
-# Añadir las pestañas al TabControl
-$tabControl.TabPages.Add($tabAplicaciones)
-$tabControl.TabPages.Add($tabProSql)
-
 # Crear los botones utilizando la función
     $btnInstalarHerramientas = Create-Button -Text "Instalar Herramientas" -Location (New-Object System.Drawing.Point(10, 50)) `
         -ToolTip "Abrir el menú de instaladores de Chocolatey."
@@ -388,15 +335,8 @@ $tabControl.TabPages.Add($tabProSql)
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Crear nuevo usuario local en Windows"
     $btnForzarActualizacion = Create-Button -Text "Actualizar datos del sistema" -Location (New-Object System.Drawing.Point(470, 250)) `
         -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Actualiza información de hardware del sistema"
-    $btnEliminarServidorBDD = Create-Button -Text "Eliminar Server de BDD" -Location (New-Object System.Drawing.Point(470, 50)) `
-                                -ToolTip "Quitar servidor asignado a la base de datos." -Enabled $false
-    $btnRespaldarRestcard = Create-Button -Text "Respaldar restcard" -Location (New-Object System.Drawing.Point(10, 210)) `
-                                -ToolTip "Respaldo de Restcard, puede requerir MySQL instalado."
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(240, 320)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
-# Etiqueta de estado
-  $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" -Location (New-Object System.Drawing.Point(10, 260)) -Size (New-Object System.Drawing.Size(180, 30))
-
 # Usar la función Create-Label para crear la label de conexión
     $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
         -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
@@ -406,30 +346,28 @@ $tabControl.TabPages.Add($tabProSql)
 $textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
     -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
     -ScrollBars 'Vertical' -Multiline $true -ReadOnly $true
-#    $lbIpAdress = Create-Label -Text "Obteniendo IPs..." -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-#        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign TopLeft -ToolTipText "Haz clic para copiar las IPs al portapapeles."
 # Agregar botones a la pestaña de aplicaciones
-$tabAplicaciones.Controls.Add($btnInstalarHerramientas)
-    $tabAplicaciones.Controls.Add($btnProfiler)
-    $tabAplicaciones.Controls.Add($btnDatabase)
-    $tabAplicaciones.Controls.Add($btnSQLManager)
-    $tabAplicaciones.Controls.Add($btnSQLManagement)
-    $tabAplicaciones.Controls.Add($btnClearPrintJobs)
-    $tabAplicaciones.Controls.Add($btnClearAnyDesk)
-    $tabAplicaciones.Controls.Add($btnShowPrinters)
-    $tabAplicaciones.Controls.Add($btnPrinterTool)
-    $tabAplicaciones.Controls.Add($btnAplicacionesNS)
-$tabAplicaciones.Controls.Add($btnCambiarOTM)
-    $tabAplicaciones.Controls.Add($btnConfigurarIPs)
-    $tabAplicaciones.Controls.Add($btnAddUser)
-    $tabAplicaciones.Controls.Add($btnForzarActualizacion)
-    $tabAplicaciones.Controls.Add($LZMAbtnBuscarCarpeta)
-    $tabAplicaciones.Controls.Add($btnLectorDPicacls)
-    $tabAplicaciones.Controls.Add($lblHostname)
-    $tabAplicaciones.Controls.Add($lblPort)
-#    $tabAplicaciones.Controls.Add($lbIpAdress)
-$tabAplicaciones.Controls.Add($textBoxIpAdress)
-
+$tabAplicaciones.Controls.AddRange(@(
+            $btnInstalarHerramientas,
+            $btnProfiler,
+            $btnDatabase,
+            $btnSQLManager,
+            $btnSQLManagement,
+            $btnClearPrintJobs,
+            $btnClearAnyDesk,
+            $btnShowPrinters,
+            $btnPrinterTool,
+            $btnAplicacionesNS,
+            $btnCambiarOTM,
+            $btnConfigurarIPs,
+            $btnAddUser,
+            $btnForzarActualizacion,
+            $LZMAbtnBuscarCarpeta,
+            $btnLectorDPicacls,
+            $lblHostname,
+            $lblPort,
+            $textBoxIpAdress
+))
 # Función para manejar MouseEnter y cambiar el color
 $changeColorOnHover = {
     param($sender, $eventArgs)
@@ -447,24 +385,19 @@ $restoreColorOnLeave = {
                 $folderPath = "C:\NationalSoft"
                 $acl = Get-Acl -Path $folderPath
                 $permissions = @()
-            
                 # Obtener el SID universal de "Everyone" (independiente del idioma del sistema)
                 $everyoneSid = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::WorldSid, $null)
-                
                 $everyonePermissions = @()
                 $everyoneHasFullControl = $false
-            
                 foreach ($access in $acl.Access) {
                     # Obtener el SID del usuario en la ACL
                     $userSid = (New-Object System.Security.Principal.NTAccount($access.IdentityReference)).Translate([System.Security.Principal.SecurityIdentifier])
-            
                     # Almacenar los permisos de todos los usuarios
                     $permissions += [PSCustomObject]@{
                         Usuario = $access.IdentityReference
                         Permiso = $access.FileSystemRights
                         Tipo    = $access.AccessControlType
                     }
-            
                     # Comparar usando el SID universal de "Everyone"
                     if ($userSid -eq $everyoneSid) {
                         $everyonePermissions += $access.FileSystemRights
@@ -473,13 +406,11 @@ $restoreColorOnLeave = {
                         }
                     }
                 }
-            
                 # Mostrar los permisos en la consola
                 $permissions | ForEach-Object { 
                     Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
                     Write-Host "` $($_.Permiso)" -ForegroundColor Green
                 }
-            
                 # Mostrar los permisos de "Everyone" de forma consolidada
                 if ($everyonePermissions.Count -gt 0) {
                     Write-Host "`tEveryone tiene los siguientes permisos:"  -NoNewline -ForegroundColor Yellow
@@ -487,24 +418,19 @@ $restoreColorOnLeave = {
                 } else {
                     Write-Host "`tNo hay permisos para 'Everyone'" -ForegroundColor Red
                 }
-            
                 # Si "Everyone" no tiene Full Control, preguntar si se desea concederlo
                 if (-not $everyoneHasFullControl) {
                     $message = "El usuario 'Everyone' no tiene permisos de 'Full Control'. ¿Deseas concederlo?"
                     $title = "Permisos 'Everyone'"
                     $buttons = [System.Windows.Forms.MessageBoxButtons]::YesNo
                     $icon = [System.Windows.Forms.MessageBoxIcon]::Question
-            
                     $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
-            
                     if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
                         # Agregar Full Control a "Everyone" en la carpeta
                         $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($everyoneSid, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
                         $acl.AddAccessRule($accessRule)
-            
                         # Forzar la herencia para subcarpetas y archivos
                         $acl.SetAccessRuleProtection($false, $true)
-            
                         Set-Acl -Path $folderPath -AclObject $acl
                         Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
                     }
@@ -517,7 +443,6 @@ $restoreColorOnLeave = {
     })            
 # Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
     $tabAplicaciones.Controls.Add($btnCheckPermissions)
-# lbl clics
 $lblHostname.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
         Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
@@ -545,21 +470,18 @@ $lblHostname.Add_Click({
         }
 # Construir el texto para mostrar todas las IPs y adaptadores
     if ($ipsWithAdapters.Count -gt 0) {
-    # Formatear las IPs en el formato requerido para el portapapeles (ip1, ip2, ip3, etc.)
         $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
             $_.IPAddress
         }) -join ", "
-    # Concatenar las IPs y adaptadores con un salto de línea entre cada uno
         $ipsTextForLabel = $ipsWithAdapters | ForEach-Object {
             "- $($_.AdapterName) - IP: $($_.IPAddress)"
         } | Out-String
-    # Asignar el texto al TextBox
         $textBoxIpAdress.Text = $ipsTextForLabel
     } else {
         $textBoxIpAdress.Text = "No se encontraron direcciones IP"
     }
 # Función para obtener adaptadores y sus estados (modificada)
-    function Get-NetworkAdapterStatus {
+function Get-NetworkAdapterStatus {
             $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
             $profiles = Get-NetConnectionProfile
             $adapterStatus = @()
@@ -575,7 +497,7 @@ $lblHostname.Add_Click({
             return $adapterStatus
     }
 # Función para cambiar el estado de la red
-    function Set-NetworkCategory {
+function Set-NetworkCategory {
             param (
                 [string]$category,
                 [int]$interfaceIndex,
@@ -651,14 +573,13 @@ $lblHostname.Add_Click({
 # Obtener el puerto de SQL Server desde el registro
         $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
         $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
-
         if ($tcpPort -and $tcpPort.TcpPort) {
             $lblPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
         } else {
             $lblPort.Text = "No se encontró puerto o instancia."
         }
 #Funcion para copiar el puerto al portapapeles
-    $lblPort.Add_Click({
+$lblPort.Add_Click({
         if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
             $port = $matches[0]  # Extraer el número del texto
             [System.Windows.Forms.Clipboard]::SetText($port)
@@ -916,7 +837,6 @@ function Get-AdminGroupName {
     } elseif ($groups -match "\bAdministrators\b") {
         return "Administrators"
     }
-    
     # Si no se encuentra, intentar con otro método
     try {
         $adminGroup = Get-LocalGroup | Where-Object { $_.SID -like "S-1-5-32-544" }
@@ -925,8 +845,6 @@ function Get-AdminGroupName {
         return "Administrators" # Valor por defecto
     }
 }
-
-
 #componentes
 function Clear-TemporaryFiles {
     param([string]$folderPath)
@@ -943,7 +861,6 @@ function Clear-TemporaryFiles {
         return 0
     }
 }
-
 function Invoke-DiskCleanup {
     try {
         Write-Host "`nEjecutando Liberador de espacio en disco..." -ForegroundColor Cyan
@@ -961,7 +878,6 @@ function Invoke-DiskCleanup {
         Write-Host "Error en limpieza de disco: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
-
 function Show-SystemComponents {
     $criticalError = $false
     
@@ -1135,7 +1051,6 @@ function Show-ProgressBar {
                 $formProgress.Show()
                 return $formProgress
 }
-
 # Función para actualizar la barra de progreso
 function Update-ProgressBar {
 
@@ -1181,7 +1096,7 @@ $btnForzarActualizacion.Add_Click({
             Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
                     }
                 })
-
+# SQL MANAGEMENT
 $btnSQLManagement.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         
@@ -1269,7 +1184,7 @@ $btnSQLManagement.Add_Click({
             Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
         }
 })
-#Profiler:
+#                Profiler:
 $btnProfiler.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $ProfilerUrl = "https://codeplexarchive.org/codeplex/browse/ExpressProfiler/releases/4/ExpressProfiler22wAddinSigned.zip"
@@ -1282,6 +1197,7 @@ $btnProfiler.Add_Click({
         if ($disableControls) {        Enable-Controls -parentControl $formPrincipal    }
         }
     )
+#                Impresoras printer tool
 $btnPrinterTool.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $PrinterToolUrl = "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip"
@@ -1292,6 +1208,7 @@ $btnPrinterTool.Add_Click({
 
         DownloadAndRun -url $PrinterToolUrl -zipPath $PrinterToolZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
     })
+#                Database 4 net
 $btnDatabase.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         $DatabaseUrl = "https://fishcodelib.com/files/DatabaseNet4.zip"
@@ -1327,7 +1244,6 @@ $btnSQLManager.Add_Click({
             [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
-    
         $formSelectionManager = Create-Form -Title "Seleccionar versión de Configuration Manager" -Size (New-Object System.Drawing.Size(350, 250)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
             -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
     
@@ -1457,6 +1373,7 @@ $btnClearAnyDesk.Add_Click({
             Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
         }
     })
+    #                Mostrar impresoras en la consola
 $btnShowPrinters.Add_Click({
         Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
@@ -1470,9 +1387,7 @@ $btnShowPrinters.Add_Click({
                     IsShared = if ($isShared) { "Sí" } else { "No" }
                 }
             }
-
             Write-Host "`nImpresoras disponibles en el sistema:"
-        
             # Si hay impresoras, las mostramos en una tabla bien formateada
             if ($printers.Count -gt 0) {
                 Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "Nombre", "Puerto", "Driver", "Compartida")
@@ -1489,6 +1404,7 @@ $btnShowPrinters.Add_Click({
             Write-Host "`nError al obtener impresoras: $_"
         }
     })
+#                Spool cola de impresión
 $btnClearPrintJobs.Add_Click({
             Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
         try {
@@ -2036,117 +1952,6 @@ $btnLectorDPicacls.Add_Click({
         Write-Host "Error: $_" -ForegroundColor Red
     }
 })
-# Evento de clic para el botón de respaldo
-$btnRespaldarRestcard.Add_Click({
-        Write-Host "En espera de los datos de conexión" -ForegroundColor Gray
-        # Crear la segunda ventana para ingresar los datos de conexión
-        $formRespaldarRestcard = Create-Form -Title "Datos de Conexión para Respaldar" -Size (New-Object System.Drawing.Size(350, 210)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))    
-        # Etiquetas y controles para ingresar la información de conexión
-        $lblUsuarioRestcard = Create-Label -Text "Usuario:" -Location (New-Object System.Drawing.Point(20, 40))    
-        $txtUsuarioRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 40)) -Size (New-Object System.Drawing.Size(200, 20))
-        $lblBaseDeDatosRestcard = Create-Label -Text "Base de Datos:" -Location (New-Object System.Drawing.Point(20, 65))        
-        $txtBaseDeDatosRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 65)) -Size (New-Object System.Drawing.Size(200, 20))
-        $lblPasswordRestcard = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(20, 90))
-        $txtPasswordRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 90)) -Size (New-Object System.Drawing.Size(200, 20)) -UseSystemPasswordChar $true
-        $lblHostnameRestcard = Create-Label -Text "Hostname:" -Location (New-Object System.Drawing.Point(20, 115))    
-        $txtHostnameRestcard = Create-TextBox -Location (New-Object System.Drawing.Point(120, 115)) -Size (New-Object System.Drawing.Size(200, 20))
-    
-        # Crear el checkbox para llenar los datos por omisión
-        $chkLlenarDatos = New-Object System.Windows.Forms.CheckBox
-        $chkLlenarDatos.Text = "Usar los datos por omisión"
-        $chkLlenarDatos.Location = New-Object System.Drawing.Point(5, 20)
-        $chkLlenarDatos.AutoSize = $true
-    
-        # Evento de cambio de estado del checkbox
-        $chkLlenarDatos.Add_CheckedChanged({
-            if ($chkLlenarDatos.Checked) {
-                # Llenar los datos por omisión
-                $txtUsuarioRestcard.Text = "root"
-                $txtBaseDeDatosRestcard.Text = "restcard"
-                $txtPasswordRestcard.Text = "national"
-                $txtHostnameRestcard.Text = "localhost"
-            } else {
-                # Limpiar los campos
-                $txtUsuarioRestcard.Clear()
-                $txtBaseDeDatosRestcard.Clear()
-                $txtPasswordRestcard.Clear()
-                $txtHostnameRestcard.Clear()
-            }
-        })
-        # Crear botón para ejecutar el respaldo
-            $btnRespaldar = Create-Button -Text "Respaldar" -Location (New-Object System.Drawing.Point(20, 140))  -Size (New-Object System.Drawing.Size(140, 30))
-        # Evento de clic para el botón de respaldo
-                    $btnRespaldar.Add_Click({
-                        # Obtener los valores del formulario
-                        $usuarioRestcard = $txtUsuarioRestcard.Text
-                        $baseDeDatosRestcard = $txtBaseDeDatosRestcard.Text
-                        $passwordRestcard = $txtPasswordRestcard.Text
-                        $hostnameRestcard = $txtHostnameRestcard.Text
-                    
-                        # Validar que la información no esté vacía
-                        if ($usuarioRestcard -eq "" -or $baseDeDatosRestcard -eq "" -or $passwordRestcard -eq "" -or $hostnameRestcard -eq "") {
-                            [System.Windows.Forms.MessageBox]::Show("Por favor, complete toda la información.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                            return
-                        }
-                    
-                        $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
-                        $folderDialog.Description = "Selecciona la carpeta donde guardar el respaldo"
-                        Write-Host "Selecciona la carpeta donde guardar el respaldo" -ForegroundColor Yellow
-                        if ($folderDialog.ShowDialog() -eq "OK") {
-                            # Obtener la ruta seleccionada
-                            Write-Host "Realizando respaldo para la base de datos." -ForegroundColor Green
-                            Write-Host "`tBase de datos:`t $baseDeDatosRestcard"
-                            Write-Host "`tEn el servidor:`t $hostnameRestcard"
-                            Write-Host "`tCon el usuario:`t $usuarioRestcard"
-                            $folderPath = $folderDialog.SelectedPath
-                            # Crear la ruta con el timestamp
-                            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-                            $rutaRespaldo = "$folderPath\respaldo_restcard_$timestamp.sql"
-                            # Ejecutar el comando mysqldump para hacer el respaldo
-                            $argumentos = "-u $usuarioRestcard -p$passwordRestcard -h $hostnameRestcard $baseDeDatosRestcard --result-file=`"$rutaRespaldo`""
-                            $process = Start-Process -FilePath "mysqldump" -ArgumentList $argumentos -NoNewWindow -Wait -PassThru
-                            # Verificar si el respaldo se realizó correctamente
-                            if ($process.ExitCode -eq 0) {
-                                # Obtener el tamaño del archivo generado
-                                $tamañoArchivo = (Get-Item $rutaRespaldo).Length / 1KB
-                                $tamañoArchivo = [math]::Round($tamañoArchivo, 2)
-                                Write-Host "Respaldo completado correctamente. Tamaño del archivo: $tamañoArchivo KB" -ForegroundColor Green
-                            } else {
-                                # Mostrar el error en rojo con tabulación
-                                Write-Host "`tError: No se pudo realizar el respaldo. Verifica los datos de conexión y la base de datos." -ForegroundColor Red
-                                # Eliminar el archivo de respaldo si el proceso falló
-                                if (Test-Path $rutaRespaldo) {
-                                    Remove-Item $rutaRespaldo
-                                    Write-Host "`tArchivo de respaldo eliminado debido a un error." -ForegroundColor Yellow
-                                }
-                            }
-                            # Cerrar la segunda ventana después de completar el respaldo
-                            $formRespaldarRestcard.Close()
-                        }
-                    })
-        # Crear botón para salir
-        $btnSalirRestcard = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(185, 140))  -Size (New-Object System.Drawing.Size(140, 30))
-        # Evento de clic para el botón de salir
-        $btnSalirRestcard.Add_Click({
-            Write-Host "`tSalió sin realizar respaldo." -ForegroundColor Red
-            $formRespaldarRestcard.Close()
-        })
-        # Agregar controles a la segunda ventana
-        $formRespaldarRestcard.Controls.Add($txtUsuarioRestcard)
-        $formRespaldarRestcard.Controls.Add($txtBaseDeDatosRestcard)
-        $formRespaldarRestcard.Controls.Add($txtPasswordRestcard)
-        $formRespaldarRestcard.Controls.Add($txtHostnameRestcard)
-        $formRespaldarRestcard.Controls.Add($lblUsuarioRestcard)
-        $formRespaldarRestcard.Controls.Add($lblBaseDeDatosRestcard)
-        $formRespaldarRestcard.Controls.Add($lblPasswordRestcard)
-        $formRespaldarRestcard.Controls.Add($lblHostnameRestcard)
-        $formRespaldarRestcard.Controls.Add($chkLlenarDatos)
-        $formRespaldarRestcard.Controls.Add($btnRespaldar)
-        $formRespaldarRestcard.Controls.Add($btnSalirRestcard)
-        # Mostrar la segunda ventana
-        $formRespaldarRestcard.ShowDialog()
-})
 #AplicacionesNS
 $btnAplicacionesNS.Add_Click({
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
@@ -2266,7 +2071,6 @@ $btnAplicacionesNS.Add_Click({
             Usuario    = "NA"
         }
     }
-
     # Cálculo de anchos para presentación
     $columnas = @("Aplicacion","INI","DataSource","Catalog","Usuario")
     $anchos   = @{}
@@ -2297,8 +2101,7 @@ $btnAplicacionesNS.Add_Click({
         }
     }
 })
-
-# Define el evento del botón
+# Cambiar OTM de DBL a SQL y viceverza
 $btnCambiarOTM.Add_Click({
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
     # Ruta de configuración
@@ -2400,10 +2203,7 @@ $btnCambiarOTM.Add_Click({
         Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
     }
 })
-
-
-
-
+#                Agregar usuario en Windows
 $btnAddUser.Add_Click({
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
     # Crear formulario (aumentamos el ancho a 450)
@@ -2487,7 +2287,6 @@ $btnAddUser.Add_Click({
         Write-Host "No se encontraron usuarios."
     }
 })
-
 # Evento del botón Crear (original se mantiene igual)
 $btnOKAddUser.Add_Click({
                         # Capturar valores
@@ -2534,7 +2333,6 @@ $btnOKAddUser.Add_Click({
             Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
         $formAddUser.Close()
     })
-    
     # Agregar controles al formulario (incluyendo el nuevo botón)
     $formAddUser.Controls.AddRange(@(
         $txtUsernameAddUser, $lblUsernameAddUser,
@@ -2545,78 +2343,11 @@ $btnOKAddUser.Add_Click({
     
     $formAddUser.ShowDialog()
 })
-
-
-
-
 #Boton para actualizar los datos del servidor (borrarlo basicamente)
-$btnEliminarServidorBDD.Add_Click({
-        $formEliminarServidor = Create-Form -Title "Eliminar Servidor de BDD" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))   
-            $cmbOpciones = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(360, 20)) `
-                               -DropDownStyle DropDownList -Items @("Seleccione una opción", "On The minute", "NS Hoteles", "Rest Card") -SelectedIndex 0
-            $btnEliminar = Create-Button -Text "Eliminar" -Location (New-Object System.Drawing.Point(150, 60)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
-            $btnCancelar = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(260, 60)) -Size (New-Object System.Drawing.Size(140, 30))
-            $cmbOpciones.Add_SelectedIndexChanged({
-                if ($cmbOpciones.SelectedIndex -gt 0) {
-                    $btnEliminar.Enabled = $true
-                } else {
-                    $btnEliminar.Enabled = $false
-                }
-            })
-            $btnEliminar.Add_Click({
-                $opcionSeleccionada = $cmbOpciones.SelectedItem
-                $confirmacion = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea eliminar el servidor de la base de datos para $opcionSeleccionada?", "Confirmar Eliminación", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                if ($confirmacion -eq [System.Windows.Forms.DialogResult]::Yes) {
-                    try {
-                        # Definir la consulta SQL según la opción seleccionada
-                        $query = $null
-                        switch ($opcionSeleccionada) {
-                            "On The minute" {
-                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
-                                $query = "UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
-                                Write-Host "`t$query"
-                            }
-                            "NS Hoteles" {
-                                Write-Host "`tEjecutando Query" -ForegroundColor Yellow
-                                $query = "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
-                                Write-Host "`t$query"
-                            }
-                            "Rest Card" {
-                                Write-Host "`nFunción deshabilitada, ejecuta el Query en la base de datos:" -ForegroundColor Yellow
-                                Write-Host "`tupdate tabvariables set estacion='', ipservidor='';" -ForegroundColor Yellow
-                            }
-                        }
-            
-                        if ($query) {
-                            # Ejecutar la consulta y obtener el número de filas afectadas
-                            $rowsAffected = Execute-SqlQuery -server $global:server -database $global:database -query $query
-            
-                            if ($rowsAffected -gt 0) {
-                                Write-Host "Servidor de BDD eliminado para $opcionSeleccionada." -ForegroundColor Green
-                            } elseif ($rowsAffected -eq 0) {
-                                Write-Host "No se encontraron filas para actualizar en la tabla configuracion." -ForegroundColor Yellow
-                            } else {
-                                Write-Host "No fue posible eliminar el servidor de BDD para $opcionSeleccionada." -ForegroundColor Red
-                            }
-                        }
-                    } catch {
-                        Write-Host "Error al eliminar el servidor de BDD: $_" -ForegroundColor Red
-                    }
-                    $formEliminarServidor.Close()
-                }
-            })
-            # Manejar el evento Click del botón Cancelar
-            $btnCancelar.Add_Click({
-                $formEliminarServidor.Close()
-            })
-            # Agregar los controles al formulario
-            $formEliminarServidor.Controls.Add($cmbOpciones)
-            $formEliminarServidor.Controls.Add($btnEliminar)
-            $formEliminarServidor.Controls.Add($btnCancelar)
-            # Mostrar el formulario
-            $formEliminarServidor.ShowDialog()
-        })
+#    "On The minute" {    UPDATE configuracion SET serie='', ipserver='', nombreservidor=''"
+#    "NS Hoteles" {    "UPDATE configuracion SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''"
+#    "Rest Card" {    update tabvariables set estacion='', ipservidor='';" 
+# SQL SENTENCIAS QUERIES Y TODO
 function ConvertTo-DataTable {
     param($InputObject)
     $dt = New-Object System.Data.DataTable
@@ -2636,11 +2367,6 @@ function ConvertTo-DataTable {
     }
     return $dt
 }
-
-
-
-
-                                # Función ejecutar consulta MODIFICADA para mantener compatibilidad
 function Execute-SqlQuery {
     param (
         [string]$server,
@@ -2793,11 +2519,18 @@ $btnExecute.Add_Click({
         }
     }
     catch {
-        [System.Windows.Forms.MessageBox]::Show(
-            "Error grave:`n$($_.Exception.Message)`n`nConsulta ejecutada:`n$query",
-            "Error de ejecución",
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Error
+        $errorQueryMessage = "Error grave:`n$($_.Exception.Message)`n`nConsulta ejecutada:`n$query"
+    
+    # Mostrar en MessageBox
+    [System.Windows.Forms.MessageBox]::Show(
+        $errorQueryMessage,
+        "Error de ejecución",
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Error
+    )
+    
+    # Mostrar en consola
+    Write-Host $errorQueryMessage -ForegroundColor Red
         )
     }
 })

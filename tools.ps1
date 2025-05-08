@@ -2484,53 +2484,54 @@ function Show-ResultsConsole {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
-
-# Evento del botón Execute ACTUALIZADO
+#EJECUTANDO
 $btnExecute.Add_Click({
     try {
         $selectedDb = $cmbDatabases.SelectedItem
         if (-not $selectedDb) { throw "Selecciona una base de datos" }
         
-        $query = $txtQuery.Text
+        $query  = $txtQuery.Text
         $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $query
 
         if ($result -is [hashtable]) {
             # Debug: Mostrar metadatos
-            $dgvResults.DataSource = $result.DataTable.DefaultView # Usar DefaultView
-            $dgvResults.Enabled = $true
-            Clear-Host  # Limpia la consola al iniciar la ejecución
+            $dgvResults.DataSource               = $result.DataTable.DefaultView
+            $dgvResults.Enabled                  = $true
+            Clear-Host
             Write-Host "Columnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
             
-            $dgvResults.DataSource = $result.DataTable
-            # Nuevo código para ajustar columnas
+            # Ajuste de columnas
             $dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
             foreach ($col in $dgvResults.Columns) {
                 $col.AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::DisplayedCells
-                $col.Width = [Math]::Max($col.Width, $col.HeaderText.Length * 8)  # Ajuste basado en texto
-                }
-            # Mostrar en consola
+                $col.Width        = [Math]::Max($col.Width, $col.HeaderText.Length * 8)
+            }
+
+            # Salida a consola
             if ($result.ConsoleData.Count -eq 0) {
                 Write-Host "La consulta no devolvió resultados" -ForegroundColor Yellow
             } else {
                 $result.ConsoleData | Format-Table -AutoSize | Out-String | Write-Host
             }
-        } else {
+        }
+        else {
             Write-Host "Filas afectadas: $result" -ForegroundColor Green
         }
     }
     catch {
-            $errorMessage = "Error grave:`n$($_.Exception.Message)`n`nConsulta ejecutada:`n$query"
-                    # Mostrar en MessageBox
-                    [System.Windows.Forms.MessageBox]::Show(
-                        $errorMessage,
-                        "Error de ejecución",
-                        [System.Windows.Forms.MessageBoxButtons]::OK,
-                        [System.Windows.Forms.MessageBoxIcon]::Error
-                    )
-                    
-                    # Mostrar en consola
-                    Write-Host $errorMessage -ForegroundColor Red
-            }
+        $errorQueryMessage = "Error grave:`n$($_.Exception.Message)`n`nConsulta ejecutada:`n$query"
+        
+        # Mostrar en MessageBox
+        [System.Windows.Forms.MessageBox]::Show(
+            $errorQueryMessage,
+            "Error de ejecución",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        )
+        
+        # Mostrar en consola
+        Write-Host $errorQueryMessage -ForegroundColor Red
+    }  # <- Aquí cierra correctamente el catch
 })
     # ————— Crear el formulario de conexión —————
 $btnConnectDb.Add_Click({

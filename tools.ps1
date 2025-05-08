@@ -2519,20 +2519,18 @@ $btnExecute.Add_Click({
         }
     }
     catch {
-        $errorQueryMessage = "Error grave:`n$($_.Exception.Message)`n`nConsulta ejecutada:`n$query"
-    
-    # Mostrar en MessageBox
-    [System.Windows.Forms.MessageBox]::Show(
-        $errorQueryMessage,
-        "Error de ejecución",
-        [System.Windows.Forms.MessageBoxButtons]::OK,
-        [System.Windows.Forms.MessageBoxIcon]::Error
-    )
-    
-    # Mostrar en consola
-    Write-Host $errorQueryMessage -ForegroundColor Red
-        )
-    }
+            $errorMessage = "Error grave:`n$($_.Exception.Message)`n`nConsulta ejecutada:`n$query"
+                    # Mostrar en MessageBox
+                    [System.Windows.Forms.MessageBox]::Show(
+                        $errorMessage,
+                        "Error de ejecución",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    )
+                    
+                    # Mostrar en consola
+                    Write-Host $errorMessage -ForegroundColor Red
+            }
 })
     # ————— Crear el formulario de conexión —————
 $btnConnectDb.Add_Click({

@@ -270,6 +270,11 @@ $dgvResults.Size = New-Object System.Drawing.Size(460, 150)
 $dgvResults.AutoSizeColumnsMode = "None"
 $dgvResults.ScrollBars = [System.Windows.Forms.ScrollBars]::Both
 $dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
+# Configuración de seguridad y modos
+$dgvResults.ReadOnly = $true                  # Bloquea edición de celdas
+$dgvResults.AllowUserToAddRows = $false       # Elimina la fila vacía final
+$dgvResults.AllowUserToDeleteRows = $false    # Previene borrado de filas
+$dgvResults.EditMode = [System.Windows.Forms.DataGridViewEditMode]::EditProgrammatically  # Solo lectura
 # Agregar un panel contenedor con scroll
 $panelGrid = New-Object System.Windows.Forms.Panel
 $panelGrid.Location = $dgvResults.Location
@@ -1926,6 +1931,8 @@ $btnExecute.Add_Click({
 
         if ($result -is [hashtable]) {
             # Debug: Mostrar metadatos
+            $dgvResults.DataSource = $result.DataTable.DefaultView # Usar DefaultView
+            $dgvResults.Enabled = $true
             Clear-Host  # Limpia la consola al iniciar la ejecución
             Write-Host "Columnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
             

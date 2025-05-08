@@ -328,6 +328,13 @@ $tabProSql.Controls.AddRange(@(
 # Hashtable con consultas predefinidas
 # Hashtable con consultas predefinidas usando here-strings
 $script:predefinedQueries = @{
+"Actualizar contraseña de administrador" = @"
+    -- Actualiza la contraseña del primer usuario con rol administrador y retorna el usuario actualizado
+    UPDATE usuarios 
+    SET contraseña = 'A9AE4E13D2A47998AC34' 
+    OUTPUT inserted.usuario 
+    WHERE usuario = (SELECT TOP 1 usuario FROM usuarios WHERE administrador = 1);
+"@
 "Revisar Pivot Table" = @"
     SELECT app_id, field, COUNT(*) 
     FROM app_settings 
@@ -367,6 +374,14 @@ $script:predefinedQueries = @{
 "Eliminar Server en Rest Card" = @"
     -- update tabvariables 
     --   SET estacion='', ipservidor='';
+"@
+"Listar usuarios e idiomas" = @"
+    -- Lista los usuarios del sistema y su idioma configurado
+    SELECT 
+        name AS Usuario, 
+        language AS Idioma
+    FROM 
+        sys.syslogins;
 "@
 }
     $cmbQueries.Items.AddRange($script:predefinedQueries.Keys)
@@ -2447,38 +2462,35 @@ function Execute-SqlQuery {
         [string]$query
     )
     try {
-        #$connectionString = "Server=$server;Database=$database;User Id=sa;Password=$global:password;"
-        $connectionString = "Server=$server;Database=$database;User Id=$global:user;Password=$global:password;"
+        $connectionString = "Server=$server;Database=$database;User Id=$global:user;Password=$global:password;MultipleActiveResultSets=True"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
         $connection.Open()
 
-        # Permitir consultas complejas (MARS)
-        $connectionString += ";MultipleActiveResultSets=True"
-        
         $command = $connection.CreateCommand()
         $command.CommandText = $query
 
-        if ($query -match "^\s*(WITH|SELECT)") {
+        # Detectar si es SELECT, WITH, o tiene OUTPUT INSERTED
+        if ($query -match "^\s*(WITH|SELECT|UPDATE.*OUTPUT|INSERT.*OUTPUT|DELETE.*OUTPUT)") {
             $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
             $dataTable = New-Object System.Data.DataTable
             $adapter.Fill($dataTable) | Out-Null
-            
+
             # Conversión para consola
-                   $consoleResults = @()
-                    $columns = $dataTable.Columns | Select-Object -ExpandProperty ColumnName
-                    
-                    foreach ($row in $dataTable.Rows) {
-                        $rowData = [ordered]@{}
-                        foreach ($col in $columns) {
-                            $rowData[$col] = $row[$col]
-                        }
-                        $consoleResults += [PSCustomObject]$rowData
-                    }
-                    
-                    return @{
-                        DataTable = $dataTable
-                        ConsoleData = $consoleResults
-                    }
+            $consoleResults = @()
+            $columns = $dataTable.Columns | Select-Object -ExpandProperty ColumnName
+            
+            foreach ($row in $dataTable.Rows) {
+                $rowData = [ordered]@{}
+                foreach ($col in $columns) {
+                    $rowData[$col] = $row[$col]
+                }
+                $consoleResults += [PSCustomObject]$rowData
+            }
+            
+            return @{
+                DataTable = $dataTable
+                ConsoleData = $consoleResults
+            }
         } 
         else {
             $rowsAffected = $command.ExecuteNonQuery()

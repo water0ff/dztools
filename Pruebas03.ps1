@@ -230,19 +230,19 @@ $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Objec
     -Enabled $false
 # En la sección de creación de controles para tabProSql
 $lblServer = Create-Label -Text "Instancia SQL:" `
-    -Location (New-Object System.Drawing.Point(10, 20)) `
-    -Size (New-Object System.Drawing.Size(100, 20))
-    $txtServer = Create-TextBox -Location (New-Object System.Drawing.Point(120, 20)) `
+    -Location (New-Object System.Drawing.Point(10, 10)) `
+    -Size (New-Object System.Drawing.Size(100, 10))
+    $txtServer = Create-TextBox -Location (New-Object System.Drawing.Point(10, 20)) `
     -Size (New-Object System.Drawing.Size(180, 20))
 $lblUser = Create-Label -Text "Usuario:" `
-    -Location (New-Object System.Drawing.Point(10, 60)) `
-    -Size (New-Object System.Drawing.Size(100, 20))
-    $txtUser = Create-TextBox -Location (New-Object System.Drawing.Point(120, 60)) `
+    -Location (New-Object System.Drawing.Point(10, 50)) `
+    -Size (New-Object System.Drawing.Size(100, 10))
+    $txtUser = Create-TextBox -Location (New-Object System.Drawing.Point(10, 60)) `
     -Size (New-Object System.Drawing.Size(180, 20))
 $lblPassword = Create-Label -Text "Contraseña:" `
-    -Location (New-Object System.Drawing.Point(10, 100)) `
-    -Size (New-Object System.Drawing.Size(100, 20))
-    $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 100)) `
+    -Location (New-Object System.Drawing.Point(10, 90)) `
+    -Size (New-Object System.Drawing.Size(100, 10))
+    $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(10, 100)) `
     -Size (New-Object System.Drawing.Size(180, 20))
 #$listBoxDatabases = New-Object System.Windows.Forms.ListBox
 $cmbDatabases = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 220)) `

@@ -2056,7 +2056,7 @@ $btnOK.Add_Click({
               }
 })
 # ————— Agregar controles y mostrar formulario —————
-    $formBddConnection.Controls.AddRange(@(
+$formBddConnection.Controls.AddRange(@(
         $lblProfile, $cmbProfiles,
         $labelServer, $txtServer,
         $lblDatabase, $txtDatabase,
@@ -2064,7 +2064,7 @@ $btnOK.Add_Click({
         $btnOK
     ))
     $formBddConnection.ShowDialog()
-})
+#ERROR?    })
 #Boton para desconectar de la base de datos
 function ConvertTo-DataTable {
     param($InputObject)

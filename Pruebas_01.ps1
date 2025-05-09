@@ -281,8 +281,8 @@ $rtbQuery.Add_TextChanged({
 # TABLAS
 #$dgvResults.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
 $dgvResults = New-Object System.Windows.Forms.DataGridView
-    $dgvResults.Location = New-Object System.Drawing.Point(220, 170)
-    $dgvResults.Size = New-Object System.Drawing.Size(750, 300)   # Más espacio vertical
+    $dgvResults.Location = New-Object System.Drawing.Point(220, 180)
+    $dgvResults.Size = New-Object System.Drawing.Size(750, 290)   # Más espacio vertical
     $dgvResults.AutoSizeColumnsMode = "None"
     $dgvResults.ScrollBars = [System.Windows.Forms.ScrollBars]::Both
     $dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None

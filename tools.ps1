@@ -385,6 +385,71 @@ $tabProSql.Controls.AddRange(@(
 ))
 # Hashtable con consultas predefinidas usando here-strings
 $script:predefinedQueries = @{
+" Monitor de Servicios | Ventas a subir" = @"
+SELECT DISTINCT TOP (10)
+    nofacturable,
+    tablaventa.IDEMPRESA,
+    codigo_unico_af AS ticket_cu,
+    e.CLAVEUNICAEMPRESA AS empresa_id,
+    numcheque AS ticket_folio,
+    seriefolio AS ticket_serie,
+    tablaventa.FOLIO AS ticket_folioSR,
+    CONVERT(nvarchar(30), FECHA, 120) AS ticket_fecha,
+    subtotal AS ticket_subtotal,
+    total AS ticket_total,
+    descuento AS ticket_descuento,
+    totalconpropina AS ticket_totalconpropina,
+    totalsindescuento AS ticket_totalsindescuento,
+    (totalimpuestod1 + totalimpuestod2 + totalimpuestod3) AS ticket_totalimpuesto,
+    totalotros AS ticket_totalotros,
+    descuentoimporte AS ticket_totaldescuento,
+    0 AS ticket_totaldescuento2,
+    0 AS ticket_totaldescuento3,
+    0 AS ticket_totaldescuento4,
+    tablaventa.PROPINA AS ticket_propina,
+    cancelado,
+    CAST(numcheque AS VARCHAR) AS ticket_numcheque,
+    numerotarjeta,
+    puntosmonederogenerados,
+    titulartarjetamonederodescuento AS titulartarjetamonedero,
+    tarjetadescuento,
+    descuentomonedero,
+    e.idregimen_sat,
+    tipopago.idformapago_SAT,
+    tablaventa.idturno,
+    nopersonas,
+    tipodeservicio,
+    idmesero,
+    totalarticulos,
+    LTRIM(RTRIM(estacion)) AS ticket_estacion,
+    usuariodescuento,
+    comentariodescuento,
+    tablaventa.idtipodescuento,
+    totalimpuestod2 AS TicketTotalIEPS,
+    0 AS TicketTotalOtrosImpuestos,
+    LEFT(CONVERT(VARCHAR, fecha + 15, 120), 10) + ' 23:59:59' AS ticket_fechavence,
+    CONVERT(nvarchar(30), tablaventa.cierre, 120) AS ticket_fecha_cierre
+FROM
+    CHEQUES AS tablaventa
+    INNER JOIN empresas AS e ON tablaventa.IDEMPRESA = e.IDEMPRESA
+    LEFT JOIN chequespagos AS tablapago ON tablapago.folio = tablaventa.folio
+    LEFT JOIN formasdepago AS tipopago ON tablapago.idformadepago = tipopago.idformadepago
+WHERE
+    fecha > (SELECT fecha_inicio_envio FROM configuracion_ws)
+    AND (intentoEnvioAF < 20)
+    AND (
+        (enviado = 0) OR (enviado IS NULL)
+    )
+    AND (
+        (pagado = 1 AND nofacturable = 0)
+        OR cancelado = 1
+    )
+    AND codigo_unico_af IS NOT NULL
+    AND codigo_unico_af <> ''
+    AND tablaventa.IDEMPRESA = (SELECT TOP 1 idempresa FROM empresas)
+ORDER BY
+    numcheque;
+"@
 " BackOffice Actualizar contraseña  administrador" = @"
     -- Actualiza la contraseña del primer UserName con rol administrador y retorna el UserName actualizado
 UPDATE users

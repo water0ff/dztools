@@ -465,7 +465,12 @@ WHERE
     p.type IN ('S', 'U') -- Usuarios SQL y Windows
 "@
 }
-    $cmbQueries.Items.AddRange($script:predefinedQueries.Keys)
+#Agregando los Queries en orden:
+    $sortedKeys = $script:predefinedQueries.Keys | Sort-Object
+    $cmbQueries.Items.Clear()
+    foreach ($key in $sortedKeys) {
+        $cmbQueries.Items.Add($key) | Out-Null
+    }
 $chkPredefined.Add_CheckedChanged({
     $cmbQueries.Visible = $chkPredefined.Checked
     if (-not $chkPredefined.Checked) { $rtbQuery.Clear() }
@@ -473,8 +478,6 @@ $chkPredefined.Add_CheckedChanged({
 $cmbQueries.Add_SelectedIndexChanged({
     $rtbQuery.Text = $script:predefinedQueries[$cmbQueries.SelectedItem]
 })
-
-
 # COLUMNA 1 | INSTALADORES EJECUTABLES | X:10
     $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
         -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."

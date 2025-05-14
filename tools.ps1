@@ -35,7 +35,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250514.1022"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250514.1122"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -528,6 +528,10 @@ $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga 
                                 -ToolTip "Cambiar la configuración entre SQL y DBF para On The Minute."
     $btnCheckPermissions = Create-Button -Text "Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(730, 130)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
+# Agregar esto junto a los otros botones de la columna 4 (después de btnCheckPermissions)
+$btnCreateAPK = Create-Button -Text "Creación de APK" -Location (New-Object System.Drawing.Point(730, 170)) `
+    -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Generar archivo APK para Comandero Móvil"
+
 #FUERA DEL TAB
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(350, 525)) `
                                 -Size (New-Object System.Drawing.Size(500, 30)) `
@@ -554,7 +558,8 @@ $tabAplicaciones.Controls.AddRange(@(
             $lblHostname,
             $lblPort,
             $txt_IpAdress,
-            $txt_AdapterStatus
+            $txt_AdapterStatus,
+            $btnCreateAPK
 ))
 # Función para manejar MouseEnter y cambiar el color
 $changeColorOnHover = {
@@ -2822,6 +2827,65 @@ $txt_AdapterStatus.Add_Click({
         $txt_AdapterStatus.Add_MouseLeave($restoreColorOnLeave)
 #Llamarla pro primera vez
 Refresh-AdapterStatus
+#Creación del APK
+$btnCreateAPK.Add_Click({
+    $dllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll"
+    $infoPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\info.txt"
+    
+    try {
+        Write-Host "`nIniciando proceso de creación de APK..." -ForegroundColor Cyan
+        
+        # Validar existencia de archivos
+        if (-not (Test-Path $dllPath)) {
+            Write-Host "Componente necesario no encontrado. Verifique la instalación del Enlace Android." -ForegroundColor Red
+            [System.Windows.Forms.MessageBox]::Show("Componente necesario no encontrado. Verifique la instalación del Enlace Android.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            return
+        }
+        if (-not (Test-Path $infoPath)) {
+            Write-Host "Archivo de configuración no encontrado. Verifique la instalación del Enlace Android." -ForegroundColor Red
+            [System.Windows.Forms.MessageBox]::Show("Archivo de configuración no encontrado. Verifique la instalación del Enlace Android.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            return
+        }
+        # Leer y parsear info.txt
+        $jsonContent = Get-Content $infoPath -Raw | ConvertFrom-Json
+        $versionApp = $jsonContent.versionApp
+        Write-Host "Versión detectada: $versionApp" -ForegroundColor Green
+
+        # Confirmación con usuario
+        $confirmation = [System.Windows.Forms.MessageBox]::Show(
+            "Se creará el APK versión: $versionApp`n¿Desea continuar?", 
+            "Confirmación", 
+            [System.Windows.Forms.MessageBoxButtons]::YesNo, 
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+        
+        if ($confirmation -ne [System.Windows.Forms.DialogResult]::Yes) {
+            Write-Host "Proceso cancelado por el usuario" -ForegroundColor Yellow
+            return
+        }
+
+        # Selección de ubicación
+        $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+        $saveDialog.Filter = "Archivo APK (*.apk)|*.apk"
+        $saveDialog.FileName = "SRM_$versionApp.apk"
+        $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
+        
+        if ($saveDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
+            Write-Host "Guardado cancelado por el usuario" -ForegroundColor Yellow
+            return
+        }
+
+        # Copiar archivo
+        Copy-Item -Path $dllPath -Destination $saveDialog.FileName -Force
+        Write-Host "APK generado exitosamente en: $($saveDialog.FileName)" -ForegroundColor Green
+        [System.Windows.Forms.MessageBox]::Show("APK creado correctamente!", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+
+    }
+    catch {
+        Write-Host "Error durante el proceso: $($_.Exception.Message)" -ForegroundColor Red
+        [System.Windows.Forms.MessageBox]::Show("Error durante la creación del APK. Consulte la consola para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

@@ -27,7 +27,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     Add-Type -AssemblyName System.Drawing
 # Crear el formulario
     $formPrincipal = New-Object System.Windows.Forms.Form
-    $formPrincipal.Size = New-Object System.Drawing.Size(720, 400)
+    $formPrincipal.Size = New-Object System.Drawing.Size(1000, 600)  # Aumentado de 720x400
     $formPrincipal.StartPosition = "CenterScreen"
     $formPrincipal.BackColor = [System.Drawing.Color]::White
     $formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
@@ -35,7 +35,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250508.1617"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250514.1022"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -175,15 +175,16 @@ function Create-TextBox {
     $textBox.Multiline = $Multiline
     $textBox.ScrollBars = $ScrollBars
     $textBox.ReadOnly = $ReadOnly
-    $textBox.WordWrap = $false  # Evitar el ajuste de palabras, lo que habilita la barra de desplazamiento horizontal si es necesario
+    $textBox.WordWrap = $false
     if ($UseSystemPasswordChar) {
         $textBox.UseSystemPasswordChar = $true
     }
     return $textBox
 }
+#COMIENZA EL PROGRAMA ----------------------------------
 $tabControl = New-Object System.Windows.Forms.TabControl
-    $tabControl.Size = New-Object System.Drawing.Size(710, 315) #X,Y
-    $tabControl.Location = New-Object System.Drawing.Point(0,0)
+    $tabControl.Size = New-Object System.Drawing.Size(990, 515)    # Original: 710x315
+    $tabControl.Location = New-Object System.Drawing.Point(5, 5)   # Pequeño margen
     $tabAplicaciones = New-Object System.Windows.Forms.TabPage
     $tabAplicaciones.Text = "Aplicaciones"
     $tabProSql = New-Object System.Windows.Forms.TabPage
@@ -192,14 +193,6 @@ $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
 # Panel izquierdo (controles manualmente posicionados)
-$btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 140)) `
-    -Size (New-Object System.Drawing.Size(180, 30)) `
-    -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
-$btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(10, 180)) `
-    -Size (New-Object System.Drawing.Size(180, 30)) `
-    -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) `
-    -Enabled $false
-# En la sección de creación de controles para tabProSql
 $lblServer = Create-Label -Text "Instancia SQL:" `
     -Location (New-Object System.Drawing.Point(10, 10)) `
     -Size (New-Object System.Drawing.Size(100, 10))
@@ -217,77 +210,144 @@ $lblPassword = Create-Label -Text "Contraseña:" `
     -Size (New-Object System.Drawing.Size(180, 20)) -UseSystemPasswordChar $true
     $txtServer.Text = ".\NationalSoft"
     $txtUser.Text = "sa"
-$cmbDatabases = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 220)) `
+$cmbDatabases = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 140)) `
     -Size (New-Object System.Drawing.Size(180, 20)) `
     -DropDownStyle DropDownList
-$cmbDatabases.Enabled = $false
+    $cmbDatabases.Enabled = $false
+$btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 180)) `
+    -Size (New-Object System.Drawing.Size(180, 30)) `
+    -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+$btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(10, 220)) `
+    -Size (New-Object System.Drawing.Size(180, 30)) `
+    -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) `
+    -Enabled $false
 $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" `
-    -Location (New-Object System.Drawing.Point(10, 260)) `
-    -Size (New-Object System.Drawing.Size(180, 30))
+    -Location (New-Object System.Drawing.Point(10, 400)) `
+    -Size (New-Object System.Drawing.Size(180, 80))
 $btnExecute = Create-Button -Text "Ejecutar" -Location (New-Object System.Drawing.Point(220, 20)) 
-$btnExecute.Size = New-Object System.Drawing.Size(100, 30)
+    $btnExecute.Size = New-Object System.Drawing.Size(100, 30)
+    $btnExecute.Enabled = $false
 $chkPredefined = New-Object System.Windows.Forms.CheckBox
     $chkPredefined.Text = "Sentencias predefinidas"
     $chkPredefined.Location = New-Object System.Drawing.Point(330, 25)
     $chkPredefined.Size = New-Object System.Drawing.Size(150, 20)
+    $chkPredefined.Enabled = $false
 $cmbQueries = New-Object System.Windows.Forms.ComboBox
     $cmbQueries.Location = New-Object System.Drawing.Point(480, 25)
     $cmbQueries.Size = New-Object System.Drawing.Size(200, 20)
     $cmbQueries.Visible = $false
-$btnExecute.Enabled = $false
-$chkPredefined.Enabled = $false
-$cmbQueries.Enabled = $false  # Since it's tied to the checkbox
+    $cmbQueries.Enabled = $false
 # Crear RichTextBox
 $rtbQuery = New-Object System.Windows.Forms.RichTextBox
-$rtbQuery.Location   = New-Object System.Drawing.Point(220, 60)
-$rtbQuery.Size       = New-Object System.Drawing.Size(460, 100)
-$rtbQuery.Multiline  = $true
-$rtbQuery.ScrollBars = 'Vertical'
-$rtbQuery.WordWrap   = $true
-$keywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH'
-$rtbQuery.Add_TextChanged({
-    $pos = $rtbQuery.SelectionStart
-    $rtbQuery.SuspendLayout()
-    # 1. Restablecer todo a negro
-    $rtbQuery.SelectAll()
-    $rtbQuery.SelectionColor = [System.Drawing.Color]::Black
-    # 2. Encontrar y resaltar comentarios en verde (--) y almacenar rangos
-    $commentRanges = @()
-    foreach ($c in [regex]::Matches($rtbQuery.Text, '--.*', 'Multiline')) {
-        $rtbQuery.Select($c.Index, $c.Length)
-        $rtbQuery.SelectionColor = [System.Drawing.Color]::Green
-        $commentRanges += [PSCustomObject]@{Start=$c.Index; End=($c.Index + $c.Length)}
-    }
-    # 3. Resaltar keywords en azul sólo fuera de comentarios
-    foreach ($m in [regex]::Matches($rtbQuery.Text, "\b($keywords)\b", 'IgnoreCase')) {
-        # Verificar si la palabra clave está en un comentario
-        $inComment = $false
-        foreach ($r in $commentRanges) {
-            if ($m.Index -ge $r.Start -and $m.Index -lt $r.End) {
-                $inComment = $true
-                break
+    $rtbQuery.Location   = New-Object System.Drawing.Point(220, 60)
+    $rtbQuery.Size = New-Object System.Drawing.Size(740, 140)     # Mayor ancho
+    $rtbQuery.Multiline  = $true
+    $rtbQuery.ScrollBars = 'Vertical'
+    $rtbQuery.WordWrap   = $true
+    $keywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
+    $rtbQuery.Add_TextChanged({
+        $pos = $rtbQuery.SelectionStart
+        $rtbQuery.SuspendLayout()
+    
+        # 1. Restablecer todo a negro
+        $rtbQuery.SelectAll()
+        $rtbQuery.SelectionColor = [System.Drawing.Color]::Black
+    
+        # 2. Encontrar y resaltar comentarios de línea (--) y almacenar rangos
+        $commentRanges = @()
+        foreach ($c in [regex]::Matches($rtbQuery.Text, '--.*', 'Multiline')) {
+            $rtbQuery.Select($c.Index, $c.Length)
+            $rtbQuery.SelectionColor = [System.Drawing.Color]::Green
+            $commentRanges += [PSCustomObject]@{ Start = $c.Index; End = $c.Index + $c.Length }
+        }
+    
+        # 3. Encontrar y resaltar comentarios de bloque (/* ... */) y agregar rangos
+        foreach ($b in [regex]::Matches($rtbQuery.Text, '/\*[\s\S]*?\*/', 'Multiline')) {
+            $rtbQuery.Select($b.Index, $b.Length)
+            $rtbQuery.SelectionColor = [System.Drawing.Color]::Green
+            $commentRanges += [PSCustomObject]@{ Start = $b.Index; End = $b.Index + $b.Length }
+        }
+    
+        # 4. Resaltar keywords en azul sólo fuera de comentarios
+        foreach ($m in [regex]::Matches($rtbQuery.Text, "\b($keywords)\b", 'IgnoreCase')) {
+            $inComment = $commentRanges | Where-Object { $m.Index -ge $_.Start -and $m.Index -lt $_.End }
+            if (-not $inComment) {
+                $rtbQuery.Select($m.Index, $m.Length)
+                $rtbQuery.SelectionColor = [System.Drawing.Color]::Blue
             }
         }
-        if (-not $inComment) {
-            $rtbQuery.Select($m.Index, $m.Length)
-            $rtbQuery.SelectionColor = [System.Drawing.Color]::Blue
+    
+        # 5. Restaurar posición del cursor
+        $rtbQuery.Select($pos, 0)
+        $rtbQuery.ResumeLayout()
+    })
+
+# Configuración del DataGridView
+# Configuración del DataGridView
+$dgvResults = New-Object System.Windows.Forms.DataGridView
+$dgvResults.Location                   = New-Object System.Drawing.Point(220, 205)
+$dgvResults.Size                       = New-Object System.Drawing.Size(740, 280)
+$dgvResults.ReadOnly                   = $true
+$dgvResults.AllowUserToAddRows         = $false
+$dgvResults.AllowUserToDeleteRows      = $false
+$dgvResults.EditMode                   = [System.Windows.Forms.DataGridViewEditMode]::EditProgrammatically
+$dgvResults.SelectionMode              = [System.Windows.Forms.DataGridViewSelectionMode]::CellSelect
+$dgvResults.MultiSelect                = $true
+$dgvResults.ClipboardCopyMode          = [System.Windows.Forms.DataGridViewClipboardCopyMode]::EnableAlwaysIncludeHeaderText
+$dgvResults.DefaultCellStyle.SelectionBackColor  = [System.Drawing.Color]::LightBlue
+$dgvResults.DefaultCellStyle.SelectionForeColor  = [System.Drawing.Color]::Black
+
+# Capturar estilos originales
+$script:originalForeColor = $dgvResults.DefaultCellStyle.ForeColor
+$script:originalHeaderBackColor = $dgvResults.ColumnHeadersDefaultCellStyle.BackColor
+$script:originalAutoSizeMode = $dgvResults.AutoSizeColumnsMode
+
+# 1. Crear menú contextual
+$contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
+$copyMenu    = New-Object System.Windows.Forms.ToolStripMenuItem
+$copyMenu.Text = "Copiar selección"
+$contextMenu.Items.Add($copyMenu) | Out-Null
+$dgvResults.ContextMenuStrip = $contextMenu
+
+# 2. Evento Click en “Copiar selección”
+$copyMenu.Add_Click({
+    if ($dgvResults.GetCellCount("Selected") -gt 0) {
+        # Obtener texto tabulado de todas las celdas seleccionadas
+        $dataObj = $dgvResults.GetClipboardContent()
+        if ($dataObj) {
+            [Windows.Forms.Clipboard]::SetText($dataObj.GetText())
         }
     }
-    # 4. Restaurar posición del cursor
-    $rtbQuery.Select($pos, 0)
-    $rtbQuery.ResumeLayout()
 })
-# TABLAS
-$dgvResults = New-Object System.Windows.Forms.DataGridView
-    $dgvResults.Location = New-Object System.Drawing.Point(220, 170)
-    $dgvResults.Size = New-Object System.Drawing.Size(460, 150)
-    $dgvResults.AutoSizeColumnsMode = "None"
-    $dgvResults.ScrollBars = [System.Windows.Forms.ScrollBars]::Both
-    $dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
-    $dgvResults.ReadOnly = $true                  # Bloquea edición de celdas
-    $dgvResults.AllowUserToAddRows = $false       # Elimina la fila vacía final
-    $dgvResults.AllowUserToDeleteRows = $false    # Previene borrado de filas
-    $dgvResults.EditMode = [System.Windows.Forms.DataGridViewEditMode]::EditProgrammatically  # Solo lectura
+
+# 3. Habilitar Ctrl+C para copiar selección
+$dgvResults.Add_KeyDown({
+    param($sender, $e)
+    if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::C) {
+        $dataObj = $dgvResults.GetClipboardContent()
+        if ($dataObj) {
+            [Windows.Forms.Clipboard]::SetText($dataObj.GetText())
+        }
+        $e.Handled = $true
+    }
+})
+
+# 4. Selección con clic derecho puntual
+$dgvResults.Add_MouseDown({
+    param($sender, $args)
+    if ($args.Button -eq [System.Windows.Forms.MouseButtons]::Right) {
+        $hit = $dgvResults.HitTest($args.X, $args.Y)
+        if ($hit.RowIndex -ge 0 -and $hit.ColumnIndex -ge 0) {
+            $dgvResults.CurrentCell = $dgvResults.Rows[$hit.RowIndex].Cells[$hit.ColumnIndex]
+            # Retener otras celdas si Ctrl está presionado
+            if (-not $args.Modifiers.HasFlag([System.Windows.Forms.Keys]::Control)) {
+                $dgvResults.ClearSelection()
+            }
+            $dgvResults.Rows[$hit.RowIndex].Cells[$hit.ColumnIndex].Selected = $true
+        }
+    }
+})
+#PANEL
 $panelGrid = New-Object System.Windows.Forms.Panel
     $panelGrid.Location = $dgvResults.Location
     $panelGrid.Size = $dgvResults.Size
@@ -298,7 +358,6 @@ $panelGrid = New-Object System.Windows.Forms.Panel
         $btnConnectDb.Enabled    = $True
         $btnDisconnectDb.Enabled = $false
         $btnExecute.Enabled      = $false
-        #$rtbQuery.Enabled        = $false
         $rtbQuery.Enabled        = $false
         $chkPredefined.Enabled   = $false
         $txtServer.Enabled = $true
@@ -315,7 +374,6 @@ $tabProSql.Controls.AddRange(@(
     $btnExecute,
     $chkPredefined,
     $cmbQueries,
-    #$rtbQuery,
     $rtbQuery,
     $lblServer,
     $txtServer,
@@ -325,7 +383,6 @@ $tabProSql.Controls.AddRange(@(
     $txtPassword,
     $panelGrid  # En lugar de $dgvResults
 ))
-# Hashtable con consultas predefinidas
 # Hashtable con consultas predefinidas usando here-strings
 $script:predefinedQueries = @{
 "Actualizar contraseña de administrador" = @"
@@ -340,6 +397,19 @@ $script:predefinedQueries = @{
     FROM app_settings 
     GROUP BY app_id, field 
     HAVING COUNT(*) > 1
+/* Consulta SQL para eliminar duplicados
+        BEGIN TRANSACTION;
+                                                    WITH CTE AS (
+                                                        SELECT id, app_id, field,
+                                                               ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
+                                                        FROM app_settings
+                                                    )
+                                                    DELETE FROM app_settings
+                                                    WHERE id IN (
+                                                        SELECT id FROM CTE WHERE rn > 1
+                                                    );
+                                                    COMMIT TRANSACTION;
+*/
 "@
 "Fecha Revisiones" = @"
     WITH CTE AS (
@@ -377,11 +447,15 @@ $script:predefinedQueries = @{
 "@
 "Listar usuarios e idiomas" = @"
     -- Lista los usuarios del sistema y su idioma configurado
-    SELECT 
-        name AS Usuario, 
-        language AS Idioma
-    FROM 
-        sys.syslogins;
+SELECT 
+    p.name AS Usuario, 
+    l.default_language_name AS Idioma
+FROM 
+    sys.server_principals p
+LEFT JOIN 
+    sys.sql_logins l ON p.principal_id = l.principal_id
+WHERE 
+    p.type IN ('S', 'U') -- Usuarios SQL y Windows
 "@
 }
     $cmbQueries.Items.AddRange($script:predefinedQueries.Keys)
@@ -392,7 +466,11 @@ $chkPredefined.Add_CheckedChanged({
 $cmbQueries.Add_SelectedIndexChanged({
     $rtbQuery.Text = $script:predefinedQueries[$cmbQueries.SelectedItem]
 })
-# Crear los botones utilizando la función
+
+
+# COLUMNA 1 | INSTALADORES EJECUTABLES | X:10
+    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
+        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
     $btnInstalarHerramientas = Create-Button -Text "Instalar Herramientas" -Location (New-Object System.Drawing.Point(10, 50)) `
         -ToolTip "Abrir el menú de instaladores de Chocolatey."
     $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 90)) `
@@ -405,18 +483,19 @@ $cmbQueries.Add_SelectedIndexChanged({
                                 -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Busca SQL Management en tu equipo y te confirma la versión previo a ejecutarlo."
     $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 250)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Herramienta de Star con funciones multiples para impresoras POS."
+#COLUMNA 2 | FUNCIONES Y SERVICIOS DE WINDOWS | X: 240
+    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
+        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
     $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(240, 50)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 76, 76)) -ToolTip "Detiene el programa y elimina los archivos para crear nuevos IDS."
     $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(240, 90)) `
                                 -BackColor ([System.Drawing.Color]::White) -ToolTip "Muestra en consola: Impresora, Puerto y Driver instaladas en Windows."
     $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(240, 130)) `
                                 -BackColor ([System.Drawing.Color]::White) -ToolTip "Limpia las impresiones pendientes y reinicia la cola de impresión."
-    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(240, 170)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
-    $btnCambiarOTM = Create-Button -Text "Cambiar OTM a SQL/DBF" -Location (New-Object System.Drawing.Point(240, 210)) `
-                                -ToolTip "Cambiar la configuración entre SQL y DBF para On The Minute."
-    $btnCheckPermissions = Create-Button -Text "Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(470, 50)) `
-                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
+#COLUMNA 3 | FUNCIONES NATIONAL SOFT | X: 470
+    $txt_IpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
+        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
+        -ScrollBars 'Vertical' -Multiline $true -ReadOnly $true
     $btnLectorDPicacls = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(470, 90)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
     $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Instalador LZMA" -Location (New-Object System.Drawing.Point(470, 130)) `
@@ -427,17 +506,22 @@ $cmbQueries.Add_SelectedIndexChanged({
                                 -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Crear nuevo usuario local en Windows"
     $btnForzarActualizacion = Create-Button -Text "Actualizar datos del sistema" -Location (New-Object System.Drawing.Point(470, 250)) `
         -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Actualiza información de hardware del sistema"
-    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(240, 320)) `
+# Columna 4: | FIXES Y NOVEDADES |  X:700
+$txt_AdapterStatus = Create-TextBox `
+    -Location (New-Object System.Drawing.Point(700, 1)) -Size(New-Object System.Drawing.Size(260, 40)) `
+    -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
+    -ScrollBars 'Vertical' -Multiline $true -ReadOnly  $true
+$toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
+    $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(700, 50)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
+    $btnCambiarOTM = Create-Button -Text "Cambiar OTM a SQL/DBF" -Location (New-Object System.Drawing.Point(700, 90)) `
+                                -ToolTip "Cambiar la configuración entre SQL y DBF para On The Minute."
+    $btnCheckPermissions = Create-Button -Text "Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(700, 130)) `
+                                -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
+#FUERA DEL TAB
+    $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(350, 525)) `
+                                -Size (New-Object System.Drawing.Size(500, 30)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
-# Usar la función Create-Label para crear la label de conexión
-    $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
-    $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(240, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-        -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
-# Crear el TextBox para mostrar las direcciones IP
-$textBoxIpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(470, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-    -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
-    -ScrollBars 'Vertical' -Multiline $true -ReadOnly $true
 # Agregar botones a la pestaña de aplicaciones
 $tabAplicaciones.Controls.AddRange(@(
             $btnInstalarHerramientas,
@@ -450,6 +534,7 @@ $tabAplicaciones.Controls.AddRange(@(
             $btnShowPrinters,
             $btnPrinterTool,
             $btnAplicacionesNS,
+            $btnCheckPermissions,
             $btnCambiarOTM,
             $btnConfigurarIPs,
             $btnAddUser,
@@ -458,7 +543,8 @@ $tabAplicaciones.Controls.AddRange(@(
             $btnLectorDPicacls,
             $lblHostname,
             $lblPort,
-            $textBoxIpAdress
+            $txt_IpAdress,
+            $txt_AdapterStatus
 ))
 # Función para manejar MouseEnter y cambiar el color
 $changeColorOnHover = {
@@ -472,6 +558,8 @@ $restoreColorOnLeave = {
 }
         $lblHostname.Add_MouseEnter($changeColorOnHover)
         $lblHostname.Add_MouseLeave($restoreColorOnLeave)
+
+#FUNCIONES:
 # Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
     function Check-Permissions {
                 $folderPath = "C:\NationalSoft"
@@ -528,22 +616,6 @@ $restoreColorOnLeave = {
                     }
                 }
     }
-# Asignar la función al botón (si sigue siendo necesario)
-    $btnCheckPermissions.Add_Click({
-        Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
-        Check-Permissions
-    })            
-# Agregar el botón a la pestaña de Aplicaciones (si sigue siendo necesario)
-    $tabAplicaciones.Controls.Add($btnCheckPermissions)
-$lblHostname.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
-        Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
-    })
-# Manejar el evento de clic para copiar las IPs al portapapeles
-    $textBoxIpAdress.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($textBoxIpAdress.Text)
-        Write-Host "`nIP's copiadas al equipo: $($textBoxIpAdress.Text)"
-    })
 # Obtener las direcciones IP y los adaptadores
     $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
         Where-Object { $_.OperationalStatus -eq 'Up' } |
@@ -568,11 +640,33 @@ $lblHostname.Add_Click({
         $ipsTextForLabel = $ipsWithAdapters | ForEach-Object {
             "- $($_.AdapterName) - IP: $($_.IPAddress)"
         } | Out-String
-        $textBoxIpAdress.Text = $ipsTextForLabel
+        $txt_IpAdress.Text = $ipsTextForLabel
     } else {
-        $textBoxIpAdress.Text = "No se encontraron direcciones IP"
+        $txt_IpAdress.Text = "No se encontraron direcciones IP"
     }
-# Función para obtener adaptadores y sus estados (modificada)
+# Agregar los controles al formulario
+            $formPrincipal.Controls.Add($tabControl)
+            $formPrincipal.Controls.Add($btnExit)
+# Obtener el puerto de SQL Server desde el registro
+        $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
+        $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
+        if ($tcpPort -and $tcpPort.TcpPort) {
+            $lblPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
+        } else {
+            $lblPort.Text = "No se encontró puerto o instancia."
+        }
+# Función para recargar y mostrar estados en el TextBox
+function Refresh-AdapterStatus {
+    $statuses = Get-NetworkAdapterStatus
+    if ($statuses.Count -gt 0) {
+        $lines = $statuses | ForEach-Object {
+            "- $($_.AdapterName) - $($_.NetworkCategory)"
+        }
+        $txt_AdapterStatus.Text = $lines -join "`r`n"
+    } else {
+        $txt_AdapterStatus.Text = "No se encontraron adaptadores activos."
+    }
+}
 function Get-NetworkAdapterStatus {
             $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
             $profiles = Get-NetConnectionProfile
@@ -588,100 +682,6 @@ function Get-NetworkAdapterStatus {
             }
             return $adapterStatus
     }
-# Función para cambiar el estado de la red
-function Set-NetworkCategory {
-            param (
-                [string]$category,
-                [int]$interfaceIndex,
-                [System.Windows.Forms.Label]$lblAdaptadorStatus
-            )
-            
-            # Obtener el estado anterior
-            $profile = Get-NetConnectionProfile | Where-Object { $_.InterfaceIndex -eq $interfaceIndex }
-            $previousCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
-            
-            # Solo cambiar si la red es pública
-            if ($previousCategory -eq "Public") {
-                if ($category -eq "Privado") {
-                    Set-NetConnectionProfile -InterfaceIndex $interfaceIndex -NetworkCategory Private
-                    Write-Host "Estado cambiado a Privado."
-                    $lblAdaptadorStatus.ForeColor = [System.Drawing.Color]::Green
-                    $lblAdaptadorStatus.Text = "$($lblAdaptadorStatus.Text.Split(' - ')[0]) - Privado"  # Actualizar el texto de la etiqueta
-                }
-            } else {
-                Write-Host "La red ya es privada o no es pública, no se realizará ningún cambio."
-            }
-        }
-        # Llenar el contenido de la etiqueta con el nombre del adaptador y su estado
-        $networkAdapters = Get-NetworkAdapterStatus
-        $adapterInfo = ""
-        
-        # Usamos un contador para ubicar los labels
-        $index = 0
-        foreach ($adapter in $networkAdapters) {
-            $text = ""
-            $color = [System.Drawing.Color]::Green
-        
-            if ($adapter.NetworkCategory -eq "Private") {
-                $text = "$($adapter.AdapterName) - Privado"
-                $color = [System.Drawing.Color]::Green
-            } elseif ($adapter.NetworkCategory -eq "Public") {
-                $text = "$($adapter.AdapterName) - Público"
-                $color = [System.Drawing.Color]::Red
-            }
-            
-            $lblAdaptadorStatus = Create-Label -Text $text -Location (New-Object System.Drawing.Point(10, (320 + (30 * $index)))) -Size (New-Object System.Drawing.Size(220, 20)) -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255))
-            $lblAdaptadorStatus.Add_MouseEnter($changeColorOnHover)
-            $lblAdaptadorStatus.Add_MouseLeave($restoreColorOnLeave)
-
-            # Función de cierre para capturar el adaptador actual
-            $adapterIndex = $adapter.InterfaceIndex
-            $lblAdaptadorStatus.Add_Click({
-                # Obtener el adaptador asociado a este label
-                $currentCategory = $adapter.NetworkCategory
-                
-                # Solo cambiar si la red es pública
-                if ($currentCategory -eq "Public") {
-                    # Confirmar el cambio y llamar a la función de cambio
-                    $result = [System.Windows.Forms.MessageBox]::Show("¿Deseas cambiar el estado a Privado?", "Confirmar cambio", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-                    
-                    if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-                        Set-NetworkCategory -category "Privado" -interfaceIndex $adapterIndex -lblAdaptadorStatus $lblAdaptadorStatus
-                    }
-                } else {
-                    Write-Host "La red ya es privada o no es pública, no se realizará ningún cambio."
-                }
-            })
-        
-            $adapterInfo += $lblAdaptadorStatus.Text + "`n"
-            $formPrincipal.Controls.Add($lblAdaptadorStatus)
-            
-            # Incrementar el índice para la siguiente posición del label
-            $index++
-    }
-# Agregar los controles al formulario
-            $formPrincipal.Controls.Add($tabControl)
-            $formPrincipal.Controls.Add($btnExit)
-# Obtener el puerto de SQL Server desde el registro
-        $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
-        $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
-        if ($tcpPort -and $tcpPort.TcpPort) {
-            $lblPort.Text = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
-        } else {
-            $lblPort.Text = "No se encontró puerto o instancia."
-        }
-#Funcion para copiar el puerto al portapapeles
-$lblPort.Add_Click({
-        if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
-            $port = $matches[0]  # Extraer el número del texto
-            [System.Windows.Forms.Clipboard]::SetText($port)
-            Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
-        } else {
-            Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
-        }
-    })
-        $lblPort.Add_MouseEnter($changeColorOnHover)
-        $lblPort.Add_MouseLeave($restoreColorOnLeave)
 #------------------------ download&run 1.0
 function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath) {
     # Validar si el archivo o aplicación ya existe
@@ -1160,7 +1160,22 @@ function Close-ProgressBar {
     param($ProgressForm)
     $ProgressForm.Close()
 }
-##-------------------------------------------------------------------------------BOTONES#
+##-------------------------------------------------------------------------------BOTONES ACCIONES
+$lblPort.Add_Click({
+            if ($lblPort.Text -match "\d+") {  # Asegurarse de que el texto es un número
+                $port = $matches[0]  # Extraer el número del texto
+                [System.Windows.Forms.Clipboard]::SetText($port)
+                Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
+            } else {
+                Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
+            }
+        })
+        $lblPort.Add_MouseEnter($changeColorOnHover)
+        $lblPort.Add_MouseLeave($restoreColorOnLeave)
+$btnCheckPermissions.Add_Click({
+        Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
+        Check-Permissions
+    })            
 $btnForzarActualizacion.Add_Click({
                     Show-SystemComponents
                     
@@ -2436,6 +2451,21 @@ $btnOKAddUser.Add_Click({
     $formAddUser.ShowDialog()
 })
 # SQL SENTENCIAS QUERIES Y TODO
+function Remove-SqlComments {
+    param(
+        [string]$Query
+    )
+    # 1) Eliminar comentarios de bloque /* … */ (incluso si abarcan varias líneas)
+    $cleanedQuery = $Query -replace '(?s)/\*.*?\*/', ''
+
+    # 2) Eliminar líneas que comienzan con -- (incluyendo espacios iniciales)
+    $cleanedQuery = $cleanedQuery -replace '(?m)^\s*--.*\n?', ''
+
+    # 3) Eliminar comentarios en línea con -- (sin afectar URLs)
+    $cleanedQuery = $cleanedQuery -replace '(?<!\w)--.*$', ''
+
+    return $cleanedQuery.Trim()
+}
 function ConvertTo-DataTable {
     param($InputObject)
     $dt = New-Object System.Data.DataTable
@@ -2462,42 +2492,42 @@ function Execute-SqlQuery {
         [string]$query
     )
     try {
-        #$connectionString = "Server=$server;Database=$database;User Id=sa;Password=$global:password;"
-        $connectionString = "Server=$server;Database=$database;User Id=$global:user;Password=$global:password;"
+        $connectionString = "Server=$server;Database=$database;User Id=$global:user;Password=$global:password;MultipleActiveResultSets=True"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        $connection.Open()
-
-        # Permitir consultas complejas (MARS)
-        $connectionString += ";MultipleActiveResultSets=True"
         
+        # Variable para capturar mensajes
+        $infoMessages = New-Object System.Collections.ArrayList
+        
+        # Evento para capturar mensajes de SQL
+        $connection.add_InfoMessage({
+            param($sender, $e)
+            $infoMessages.Add($e.Message) | Out-Null
+        })
+        
+        $connection.Open()
         $command = $connection.CreateCommand()
         $command.CommandText = $query
 
-        if ($query -match "^\s*(WITH|SELECT)") {
+        # Detectar si es una consulta que devuelve datos
+        if ($query -match "(?si)^\s*(SELECT|WITH|INSERT|UPDATE|DELETE|RESTORE)") {
             $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
             $dataTable = New-Object System.Data.DataTable
             $adapter.Fill($dataTable) | Out-Null
-            
-            # Conversión para consola
-                   $consoleResults = @()
-                    $columns = $dataTable.Columns | Select-Object -ExpandProperty ColumnName
-                    
-                    foreach ($row in $dataTable.Rows) {
-                        $rowData = [ordered]@{}
-                        foreach ($col in $columns) {
-                            $rowData[$col] = $row[$col]
-                        }
-                        $consoleResults += [PSCustomObject]$rowData
-                    }
-                    
-                    return @{
-                        DataTable = $dataTable
-                        ConsoleData = $consoleResults
-                    }
+
+            # Obtener mensajes durante la ejecución
+            $command.ExecuteNonQuery() | Out-Null
+
+            return @{
+                DataTable = $dataTable
+                Messages = $infoMessages
+            }
         } 
         else {
             $rowsAffected = $command.ExecuteNonQuery()
-            return $rowsAffected
+            return @{
+                RowsAffected = $rowsAffected
+                Messages = $infoMessages
+            }
         }
     }
     catch {
@@ -2575,53 +2605,96 @@ function Show-ResultsConsole {
 #EJECUTANDO
 $btnExecute.Add_Click({
     try {
+        # Resetear a estilos normales antes de ejecutar
+        $dgvResults.DefaultCellStyle.ForeColor = $script:originalForeColor
+        $dgvResults.ColumnHeadersDefaultCellStyle.BackColor = $script:originalHeaderBackColor
+        $dgvResults.AutoSizeColumnsMode = $script:originalAutoSizeMode
+        $dgvResults.DefaultCellStyle.ForeColor = $originalForeColor
+        $dgvResults.ColumnHeadersDefaultCellStyle.BackColor = $originalHeaderBackColor
+        $dgvResults.AutoSizeColumnsMode = $originalAutoSizeMode
+        $toolTip.SetToolTip($dgvResults, $null)
+        $dgvResults.DataSource = $null
+        $dgvResults.Rows.Clear()
+        Clear-Host
         $selectedDb = $cmbDatabases.SelectedItem
         if (-not $selectedDb) { throw "Selecciona una base de datos" }
         
-        $query  = $rtbQuery.Text
-        $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $query
+        $rawQuery = $rtbQuery.Text
+        $cleanQuery = Remove-SqlComments -Query $rawQuery
+        $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $cleanQuery
 
-        if ($result -is [hashtable]) {
-            # Debug: Mostrar metadatos
-            $dgvResults.DataSource               = $result.DataTable.DefaultView
-            $dgvResults.Enabled                  = $true
-            Clear-Host
-            Write-Host "Columnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
+        # Mostrar mensajes de SQL (incluyendo progreso de RESTORE)
+        if ($result.Messages.Count -gt 0) {
+            Write-Host "`nMensajes de SQL:" -ForegroundColor Cyan
+            $result.Messages | ForEach-Object { Write-Host $_ }
+        }
+
+        if ($result.DataTable) {
+            # Mostrar resultados en DataGridView
+            $dgvResults.DataSource = $result.DataTable.DefaultView
+            $dgvResults.Enabled = $true
             
-            # Ajuste de columnas
+            Write-Host "`nColumnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
+            
+            # Estilos para resultados exitosos
+            $dgvResults.DefaultCellStyle.ForeColor = 'Blue'
+            $dgvResults.AlternatingRowsDefaultCellStyle.BackColor = '#F0F8FF'
+            
+            # Ajuste automático de columnas
             $dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
             foreach ($col in $dgvResults.Columns) {
                 $col.AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::DisplayedCells
-                $col.Width        = [Math]::Max($col.Width, $col.HeaderText.Length * 8)
+                $col.Width = [Math]::Max($col.Width, $col.HeaderText.Length * 8)
             }
 
-            # Salida a consola
-            if ($result.ConsoleData.Count -eq 0) {
+            # Mostrar en consola si no hay datos
+            if ($result.DataTable.Rows.Count -eq 0) {
                 Write-Host "La consulta no devolvió resultados" -ForegroundColor Yellow
-            } else {
-                $result.ConsoleData | Format-Table -AutoSize | Out-String | Write-Host
+            }
+            else {
+                $result.DataTable | Format-Table -AutoSize | Out-String | Write-Host
             }
         }
         else {
-            Write-Host "Filas afectadas: $result" -ForegroundColor Green
+            # Mostrar filas afectadas para consultas no SELECT
+            Write-Host "`nFilas afectadas: $($result.RowsAffected)" -ForegroundColor Green
         }
     }
     catch {
-        $errorQueryMessage = "Error grave:`n$($_.Exception.Message)`n`nConsulta ejecutada:`n$query"
+        # Manejo de errores
+        $errorTable = New-Object System.Data.DataTable
+        $errorTable.Columns.Add("Tipo") | Out-Null
+        $errorTable.Columns.Add("Mensaje") | Out-Null
+        $errorTable.Columns.Add("Detalle") | Out-Null
         
-        # Mostrar en MessageBox
-        [System.Windows.Forms.MessageBox]::Show(
-            $errorQueryMessage,
-            "Error de ejecución",
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Error
-        )
+        $cleanQuery = $rtbQuery.Text -replace '(?s)/\*.*?\*/', '' -replace '(?m)^\s*--.*'
+        $shortQuery = if ($cleanQuery.Length -gt 50) { $cleanQuery.Substring(0,47) + "..." } else { $cleanQuery }
         
-        # Mostrar en consola
-        Write-Host $errorQueryMessage -ForegroundColor Red
-    }  # <- Aquí cierra correctamente el catch
+        $errorTable.Rows.Add("ERROR SQL", $_.Exception.Message, $shortQuery) | Out-Null
+        
+        # Configurar DataGridView para errores
+        $dgvResults.DataSource = $errorTable
+        # 1) Permitir salto de línea en la columna de mensaje de error (índice 1)
+        $dgvResults.Columns[1].DefaultCellStyle.WrapMode = [System.Windows.Forms.DataGridViewTriState]::True
+        $dgvResults.AutoSizeRowsMode = [System.Windows.Forms.DataGridViewAutoSizeRowsMode]::AllCells
+        #$dgvResults.RowTemplate.Height = 40
+        $dgvResults.AutoSizeColumnsMode = 'Fill'
+        $dgvResults.Columns[0].Width = 100
+        $dgvResults.Columns[1].Width = 300
+        $dgvResults.Columns[2].Width = 200
+        
+        # Estilos de error
+        $dgvResults.DefaultCellStyle.ForeColor = 'Red'
+        $dgvResults.ColumnHeadersDefaultCellStyle.BackColor = '#FFB3B3'
+        $toolTip.SetToolTip($dgvResults, "Consulta completa:`n$cleanQuery")
+        
+        # Mensaje en consola
+        Write-Host "`n=============== ERROR ==============" -ForegroundColor Red
+        Write-Host "Mensaje: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "Consulta: $shortQuery" -ForegroundColor Cyan
+        Write-Host "====================================" -ForegroundColor Red
+    }
 })
-    # ————— Crear el formulario de conexión —————
 $btnConnectDb.Add_Click({
     try {
         $global:server = $txtServer.Text
@@ -2637,9 +2710,8 @@ $btnConnectDb.Add_Click({
         $global:connection.Open()
 
         # Obtener bases de datos
-        $query = "SELECT name FROM sys.databases WHERE name NOT IN ('master','tempdb','model','msdb') AND state_desc = 'ONLINE' ORDER BY name"
+        $query = "SELECT name FROM sys.databases WHERE name NOT IN ('tempdb','model','msdb') AND state_desc = 'ONLINE' ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name;"
         $result = Execute-SqlQuery -server $global:server -database "master" -query $query
-        
         $cmbDatabases.Items.Clear()
         foreach ($row in $result.DataTable.Rows) {
             $cmbDatabases.Items.Add($row["name"])
@@ -2647,7 +2719,11 @@ $btnConnectDb.Add_Click({
         
         $cmbDatabases.Enabled = $true
         $cmbDatabases.SelectedIndex = 0
-        $lblConnectionStatus.Text = "Conectado a: $global:server"
+        $lblConnectionStatus.Text = @"
+Conectado a:
+Servidor: $($global:server)
+Base de datos: $($global:database)
+"@.Trim()
         $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
         # After successful connection
         $txtServer.Enabled = $false
@@ -2676,7 +2752,12 @@ $cmbDatabases.Add_SelectedIndexChanged({
         $global:database = $cmbDatabases.SelectedItem
         
         # Actualizar etiqueta
-        $lblConnectionStatus.Text = "Conectado a: $global:server | BDD: $global:database"
+        $lblConnectionStatus.Text = @"
+Conectado a:
+Servidor: $($global:server)
+Base de datos: $($global:database)
+"@.Trim()
+        #$lblConnectionStatus.Text = "Conectado a: $global:server | BDD: $global:database"
         $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
         
         Write-Host "Base de datos seleccionada: $($cmbDatabases.SelectedItem)" -ForegroundColor Cyan
@@ -2688,6 +2769,7 @@ $btnDisconnectDb.Add_Click({
         Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
         $global:connection.Close()
         $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
+        $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Red
             $btnConnectDb.Enabled    = $True
             $btnDisconnectDb.Enabled = $false
             $btnExecute.Enabled      = $false
@@ -2699,12 +2781,37 @@ $btnDisconnectDb.Add_Click({
             $btnExecute.Enabled = $false
             $chkPredefined.Enabled = $false
             $cmbQueries.Enabled = $false
+            $cmbDatabases.Items.Clear()
+            $cmbDatabases.Enabled = $false
     }
     catch {
             Write-Host "`nError al desconectar: $_" -ForegroundColor Red
         }
 })
-
+$lblHostname.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
+        Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
+    })
+    $txt_IpAdress.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($txt_IpAdress.Text)
+        Write-Host "`nIP's copiadas al equipo: $($txt_IpAdress.Text)"
+    })
+            $txt_IpAdress.Add_MouseEnter($changeColorOnHover)
+            $txt_IpAdress.Add_MouseLeave($restoreColorOnLeave)
+$txt_AdapterStatus.Add_Click({
+    # Cambiar sólo las que no sean ya Private
+    Get-NetConnectionProfile |
+      Where-Object { $_.NetworkCategory -ne 'Private' } |
+      ForEach-Object {
+          Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private
+      }
+    Write-Host "Todas las redes se han establecido como Privadas."
+    Refresh-AdapterStatus
+})
+        $txt_AdapterStatus.Add_MouseEnter($changeColorOnHover)
+        $txt_AdapterStatus.Add_MouseLeave($restoreColorOnLeave)
+#Llamarla pro primera vez
+Refresh-AdapterStatus
 #Boton para salir
     $btnExit.Add_Click({
         $formPrincipal.Dispose()

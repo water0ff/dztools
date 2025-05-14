@@ -385,14 +385,21 @@ $tabProSql.Controls.AddRange(@(
 ))
 # Hashtable con consultas predefinidas usando here-strings
 $script:predefinedQueries = @{
-"Actualizar contraseña de administrador" = @"
+" BackOffice Actualizar contraseña  administrador" = @"
+    -- Actualiza la contraseña del primer UserName con rol administrador y retorna el UserName actualizado
+    UPDATE users
+    SET Password = 'A9AE4E13D2A47998AC34' 
+    OUTPUT inserted.UserName 
+    WHERE UserName = (SELECT TOP 1 UserName FROM users WHERE IsSuperAdmin = 1);
+"@
+"SR | Actualizar contraseña de administrador" = @"
     -- Actualiza la contraseña del primer usuario con rol administrador y retorna el usuario actualizado
     UPDATE usuarios 
     SET contraseña = 'A9AE4E13D2A47998AC34' 
     OUTPUT inserted.usuario 
     WHERE usuario = (SELECT TOP 1 usuario FROM usuarios WHERE administrador = 1);
 "@
-"Revisar Pivot Table" = @"
+"SR | Revisar Pivot Table" = @"
     SELECT app_id, field, COUNT(*) 
     FROM app_settings 
     GROUP BY app_id, field 
@@ -411,7 +418,7 @@ $script:predefinedQueries = @{
                                                     COMMIT TRANSACTION;
 */
 "@
-"Fecha Revisiones" = @"
+"SR | Fecha Revisiones" = @"
     WITH CTE AS (
         SELECT 
             b.estacion, 
@@ -429,23 +436,23 @@ $script:predefinedQueries = @{
     WHERE c.rn = 1 
     ORDER BY c.UltimoUso DESC;
 "@
-"Eliminar Server en OTM" = @"
+"OTM | Eliminar Server en OTM" = @"
     SELECT serie, ipserver, nombreservidor 
     FROM configuracion;  
     -- UPDATE configuracion 
     --   SET serie='', ipserver='', nombreservidor=''
 "@
-"Eliminar Server en Hoteles" = @"
+"NSH | Eliminar Server en Hoteles" = @"
     SELECT serievalida, numserie, ipserver, nombreservidor, llave 
     FROM configuracion; 
     -- UPDATE configuracion 
     --   SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''
 "@
-"Eliminar Server en Rest Card" = @"
+"Restcard | Eliminar Server en Rest Card" = @"
     -- update tabvariables 
     --   SET estacion='', ipservidor='';
 "@
-"Listar usuarios e idiomas" = @"
+"sql | Listar usuarios e idiomas" = @"
     -- Lista los usuarios del sistema y su idioma configurado
 SELECT 
     p.name AS Usuario, 

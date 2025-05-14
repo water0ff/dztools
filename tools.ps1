@@ -387,10 +387,10 @@ $tabProSql.Controls.AddRange(@(
 $script:predefinedQueries = @{
 " BackOffice Actualizar contraseña  administrador" = @"
     -- Actualiza la contraseña del primer UserName con rol administrador y retorna el UserName actualizado
-    UPDATE users
-    SET Password = 'A9AE4E13D2A47998AC34' 
+UPDATE users
+    SET Password = '08/Vqq0='
     OUTPUT inserted.UserName 
-    WHERE UserName = (SELECT TOP 1 UserName FROM users WHERE IsSuperAdmin = 1);
+    WHERE UserName = (SELECT TOP 1 UserName FROM users WHERE IsSuperAdmin = 1 and IsEnabled = 1);
 "@
 "SR | Actualizar contraseña de administrador" = @"
     -- Actualiza la contraseña del primer usuario con rol administrador y retorna el usuario actualizado

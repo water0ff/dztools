@@ -520,6 +520,7 @@ $textBoxAdapterStatus = Create-TextBox `
     -Multiline $true `
     -ReadOnly  $true
 $toolTip.SetToolTip($textBoxAdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
+Refresh-AdapterStatus()
 
 #FUERA DEL TAB
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(350, 525)) `
@@ -775,7 +776,7 @@ $textBoxAdapterStatus.Add_Click({
     Write-Host "Todas las redes se han establecido como Privadas."
     Refresh-AdapterStatus
 })
-Refresh-AdapterStatus()
+
 
 
 

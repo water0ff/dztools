@@ -2976,29 +2976,12 @@ $btnCreateAPK.Add_Click({
         [System.Windows.Forms.MessageBox]::Show("Error durante la creación del APK. Consulte la consola para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 })
-
-
-
-
-
-
-
-
-
-
 ############# BACKUP #############
-############# BACKUP #############
-# Habilitar estilos visuales
 [System.Windows.Forms.Application]::EnableVisualStyles()
-
-# Carpeta temporal de backups
 $global:tempBackupFolder = "C:\Temp\SQLBackups"
 New-Item -Path $global:tempBackupFolder -ItemType Directory -Force | Out-Null
-
-# Handler del botón de Backup
 $btnBackup.Add_Click({
     Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-
     # 1. Selección de Base de Datos
     $selectedDb = $cmbDatabases.SelectedItem
     if (-not $selectedDb) {
@@ -3010,11 +2993,9 @@ $btnBackup.Add_Click({
         )
         return
     }
-
     # 2. Ruta del backup
     $global:backupPath = Join-Path $global:tempBackupFolder `
         "$selectedDb-$(Get-Date -Format 'yyyyMMdd-HHmmss').bak"
-
     # 3. Validación de permisos de escritura
     try {
         [IO.File]::WriteAllText("$global:backupPath.test","test")
@@ -3028,7 +3009,6 @@ $btnBackup.Add_Click({
         )
         return
     }
-
     # 4. Crear formulario global con ProgressBar “ping‑pong”
     $global:backupProgressForm = New-Object System.Windows.Forms.Form
     $global:backupProgressForm.Text            = "Procesando Backup"
@@ -3036,7 +3016,6 @@ $btnBackup.Add_Click({
     $global:backupProgressForm.StartPosition   = "CenterScreen"
     $global:backupProgressForm.FormBorderStyle = 'FixedDialog'
     $global:backupProgressForm.TopMost         = $true
-
     # 4.1 Instanciar ProgressBar como variable global
     $global:pb = New-Object System.Windows.Forms.ProgressBar
     $global:pb.Style    = [System.Windows.Forms.ProgressBarStyle]::Continuous
@@ -3045,14 +3024,12 @@ $btnBackup.Add_Click({
     $global:pb.Value    = 0
     $global:pb.Size     = New-Object System.Drawing.Size(460,25)
     $global:pb.Location = New-Object System.Drawing.Point(10,20)
-
     # Label y botón Cancelar
     $lbl = New-Object System.Windows.Forms.Label
     $lbl.Text     = "Trabajando, espere..."
     $lbl.AutoSize = $false
     $lbl.Size     = New-Object System.Drawing.Size(460,20)
     $lbl.Location = New-Object System.Drawing.Point(10,55)
-
     $btnCancel = New-Object System.Windows.Forms.Button
     $btnCancel.Text     = "Cancelar"
     $btnCancel.Size     = New-Object System.Drawing.Size(120,40)
@@ -3060,13 +3037,11 @@ $btnBackup.Add_Click({
         [int](($global:backupProgressForm.ClientSize.Width - 120) / 2),
         90
     )
-
     $global:backupProgressForm.Controls.AddRange(@($global:pb, $lbl, $btnCancel))
     $global:backupProgressForm.Show()
-
     # 5. Temporizador de animación “ping‑pong”
     $global:animTimer = New-Object System.Windows.Forms.Timer
-    $animTimer.Interval = 300
+    $animTimer.Interval = 400
     # Variable de dirección: +1 sube, -1 baja
     $script:direction = 1  
     $animTimer.Add_Tick({
@@ -3079,10 +3054,9 @@ $btnBackup.Add_Click({
             $script:direction = 1
         }
         # Calculamos nuevo valor y lo aplicamos directamente (la ProgressBar limita a min/max)
-        $pb.Value += 5 * $script:direction
+        $pb.Value += 10 * $script:direction
     })
     $animTimer.Start()
-
     # 6. Arrancar Job de backup en segundo plano
     $script = {
         param($srv,$usr,$pwd,$db,$path)
@@ -3100,7 +3074,6 @@ $btnBackup.Add_Click({
     }
     $global:backupJob = Start-Job -ScriptBlock $script -ArgumentList `
         $global:server, $global:user, $global:password, $selectedDb, $global:backupPath
-
     # 7. Temporizador para vigilar el Job
     $global:backupTimer = New-Object System.Windows.Forms.Timer
     $global:backupTimer.Interval = 500
@@ -3110,7 +3083,6 @@ $btnBackup.Add_Click({
             # Detener timers
             $global:animTimer.Stop()
             $global:backupTimer.Stop()
-
             # Mostrar resultado
             if ($state -eq 'Completed') {
                 Receive-Job $global:backupJob | Out-Null
@@ -3139,14 +3111,12 @@ $btnBackup.Add_Click({
                     [System.Windows.Forms.MessageBoxIcon]::Error
                 )
             }
-
             # Limpieza
             Remove-Job $global:backupJob -Force
             $global:backupProgressForm.Close()
         }
     })
     $global:backupTimer.Start()
-
     # 8. Cancelar el Job desde el botón
     $btnCancel.Add_Click({
         if ($global:backupJob -and $global:backupJob.State -in @('Running','NotStarted')) {
@@ -3154,7 +3124,6 @@ $btnBackup.Add_Click({
         }
     })
 })
-
 # Cierre seguro al cerrar la aplicación
 $formPrincipal.Add_FormClosing({
     if ($global:backupJob -and $global:backupJob.State -eq 'Running') {
@@ -3163,11 +3132,6 @@ $formPrincipal.Add_FormClosing({
     if ($global:animTimer)   { $global:animTimer.Stop()   }
     if ($global:backupTimer) { $global:backupTimer.Stop() }
 })
-
-
-
-
-
 # Botón para salir
 $btnExit.Add_Click({
     $formPrincipal.Dispose()

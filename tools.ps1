@@ -35,7 +35,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250514.1138"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250515.1438"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -182,6 +182,7 @@ function Create-TextBox {
     return $textBox
 }
 #COMIENZA EL PROGRAMA ----------------------------------
+$global:lastReportedPct = -1  # Añadir al inicio del script
 $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(990, 515)    # Original: 710x315
     $tabControl.Location = New-Object System.Drawing.Point(5, 5)   # Pequeño margen
@@ -1215,7 +1216,12 @@ function Show-ProgressBar {
                 $progressBar.Location = New-Object System.Drawing.Point(10, 50)
                 $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
                 $progressBar.Maximum = 100
-            
+                $progressBar.SetStyle([System.Windows.Forms.ProgressBarStyle]::Continuous)
+                $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
+                $type = $progressBar.GetType()
+                $flags = [Reflection.BindingFlags]::NonPublic -bor [Reflection.BindingFlags]::Instance
+                $type.GetField("DoubleBuffered", $flags).SetValue($progressBar, $true)
+
                 $lblPercentage = New-Object System.Windows.Forms.Label
                 $lblPercentage.Location = New-Object System.Drawing.Point(10, 20)
                 $lblPercentage.Size = New-Object System.Drawing.Size(360, 20)
@@ -1267,7 +1273,7 @@ $btnCheckPermissions.Add_Click({
         Check-Permissions
     })            
 $btnForzarActualizacion.Add_Click({
-                    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
                     Show-SystemComponents
                     
                     # Cargar ensamblado necesario para MessageBox
@@ -1296,7 +1302,7 @@ $btnForzarActualizacion.Add_Click({
                 })
 # SQL MANAGEMENT
 $btnSQLManagement.Add_Click({
-        Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+        Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         
         function Get-SSMSVersions {
             $ssmsPaths = @()
@@ -1384,7 +1390,7 @@ $btnSQLManagement.Add_Click({
 })
 #                Profiler:
 $btnProfiler.Add_Click({
-        Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+        Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         $ProfilerUrl = "https://codeplexarchive.org/codeplex/browse/ExpressProfiler/releases/4/ExpressProfiler22wAddinSigned.zip"
         $ProfilerZipPath = "C:\Temp\ExpressProfiler22wAddinSigned.zip"
         $ExtractPath = "C:\Temp\ExpressProfiler2"
@@ -1397,7 +1403,7 @@ $btnProfiler.Add_Click({
     )
 #                Impresoras printer tool
 $btnPrinterTool.Add_Click({
-        Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+        Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         $PrinterToolUrl = "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip"
         $PrinterToolZipPath = "C:\Temp\RPT-RPI-Printer-Tool-1.zip"
         $ExtractPath = "C:\Temp\RPT-RPI-Printer-Tool-1"
@@ -1408,7 +1414,7 @@ $btnPrinterTool.Add_Click({
     })
 #                Database 4 net
 $btnDatabase.Add_Click({
-        Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+        Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         $DatabaseUrl = "https://fishcodelib.com/files/DatabaseNet4.zip"
         $DatabaseZipPath = "C:\Temp\DatabaseNet4.zip"
         $ExtractPath = "C:\Temp\Database4"
@@ -1419,7 +1425,7 @@ $btnDatabase.Add_Click({
     })
 #seleccion de managers BOTON
 $btnSQLManager.Add_Click({
-        Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+        Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     
         function Get-SQLServerManagers {
             $managers = @()
@@ -1510,7 +1516,7 @@ $btnSQLManager.Add_Click({
 })
 #Clear Anydesk
 $btnClearAnyDesk.Add_Click({
-        Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+        Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         # Mostrar cuadro de confirmación
         $confirmationResult = [System.Windows.Forms.MessageBox]::Show(
             "¿Estás seguro de renovar AnyDesk?", 
@@ -1573,7 +1579,7 @@ $btnClearAnyDesk.Add_Click({
     })
     #                Mostrar impresoras en la consola
 $btnShowPrinters.Add_Click({
-        Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+        Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         try {
             $printers = Get-WmiObject -Query "SELECT * FROM Win32_Printer" | ForEach-Object {
                 $printer = $_
@@ -1604,7 +1610,7 @@ $btnShowPrinters.Add_Click({
     })
 #                Spool cola de impresión
 $btnClearPrintJobs.Add_Click({
-            Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         try {
 
             # Ejecutar el script para limpiar los trabajos de impresión y reiniciar la cola de impresión
@@ -1626,7 +1632,7 @@ $btnClearPrintJobs.Add_Click({
     })
 #LMZA
 $LZMAbtnBuscarCarpeta.Add_Click({
-         Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+         Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             # Usar la ruta correcta del registro
             $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
             
@@ -1768,7 +1774,7 @@ $btnExitInstaladores.Add_Click({
 })
 # Evento para el botón "Instalar Herramientas"
 $btnInstalarHerramientas.Add_Click({
-        Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+        Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         # Verificar si Chocolatey está instalado
         if (Check-Chocolatey) {
             # Mostrar el formulario de instaladores de Chocolatey
@@ -1779,7 +1785,7 @@ $btnInstalarHerramientas.Add_Click({
 })
 #Boton para instalar Management
 $btnInstallSQLManagement.Add_Click({
-    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     $response = [System.Windows.Forms.MessageBox]::Show(
         "¿Desea proceder con la instalación de SQL Server Management Studio 2014 Express?",
         "Advertencia de instalación",
@@ -1809,7 +1815,7 @@ $btnInstallSQLManagement.Add_Click({
 })
 # Instalador de SQL 2019
 $btnInstallSQL2019.Add_Click({
-    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     $response = [System.Windows.Forms.MessageBox]::Show(
         "¿Desea proceder con la instalación de SQL Server 2019 Express?",
         "Advertencia de instalación",
@@ -1839,7 +1845,7 @@ $btnInstallSQL2019.Add_Click({
 })
 # Instalador de SQL 2014
 $btnInstallSQL2014.Add_Click({
-            Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             $response = [System.Windows.Forms.MessageBox]::Show(
                 "¿Desea proceder con la instalación de SQL Server 2014 Express?",
                 "Advertencia de instalación",
@@ -1878,7 +1884,7 @@ $btnInstallSQL2014.Add_Click({
 })
 # ------------------------------ Boton para configurar nuevas ips
 $btnConfigurarIPs.Add_Click({
-            Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             $formIpAssignAsignacion = Create-Form -Title "Asignación de IPs" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
             #interfaz
@@ -2078,7 +2084,7 @@ $btnConfigurarIPs.Add_Click({
 })
 # ICACLS para dar permisos cuando marca error driver de lector
 $btnLectorDPicacls.Add_Click({
-    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     try {
         # Ruta de PsExec
         $psexecPath = "C:\Temp\PsExec\PsExec.exe"
@@ -2156,7 +2162,7 @@ $btnLectorDPicacls.Add_Click({
 })
 #AplicacionesNS
 $btnAplicacionesNS.Add_Click({
-    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     # Definir una lista para almacenar los resultados
     $resultados = @()
 
@@ -2305,7 +2311,7 @@ $btnAplicacionesNS.Add_Click({
 })
 # Cambiar OTM de DBL a SQL y viceverza
 $btnCambiarOTM.Add_Click({
-    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     # Ruta de configuración
     $syscfgPath = "C:\Windows\SysWOW64\Syscfg45_2.0.dll"
     $iniPath = "C:\NationalSoft\OnTheMinute4.5"
@@ -2407,7 +2413,7 @@ $btnCambiarOTM.Add_Click({
 })
 #                Agregar usuario en Windows
 $btnAddUser.Add_Click({
-    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     # Crear formulario (aumentamos el ancho a 450)
     $formAddUser = Create-Form -Title "Crear Usuario de Windows" -Size (New-Object System.Drawing.Size(450, 250))
     
@@ -2699,7 +2705,7 @@ function Show-ResultsConsole {
 }
 #EJECUTANDO
 $btnExecute.Add_Click({
-    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     try {
         # Resetear a estilos normales antes de ejecutar
         $dgvResults.DefaultCellStyle.ForeColor = $script:originalForeColor
@@ -2912,7 +2918,7 @@ $txt_AdapterStatus.Add_Click({
 Refresh-AdapterStatus
 #Creación del APK
 $btnCreateAPK.Add_Click({
-    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     $dllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll"
     $infoPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\info.txt"
     
@@ -2970,220 +2976,203 @@ $btnCreateAPK.Add_Click({
         [System.Windows.Forms.MessageBox]::Show("Error durante la creación del APK. Consulte la consola para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 })
+
+
+
+
+
+
+
+
+
+
 ############# BACKUP #############
+############# BACKUP #############
+# Habilitar estilos visuales
+[System.Windows.Forms.Application]::EnableVisualStyles()
+
+# Carpeta temporal de backups
 $global:tempBackupFolder = "C:\Temp\SQLBackups"
 New-Item -Path $global:tempBackupFolder -ItemType Directory -Force | Out-Null
 
 # Handler del botón de Backup
 $btnBackup.Add_Click({
-    # --- Inicialización de variables globales ---
     Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-    $global:backupConnection     = $null
-    $global:backupCommand        = $null
-    $global:backupTimer          = $null
-    $global:backupProgressForm   = $null
-    $global:asyncResult          = $null
-    $global:backupPath           = $null
 
-    try {
-        # 1. Selección de Base de Datos
-        $selectedDb = $cmbDatabases.SelectedItem
-        if (-not $selectedDb) {
-            [System.Windows.Forms.MessageBox]::Show(
-                "Selecciona una base de datos primero",
-                "Error",
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Warning
-            )
-                    Write-Host "Error | Selecciona una base de datos primero." -ForegroundColor Red
-            return
-        }
-
-        # 2. Construcción de la ruta de backup (siempre en tempBackupFolder)
-        $global:backupPath = Join-Path $global:tempBackupFolder `
-            "$selectedDb-$(Get-Date -Format 'yyyyMMdd-HHmmss').bak"
-
-        # 3. Validación de permisos de escritura (bajo su cuenta)
-        try {
-            [IO.File]::WriteAllText("$global:backupPath.test", "test")
-            Remove-Item "$global:backupPath.test" -Force -ErrorAction Stop
-        }
-        catch {
-            [System.Windows.Forms.MessageBox]::Show(
-                "Error de permisos en la ruta de backup:`n$global:tempBackupFolder",
-                "Error de permisos",
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Error)
-            Write-Host "Error | Error de permisos en la ruta de backup:`n$global:tempBackupFolder" -ForegroundColor Red
-            return
-        }
-
-        # 4. Creación del formulario de progreso
-        $global:backupProgressForm = Create-Form `
-            -Title "Progreso de Backup" `
-            -Size (New-Object System.Drawing.Size(400,150))
-        $progressBar = New-Object System.Windows.Forms.ProgressBar
-        $progressBar.Size     = New-Object System.Drawing.Size(380,20)
-        $progressBar.Location = New-Object System.Drawing.Point(10,20)
-        $lblProgress = Create-Label `
-            -Text "0% completado" `
-            -Location (New-Object System.Drawing.Point(10,50)) `
-            -Size (New-Object System.Drawing.Size(380,20))
-        $btnCancel = Create-Button `
-            -Text "Cancelar" `
-            -Location (New-Object System.Drawing.Point(150,80)) `
-            -Size (New-Object System.Drawing.Size(100,30))
-
-        $global:backupProgressForm.Controls.AddRange(@($progressBar,$lblProgress,$btnCancel))
-        $global:backupProgressForm.Show()
-
-        # 5. Configuración de la conexión a SQL Server
-        $global:backupConnection = New-Object System.Data.SqlClient.SqlConnection
-        $global:backupConnection.ConnectionString = "
-            Server=$($global:server);
-            Database=master;
-            User Id=$($global:user);
-            Password=$($global:password);
-        "
-        $global:backupConnection.Open()
-        $global:backupConnection.FireInfoMessageEventOnUserErrors = $true
-
-        # 6. Comando de BACKUP
-        $global:backupCommand = $global:backupConnection.CreateCommand()
-        $global:backupCommand.CommandText = "
-            BACKUP DATABASE [$selectedDb]
-            TO DISK='$global:backupPath'
-            WITH STATS=1, CHECKSUM
-        "
-        $global:backupCommand.CommandTimeout = 0
-
-        # 7. Evento de progreso de SQL
-        $global:backupConnection.Add_InfoMessage({
-            param($sender, $e)
-            if ($e.Message -match '(\d+)% procesado') {
-                $pct = [int]$matches[1]
-                $global:backupProgressForm.BeginInvoke([Action]{
-                    $progressBar.Value = $pct
-                    $lblProgress.Text  = "$pct% - $($e.Message)"
-                })
-            }
-        })
-
-        # 8. Temporizador para chequear fin de operación
-        $global:backupTimer = New-Object System.Windows.Forms.Timer
-        $global:backupTimer.Interval = 200
-        $global:asyncResult = $null
-
-        # 9. Acción de Cancelar
-        $btnCancel.Add_Click({
-            try {
-                if ($global:backupCommand -ne $null) {
-                    $global:backupCommand.Cancel()
-                }
-                [System.Windows.Forms.MessageBox]::Show(
-                    "Backup cancelado",
-                    "Información",
-                    [System.Windows.Forms.MessageBoxButtons]::OK,
-                    [System.Windows.Forms.MessageBoxIcon]::Information
-                )
-                Write-Host "Advertencia | BackUp Cancelado" -ForegroundColor Yellow
-            }
-            finally {
-                if ($global:backupTimer    -ne $null) { $global:backupTimer.Stop() }
-                if ($global:backupConnection -ne $null -and $global:backupConnection.State -eq 'Open') {
-                    $global:backupConnection.Close()
-                }
-                if ($global:backupProgressForm -ne $null) {
-                    $global:backupProgressForm.Close()
-                }
-            }
-        })
-
-        # 10. Manejador del Tick: fin de backup
-        $global:backupTimer.Add_Tick({
-            if ($global:asyncResult -and $global:asyncResult.IsCompleted) {
-                $global:backupTimer.Stop()
-                try {
-                    $global:backupCommand.EndExecuteNonQuery($global:asyncResult)
-
-                    if (Test-Path $global:backupPath) {
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "Backup completado exitosamente en:`n$global:backupPath",
-                            "Éxito",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Information
-                        )
-                        Write-Host "Backup completado exitosamente en:`n$global:backupPath" -ForegroundColor Green
-                        # 11. Abrir la carpeta de backups automáticamente
-                        Invoke-Item (Split-Path $global:backupPath)
-
-                    }
-                    else {
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "El comando BACKUP terminó sin errores, pero no se encontró el archivo:`n$global:backupPath",
-                            "Advertencia de permisos",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Warning
-                        )
-                        Write-Host "Advertencia | El comando BACKUP terminó sin errores, pero no se encontró el archivo:`n$global:backupPath " -ForegroundColor Yellow
-                    }
-                }
-                catch [System.Data.SqlClient.SqlException] {
-                    [System.Windows.Forms.MessageBox]::Show(
-                        "Error en backup: $($_.Exception.Message)",
-                        "Error",
-                        [System.Windows.Forms.MessageBoxButtons]::OK,
-                        [System.Windows.Forms.MessageBoxIcon]::Error
-                    )
-                    Write-Host "Error | Error en backup: $($_.Exception.Message)" -ForegroundColor Red
-                }
-                finally {
-                    if ($global:backupConnection -ne $null -and $global:backupConnection.State -eq 'Open') {
-                        $global:backupConnection.Close()
-                    }
-                    if ($global:backupProgressForm -ne $null) {
-                        $global:backupProgressForm.Close()
-                    }
-                }
-            }
-        })
-
-        # 12. Inicio del proceso de backup
-        $global:asyncResult = $global:backupCommand.BeginExecuteNonQuery()
-        $global:backupTimer.Start()
-    }
-    catch {
-        # Error de inicialización
+    # 1. Selección de Base de Datos
+    $selectedDb = $cmbDatabases.SelectedItem
+    if (-not $selectedDb) {
         [System.Windows.Forms.MessageBox]::Show(
-            "Error inicializando backup: $($_.Exception.Message)",
+            "Selecciona una base de datos primero",
             "Error",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        )
+        return
+    }
+
+    # 2. Ruta del backup
+    $global:backupPath = Join-Path $global:tempBackupFolder `
+        "$selectedDb-$(Get-Date -Format 'yyyyMMdd-HHmmss').bak"
+
+    # 3. Validación de permisos de escritura
+    try {
+        [IO.File]::WriteAllText("$global:backupPath.test","test")
+        Remove-Item "$global:backupPath.test" -Force
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Error de permisos en la ruta:`n$global:tempBackupFolder",
+            "Error permisos",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         )
-        Write-Host "Error inicializando backup: $($_.Exception.Message)" -ForegroundColor Red
-        if ($global:backupConnection -ne $null -and $global:backupConnection.State -eq 'Open') {
-            $global:backupConnection.Close()
+        return
+    }
+
+    # 4. Crear formulario global con ProgressBar “ping‑pong”
+    $global:backupProgressForm = New-Object System.Windows.Forms.Form
+    $global:backupProgressForm.Text            = "Procesando Backup"
+    $global:backupProgressForm.Size            = New-Object System.Drawing.Size(500,160)
+    $global:backupProgressForm.StartPosition   = "CenterScreen"
+    $global:backupProgressForm.FormBorderStyle = 'FixedDialog'
+    $global:backupProgressForm.TopMost         = $true
+
+    # 4.1 Instanciar ProgressBar como variable global
+    $global:pb = New-Object System.Windows.Forms.ProgressBar
+    $global:pb.Style    = [System.Windows.Forms.ProgressBarStyle]::Continuous
+    $global:pb.Minimum  = 0
+    $global:pb.Maximum  = 100
+    $global:pb.Value    = 0
+    $global:pb.Size     = New-Object System.Drawing.Size(460,25)
+    $global:pb.Location = New-Object System.Drawing.Point(10,20)
+
+    # Label y botón Cancelar
+    $lbl = New-Object System.Windows.Forms.Label
+    $lbl.Text     = "Trabajando, espere..."
+    $lbl.AutoSize = $false
+    $lbl.Size     = New-Object System.Drawing.Size(460,20)
+    $lbl.Location = New-Object System.Drawing.Point(10,55)
+
+    $btnCancel = New-Object System.Windows.Forms.Button
+    $btnCancel.Text     = "Cancelar"
+    $btnCancel.Size     = New-Object System.Drawing.Size(120,40)
+    $btnCancel.Location = New-Object System.Drawing.Point(
+        [int](($global:backupProgressForm.ClientSize.Width - 120) / 2),
+        90
+    )
+
+    $global:backupProgressForm.Controls.AddRange(@($global:pb, $lbl, $btnCancel))
+    $global:backupProgressForm.Show()
+
+    # 5. Temporizador de animación “ping‑pong”
+    $global:animTimer = New-Object System.Windows.Forms.Timer
+    $animTimer.Interval = 150
+    # Variable de dirección: +1 sube, -1 baja
+    $script:direction = 1  
+    $animTimer.Add_Tick({
+        # Cuando llegue al máximo, invertimos a bajar
+        if ($pb.Value -ge $pb.Maximum) {
+            $script:direction = -1
         }
-        if ($global:backupProgressForm -ne $null) {
+        # Cuando llegue al mínimo, invertimos a subir
+        elseif ($pb.Value -le $pb.Minimum) {
+            $script:direction = 1
+        }
+        # Calculamos nuevo valor y lo aplicamos directamente (la ProgressBar limita a min/max)
+        $pb.Value += 2 * $script:direction
+    })
+    $animTimer.Start()
+
+    # 6. Arrancar Job de backup en segundo plano
+    $script = {
+        param($srv,$usr,$pwd,$db,$path)
+        $conn = New-Object System.Data.SqlClient.SqlConnection("
+            Server=$srv; Database=master; User Id=$usr; Password=$pwd
+        ")
+        $conn.Open()
+        $cmd = $conn.CreateCommand()
+        $cmd.CommandText = "
+            BACKUP DATABASE [$db] TO DISK='$path' WITH CHECKSUM
+        "
+        $cmd.CommandTimeout = 0
+        $cmd.ExecuteNonQuery()
+        $conn.Close()
+    }
+    $global:backupJob = Start-Job -ScriptBlock $script -ArgumentList `
+        $global:server, $global:user, $global:password, $selectedDb, $global:backupPath
+
+    # 7. Temporizador para vigilar el Job
+    $global:backupTimer = New-Object System.Windows.Forms.Timer
+    $global:backupTimer.Interval = 500
+    $global:backupTimer.Add_Tick({
+        $state = $global:backupJob.State
+        if ($state -in 'Completed','Failed','Stopped') {
+            # Detener timers
+            $global:animTimer.Stop()
+            $global:backupTimer.Stop()
+
+            # Mostrar resultado
+            if ($state -eq 'Completed') {
+                Receive-Job $global:backupJob | Out-Null
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Backup completado en:`n$global:backupPath",
+                    "Éxito",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Information
+                )
+                Invoke-Item (Split-Path $global:backupPath)
+            }
+            elseif ($state -eq 'Stopped') {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Backup cancelado por el usuario",
+                    "Cancelado",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Information
+                )
+            }
+            else {
+                $err = Receive-Job $global:backupJob -ErrorAction SilentlyContinue
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Error en backup:`n$err",
+                    "Error",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error
+                )
+            }
+
+            # Limpieza
+            Remove-Job $global:backupJob -Force
             $global:backupProgressForm.Close()
         }
-    }
-})
-
-# Handler único para cierre seguro al cerrar la aplicación
-$formPrincipal.Add_FormClosing({
-    if ($global:backupConnection -ne $null -and $global:backupConnection.State -eq 'Open') {
-        $global:backupConnection.Close()
-    }
-    if ($global:backupTimer -ne $null) {
-        $global:backupTimer.Stop()
-    }
-})
-
-#Boton para salir
-    $btnExit.Add_Click({
-        $formPrincipal.Dispose()
-        $formPrincipal.Close()
     })
+    $global:backupTimer.Start()
+
+    # 8. Cancelar el Job desde el botón
+    $btnCancel.Add_Click({
+        if ($global:backupJob -and $global:backupJob.State -in @('Running','NotStarted')) {
+            Stop-Job $global:backupJob
+        }
+    })
+})
+
+# Cierre seguro al cerrar la aplicación
+$formPrincipal.Add_FormClosing({
+    if ($global:backupJob -and $global:backupJob.State -eq 'Running') {
+        Stop-Job $global:backupJob
+    }
+    if ($global:animTimer)   { $global:animTimer.Stop()   }
+    if ($global:backupTimer) { $global:backupTimer.Stop() }
+})
+
+
+
+
+
+# Botón para salir
+$btnExit.Add_Click({
+    $formPrincipal.Dispose()
+    $formPrincipal.Close()
+})
+
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()

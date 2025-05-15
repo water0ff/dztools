@@ -3066,7 +3066,7 @@ $btnBackup.Add_Click({
 
     # 5. Temporizador de animación “ping‑pong”
     $global:animTimer = New-Object System.Windows.Forms.Timer
-    $animTimer.Interval = 150
+    $animTimer.Interval = 300
     # Variable de dirección: +1 sube, -1 baja
     $script:direction = 1  
     $animTimer.Add_Tick({
@@ -3079,7 +3079,7 @@ $btnBackup.Add_Click({
             $script:direction = 1
         }
         # Calculamos nuevo valor y lo aplicamos directamente (la ProgressBar limita a min/max)
-        $pb.Value += 2 * $script:direction
+        $pb.Value += 5 * $script:direction
     })
     $animTimer.Start()
 

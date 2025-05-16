@@ -461,6 +461,22 @@ UPDATE users
     OUTPUT inserted.UserName 
     WHERE UserName = (SELECT TOP 1 UserName FROM users WHERE IsSuperAdmin = 1 and IsEnabled = 1);
 "@
+"BackOffice Estaciones" = @"
+SELECT 
+    t.Name, 
+    t.Ip, 
+    t.LastOnline, 
+    t.IsEnabled, 
+    u.UserName AS UltimoUsuario, 
+    t.AppVersion, 
+    t.IsMaximized, 
+    t.ForceAppUpdate, 
+    t.SkipDoPing
+FROM Terminals t
+LEFT JOIN Users u ON t.LastUserLogin = u.Id
+--WHERE t.IsEnabled = 1.0000 
+ORDER BY t.IsEnabled DESC, t.Name;
+"@
 "SR | Actualizar contraseña de administrador" = @"
     -- Actualiza la contraseña del primer usuario con rol administrador y retorna el usuario actualizado
     UPDATE usuarios 

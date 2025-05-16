@@ -236,16 +236,9 @@ $btnBackup = Create-Button -Text "Backup BDD" -Location (New-Object System.Drawi
     -Size (New-Object System.Drawing.Size(180, 30)) `
     -BackColor ([System.Drawing.Color]::FromArgb(0, 192, 0)) `
     -ToolTip "Realizar backup de la base de datos seleccionada"
-
-$chkPredefined = New-Object System.Windows.Forms.CheckBox
-    $chkPredefined.Text = "Sentencias predefinidas"
-    $chkPredefined.Location = New-Object System.Drawing.Point(330, 25)
-    $chkPredefined.Size = New-Object System.Drawing.Size(150, 20)
-    $chkPredefined.Enabled = $false
 $cmbQueries = New-Object System.Windows.Forms.ComboBox
-    $cmbQueries.Location = New-Object System.Drawing.Point(480, 25)
-    $cmbQueries.Size = New-Object System.Drawing.Size(200, 20)
-    $cmbQueries.Visible = $false
+    $cmbQueries.Location = New-Object System.Drawing.Point(330, 25)
+    $cmbQueries.Size = New-Object System.Drawing.Size(3500, 20)
     $cmbQueries.Enabled = $false
 # Crear RichTextBox
 $rtbQuery = New-Object System.Windows.Forms.RichTextBox
@@ -370,12 +363,10 @@ $panelGrid = New-Object System.Windows.Forms.Panel
         $btnDisconnectDb.Enabled = $false
         $btnExecute.Enabled      = $false
         $rtbQuery.Enabled        = $false
-        $chkPredefined.Enabled   = $false
         $txtServer.Enabled = $true
         $txtUser.Enabled = $true
         $txtPassword.Enabled = $true
         $btnExecute.Enabled = $false
-        $chkPredefined.Enabled = $false
         $cmbQueries.Enabled = $false
 
 $tabProSql.Controls.AddRange(@(
@@ -384,7 +375,6 @@ $tabProSql.Controls.AddRange(@(
     $cmbDatabases,  # <-- Aquí el ComboBox reemplaza al ListBox
     $lblConnectionStatus,
     $btnExecute,
-    $chkPredefined,
     $cmbQueries,
     $rtbQuery,
     $lblServer,
@@ -550,10 +540,6 @@ WHERE
     foreach ($key in $sortedKeys) {
         $cmbQueries.Items.Add($key) | Out-Null
     }
-$chkPredefined.Add_CheckedChanged({
-    $cmbQueries.Visible = $chkPredefined.Checked
-    if (-not $chkPredefined.Checked) { $rtbQuery.Clear() }
-})
 $cmbQueries.Add_SelectedIndexChanged({
     $rtbQuery.Text = $script:predefinedQueries[$cmbQueries.SelectedItem]
 })
@@ -2869,7 +2855,6 @@ Base de datos: $($global:database)
         $txtUser.Enabled = $false
         $txtPassword.Enabled = $false
         $btnExecute.Enabled = $true
-        $chkPredefined.Enabled = $true
         $cmbQueries.Enabled = $true
         $btnConnectDb.Enabled = $false
         $btnBackup.Enabled    = $True
@@ -2915,12 +2900,10 @@ $btnDisconnectDb.Add_Click({
             $btnDisconnectDb.Enabled = $false
             $btnExecute.Enabled      = $false
             $rtbQuery.Enabled        = $false
-            $chkPredefined.Enabled   = $false
             $txtServer.Enabled = $true
             $txtUser.Enabled = $true
             $txtPassword.Enabled = $true
             $btnExecute.Enabled = $false
-            $chkPredefined.Enabled = $false
             $cmbQueries.Enabled = $false
             $cmbDatabases.Items.Clear()
             $cmbDatabases.Enabled = $false
@@ -2929,7 +2912,7 @@ $btnDisconnectDb.Add_Click({
             Write-Host "`nError al desconectar: $_" -ForegroundColor Red
         }
 })
-<# ---------------------------------------------------------------------------
+<# ESTP ESTA EN EL RENGLON 2932---------------------------------------------------------------------------
   Sección "BACKUP" adaptada para uso ad-hoc con Admin Share C$
   - No valida permisos ni crea carpeta remota (SQL se encarga de la escritura)
   - Extrae correctamente nombre de máquina
@@ -3058,7 +3041,7 @@ $btnBackup.Add_Click({
                         "Éxito",
                         [System.Windows.Forms.MessageBoxButtons]::OK,
                         [System.Windows.Forms.MessageBoxIcon]::Information)
-                    Write-Host "Backup finalizado correctamente. Ruta: $global:backupPath" -ForegroundColor Green
+                        Write-Host "Backup finalizado correctamente. Ruta: $global:backupPath" -ForegroundColor Green
                     # Intentar abrir carpeta remota solo si existe
                     if (Test-Path $global:tempBackupFolder) {
                         Start-Process explorer.exe $global:tempBackupFolder
@@ -3095,9 +3078,6 @@ $btnBackup.Add_Click({
         }
     })
 })
-
-
-
 # Cierre seguro al cerrar la aplicación
 $formPrincipal.Add_FormClosing({
     if ($global:backupJob -and $global:backupJob.State -eq 'Running') {
@@ -3106,15 +3086,6 @@ $formPrincipal.Add_FormClosing({
     if ($global:animTimer)   { $global:animTimer.Stop()   }
     if ($global:backupTimer) { $global:backupTimer.Stop() }
 })
-
-
-
-
-
-
-
-
-
 #Etiquetas clics------------------------------------------------------------------------------------------------
 $lblHostname.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)

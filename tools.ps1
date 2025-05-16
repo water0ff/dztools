@@ -238,7 +238,7 @@ $btnBackup = Create-Button -Text "Backup BDD" -Location (New-Object System.Drawi
     -ToolTip "Realizar backup de la base de datos seleccionada"
 $cmbQueries = New-Object System.Windows.Forms.ComboBox
     $cmbQueries.Location = New-Object System.Drawing.Point(330, 25)
-    $cmbQueries.Size = New-Object System.Drawing.Size(3500, 20)
+    $cmbQueries.Size = New-Object System.Drawing.Size(350, 20)
     $cmbQueries.Enabled = $false
 # Crear RichTextBox
 $rtbQuery = New-Object System.Windows.Forms.RichTextBox

@@ -25,6 +25,7 @@ Clear-Host
 Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundColor Green
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
+    [System.Windows.Forms.Application]::EnableVisualStyles()
 # Crear el formulario
     $formPrincipal = New-Object System.Windows.Forms.Form
     $formPrincipal.Size = New-Object System.Drawing.Size(1000, 600)  # Aumentado de 720x400
@@ -35,7 +36,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250515.1438"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250516.1252"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -2456,144 +2457,135 @@ $btnCambiarOTM.Add_Click({
         Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
     }
 })
-#                Agregar usuario en Windows
+
+
+<# ---------------------------------------------------------------------------
+  Formulario "Crear Usuario de Windows" con correcciones:
+  - Obtención confiable de grupos Administradores y Usuarios estándar
+  - Validación de complejidad de contraseña antes de New-LocalUser
+  - Manejo adecuado de errores al verificar pertenencia a grupos
+--------------------------------------------------------------------------- #>
 $btnAddUser.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-    # Crear formulario (aumentamos el ancho a 450)
-    $formAddUser = Create-Form -Title "Crear Usuario de Windows" -Size (New-Object System.Drawing.Size(450, 250))
-    
-    # Controles del formulario
-    $txtUsernameAddUser = Create-TextBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(200, 20))
-    $lblUsernameAddUser = Create-Label -Text "Nombre:" -Location (New-Object System.Drawing.Point(10, 20))    
-    $txtPasswordAddUser = Create-TextBox -Location (New-Object System.Drawing.Point(120, 60)) -Size (New-Object System.Drawing.Size(200, 20)) -UseSystemPasswordChar $true
-    $lblPasswordAddUser = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(10, 60))
-    $cmbUserTypeAddUser = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 100)) -Size (New-Object System.Drawing.Size(200, 20)) -Items @("Usuario estándar", "Administrador")
-    $lblUserTypeAddUser = Create-Label -Text "Tipo:" -Location (New-Object System.Drawing.Point(10, 100))
-    
-    # Obtener nombres reales de grupos
-    $adminGroup = Get-AdminGroupName
-    $userGroup = if ($adminGroup -eq "Administradores") { "Usuarios" } else { "Users" }
-    
-    # Botones (ajustamos posiciones)
-    $btnOKAddUser = Create-Button -Text "Crear" -Location (New-Object System.Drawing.Point(50, 150)) -Size (New-Object System.Drawing.Size(100, 30))
-    $btnCancelAddUser = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(160, 150)) -Size (New-Object System.Drawing.Size(100, 30))
-    $btnShowUsers = Create-Button -Text "Mostrar usuarios" -Location (New-Object System.Drawing.Point(270, 150)) -Size (New-Object System.Drawing.Size(130, 30))
 
-    # Evento del botón Mostrar Usuarios
-    $btnShowUsers.Add_Click({
+    # Crear formulario
+    $formAddUser = Create-Form -Title "Crear Usuario de Windows" -Size (New-Object System.Drawing.Size(450, 250))
+
+    # Controles
+    $txtUsername = Create-TextBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(290, 30))
+    $lblUsername = Create-Label -Text "Nombre:" -Location (New-Object System.Drawing.Point(10, 20))
+    $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 60)) -Size (New-Object System.Drawing.Size(290, 30)) -UseSystemPasswordChar $true
+    $lblPassword = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(10, 60))
+    $cmbType     = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 100)) -Size (New-Object System.Drawing.Size(290, 30)) -Items @("Usuario estándar","Administrador")
+    $lblType     = Create-Label -Text "Tipo:" -Location (New-Object System.Drawing.Point(10, 100))
+
+    # Determinar nombres de grupos estándar y administradores por SID
+    $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name
+    $userGroup  = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name
+
+    # Botones
+    $btnCreate = Create-Button -Text "Crear"    -Location (New-Object System.Drawing.Point(10, 150))  -Size (New-Object System.Drawing.Size(130, 30))
+    $btnCancel = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(150, 150)) -Size (New-Object System.Drawing.Size(130, 30))
+    $btnShow   = Create-Button -Text "Mostrar usuarios" -Location (New-Object System.Drawing.Point(290, 150)) -Size (New-Object System.Drawing.Size(130, 30))
+    # Mostrar usuarios existentes
+    $btnShow.Add_Click({
         Write-Host "`nUsuarios actuales en el sistema:`n" -ForegroundColor Cyan
-    # Obtener todos los usuarios locales
-    $users = Get-LocalUser
-    # Crear objetos con formato similar al de impresoras
-    $usersTable = $users | ForEach-Object {
-        $user = $_
-        # Determinar estado
-        $estado = if ($user.Enabled) { "Habilitado" } else { "Deshabilitado" }
-        
-        # Determinar tipo de usuario
-        $tipoUsuario = "Usuario estándar"
-        
-        # Verificar si es administrador
-        try {
-            $adminMembers = Get-LocalGroupMember -Group $adminGroup -ErrorAction Stop
-            if ($adminMembers | Where-Object { $_.SID -eq $user.SID }) {
-                $tipoUsuario = "Administrador"
-            }
-            else {
-                # Verificar grupo de usuarios estándar
-                $userMembers = Get-LocalGroupMember -Group $userGroup -ErrorAction Stop
-                if (-not ($userMembers | Where-Object { $_.SID -eq $user.SID })) {
-                    # Buscar en otros grupos
-                    $grupos = Get-LocalGroup | ForEach-Object {
-                        if (Get-LocalGroupMember -Group $_ | Where-Object { $_.SID -eq $user.SID }) {
-                            $_.Name
+            # Obtener todos los usuarios locales
+            $users = Get-LocalUser
+            # Crear objetos con formato similar al de impresoras
+            $usersTable = $users | ForEach-Object {
+                $user = $_
+                # Determinar estado
+                $estado = if ($user.Enabled) { "Habilitado" } else { "Deshabilitado" }
+                
+                # Determinar tipo de usuario
+                $tipoUsuario = "Usuario estándar"
+                
+                # Verificar si es administrador
+                try {
+                    $adminMembers = Get-LocalGroupMember -Group $adminGroup -ErrorAction Stop
+                    if ($adminMembers | Where-Object { $_.SID -eq $user.SID }) {
+                        $tipoUsuario = "Administrador"
+                    }
+                    else {
+                        # Verificar grupo de usuarios estándar
+                        $userMembers = Get-LocalGroupMember -Group $userGroup -ErrorAction Stop
+                        if (-not ($userMembers | Where-Object { $_.SID -eq $user.SID })) {
+                            # Buscar en otros grupos
+                            $grupos = Get-LocalGroup | ForEach-Object {
+                                if (Get-LocalGroupMember -Group $_ | Where-Object { $_.SID -eq $user.SID }) {
+                                    $_.Name
+                                }
+                            }
+                            $tipoUsuario = "Miembro de: " + ($grupos -join ", ")
                         }
                     }
-                    $tipoUsuario = "Miembro de: " + ($grupos -join ", ")
+                }
+                catch {
+                    $tipoUsuario = "Error verificando grupos"
+                }
+                
+                # Acortar texto si es muy largo (como en impresoras)
+                $nombre = $user.Name.Substring(0, [Math]::Min(25, $user.Name.Length))
+                $tipo = $tipoUsuario.Substring(0, [Math]::Min(40, $tipoUsuario.Length))
+                
+                [PSCustomObject]@{
+                    Nombre = $nombre
+                    Tipo   = $tipo
+                    Estado = $estado
                 }
             }
-        }
-        catch {
-            $tipoUsuario = "Error verificando grupos"
-        }
         
-        # Acortar texto si es muy largo (como en impresoras)
-        $nombre = $user.Name.Substring(0, [Math]::Min(25, $user.Name.Length))
-        $tipo = $tipoUsuario.Substring(0, [Math]::Min(40, $tipoUsuario.Length))
-        
-        [PSCustomObject]@{
-            Nombre = $nombre
-            Tipo   = $tipo
-            Estado = $estado
-        }
-    }
+            # Mostrar en tabla formateada
+            if ($usersTable.Count -gt 0) {
+                Write-Host ("{0,-25} {1,-40} {2,-15}" -f "Nombre", "Tipo", "Estado")
+                Write-Host ("{0,-25} {1,-40} {2,-15}" -f "------", "------", "------")
+                
+                $usersTable | ForEach-Object { 
+                    Write-Host ("{0,-25} {1,-40} {2,-15}" -f $_.Nombre, $_.Tipo, $_.Estado) 
+                }
+            } else {
+                Write-Host "No se encontraron usuarios."
+            }
+        })
+    # Crear usuario y asignar grupo
+    $btnCreate.Add_Click({
+        $username = $txtUsername.Text.Trim()
+        $password = $txtPassword.Text
+        $type     = $cmbType.SelectedItem
 
-    # Mostrar en tabla formateada
-    if ($usersTable.Count -gt 0) {
-        Write-Host ("{0,-25} {1,-40} {2,-15}" -f "Nombre", "Tipo", "Estado")
-        Write-Host ("{0,-25} {1,-40} {2,-15}" -f "------", "------", "------")
-        
-        $usersTable | ForEach-Object { 
-            Write-Host ("{0,-25} {1,-40} {2,-15}" -f $_.Nombre, $_.Tipo, $_.Estado) 
+        if (-not $username -or -not $password) {
+            Write-Host "`nError: Nombre y contraseña son requeridos" -ForegroundColor Red; return
         }
-    } else {
-        Write-Host "No se encontraron usuarios."
-    }
-})
-# Evento del botón Crear (original se mantiene igual)
-$btnOKAddUser.Add_Click({
-                        # Capturar valores
-                        $username = $txtUsernameAddUser.Text.Trim()
-                        $password = $txtPasswordAddUser.Text
-                        $userType = $cmbUserTypeAddUser.SelectedItem.ToString()
-                    
-                        # Validar campos vacíos
-                        if (-not $username -or -not $password) {
-                            Write-Host "`nError: Nombre y contraseña son requeridos" -ForegroundColor Red
-                            return
-                        }
-                    
-                        try {
-                            # Verificar si el usuario ya existe
-                            if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
-                                Write-Host "`nError: El usuario '$username' ya existe" -ForegroundColor Red
-                                return
-                            }
-                    
-                            # Crear el usuario
-                            $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
-                            New-LocalUser -Name $username -Password $securePassword -AccountNeverExpires -PasswordNeverExpires
-                            Write-Host "`nUsuario '$username' creado exitosamente" -ForegroundColor Green
-                    
-                            # Asignar al grupo correspondiente
-                            if ($userType -eq "Administrador") {
-                                Add-LocalGroupMember -Group $adminGroup -Member $username
-                                Write-Host "`tUsuario agregado al grupo $adminGroup" -ForegroundColor Cyan
-                            } else {
-                                Add-LocalGroupMember -Group $userGroup -Member $username
-                                Write-Host "`tUsuario agregado al grupo $userGroup" -ForegroundColor Cyan
-                            }
-                    
-                            # Cerrar el formulario
-                            $formAddUser.Close()
-                    
-                        } catch {
-                            Write-Host "`nError durante la creación del usuario: $_" -ForegroundColor Red
-                        }
-                    })    
-    # Evento del botón Cancelar
-    $btnCancelAddUser.Add_Click({
-            Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
-        $formAddUser.Close()
+
+        # Validar complejidad mínima: 8+ caracteres, mayúscula, minúscula, número y símbolo
+        if ($password.Length -lt 8 -or $password -notmatch '[A-Z]' -or $password -notmatch '[a-z]' -or $password -notmatch '\d' -or $password -notmatch '[^\w]') {
+            Write-Host "`nError: La contraseña debe tener al menos 8 caracteres, incluir mayúscula, minúscula, número y símbolo" -ForegroundColor Red; return
+        }
+
+        try {
+            if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
+                Write-Host "`nError: El usuario '$username' ya existe" -ForegroundColor Red; return
+            }
+            # Crear usuario
+            $securePwd = ConvertTo-SecureString $password -AsPlainText -Force
+            New-LocalUser -Name $username -Password $securePwd -AccountNeverExpires -PasswordNeverExpires
+            Write-Host "`nUsuario '$username' creado exitosamente" -ForegroundColor Green
+
+            # Asignar grupo
+            $group = if ($type -eq 'Administrador') { $adminGroup } else { $userGroup }
+            Add-LocalGroupMember -Group $group -Member $username
+            Write-Host "`tUsuario agregado al grupo $group" -ForegroundColor Cyan
+
+            $formAddUser.Close()
+        } catch {
+            Write-Host "`nError durante la creación del usuario: $_" -ForegroundColor Red
+        }
     })
-    # Agregar controles al formulario (incluyendo el nuevo botón)
-    $formAddUser.Controls.AddRange(@(
-        $txtUsernameAddUser, $lblUsernameAddUser,
-        $txtPasswordAddUser, $lblPasswordAddUser,
-        $cmbUserTypeAddUser, $lblUserTypeAddUser,
-        $btnOKAddUser, $btnCancelAddUser, $btnShowUsers
-    ))
-    
+    # Cancelar
+    $btnCancel.Add_Click({ Write-Host "`tOperación cancelada." -ForegroundColor Yellow; $formAddUser.Close() })
+    # Agregar controles
+    $formAddUser.Controls.AddRange(@($txtUsername,$txtPassword,$cmbType,$btnCreate,$btnCancel,$btnShow,$lblUsername,$lblPassword,$lblType))
     $formAddUser.ShowDialog()
 })
 # SQL SENTENCIAS QUERIES Y TODO
@@ -2890,8 +2882,8 @@ Base de datos: $($global:database)
             "Error de conexión: $($_.Exception.Message)",
             "Error",
             [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Error
-        )
+            [System.Windows.Forms.MessageBoxIcon]::Error)
+            Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
 # Actualizar el evento SelectedIndexChanged
@@ -2937,6 +2929,193 @@ $btnDisconnectDb.Add_Click({
             Write-Host "`nError al desconectar: $_" -ForegroundColor Red
         }
 })
+<# ---------------------------------------------------------------------------
+  Sección "BACKUP" adaptada para uso ad-hoc con Admin Share C$
+  - No valida permisos ni crea carpeta remota (SQL se encarga de la escritura)
+  - Extrae correctamente nombre de máquina
+--------------------------------------------------------------------------- #>
+# ############# BACKUP #############
+$btnBackup.Add_Click({
+    # 0. Extraer nombre de servidor para UNC
+    $serverRaw   = $global:server
+    $machinePart = $serverRaw.Split('\\')[0]       # quita instancia
+    $machineName = $machinePart.Split(',')[0]       # quita puerto
+    if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
+
+    # Definir carpeta de respaldo remota (Admin Share C$)
+    $global:tempBackupFolder = "\\$machineName\C$\Temp\SQLBackups"
+
+    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+
+    # 1. Selección de Base de Datos
+    $selectedDb = $cmbDatabases.SelectedItem
+    if (-not $selectedDb) {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Seleccione una base de datos primero",
+            "Error",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Warning)
+            Write-Host "Error | Seleccione una base de datos primero" -ForegroundColor Red
+        return
+    }
+
+    # 2. Ruta del backup dentro de la carpeta remota
+    $timestamp         = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $bakFileName       = "$selectedDb-$timestamp.bak"
+    $global:backupPath = Join-Path $global:tempBackupFolder $bakFileName
+
+    # 3. Crear y ejecutar Job de backup (SQL maneja permisos)
+    $script = {
+        param($srv,$usr,$pwd,$db,$path)
+        $conn = New-Object System.Data.SqlClient.SqlConnection("Server=$srv; Database=master; User Id=$usr; Password=$pwd")
+        $conn.Open()
+        $cmd = $conn.CreateCommand()
+        $cmd.CommandText = "BACKUP DATABASE [$db] TO DISK='$path' WITH CHECKSUM"
+        $cmd.CommandTimeout = 0
+        $cmd.ExecuteNonQuery()
+        $conn.Close()
+    }
+    $global:backupJob = Start-Job -ScriptBlock $script -ArgumentList `
+        $global:server, $global:user, $global:password, $selectedDb, $global:backupPath
+
+    # 4. Crear formulario global con ProgressBar “ping‑pong”
+    $global:backupProgressForm = New-Object System.Windows.Forms.Form
+    $global:backupProgressForm.Text            = "Procesando Backup"
+    $global:backupProgressForm.Size            = New-Object System.Drawing.Size(500,160)
+    $global:backupProgressForm.StartPosition   = "CenterScreen"
+    $global:backupProgressForm.FormBorderStyle = 'FixedDialog'
+    $global:backupProgressForm.TopMost         = $true
+    # 4.1 Instanciar ProgressBar como variable global
+    $global:pb = New-Object System.Windows.Forms.ProgressBar
+    $global:pb.Style    = [System.Windows.Forms.ProgressBarStyle]::Continuous
+    $global:pb.Minimum  = 0
+    $global:pb.Maximum  = 100
+    $global:pb.Value    = 0
+    $global:pb.Size     = New-Object System.Drawing.Size(460,25)
+    $global:pb.Location = New-Object System.Drawing.Point(10,20)
+    # Label y botón Cancelar
+    $lbl = New-Object System.Windows.Forms.Label
+    $lbl.Text     = "Trabajando, espere..."
+    $lbl.AutoSize = $false
+    $lbl.Size     = New-Object System.Drawing.Size(460,20)
+    $lbl.Location = New-Object System.Drawing.Point(10,55)
+    $btnCancel = New-Object System.Windows.Forms.Button
+    $btnCancel.Text     = "Cancelar"
+    $btnCancel.Size     = New-Object System.Drawing.Size(120,40)
+    $btnCancel.Location = New-Object System.Drawing.Point(
+        [int](($global:backupProgressForm.ClientSize.Width - 120) / 2),
+        90
+    )
+    $global:backupProgressForm.Controls.AddRange(@($global:pb, $lbl, $btnCancel))
+    $global:backupProgressForm.Show()
+    # 5. Temporizador de animación “ping‑pong”
+    $global:animTimer = New-Object System.Windows.Forms.Timer
+    $animTimer.Interval = 400
+    # Variable de dirección: +1 sube, -1 baja
+    $script:direction = 1  
+    $animTimer.Add_Tick({
+        # Cuando llegue al máximo, invertimos a bajar
+        if ($pb.Value -ge $pb.Maximum) {
+            $script:direction = -1
+        }
+        # Cuando llegue al mínimo, invertimos a subir
+        elseif ($pb.Value -le $pb.Minimum) {
+            $script:direction = 1
+        }
+        # Calculamos nuevo valor y lo aplicamos directamente (la ProgressBar limita a min/max)
+        $pb.Value += 10 * $script:direction
+    })
+    $animTimer.Start()
+    # 6. Arrancar Job de backup en segundo plano
+    $script = {
+        param($srv,$usr,$pwd,$db,$path)
+        $conn = New-Object System.Data.SqlClient.SqlConnection("
+            Server=$srv; Database=master; User Id=$usr; Password=$pwd
+        ")
+        $conn.Open()
+        $cmd = $conn.CreateCommand()
+        $cmd.CommandText = "
+            BACKUP DATABASE [$db] TO DISK='$path' WITH CHECKSUM
+        "
+        $cmd.CommandTimeout = 0
+        $cmd.ExecuteNonQuery()
+        $conn.Close()
+    }
+    $global:backupJob = Start-Job -ScriptBlock $script -ArgumentList `
+        $global:server, $global:user, $global:password, $selectedDb, $global:backupPath
+# 7. Temporizador para vigilar el Job
+    $global:backupTimer = New-Object System.Windows.Forms.Timer
+    $global:backupTimer.Interval = 500
+        $global:backupTimer.Add_Tick({
+            if ($global:backupJob.State -in 'Completed','Failed','Stopped') {
+                $animTimer.Stop(); $backupTimer.Stop()
+                Receive-Job $global:backupJob | Out-Null
+    
+                if ($global:backupJob.State -eq 'Completed') {
+                    # Mensaje de éxito
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Backup completado en servidor:`n$global:backupPath",
+                        "Éxito",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Information)
+                    Write-Host "Backup finalizado correctamente. Ruta: $global:backupPath" -ForegroundColor Green
+                    # Intentar abrir carpeta remota solo si existe
+                    if (Test-Path $global:tempBackupFolder) {
+                        Start-Process explorer.exe $global:tempBackupFolder
+                    }
+                    else {
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "No se pudo abrir la carpeta de backup:`n$global:tempBackupFolder",
+                            "Atención",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Warning)
+                                                Write-Host "Error | No se pudo abrir la carpeta de backup:`n$global:tempBackupFolder" -ForegroundColor Red
+                    }
+                }
+                elseif ($global:backupJob.State -eq 'Stopped') {
+                    [System.Windows.Forms.MessageBox]::Show("Backup cancelado por el usuario","Cancelado",[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information)
+                                        Write-Host "Backup cancelado por el usuario" -ForegroundColor Yellow
+                }
+                else {
+                    $err = Receive-Job $global:backupJob -ErrorAction SilentlyContinue
+                    [System.Windows.Forms.MessageBox]::Show("Error en backup:`n$err","Error",[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)
+                    Write-Host "Error | Error en backup:`n$err" -ForegroundColor Red
+                }
+
+            # Limpieza
+            Remove-Job $global:backupJob -Force
+            $global:backupProgressForm.Close()
+        }
+    })
+    $global:backupTimer.Start()
+# 8. Cancelar el Job desde el botón
+    $btnCancel.Add_Click({
+        if ($global:backupJob -and $global:backupJob.State -in @('Running','NotStarted')) {
+            Stop-Job $global:backupJob
+        }
+    })
+})
+
+
+
+# Cierre seguro al cerrar la aplicación
+$formPrincipal.Add_FormClosing({
+    if ($global:backupJob -and $global:backupJob.State -eq 'Running') {
+        Stop-Job $global:backupJob
+    }
+    if ($global:animTimer)   { $global:animTimer.Stop()   }
+    if ($global:backupTimer) { $global:backupTimer.Stop() }
+})
+
+
+
+
+
+
+
+
+
+#Etiquetas clics------------------------------------------------------------------------------------------------
 $lblHostname.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
         Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
@@ -3020,162 +3199,6 @@ $btnCreateAPK.Add_Click({
         Write-Host "Error durante el proceso: $($_.Exception.Message)" -ForegroundColor Red
         [System.Windows.Forms.MessageBox]::Show("Error durante la creación del APK. Consulte la consola para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
-})
-############# BACKUP #############
-[System.Windows.Forms.Application]::EnableVisualStyles()
-$global:tempBackupFolder = "C:\Temp\SQLBackups"
-New-Item -Path $global:tempBackupFolder -ItemType Directory -Force | Out-Null
-$btnBackup.Add_Click({
-    Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-    # 1. Selección de Base de Datos
-    $selectedDb = $cmbDatabases.SelectedItem
-    if (-not $selectedDb) {
-        [System.Windows.Forms.MessageBox]::Show(
-            "Selecciona una base de datos primero",
-            "Error",
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Warning
-        )
-        return
-    }
-    # 2. Ruta del backup
-    $global:backupPath = Join-Path $global:tempBackupFolder `
-        "$selectedDb-$(Get-Date -Format 'yyyyMMdd-HHmmss').bak"
-    # 3. Validación de permisos de escritura
-    try {
-        [IO.File]::WriteAllText("$global:backupPath.test","test")
-        Remove-Item "$global:backupPath.test" -Force
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show(
-            "Error de permisos en la ruta:`n$global:tempBackupFolder",
-            "Error permisos",
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Error
-        )
-        return
-    }
-    # 4. Crear formulario global con ProgressBar “ping‑pong”
-    $global:backupProgressForm = New-Object System.Windows.Forms.Form
-    $global:backupProgressForm.Text            = "Procesando Backup"
-    $global:backupProgressForm.Size            = New-Object System.Drawing.Size(500,160)
-    $global:backupProgressForm.StartPosition   = "CenterScreen"
-    $global:backupProgressForm.FormBorderStyle = 'FixedDialog'
-    $global:backupProgressForm.TopMost         = $true
-    # 4.1 Instanciar ProgressBar como variable global
-    $global:pb = New-Object System.Windows.Forms.ProgressBar
-    $global:pb.Style    = [System.Windows.Forms.ProgressBarStyle]::Continuous
-    $global:pb.Minimum  = 0
-    $global:pb.Maximum  = 100
-    $global:pb.Value    = 0
-    $global:pb.Size     = New-Object System.Drawing.Size(460,25)
-    $global:pb.Location = New-Object System.Drawing.Point(10,20)
-    # Label y botón Cancelar
-    $lbl = New-Object System.Windows.Forms.Label
-    $lbl.Text     = "Trabajando, espere..."
-    $lbl.AutoSize = $false
-    $lbl.Size     = New-Object System.Drawing.Size(460,20)
-    $lbl.Location = New-Object System.Drawing.Point(10,55)
-    $btnCancel = New-Object System.Windows.Forms.Button
-    $btnCancel.Text     = "Cancelar"
-    $btnCancel.Size     = New-Object System.Drawing.Size(120,40)
-    $btnCancel.Location = New-Object System.Drawing.Point(
-        [int](($global:backupProgressForm.ClientSize.Width - 120) / 2),
-        90
-    )
-    $global:backupProgressForm.Controls.AddRange(@($global:pb, $lbl, $btnCancel))
-    $global:backupProgressForm.Show()
-    # 5. Temporizador de animación “ping‑pong”
-    $global:animTimer = New-Object System.Windows.Forms.Timer
-    $animTimer.Interval = 400
-    # Variable de dirección: +1 sube, -1 baja
-    $script:direction = 1  
-    $animTimer.Add_Tick({
-        # Cuando llegue al máximo, invertimos a bajar
-        if ($pb.Value -ge $pb.Maximum) {
-            $script:direction = -1
-        }
-        # Cuando llegue al mínimo, invertimos a subir
-        elseif ($pb.Value -le $pb.Minimum) {
-            $script:direction = 1
-        }
-        # Calculamos nuevo valor y lo aplicamos directamente (la ProgressBar limita a min/max)
-        $pb.Value += 10 * $script:direction
-    })
-    $animTimer.Start()
-    # 6. Arrancar Job de backup en segundo plano
-    $script = {
-        param($srv,$usr,$pwd,$db,$path)
-        $conn = New-Object System.Data.SqlClient.SqlConnection("
-            Server=$srv; Database=master; User Id=$usr; Password=$pwd
-        ")
-        $conn.Open()
-        $cmd = $conn.CreateCommand()
-        $cmd.CommandText = "
-            BACKUP DATABASE [$db] TO DISK='$path' WITH CHECKSUM
-        "
-        $cmd.CommandTimeout = 0
-        $cmd.ExecuteNonQuery()
-        $conn.Close()
-    }
-    $global:backupJob = Start-Job -ScriptBlock $script -ArgumentList `
-        $global:server, $global:user, $global:password, $selectedDb, $global:backupPath
-    # 7. Temporizador para vigilar el Job
-    $global:backupTimer = New-Object System.Windows.Forms.Timer
-    $global:backupTimer.Interval = 500
-    $global:backupTimer.Add_Tick({
-        $state = $global:backupJob.State
-        if ($state -in 'Completed','Failed','Stopped') {
-            # Detener timers
-            $global:animTimer.Stop()
-            $global:backupTimer.Stop()
-            # Mostrar resultado
-            if ($state -eq 'Completed') {
-                Receive-Job $global:backupJob | Out-Null
-                [System.Windows.Forms.MessageBox]::Show(
-                    "Backup completado en:`n$global:backupPath",
-                    "Éxito",
-                    [System.Windows.Forms.MessageBoxButtons]::OK,
-                    [System.Windows.Forms.MessageBoxIcon]::Information
-                )
-                Invoke-Item (Split-Path $global:backupPath)
-            }
-            elseif ($state -eq 'Stopped') {
-                [System.Windows.Forms.MessageBox]::Show(
-                    "Backup cancelado por el usuario",
-                    "Cancelado",
-                    [System.Windows.Forms.MessageBoxButtons]::OK,
-                    [System.Windows.Forms.MessageBoxIcon]::Information
-                )
-            }
-            else {
-                $err = Receive-Job $global:backupJob -ErrorAction SilentlyContinue
-                [System.Windows.Forms.MessageBox]::Show(
-                    "Error en backup:`n$err",
-                    "Error",
-                    [System.Windows.Forms.MessageBoxButtons]::OK,
-                    [System.Windows.Forms.MessageBoxIcon]::Error
-                )
-            }
-            # Limpieza
-            Remove-Job $global:backupJob -Force
-            $global:backupProgressForm.Close()
-        }
-    })
-    $global:backupTimer.Start()
-    # 8. Cancelar el Job desde el botón
-    $btnCancel.Add_Click({
-        if ($global:backupJob -and $global:backupJob.State -in @('Running','NotStarted')) {
-            Stop-Job $global:backupJob
-        }
-    })
-})
-# Cierre seguro al cerrar la aplicación
-$formPrincipal.Add_FormClosing({
-    if ($global:backupJob -and $global:backupJob.State -eq 'Running') {
-        Stop-Job $global:backupJob
-    }
-    if ($global:animTimer)   { $global:animTimer.Stop()   }
-    if ($global:backupTimer) { $global:backupTimer.Stop() }
 })
 # Botón para salir
 $btnExit.Add_Click({

@@ -3068,7 +3068,7 @@ $btnBackup.Add_Click({
                             "Atención",
                             [System.Windows.Forms.MessageBoxButtons]::OK,
                             [System.Windows.Forms.MessageBoxIcon]::Warning)
-                                                Write-Host "Error | No se pudo abrir la carpeta de backup:`n$global:tempBackupFolder" -ForegroundColor Red
+                                                Write-Host "Error | No se pudo abrir la carpeta de backup:`n$global:tempBackupFolder`nRevise directo en el equipo servidor" -ForegroundColor Red
                     }
                 }
                 elseif ($global:backupJob.State -eq 'Stopped') {

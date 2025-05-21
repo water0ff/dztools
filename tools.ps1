@@ -36,7 +36,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250516.1313"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250521.1413"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -2928,22 +2928,158 @@ $btnDisconnectDb.Add_Click({
             Write-Host "`nError al desconectar: $_" -ForegroundColor Red
         }
 })
-<# ESTP ESTA EN EL RENGLON 2932---------------------------------------------------------------------------
+#Etiquetas clics------------------------------------------------------------------------------------------------
+$lblHostname.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
+        Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
+    })
+    $txt_IpAdress.Add_Click({
+        [System.Windows.Forms.Clipboard]::SetText($txt_IpAdress.Text)
+        Write-Host "`nIP's copiadas al equipo: $($txt_IpAdress.Text)"
+    })
+            $txt_IpAdress.Add_MouseEnter($changeColorOnHover)
+            $txt_IpAdress.Add_MouseLeave($restoreColorOnLeave)
+$txt_AdapterStatus.Add_Click({
+    # Cambiar sólo las que no sean ya Private
+    Get-NetConnectionProfile |
+      Where-Object { $_.NetworkCategory -ne 'Private' } |
+      ForEach-Object {
+          Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private
+      }
+    Write-Host "Todas las redes se han establecido como Privadas."
+    Refresh-AdapterStatus
+})
+        $txt_AdapterStatus.Add_MouseEnter($changeColorOnHover)
+        $txt_AdapterStatus.Add_MouseLeave($restoreColorOnLeave)
+#Llamarla pro primera vez
+Refresh-AdapterStatus
+#Creación del APK
+$btnCreateAPK.Add_Click({
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    $dllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll"
+    $infoPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\info.txt"
+    
+    try {
+        Write-Host "`nIniciando proceso de creación de APK..." -ForegroundColor Cyan
+        
+        # Validar existencia de archivos
+        if (-not (Test-Path $dllPath)) {
+            Write-Host "Componente necesario no encontrado. Verifique la instalación del Enlace Android." -ForegroundColor Red
+            [System.Windows.Forms.MessageBox]::Show("Componente necesario no encontrado. Verifique la instalación del Enlace Android.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            return
+        }
+        if (-not (Test-Path $infoPath)) {
+            Write-Host "Archivo de configuración no encontrado. Verifique la instalación del Enlace Android." -ForegroundColor Red
+            [System.Windows.Forms.MessageBox]::Show("Archivo de configuración no encontrado. Verifique la instalación del Enlace Android.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            return
+        }
+        # Leer y parsear info.txt
+        $jsonContent = Get-Content $infoPath -Raw | ConvertFrom-Json
+        $versionApp = $jsonContent.versionApp
+        Write-Host "Versión detectada: $versionApp" -ForegroundColor Green
+
+        # Confirmación con usuario
+        $confirmation = [System.Windows.Forms.MessageBox]::Show(
+            "Se creará el APK versión: $versionApp`n¿Desea continuar?", 
+            "Confirmación", 
+            [System.Windows.Forms.MessageBoxButtons]::YesNo, 
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+        
+        if ($confirmation -ne [System.Windows.Forms.DialogResult]::Yes) {
+            Write-Host "Proceso cancelado por el usuario" -ForegroundColor Yellow
+            return
+        }
+
+        # Selección de ubicación
+        $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+        $saveDialog.Filter = "Archivo APK (*.apk)|*.apk"
+        $saveDialog.FileName = "SRM_$versionApp.apk"
+        $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
+        
+        if ($saveDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
+            Write-Host "Guardado cancelado por el usuario" -ForegroundColor Yellow
+            return
+        }
+
+        # Copiar archivo
+        Copy-Item -Path $dllPath -Destination $saveDialog.FileName -Force
+        Write-Host "APK generado exitosamente en: $($saveDialog.FileName)" -ForegroundColor Green
+        [System.Windows.Forms.MessageBox]::Show("APK creado correctamente!", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+
+    }
+    catch {
+        Write-Host "Error durante el proceso: $($_.Exception.Message)" -ForegroundColor Red
+        [System.Windows.Forms.MessageBox]::Show("Error durante la creación del APK. Consulte la consola para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+<# ESTP ESTA EN EL RENGLON 3016---------------------------------------------------------------------------
   Sección "BACKUP" adaptada para uso ad-hoc con Admin Share C$
   - No valida permisos ni crea carpeta remota (SQL se encarga de la escritura)
   - Extrae correctamente nombre de máquina
 --------------------------------------------------------------------------- #>
 # ############# BACKUP #############
 $btnBackup.Add_Click({
-    # 0. Extraer nombre de servidor para UNC
-    $serverRaw   = $global:server
-    $machinePart = $serverRaw.Split('\\')[0]       # quita instancia
-    $machineName = $machinePart.Split(',')[0]       # quita puerto
-    if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
+# 0. Extraer nombre de servidor para UNC
+$serverRaw   = $global:server
+$machinePart = $serverRaw.Split('\\')[0]
+$machineName = $machinePart.Split(',')[0]
+if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
 
-    # Definir carpeta de respaldo remota (Admin Share C$)
-    $global:tempBackupFolder = "\\$machineName\C$\Temp\SQLBackups"
+# Definir carpeta de respaldo remota (Admin Share C$)
+$global:tempBackupFolder = "\\$machineName\C$\Temp\SQLBackups"
 
+# ------------------------------- INICIO DE BLOQUE DE CREACIÓN Y PERMISOS -------------------------------
+# 1.a) Crear carpeta si no existe
+if (-not (Test-Path -Path $global:tempBackupFolder)) {
+    try {
+        Write-Host "Creando carpeta remota: $global:tempBackupFolder" -ForegroundColor Yellow
+        New-Item -ItemType Directory -Path $global:tempBackupFolder -Force | Out-Null
+        Write-Host "Carpeta creada correctamente." -ForegroundColor Green
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Error al crear la carpeta $global:tempBackupFolder:`n$($_.Exception.Message)",
+            "Error al crear carpeta de backup",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error)
+        Write-Host "Error | No se pudo crear la carpeta remota: $($_.Exception.Message)" -ForegroundColor Red
+        return
+    }
+}
+else {
+    Write-Host "La carpeta remota ya existe: $global:tempBackupFolder" -ForegroundColor Gray
+}
+
+# 1.b) Asignar permisos de escritura a "Everyone"
+try {
+    $acl = Get-Acl -Path $global:tempBackupFolder
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "Everyone",
+        "FullControl",
+        "ContainerInherit, ObjectInherit",
+        "None",
+        "Allow"
+    )
+    if (-not $acl.Access | Where-Object { $_.IdentityReference -eq "Everyone" -and $_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl }) {
+        $acl.AddAccessRule($rule)
+        Set-Acl -Path $global:tempBackupFolder -AclObject $acl
+        Write-Host "Permisos asignados a Everyone." -ForegroundColor Green
+    }
+    else {
+        Write-Host "Los permisos para Everyone ya estaban definidos." -ForegroundColor Gray
+    }
+}
+catch {
+    [System.Windows.Forms.MessageBox]::Show(
+        "Error al asignar permisos en $global:tempBackupFolder:`n$($_.Exception.Message)",
+        "Error permisos",
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Error)
+    Write-Host "Error | No se pudieron asignar permisos: $($_.Exception.Message)" -ForegroundColor Red
+    return
+}
+# ------------------------------- FIN DEL BLOQUE DE CREACIÓN Y PERMISOS -------------------------------   
     Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
 
     # 1. Selección de Base de Datos
@@ -3101,91 +3237,6 @@ $formPrincipal.Add_FormClosing({
     }
     if ($global:animTimer)   { $global:animTimer.Stop()   }
     if ($global:backupTimer) { $global:backupTimer.Stop() }
-})
-#Etiquetas clics------------------------------------------------------------------------------------------------
-$lblHostname.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
-        Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
-    })
-    $txt_IpAdress.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($txt_IpAdress.Text)
-        Write-Host "`nIP's copiadas al equipo: $($txt_IpAdress.Text)"
-    })
-            $txt_IpAdress.Add_MouseEnter($changeColorOnHover)
-            $txt_IpAdress.Add_MouseLeave($restoreColorOnLeave)
-$txt_AdapterStatus.Add_Click({
-    # Cambiar sólo las que no sean ya Private
-    Get-NetConnectionProfile |
-      Where-Object { $_.NetworkCategory -ne 'Private' } |
-      ForEach-Object {
-          Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private
-      }
-    Write-Host "Todas las redes se han establecido como Privadas."
-    Refresh-AdapterStatus
-})
-        $txt_AdapterStatus.Add_MouseEnter($changeColorOnHover)
-        $txt_AdapterStatus.Add_MouseLeave($restoreColorOnLeave)
-#Llamarla pro primera vez
-Refresh-AdapterStatus
-#Creación del APK
-$btnCreateAPK.Add_Click({
-    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-    $dllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll"
-    $infoPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\info.txt"
-    
-    try {
-        Write-Host "`nIniciando proceso de creación de APK..." -ForegroundColor Cyan
-        
-        # Validar existencia de archivos
-        if (-not (Test-Path $dllPath)) {
-            Write-Host "Componente necesario no encontrado. Verifique la instalación del Enlace Android." -ForegroundColor Red
-            [System.Windows.Forms.MessageBox]::Show("Componente necesario no encontrado. Verifique la instalación del Enlace Android.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            return
-        }
-        if (-not (Test-Path $infoPath)) {
-            Write-Host "Archivo de configuración no encontrado. Verifique la instalación del Enlace Android." -ForegroundColor Red
-            [System.Windows.Forms.MessageBox]::Show("Archivo de configuración no encontrado. Verifique la instalación del Enlace Android.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            return
-        }
-        # Leer y parsear info.txt
-        $jsonContent = Get-Content $infoPath -Raw | ConvertFrom-Json
-        $versionApp = $jsonContent.versionApp
-        Write-Host "Versión detectada: $versionApp" -ForegroundColor Green
-
-        # Confirmación con usuario
-        $confirmation = [System.Windows.Forms.MessageBox]::Show(
-            "Se creará el APK versión: $versionApp`n¿Desea continuar?", 
-            "Confirmación", 
-            [System.Windows.Forms.MessageBoxButtons]::YesNo, 
-            [System.Windows.Forms.MessageBoxIcon]::Question
-        )
-        
-        if ($confirmation -ne [System.Windows.Forms.DialogResult]::Yes) {
-            Write-Host "Proceso cancelado por el usuario" -ForegroundColor Yellow
-            return
-        }
-
-        # Selección de ubicación
-        $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
-        $saveDialog.Filter = "Archivo APK (*.apk)|*.apk"
-        $saveDialog.FileName = "SRM_$versionApp.apk"
-        $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
-        
-        if ($saveDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
-            Write-Host "Guardado cancelado por el usuario" -ForegroundColor Yellow
-            return
-        }
-
-        # Copiar archivo
-        Copy-Item -Path $dllPath -Destination $saveDialog.FileName -Force
-        Write-Host "APK generado exitosamente en: $($saveDialog.FileName)" -ForegroundColor Green
-        [System.Windows.Forms.MessageBox]::Show("APK creado correctamente!", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-
-    }
-    catch {
-        Write-Host "Error durante el proceso: $($_.Exception.Message)" -ForegroundColor Red
-        [System.Windows.Forms.MessageBox]::Show("Error durante la creación del APK. Consulte la consola para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
 })
 # Botón para salir
 $btnExit.Add_Click({

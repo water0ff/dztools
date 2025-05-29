@@ -3280,7 +3280,7 @@ $global:backupTimer.Add_Tick({
                     [Login]
                     Username = $MegaUser
                     Password = $MegaPass
-                    "@
+"@
                     
                             $megaConfig | Out-File -FilePath $configPath -Encoding utf8 -Force -ErrorAction Stop
                     

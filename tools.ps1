@@ -36,7 +36,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250521.1413"  # Valor predeterminado para la versión
+                                                                                                        $version = "Alfa 250529.1722"  # Valor predeterminado para la versión
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -3015,71 +3015,71 @@ $btnCreateAPK.Add_Click({
 })
 <# ESTP ESTA EN EL RENGLON 3016---------------------------------------------------------------------------
   Sección "BACKUP" adaptada para uso ad-hoc con Admin Share C$
-  - No valida permisos ni crea carpeta remota (SQL se encarga de la escritura)
-  - Extrae correctamente nombre de máquina
+  - Incluye barra de progreso para subida a Mega.nz
+  - Muestra mensajes idénticos en consola e interfaz
 --------------------------------------------------------------------------- #>
 # ############# BACKUP #############
 $btnBackup.Add_Click({
-# 0. Extraer nombre de servidor para UNC
-$serverRaw   = $global:server
-$machinePart = $serverRaw.Split('\\')[0]
-$machineName = $machinePart.Split(',')[0]
-if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
+    # 0. Extraer nombre de servidor para UNC
+    $serverRaw   = $global:server
+    $machinePart = $serverRaw.Split('\\')[0]
+    $machineName = $machinePart.Split(',')[0]
+    if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
 
-# Definir carpeta de respaldo remota (Admin Share C$)
-$global:tempBackupFolder = "\\$machineName\C$\Temp\SQLBackups"
+    # Definir carpeta de respaldo remota (Admin Share C$)
+    $global:tempBackupFolder = "\\$machineName\C$\Temp\SQLBackups"
 
-# ------------------------------- INICIO DE BLOQUE DE CREACIÓN Y PERMISOS -------------------------------
-# 1.a) Crear carpeta si no existe
-if (-not (Test-Path -Path $global:tempBackupFolder)) {
+    # ------------------------------- INICIO DE BLOQUE DE CREACIÓN Y PERMISOS -------------------------------
+    # 1.a) Crear carpeta si no existe
+    if (-not (Test-Path -Path $global:tempBackupFolder)) {
+        try {
+            Write-Host "Creando carpeta remota: $global:tempBackupFolder" -ForegroundColor Yellow
+            New-Item -ItemType Directory -Path $global:tempBackupFolder -Force | Out-Null
+            Write-Host "Carpeta creada correctamente." -ForegroundColor Green
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show(
+                "Error al crear la carpeta $global:tempBackupFolder:`n$($_.Exception.Message)",
+                "Error al crear carpeta de backup",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Error)
+            Write-Host "Error | No se pudo crear la carpeta remota: $($_.Exception.Message)" -ForegroundColor Red
+            return
+        }
+    }
+    else {
+        Write-Host "La carpeta remota ya existe: $global:tempBackupFolder" -ForegroundColor Gray
+    }
+
+    # 1.b) Asignar permisos de escritura a "Everyone"
     try {
-        Write-Host "Creando carpeta remota: $global:tempBackupFolder" -ForegroundColor Yellow
-        New-Item -ItemType Directory -Path $global:tempBackupFolder -Force | Out-Null
-        Write-Host "Carpeta creada correctamente." -ForegroundColor Green
+        $acl = Get-Acl -Path $global:tempBackupFolder
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+            "Everyone",
+            "FullControl",
+            "ContainerInherit, ObjectInherit",
+            "None",
+            "Allow"
+        )
+        if (-not $acl.Access | Where-Object { $_.IdentityReference -eq "Everyone" -and $_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl }) {
+            $acl.AddAccessRule($rule)
+            Set-Acl -Path $global:tempBackupFolder -AclObject $acl
+            Write-Host "Permisos asignados a Everyone." -ForegroundColor Green
+        }
+        else {
+            Write-Host "Los permisos para Everyone ya estaban definidos." -ForegroundColor Gray
+        }
     }
     catch {
         [System.Windows.Forms.MessageBox]::Show(
-            "Error al crear la carpeta $global:tempBackupFolder:`n$($_.Exception.Message)",
-            "Error al crear carpeta de backup",
+            "Error al asignar permisos en $global:tempBackupFolder:`n$($_.Exception.Message)",
+            "Error permisos",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error)
-        Write-Host "Error | No se pudo crear la carpeta remota: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Error | No se pudieron asignar permisos: $($_.Exception.Message)" -ForegroundColor Red
         return
     }
-}
-else {
-    Write-Host "La carpeta remota ya existe: $global:tempBackupFolder" -ForegroundColor Gray
-}
-
-# 1.b) Asignar permisos de escritura a "Everyone"
-try {
-    $acl = Get-Acl -Path $global:tempBackupFolder
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "Everyone",
-        "FullControl",
-        "ContainerInherit, ObjectInherit",
-        "None",
-        "Allow"
-    )
-    if (-not $acl.Access | Where-Object { $_.IdentityReference -eq "Everyone" -and $_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl }) {
-        $acl.AddAccessRule($rule)
-        Set-Acl -Path $global:tempBackupFolder -AclObject $acl
-        Write-Host "Permisos asignados a Everyone." -ForegroundColor Green
-    }
-    else {
-        Write-Host "Los permisos para Everyone ya estaban definidos." -ForegroundColor Gray
-    }
-}
-catch {
-    [System.Windows.Forms.MessageBox]::Show(
-        "Error al asignar permisos en $global:tempBackupFolder:`n$($_.Exception.Message)",
-        "Error permisos",
-        [System.Windows.Forms.MessageBoxButtons]::OK,
-        [System.Windows.Forms.MessageBoxIcon]::Error)
-    Write-Host "Error | No se pudieron asignar permisos: $($_.Exception.Message)" -ForegroundColor Red
-    return
-}
-# ------------------------------- FIN DEL BLOQUE DE CREACIÓN Y PERMISOS -------------------------------   
+    
     Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
 
     # 1. Selección de Base de Datos
@@ -3113,13 +3113,14 @@ catch {
     $global:backupJob = Start-Job -ScriptBlock $script -ArgumentList `
         $global:server, $global:user, $global:password, $selectedDb, $global:backupPath
 
-    # 4. Crear formulario global con ProgressBar “ping‑pong”
+    # 4. Crear formulario global con ProgressBar "ping-pong"
     $global:backupProgressForm = New-Object System.Windows.Forms.Form
     $global:backupProgressForm.Text            = "Procesando Backup"
     $global:backupProgressForm.Size            = New-Object System.Drawing.Size(500,160)
     $global:backupProgressForm.StartPosition   = "CenterScreen"
     $global:backupProgressForm.FormBorderStyle = 'FixedDialog'
     $global:backupProgressForm.TopMost         = $true
+    
     # 4.1 Instanciar ProgressBar como variable global
     $global:pb = New-Object System.Windows.Forms.ProgressBar
     $global:pb.Style    = [System.Windows.Forms.ProgressBarStyle]::Continuous
@@ -3128,12 +3129,14 @@ catch {
     $global:pb.Value    = 0
     $global:pb.Size     = New-Object System.Drawing.Size(460,25)
     $global:pb.Location = New-Object System.Drawing.Point(10,20)
+    
     # Label y botón Cancelar
     $lbl = New-Object System.Windows.Forms.Label
     $lbl.Text     = "Trabajando, espere..."
     $lbl.AutoSize = $false
     $lbl.Size     = New-Object System.Drawing.Size(460,20)
     $lbl.Location = New-Object System.Drawing.Point(10,55)
+    
     $btnCancel = New-Object System.Windows.Forms.Button
     $btnCancel.Text     = "Cancelar"
     $btnCancel.Size     = New-Object System.Drawing.Size(120,40)
@@ -3141,9 +3144,11 @@ catch {
         [int](($global:backupProgressForm.ClientSize.Width - 120) / 2),
         90
     )
+    
     $global:backupProgressForm.Controls.AddRange(@($global:pb, $lbl, $btnCancel))
     $global:backupProgressForm.Show()
-    # 5. Temporizador de animación “ping‑pong”
+    
+    # 5. Temporizador de animación "ping-pong"
     $global:animTimer = New-Object System.Windows.Forms.Timer
     $animTimer.Interval = 400
     # Variable de dirección: +1 sube, -1 baja
@@ -3161,75 +3166,278 @@ catch {
         $pb.Value += 10 * $script:direction
     })
     $animTimer.Start()
-    # 6. Arrancar Job de backup en segundo plano
-    $script = {
-        param($srv,$usr,$pwd,$db,$path)
-        $conn = New-Object System.Data.SqlClient.SqlConnection("
-            Server=$srv; Database=master; User Id=$usr; Password=$pwd
-        ")
-        $conn.Open()
-        $cmd = $conn.CreateCommand()
-        $cmd.CommandText = "
-            BACKUP DATABASE [$db] TO DISK='$path' WITH CHECKSUM
-        "
-        $cmd.CommandTimeout = 0
-        $cmd.ExecuteNonQuery()
-        $conn.Close()
-    }
-    $global:backupJob = Start-Job -ScriptBlock $script -ArgumentList `
-        $global:server, $global:user, $global:password, $selectedDb, $global:backupPath
-# 7. Temporizador para vigilar el Job
+    
+    # 7. Temporizador para vigilar el Job
     $global:backupTimer = New-Object System.Windows.Forms.Timer
     $global:backupTimer.Interval = 500
-        $global:backupTimer.Add_Tick({
-            if ($global:backupJob.State -in 'Completed','Failed','Stopped') {
-                $animTimer.Stop(); $backupTimer.Stop()
-                Receive-Job $global:backupJob | Out-Null
-    
-                if ($global:backupJob.State -eq 'Completed') {
-                    # Mensaje de éxito
-                    [System.Windows.Forms.MessageBox]::Show(
-                        "Backup completado en servidor:`n$global:backupPath",
-                        "Éxito",
-                        [System.Windows.Forms.MessageBoxButtons]::OK,
-                        [System.Windows.Forms.MessageBoxIcon]::Information)
-                        Write-Host "Backup finalizado correctamente. Ruta: $global:backupPath" -ForegroundColor Green
-                    # Intentar abrir carpeta remota solo si existe
-                    if (Test-Path $global:tempBackupFolder) {
-                        Start-Process explorer.exe $global:tempBackupFolder
-                    }
-                    else {
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "No se pudo abrir la carpeta de backup:`n$global:tempBackupFolder",
-                            "Atención",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Warning)
-                                                Write-Host "Error | No se pudo abrir la carpeta de backup:`n`t$global:tempBackupFolder`n`tRevise directo en el equipo servidor" -ForegroundColor Red
-                    }
-                }
-                elseif ($global:backupJob.State -eq 'Stopped') {
-                    [System.Windows.Forms.MessageBox]::Show("Backup cancelado por el usuario","Cancelado",[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Information)
-                                        Write-Host "Backup cancelado por el usuario" -ForegroundColor Yellow
-                }
-                else {
-                    $err = Receive-Job $global:backupJob -ErrorAction SilentlyContinue
-                    [System.Windows.Forms.MessageBox]::Show("Error en backup:`n$err","Error",[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)
-                    Write-Host "Error | Error en backup:`n$err" -ForegroundColor Red
-                }
 
-            # Limpieza
+    $global:backupTimer.Add_Tick({
+        if ($global:backupJob.State -in 'Completed','Failed','Stopped') {
+            # 7.1) Detener ambos timers
+            if ($animTimer)   { $animTimer.Stop() }
+            $global:backupTimer.Stop()
+
+            # 7.2) Recuperar resultados del job (vaciar la cola)
+            Receive-Job $global:backupJob | Out-Null
+
+            # 7.3) Limpiar el job y cerrar la ventana de progreso ANTES de mostrar cualquier MessageBox
             Remove-Job $global:backupJob -Force
-            $global:backupProgressForm.Close()
+
+            # Cerrar formulario de progreso en el hilo de UI
+            if ($global:backupProgressForm.InvokeRequired) {
+                $global:backupProgressForm.Invoke([action]{ $global:backupProgressForm.Close() })
+            }
+            else {
+                $global:backupProgressForm.Close()
+            }
+
+            # 7.4) Ahora mostrar el MessageBox correspondiente al estado
+            if ($global:backupJob.State -eq 'Completed') {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Backup completado en servidor:`n$global:backupPath",
+                    "Éxito",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Information
+                )
+                Write-Host "Backup finalizado correctamente. Ruta: $global:backupPath" -ForegroundColor Green
+
+                if (Test-Path $global:tempBackupFolder) {
+                    $uploadResponse = [System.Windows.Forms.MessageBox]::Show(
+                        "¿Deseas comprimir y subir el respaldo a Mega.nz?",
+                        "Subir Respaldo",
+                        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                        [System.Windows.Forms.MessageBoxIcon]::Question
+                    )
+                    if ($uploadResponse -eq [System.Windows.Forms.DialogResult]::Yes) {
+                        # ======================= NUEVA IMPLEMENTACIÓN DE SUBIDA =======================
+                    try {
+                        # Crear formulario de progreso para subida
+                        $uploadForm = New-Object System.Windows.Forms.Form
+                        $uploadForm.Text = "Subiendo a Mega.nz"
+                        $uploadForm.Size = New-Object System.Drawing.Size(500, 200)
+                        $uploadForm.StartPosition = "CenterScreen"
+                        $uploadForm.FormBorderStyle = 'FixedDialog'
+                        $uploadForm.TopMost = $true
+                    
+                        # Barra de progreso
+                        $uploadProgressBar = New-Object System.Windows.Forms.ProgressBar
+                        $uploadProgressBar.Minimum = 0
+                        $uploadProgressBar.Maximum = 100
+                        $uploadProgressBar.Value = 0
+                        $uploadProgressBar.Size = New-Object System.Drawing.Size(460, 20)
+                        $uploadProgressBar.Location = New-Object System.Drawing.Point(10, 20)
+                        $uploadForm.Controls.Add($uploadProgressBar)
+                    
+                        # Etiqueta de estado
+                        $uploadLabel = New-Object System.Windows.Forms.Label
+                        $uploadLabel.Text = "Iniciando subida..."
+                        $uploadLabel.Size = New-Object System.Drawing.Size(460, 60)
+                        $uploadLabel.Location = New-Object System.Drawing.Point(10, 50)
+                        $uploadLabel.Font = New-Object System.Drawing.Font("Microsoft Sans Serif", 9)
+                        $uploadForm.Controls.Add($uploadLabel)
+                    
+                        # Botón de cancelación
+                        $cancelUploadButton = New-Object System.Windows.Forms.Button
+                        $cancelUploadButton.Text = "Cancelar"
+                        $cancelUploadButton.Size = New-Object System.Drawing.Size(100, 30)
+                        $cancelUploadButton.Location = New-Object System.Drawing.Point(190, 120)
+                        $uploadForm.Controls.Add($cancelUploadButton)
+                    
+                        # Mostrar formulario de forma no bloqueante
+                        $uploadForm.Add_Shown({ $uploadForm.Activate() })
+                        $uploadForm.Show()
+                    
+                        # Función para actualizar el progreso SIN DUPLICAR MENSAJES
+                        function Update-Progress {
+                            param(
+                                [int]$Value,
+                                [string]$Message,
+                                [switch]$WriteConsole
+                            )
+                            $uploadProgressBar.Value = $Value
+                            $uploadLabel.Text = $Message
+                            [System.Windows.Forms.Application]::DoEvents()
+                            
+                            # Solo escribir en consola si se especifica el switch
+                            if ($WriteConsole) {
+                                Write-Host $Message
+                            }
+                        }
+                    
+                        # Configurar cancelación
+                        $cancelUpload = $false
+                        $cancelUploadButton.Add_Click({
+                            $cancelUpload = $true
+                            $uploadForm.Close()
+                            Write-Host "Subida cancelada por el usuario"
+                        })
+                    
+                        # Paso 1: Verificar megatools (con mensaje en consola)
+                        Update-Progress -Value 10 -Message "`tVerificando si megatools ya está disponible..." -WriteConsole
+                        if (-not (Get-Command megatools -ErrorAction SilentlyContinue)) {
+                            Update-Progress -Value 15 -Message "megatools no está instalado. Instalando con Chocolatey..." -WriteConsole
+                            
+                            # Instalar Chocolatey si no existe
+                            if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+                                Update-Progress -Value 20 -Message "Instalando Chocolatey..." -WriteConsole
+                                Set-ExecutionPolicy Bypass -Scope Process -Force
+                                [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+                                iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+                            }
+                            
+                            # Instalar megatools
+                            choco install megatools -y
+                            Update-Progress -Value 30 -Message "megatools instalado correctamente." -WriteConsole
+                            
+                            # Actualizar PATH
+                            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+                        }
+                        else {
+                            Update-Progress -Value 30 -Message "megatools ya está instalado. Se omite la instalación." -WriteConsole
+                        }
+                    
+                        # Paso 2: Configurar archivo INI (con mensaje en consola)
+                        $MegaUser = "gerardo.zermeno@nationalsoft.mx"
+                        $MegaPass = "National09$#"
+                        $configPath = "$env:APPDATA\megatools.ini"
+                        
+                        Update-Progress -Value 40 -Message "`tConfigurando megatools..." -WriteConsole
+                        if (-not (Test-Path $configPath)) {
+                            $configDir = Split-Path -Path $configPath -Parent
+                            if (-not (Test-Path $configDir)) {
+                                New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+                            }
+                            
+                            $megaConfig = @"
+                    [Login]
+                    Username = $MegaUser
+                    Password = $MegaPass
+"@
+                            $megaConfig | Out-File -FilePath $configPath -Encoding utf8 -Force
+                            
+                            # Establecer permisos
+                            $acl = Get-Acl $configPath
+                            $acl.SetAccessRuleProtection($true, $false)
+                            $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                                [System.Security.Principal.WindowsIdentity]::GetCurrent().Name,
+                                "FullControl",
+                                "Allow"
+                            )
+                            $acl.AddAccessRule($rule)
+                            Set-Acl -Path $configPath -AclObject $acl
+                            
+                            Update-Progress -Value 50 -Message "Configuración de megatools creada correctamente." -WriteConsole
+                        }
+                        else {
+                            Update-Progress -Value 50 -Message "Archivo de configuración ya existe. No se modifica." -WriteConsole
+                        }
+                    
+                        # Paso 3: Comprimir backup (con mensaje en consola)
+                        $zipPath = "$global:backupPath.zip"
+                        $7zipPath = "C:\Program Files\7-Zip\7z.exe"
+                        
+                        Update-Progress -Value 60 -Message "Comprimiendo respaldo..." -WriteConsole
+                        & $7zipPath a -tzip -p"National09" -mem=AES256 $zipPath $global:backupPath
+                        
+                        # Paso 4: Subir a Mega.nz (sin mensajes de porcentaje en consola)
+                        Update-Progress -Value 70 -Message "`tSubiendo a Mega.nz (directo a raíz)..." -WriteConsole
+                        
+                        # Simular progreso de subida SIN imprimir en consola
+                        70..100 | ForEach-Object {
+                            if ($cancelUpload) { return }
+                            Start-Sleep -Milliseconds 300
+                            # Actualización SILENCIOSA (solo en la GUI)
+                            Update-Progress -Value $_ -Message "Subiendo... ($_%)"
+                        }
+                        
+                        if ($cancelUpload) {
+                            throw "Subida cancelada por el usuario"
+                        }
+                        
+                        # Ejecutar subida real
+                        $uploadCmd = "megatools put --username `"$MegaUser`" --password `"$MegaPass`" `"$zipPath`""
+                        $uploadResult = cmd /c $uploadCmd 2>&1
+                        
+                        if ($LASTEXITCODE -eq 0) {
+                            # Extraer enlace de descarga
+                            $downloadLink = $uploadResult | Select-String -Pattern 'https://mega\.nz/file/[^\s]+' | ForEach-Object { $_.Matches.Value }
+                            
+                            if ($downloadLink) {
+                                [System.Windows.Forms.MessageBox]::Show(
+                                    "Backup subido exitosamente`nEnlace: $downloadLink`n(Copiado al portapapeles)",
+                                    "Éxito",
+                                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                                    [System.Windows.Forms.MessageBoxIcon]::Information
+                                )
+                                $downloadLink | Set-Clipboard
+                                Update-Progress -Value 100 -Message "Subida completada. Enlace copiado." -WriteConsole
+                            }
+                            else {
+                                Update-Progress -Value 100 -Message "Subida completada, pero no se pudo extraer enlace." -WriteConsole
+                            }
+                        }
+                        else {
+                            throw "Error en subida: $uploadResult"
+                        }
+                    }
+                        catch {
+                            [System.Windows.Forms.MessageBox]::Show(
+                                "Error durante la subida:`n$($_.Exception.Message)",
+                                "Error",
+                                [System.Windows.Forms.MessageBoxButtons]::OK,
+                                [System.Windows.Forms.MessageBoxIcon]::Error
+                            )
+                            Write-Host "Error durante la subida: $($_.Exception.Message)" -ForegroundColor Red
+                        }
+                        finally {
+                            # Cerrar formulario de subida
+                            $uploadForm.Close()
+                            
+                            # Eliminar archivo ZIP
+                            if (Test-Path $zipPath) {
+                                Remove-Item $zipPath -Force
+                                Write-Host "Archivo ZIP local eliminado" -ForegroundColor Yellow
+                            }
+                            
+                            # Abrir carpeta de backups
+                            Start-Process explorer.exe $global:tempBackupFolder
+                        }
+                        # ======================= FIN NUEVA IMPLEMENTACIÓN =======================
+                    }
+                }
+            }
+            elseif ($global:backupJob.State -eq 'Stopped') {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Backup cancelado por el usuario",
+                    "Cancelado",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Information
+                )
+                Write-Host "Backup cancelado por el usuario" -ForegroundColor Yellow
+            }
+            else {
+                $errorMessage = Receive-Job $global:backupJob -ErrorAction SilentlyContinue
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Error en backup:`n$errorMessage",
+                    "Error",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error
+                )
+                Write-Host "Error | Error en backup:`n$errorMessage" -ForegroundColor Red
+            }
         }
     })
+
     $global:backupTimer.Start()
-# 8. Cancelar el Job desde el botón
+    
+    # 8. Cancelar el Job desde el botón
     $btnCancel.Add_Click({
         if ($global:backupJob -and $global:backupJob.State -in @('Running','NotStarted')) {
             Stop-Job $global:backupJob
         }
     })
 })
+
 # Cierre seguro al cerrar la aplicación
 $formPrincipal.Add_FormClosing({
     if ($global:backupJob -and $global:backupJob.State -eq 'Running') {
@@ -3238,11 +3446,11 @@ $formPrincipal.Add_FormClosing({
     if ($global:animTimer)   { $global:animTimer.Stop()   }
     if ($global:backupTimer) { $global:backupTimer.Stop() }
 })
+
 # Botón para salir
 $btnExit.Add_Click({
     $formPrincipal.Dispose()
     $formPrincipal.Close()
 })
-
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()

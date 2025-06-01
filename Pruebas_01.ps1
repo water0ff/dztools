@@ -3332,6 +3332,24 @@ $btnBackup.Add_Click({
                             Update-Progress -Value 50 -Message "Archivo de configuración ya existe. No se modifica." -WriteConsole
                         }
                     
+                        $7zipPath = "C:\Program Files\7-Zip\7z.exe"
+                        if (-not (Test-Path $7zipPath)) {
+                            Update-Progress -Value 55 -Message "7-Zip no encontrado. Instalando con Chocolatey..." -WriteConsole
+                            try {
+                                choco install 7zip -y
+                                # Verificar nuevamente
+                                if (-not (Test-Path $7zipPath)) {
+                                    throw "7-Zip no se instaló correctamente. Ruta esperada: $7zipPath"
+                                }
+                            }
+                            catch {
+                                throw "Error instalando 7-Zip: $_"
+                            }
+                            Update-Progress -Value 60 -Message "7-Zip instalado correctamente." -WriteConsole
+                        }
+                        else {
+                            Update-Progress -Value 60 -Message "7-Zip ya está instalado." -WriteConsole
+                        }
                         # Paso 3: Comprimir backup (con mensaje en consola)
                         $zipPath = "$global:backupPath.zip"
                         $7zipPath = "C:\Program Files\7-Zip\7z.exe"

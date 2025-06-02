@@ -698,19 +698,6 @@ $restoreColorOnLeave = {
 }
         $lblHostname.Add_MouseEnter($changeColorOnHover)
         $lblHostname.Add_MouseLeave($restoreColorOnLeave)
-# ---------------------------------------------------
-# 1. Asegúrese de que $txt_InfoInstrucciones ya exista:
-# ---------------------------------------------------
-# Ya lo creó así en su script:
-# $txt_InfoInstrucciones = Create-TextBox -Location (New-Object System.Drawing.Point(730, 50)) -Size(New-Object System.Drawing.Size(220, 400)) `
-#     -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
-#     -ScrollBars 'Vertical' -Multiline $true -ReadOnly  $true
-
-# ---------------------------------------------------
-# 2. Para cada botón, asigne eventos MouseEnter y MouseLeave:
-# ---------------------------------------------------
-
-# 2.1 “Buscar Instalador LZMA”
 $LZMAbtnBuscarCarpeta.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Busca en los registros de Windows el histórico de instalaciones que han fallado,
@@ -723,7 +710,6 @@ un nuevo registro y así evite el mensaje de error conocido:
 $LZMAbtnBuscarCarpeta.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.2 “Instalar Herramientas (Chocolatey)”
 $btnInstalarHerramientas.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -734,7 +720,6 @@ herramientas de línea de comandos y utilerías en el sistema.
 $btnInstalarHerramientas.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.3 “Ejecutar ExpressProfiler”
 $btnProfiler.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -745,7 +730,6 @@ herramienta para monitorear consultas de SQL Server.
 $btnProfiler.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.4 “Ejecutar Database4”
 $btnDatabase.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -756,7 +740,6 @@ y luego lo lanza para la gestión de sus bases de datos.
 $btnDatabase.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.5 “Ejecutar Manager (SQL 2014)”
 $btnSQLManager.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -767,7 +750,6 @@ avisará al usuario dónde descargarlo desde el repositorio oficial.
 $btnSQLManager.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.6 “Ejecutar Management (SQL Management)”
 $btnSQLManagement.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -778,7 +760,6 @@ y la muestra antes de ejecutarlo.
 $btnSQLManagement.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.7 “Printer Tools”
 $btnPrinterTool.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -789,29 +770,28 @@ permite probar estado, formatear y configurar parámetros fundamentales.
 $btnPrinterTool.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.8 “Lector DP - Permisos”
 $btnLectorDPicacls.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
+Repara el error al instalar el Driver del lector DP.
 Modifica los permisos de la carpeta C:\Windows\System32\en-us
-para que el puerto de comunicación del lector de huellas funcione correctamente.
+mediante el comando ICALCS para el driver tenga los permisos necesarios.
 "@
 })
 $btnLectorDPicacls.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.9 “Agregar IPs”
 $btnConfigurarIPs.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Agrega direcciones IP adicionales para configurar impresoras en red
 que estén en un segmento diferente al predeterminado.
+Convierte de DHCP a ip fija y tambien permite cambiar la configuración de ip fija a DHCP.
 "@
 })
 $btnConfigurarIPs.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.10 “Agregar usuario de Windows”
 $btnAddUser.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -822,10 +802,10 @@ Crea un nuevo usuario local en Windows con permisos básicos:
 $btnAddUser.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.11 “Actualizar datos del sistema”
 $btnForzarActualizacion.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
+Para el error de descarga de licencia por no tener datos de equipo como el procesador.
 Actualiza la información de hardware del sistema:
 reescanea unidades, adaptadores y muestra un resumen de dispositivos.
 "@
@@ -833,7 +813,6 @@ reescanea unidades, adaptadores y muestra un resumen de dispositivos.
 $btnForzarActualizacion.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.12 “Clear AnyDesk”
 $btnClearAnyDesk.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -844,7 +823,6 @@ y forja un nuevo ID para evitar conflictos de acceso remoto.
 $btnClearAnyDesk.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.13 “Mostrar Impresoras”
 $btnShowPrinters.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -855,7 +833,6 @@ junto con su puerto y driver correspondiente.
 $btnShowPrinters.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.14 “Limpia y Reinicia Cola de Impresión”
 $btnClearPrintJobs.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -866,7 +843,6 @@ para liberar trabajos atascados.
 $btnClearPrintJobs.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.15 “Aplicaciones National Soft”
 $btnAplicacionesNS.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -877,12 +853,12 @@ y extrae la información de conexión a bases de datos.
 $btnAplicacionesNS.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
 # 2.16 “Permisos C:\NationalSoft”
 $btnCheckPermissions.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Revisa los permisos de la carpeta C:\NationalSoft
 y muestra qué usuarios tienen acceso de lectura/escritura.
+* Permite asignar permisos heredados a Everyone a dicha carpeta.
 "@
 })
 $btnCheckPermissions.Add_MouseLeave({
@@ -910,15 +886,6 @@ compila el proyecto y lo coloca en la carpeta de salida.
 $btnCreateAPK.Add_MouseLeave({
     $txt_InfoInstrucciones.Clear()
 })
-
-# ---------------------------------------------------
-# 3. Opcional: mensaje fijo cuando salga de un botón
-# ---------------------------------------------------
-# Si en lugar de dejar el TextBox vacío prefiere mostrar algo por defecto:
-# (descomente las dos líneas siguientes y comente los .Clear() anteriores)
-# $txt_InfoInstrucciones.Text = "Desplace el cursor sobre un botón para ver su descripción."
-# Y reemplace cada $txt_InfoInstrucciones.Clear() por:
-# $txt_InfoInstrucciones.Text = "Desplace el cursor sobre un botón para ver su descripción."
 
 #FUNCIONES:
 # Función para verificar e instalar Chocolatey

@@ -2881,6 +2881,7 @@ $btnExecute.Add_Click({
     }
 })
 $btnConnectDb.Add_Click({
+    Write-Host "`nConectando a la instancia..." -ForegroundColor Gray
     try {
         $global:server = $txtServer.Text
         $global:user = $txtUser.Text
@@ -3247,7 +3248,7 @@ if (-not (Test-Path -Path $global:tempBackupFolder)) {
     }
 }
 else {
-    Write-Host "La carpeta remota ya existe en el servidor: $global:tempBackupFolder" -ForegroundColor Gray
+    Write-Host "La carpeta remota ya existe en el servidor: $global:tempBackupFolder" -ForegroundColor Yellow
 }
 try {
     $acl = Get-Acl -Path $global:tempBackupFolder
@@ -3264,7 +3265,7 @@ try {
         Write-Host "Permisos asignados a Everyone correctamente." -ForegroundColor Green
     }
     else {
-        Write-Host "Los permisos para Everyone ya estaban definidos en el servidor." -ForegroundColor Gray
+        Write-Host "Los permisos para Everyone ya estaban definidos en el servidor." -ForegroundColor Yellow
     }
 }
 catch {
@@ -3478,7 +3479,7 @@ Password = $MegaPass
                         Update-Progress -Value 50 -Message "Configuración de megatools creada correctamente." -WriteConsole
                     }
                     else {
-                        Update-Progress -Value 50 -Message "Archivo de configuración ya existe. No se modifica." -WriteConsole
+                        Update-Progress -Value 50 -Message "`tArchivo de configuración ya existe. No se modifica." -WriteConsole
                     }
                     $7zipPath = "C:\Program Files\7-Zip\7z.exe"
                     if (-not (Test-Path $7zipPath)) {
@@ -3500,10 +3501,10 @@ Password = $MegaPass
                     # Paso 3: Comprimir backup (con mensaje en consola)
                     $zipPath = "$global:backupPath.zip"
                     $7zipPath = "C:\Program Files\7-Zip\7z.exe"
-                    Update-Progress -Value 60 -Message "Comprimiendo respaldo..." -WriteConsole
+                    Update-Progress -Value 60 -Message "`tComprimiendo respaldo..." -WriteConsole
                     & $7zipPath a -tzip -p"National09" -mem=AES256 $zipPath $global:backupPath
                     # Paso 4: Subir a Mega.nz (sin mensajes de porcentaje en consola)
-                    Update-Progress -Value 70 -Message "`tSubiendo a Mega.nz (directo a raíz)..." -WriteConsole
+                    Update-Progress -Value 70 -Message "Subiendo a Mega.nz (directo a raíz)..." -WriteConsole
                     # Simular progreso de subida SIN imprimir en consola
                     70..100 | ForEach-Object {
                         if ($cancelUpload) { return }

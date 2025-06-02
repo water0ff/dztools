@@ -3135,14 +3135,10 @@ function Show-UploadPrompt {
     $zipPic.Image = [System.Drawing.Image]::FromFile($7zipIconPath)
     $formShowUploadPrompt.Controls.Add($zipPic)  # FIXED
 
-        $lightGreen = [System.Drawing.Color]::LightGreen
-        $lightCoral = [System.Drawing.Color]::LightCoral
-        $btnYes = Create-Button -Text "Sí" -Location (New-Object System.Drawing.Point(120, 180)) -Size (New-Object System.Drawing.Size(80, 30)) `
-            -BackColor $lightGreen -ForeColor [System.Drawing.Color]::Black -ToolTipText "Confirmar acción" -Font $defaultFont -Enabled $true
+        $btnYes = Create-Button -Text "Sí" -Location (New-Object System.Drawing.Point(120, 180)) -ToolTipText "Confirmar acción" -Font $defaultFont -Enabled $true
         $btnYes.DialogResult = [System.Windows.Forms.DialogResult]::Yes
             $formShowUploadPrompt.Controls.Add($btnYes)
-        $btnNo = Create-Button -Text "No" -Location (New-Object System.Drawing.Point(220, 180)) -Size (New-Object System.Drawing.Size(80, 30)) `
-            -BackColor $lightCoral -ForeColor [System.Drawing.Color]::Black -ToolTipText "Cancelar acción" -Font $defaultFont -Enabled $true
+        $btnNo = Create-Button -Text "No" -Location (New-Object System.Drawing.Point(220, 180)) -ToolTipText "Cancelar acción" -Font $defaultFont -Enabled $true
         $btnNo.DialogResult = [System.Windows.Forms.DialogResult]::No
             $formShowUploadPrompt.Controls.Add($btnNo)
 

@@ -2945,7 +2945,7 @@ Base de datos: $($global:database)
         #$lblConnectionStatus.Text = "Conectado a: $global:server | BDD: $global:database"
         $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
         
-        Write-Host "Base de datos seleccionada: $($cmbDatabases.SelectedItem)" -ForegroundColor Cyan
+        Write-Host "`nBase de datos seleccionada:`t $($cmbDatabases.SelectedItem)" -ForegroundColor Cyan
     }
 })
 #boton para desconectar a la base de datos.

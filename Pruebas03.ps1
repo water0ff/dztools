@@ -3689,7 +3689,8 @@ Password = $MegaPass
                     $zipPath = "$global:backupPath.zip"
                     $7zipPath = "C:\Program Files\7-Zip\7z.exe"
                     Update-Progress -Value 60 -Message "`tComprimiendo respaldo..." -WriteConsole
-                    & $7zipPath a -tzip -p"National09" -mem=AES256 $zipPath $global:backupPath
+                    & $7zipPath a -tzip $zipPath $global:backupPath
+                    #& $7zipPath a -tzip -p"National09" -mem=AES256 $zipPath $global:backupPath
                     # Paso 4: Subir a Mega.nz (sin mensajes de porcentaje en consola)
                     Update-Progress -Value 70 -Message "Subiendo a Mega.nz (directo a raíz)..." -WriteConsole
                     # Simular progreso de subida SIN imprimir en consola

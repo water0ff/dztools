@@ -738,18 +738,12 @@ un nuevo registro y así evite el mensaje de error conocido:
     Error al crear el archivo en temporales
 "@
 })
-$LZMAbtnBuscarCarpeta.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
 # 2.2 “Instalar Herramientas (Chocolatey)”
 $btnInstalarHerramientas.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Abre el menú de instaladores de Chocolatey para instalar o actualizar
 herramientas de línea de comandos y utilerías en el sistema.
 "@
-})
-$btnInstalarHerramientas.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
 })
 # 2.3 “Ejecutar ExpressProfiler”
 $btnProfiler.Add_MouseEnter({
@@ -758,18 +752,12 @@ Ejecuta o descarga ExpressProfiler desde el servidor oficial,
 herramienta para monitorear consultas de SQL Server.
 "@
 })
-$btnProfiler.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
 # 2.4 “Ejecutar Database4”
 $btnDatabase.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Ejecuta Database4: si no está instalado, lo descarga automáticamente
 y luego lo lanza para la gestión de sus bases de datos.
 "@
-})
-$btnDatabase.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
 })
 # 2.5 “Ejecutar Manager (SQL 2014)”
 $btnSQLManager.Add_MouseEnter({
@@ -778,9 +766,6 @@ Ejecuta SQL Server Management Studio (para SQL 2014). Si no lo encuentra,
 avisará al usuario dónde descargarlo desde el repositorio oficial.
 "@
 })
-$btnSQLManager.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
 # 2.6 “Ejecutar Management (SQL Management)”
 $btnSQLManagement.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -788,18 +773,12 @@ Busca SQL Management en el equipo, recupera la versión instalada
 y la muestra antes de ejecutarlo.
 "@
 })
-$btnSQLManagement.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
 # 2.7 “Printer Tools”
 $btnPrinterTool.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Herramienta de Star Micronics para configurar y diagnosticar impresoras POS:
 permite probar estado, formatear y configurar parámetros fundamentales.
 "@
-})
-$btnPrinterTool.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
 })
 # 2.8 “Lector DP - Permisos”
 $btnLectorDPicacls.Add_MouseEnter({
@@ -809,9 +788,6 @@ Modifica los permisos de la carpeta C:\Windows\System32\en-us
 mediante el comando ICALCS para el driver tenga los permisos necesarios.
 "@
 })
-$btnLectorDPicacls.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
 # 2.9 “Agregar IPs”
 $btnConfigurarIPs.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -820,18 +796,12 @@ que estén en un segmento diferente al predeterminado.
 Convierte de DHCP a ip fija y tambien permite cambiar la configuración de ip fija a DHCP.
 "@
 })
-$btnConfigurarIPs.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
 # 2.10 “Agregar usuario de Windows”
 $btnAddUser.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Crea un nuevo usuario local en Windows con permisos básicos:
 útil para sesión independiente en estaciones o terminales.
 "@
-})
-$btnAddUser.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
 })
 # 2.11 “Actualizar datos del sistema”
 $btnForzarActualizacion.Add_MouseEnter({
@@ -841,18 +811,12 @@ Actualiza la información de hardware del sistema:
 reescanea unidades, adaptadores y muestra un resumen de dispositivos.
 "@
 })
-$btnForzarActualizacion.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
 # 2.12 “Clear AnyDesk”
 $btnClearAnyDesk.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Detiene el servicio de AnyDesk, elimina los archivos temporales
 y forja un nuevo ID para evitar conflictos de acceso remoto.
 "@
-})
-$btnClearAnyDesk.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
 })
 # 2.13 “Mostrar Impresoras”
 $btnShowPrinters.Add_MouseEnter({
@@ -861,9 +825,6 @@ Muestra en consola las impresoras instaladas en Windows,
 junto con su puerto y driver correspondiente.
 "@
 })
-$btnShowPrinters.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
 # 2.14 “Limpia y Reinicia Cola de Impresión”
 $btnClearPrintJobs.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -871,18 +832,12 @@ Limpia la cola de impresión y reinicia el servicio de spooler
 para liberar trabajos atascados.
 "@
 })
-$btnClearPrintJobs.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
 # 2.15 “Aplicaciones National Soft”
 $btnAplicacionesNS.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Busca los archivos INI de National Soft en el equipo
 y extrae la información de conexión a bases de datos.
 "@
-})
-$btnAplicacionesNS.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
 })
 # 2.16 “Permisos C:\NationalSoft”
 $btnCheckPermissions.Add_MouseEnter({
@@ -892,10 +847,6 @@ y muestra qué usuarios tienen acceso de lectura/escritura.
 * Permite asignar permisos heredados a Everyone a dicha carpeta.
 "@
 })
-$btnCheckPermissions.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-
 # 2.17 “Cambiar OTM a SQL/DBF”
 $btnCambiarOTM.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -903,10 +854,6 @@ Cambia la configuración de On The Minute (OTM)
 entre SQL Server y DBF según corresponda.
 "@
 })
-$btnCambiarOTM.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-
 # 2.18 “Creación de SRM APK”
 $btnCreateAPK.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
@@ -914,10 +861,6 @@ Genera el archivo APK para Comandero Móvil:
 compila el proyecto y lo coloca en la carpeta de salida.
 "@
 })
-$btnCreateAPK.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-
 #FUNCIONES:
 # Función para verificar e instalar Chocolatey
 function Check-Chocolatey {

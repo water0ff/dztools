@@ -27,6 +27,18 @@ if ($response.Character -ne 'Y') {
     exit
 }
 Clear-Host
+$global:defaultInstructions = @"
+----- CAMBIOS -----
+- Se agregó subida a megaupload.
+- Se agregó compresión con contraseña de respaldos
+- Se agregó compresión con contraseña de respaldos
+- Se agregó consola de cambios y tool tip para botones
+- Reorganización de botones
+- Query Browser para SQL en pestaña: Base de datos
+- - Ahora se pueden agregar comentarios con "-" y entre "/* */"
+- - Tabla en consola
+- - Obtener columnas en consola
+"@
 Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundColor Green
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
@@ -41,7 +53,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250604.1220"  #mega update
+                                                                                                        $version = "Alfa 250605.0855"  #mega update
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -651,11 +663,13 @@ $txt_AdapterStatus = Create-TextBox -Location (New-Object System.Drawing.Point(7
     -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
     -ScrollBars 'Vertical' -Multiline $true -ReadOnly  $true
     $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
-$txt_InfoInstrucciones = Create-TextBox -Location (New-Object System.Drawing.Point(730, 50)) -Size(New-Object System.Drawing.Size(220, 500)) `
-    -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
-    -Multiline $true -ReadOnly  $true
-    $txt_InfoInstrucciones.WordWrap = $true
-
+$txt_InfoInstrucciones = Create-TextBox -Location (New-Object System.Drawing.Point(730, 50)) -Size (New-Object System.Drawing.Size(220, 500)) `
+    -BackColor ([System.Drawing.Color]::FromArgb(255, 1, 36, 86)) `  # Azul PowerShell
+    -ForeColor ([System.Drawing.Color]::White) `                     # Texto blanco
+    -Font (New-Object System.Drawing.Font("Courier New", 10)) `      # Fuente Courier New
+    -Multiline $true -ReadOnly $true
+$txt_InfoInstrucciones.WordWrap = $true
+$txt_InfoInstrucciones.Text = $global:defaultInstructions  # Texto inicial
 #FUERA DEL TAB
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(350, 525)) `
                                 -Size (New-Object System.Drawing.Size(500, 30)) `
@@ -698,6 +712,19 @@ $restoreColorOnLeave = {
 }
         $lblHostname.Add_MouseEnter($changeColorOnHover)
         $lblHostname.Add_MouseLeave($restoreColorOnLeave)
+$buttonsToUpdate = @(
+    $LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler,
+    $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool,
+    $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion,
+    $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
+    $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK
+)
+
+foreach ($button in $buttonsToUpdate) {
+    $button.Add_MouseLeave({
+        $txt_InfoInstrucciones.Text = $global:defaultInstructions
+    })
+}
 $LZMAbtnBuscarCarpeta.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Busca en los registros de Windows el histórico de instalaciones que han fallado,

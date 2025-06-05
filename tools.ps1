@@ -663,13 +663,17 @@ $txt_AdapterStatus = Create-TextBox -Location (New-Object System.Drawing.Point(7
     -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
     -ScrollBars 'Vertical' -Multiline $true -ReadOnly  $true
     $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
-$txt_InfoInstrucciones = Create-TextBox -Location (New-Object System.Drawing.Point(730, 50)) -Size (New-Object System.Drawing.Size(220, 500)) `
-    -BackColor ([System.Drawing.Color]::FromArgb(255, 1, 36, 86)) `  # Azul PowerShell
-    -ForeColor ([System.Drawing.Color]::White) `                     # Texto blanco
-    -Font (New-Object System.Drawing.Font("Courier New", 10)) `      # Fuente Courier New
-    -Multiline $true -ReadOnly $true
+
+$txt_InfoInstrucciones = Create-TextBox `
+    -Location (New-Object System.Drawing.Point(730, 50)) `
+    -Size     (New-Object System.Drawing.Size(220, 500)) `
+    -BackColor ([System.Drawing.Color]::FromArgb(255, 1, 36, 86)) `
+    -ForeColor ([System.Drawing.Color]::White) `
+    -Font      (New-Object System.Drawing.Font("Courier New", 10)) `
+    -Multiline $true `
+    -ReadOnly  $true
 $txt_InfoInstrucciones.WordWrap = $true
-$txt_InfoInstrucciones.Text = $global:defaultInstructions  # Texto inicial
+$txt_InfoInstrucciones.Text = $global:defaultInstructions
 #FUERA DEL TAB
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(350, 525)) `
                                 -Size (New-Object System.Drawing.Size(500, 30)) `

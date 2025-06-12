@@ -29,6 +29,7 @@ if ($response.Character -ne 'Y') {
 Clear-Host
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
+- Restructura del proceso de Backups (choco).
 - Se agregó subida a megaupload.
 - Se agregó compresión con contraseña de respaldos
 - Se agregó compresión con contraseña de respaldos
@@ -53,7 +54,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250605.0855"  #mega update
+                                                                                                        $version = "Alfa 250612.0755"  #mega update
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -164,10 +165,8 @@ function Create-Form {
             [Parameter()]
             [System.Drawing.Color]$BackColor = [System.Drawing.SystemColors]::Control
         )
-    
         # Crear la instancia
         $form = New-Object System.Windows.Forms.Form
-    
         # Propiedades básicas
         $form.Text            = $Title
         $form.Size            = $Size
@@ -175,11 +174,9 @@ function Create-Form {
         $form.FormBorderStyle = $FormBorderStyle
         $form.MaximizeBox     = $MaximizeBox
         $form.MinimizeBox     = $MinimizeBox
-    
         # Nuevas propiedades
         $form.TopMost     = $TopMost
         $form.ControlBox  = $ControlBox
-    
         if ($Icon) {
             $form.Icon = $Icon
         }
@@ -310,11 +307,9 @@ $rtbQuery = New-Object System.Windows.Forms.RichTextBox
     $rtbQuery.Add_TextChanged({
         $pos = $rtbQuery.SelectionStart
         $rtbQuery.SuspendLayout()
-    
         # 1. Restablecer todo a negro
         $rtbQuery.SelectAll()
         $rtbQuery.SelectionColor = [System.Drawing.Color]::Black
-    
         # 2. Encontrar y resaltar comentarios de línea (--) y almacenar rangos
         $commentRanges = @()
         foreach ($c in [regex]::Matches($rtbQuery.Text, '--.*', 'Multiline')) {
@@ -322,14 +317,12 @@ $rtbQuery = New-Object System.Windows.Forms.RichTextBox
             $rtbQuery.SelectionColor = [System.Drawing.Color]::Green
             $commentRanges += [PSCustomObject]@{ Start = $c.Index; End = $c.Index + $c.Length }
         }
-    
         # 3. Encontrar y resaltar comentarios de bloque (/* ... */) y agregar rangos
         foreach ($b in [regex]::Matches($rtbQuery.Text, '/\*[\s\S]*?\*/', 'Multiline')) {
             $rtbQuery.Select($b.Index, $b.Length)
             $rtbQuery.SelectionColor = [System.Drawing.Color]::Green
             $commentRanges += [PSCustomObject]@{ Start = $b.Index; End = $b.Index + $b.Length }
         }
-    
         # 4. Resaltar keywords en azul sólo fuera de comentarios
         foreach ($m in [regex]::Matches($rtbQuery.Text, "\b($keywords)\b", 'IgnoreCase')) {
             $inComment = $commentRanges | Where-Object { $m.Index -ge $_.Start -and $m.Index -lt $_.End }
@@ -338,13 +331,10 @@ $rtbQuery = New-Object System.Windows.Forms.RichTextBox
                 $rtbQuery.SelectionColor = [System.Drawing.Color]::Blue
             }
         }
-    
         # 5. Restaurar posición del cursor
         $rtbQuery.Select($pos, 0)
         $rtbQuery.ResumeLayout()
     })
-
-# Configuración del DataGridView
 # Configuración del DataGridView
 $dgvResults = New-Object System.Windows.Forms.DataGridView
 $dgvResults.Location                   = New-Object System.Drawing.Point(220, 205)
@@ -422,7 +412,7 @@ $panelGrid = New-Object System.Windows.Forms.Panel
         $txtPassword.Enabled = $true
         $btnExecute.Enabled = $false
         $cmbQueries.Enabled = $false
-$tabProSql.Controls.AddRange(@(
+    $tabProSql.Controls.AddRange(@(
     $btnConnectDb,
     $btnDisconnectDb,
     $cmbDatabases,  # <-- Aquí el ComboBox reemplaza al ListBox
@@ -663,7 +653,6 @@ $txt_AdapterStatus = Create-TextBox -Location (New-Object System.Drawing.Point(7
     -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
     -ScrollBars 'Vertical' -Multiline $true -ReadOnly  $true
     $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
-
 $txt_InfoInstrucciones = Create-TextBox `
     -Location (New-Object System.Drawing.Point(730, 50)) `
     -Size     (New-Object System.Drawing.Size(220, 500)) `
@@ -2664,33 +2653,20 @@ $btnCambiarOTM.Add_Click({
         Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
     }
 })
-
-
-<# ---------------------------------------------------------------------------
-  Formulario "Crear Usuario de Windows" con correcciones:
-  - Obtención confiable de grupos Administradores y Usuarios estándar
-  - Validación de complejidad de contraseña antes de New-LocalUser
-  - Manejo adecuado de errores al verificar pertenencia a grupos
---------------------------------------------------------------------------- #>
 $btnAddUser.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-
     # Crear formulario
     $formAddUser = Create-Form -Title "Crear Usuario de Windows" -Size (New-Object System.Drawing.Size(450, 250))
-
-    # Controles
+    # Controles que necesito
     $txtUsername = Create-TextBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(290, 30))
     $lblUsername = Create-Label -Text "Nombre:" -Location (New-Object System.Drawing.Point(10, 20))
     $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 60)) -Size (New-Object System.Drawing.Size(290, 30)) -UseSystemPasswordChar $true
     $lblPassword = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(10, 60))
     $cmbType     = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 100)) -Size (New-Object System.Drawing.Size(290, 30)) -Items @("Usuario estándar","Administrador")
     $lblType     = Create-Label -Text "Tipo:" -Location (New-Object System.Drawing.Point(10, 100))
-
-    # Determinar nombres de grupos estándar y administradores por SID
+    # Determinar nombres de grupos estándar y administradores por SID revisar
     $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name
     $userGroup  = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name
-
-    # Botones
     $btnCreate = Create-Button -Text "Crear"    -Location (New-Object System.Drawing.Point(10, 150))  -Size (New-Object System.Drawing.Size(130, 30))
     $btnCancel = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(150, 150)) -Size (New-Object System.Drawing.Size(130, 30))
     $btnShow   = Create-Button -Text "Mostrar usuarios" -Location (New-Object System.Drawing.Point(290, 150)) -Size (New-Object System.Drawing.Size(130, 30))
@@ -3231,58 +3207,79 @@ $btnCreateAPK.Add_Click({
 
 
 
-
-
-
-
-
-
-
-
-<# ESTP ESTA EN EL RENGLON 3080---------------------------------------------------------------------------
-  Sección "BACKUP" adaptada para uso ad-hoc con Admin Share C$
-  - Incluye barra de progreso para subida a Mega.nz
-  - Muestra mensajes idénticos en consola e interfaz
---------------------------------------------------------------------------- #>
-# -------------------------------------------------------------------
-# 1. Función auxiliar para verificar si el script se está ejecutando
-#    en el mismo host que el servidor SQL (para habilitar Comprimir/Subir).
-# -------------------------------------------------------------------
+#Aqui vamos, updates hacia el backup, agregar mas servicios de subida---
+function Test-ChocolateyInstalled {
+    return [bool](Get-Command choco -ErrorAction SilentlyContinue)
+}
 function Test-SameHost {
     param(
         [string]$serverName
     )
-    # Extrae el nombre del servidor remoto (parte antes de '\', coma, etc.)
     $machinePart = $serverName.Split('\')[0]
     $machineName = $machinePart.Split(',')[0]
     if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
     return ($env:COMPUTERNAME -eq $machineName)
 }
-
-# -------------------------------------------------------------------
-# 2. Función auxiliar para verificar si 7-Zip está instalado en C:\Program Files\7-Zip\7z.exe
-# -------------------------------------------------------------------
 function Test-7ZipInstalled {
     return (Test-Path "C:\Program Files\7-Zip\7z.exe")
 }
-
-# -------------------------------------------------------------------
-# 3. Función auxiliar para verificar si megatools está en el PATH
-# -------------------------------------------------------------------
 function Test-MegaToolsInstalled {
     return ([bool](Get-Command megatools -ErrorAction SilentlyContinue))
 }
-
-# -------------------------------------------------------------------
-# 4. Reemplazo completo del manejador de clic en $btnBackup
-# -------------------------------------------------------------------
 $btnBackup.Add_Click({
+    $chocoInstalled = Test-ChocolateyInstalled
+    if (-not $chocoInstalled) {
+        Write-Host "Chocolatey no está instalado." -ForegroundColor Yellow
+        $response = [System.Windows.Forms.MessageBox]::Show(
+            "Chocolatey es requerido para comprimir/subir respaldos. ¿Desea instalarlo ahora?",
+            "Instalación Requerida",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+
+        if ($response -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Write-Host "Instalando Chocolatey..." -ForegroundColor Cyan
+            try {
+                Set-ExecutionPolicy Bypass -Scope Process -Force
+                [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+                iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+                
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Chocolatey instalado. Por favor reinicie PowerShell y vuelva a ejecutar la herramienta.",
+                    "Reinicio Requerido",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Information
+                )
+                
+                # Cerrar todas las instancias de PowerShell
+                Stop-Process -Id $PID -Force
+            }
+            catch {
+                Write-Host "Error instalando Chocolatey: $_" -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Error instalando Chocolatey: $_",
+                    "Error",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error
+                )
+            }
+            return
+        }
+        else {
+            Write-Host "El usuario omitió la instalación de Chocolatey." -ForegroundColor Yellow
+            [System.Windows.Forms.MessageBox]::Show(
+                "Opciones de compresión/subida deshabilitadas.",
+                "Advertencia",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Warning
+            )
+        }
+    }
     # 4.1 Preparación de variables comunes
     $script:animTimer   = $null
     $script:backupTimer = $null
     $serverRaw   = $global:server
     $sameHost    = Test-SameHost -serverName $serverRaw
-    # Extraer nombre de servidor y definir ruta remota para respaldos
     $machinePart = $serverRaw.Split('\')[0]
     $machineName = $machinePart.Split(',')[0]
     if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
@@ -3293,9 +3290,7 @@ $btnBackup.Add_Click({
         -Size $formSize `
         -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
         -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog)
-    # ----------------------------------------------------------------
     # 4.3 Control: Checkbox de "Respaldo" (siempre marcado y deshabilitado)
-    # ----------------------------------------------------------------
     $chkRespaldo = New-Object System.Windows.Forms.CheckBox
     $chkRespaldo.Text      = "Respaldar"
     $chkRespaldo.Checked   = $true
@@ -3303,21 +3298,15 @@ $btnBackup.Add_Click({
     $chkRespaldo.AutoSize  = $true
     $chkRespaldo.Location  = New-Object System.Drawing.Point(20, 20)
     $formBackupOptions.Controls.Add($chkRespaldo)
-
-    # ----------------------------------------------------------------
     # 4.4 Control: TextBox para nombre de archivo de respaldo
-    #          (por defecto usa la convención actual con fecha)
-    # ----------------------------------------------------------------
     $lblNombre = New-Object System.Windows.Forms.Label
     $lblNombre.Text     = "Nombre del respaldo:"
     $lblNombre.AutoSize = $true
     $lblNombre.Location = New-Object System.Drawing.Point(20, 50)
     $formBackupOptions.Controls.Add($lblNombre)
-
     $txtNombre = New-Object System.Windows.Forms.TextBox
     $txtNombre.Size     = New-Object System.Drawing.Size(350, 20)
     $txtNombre.Location = New-Object System.Drawing.Point(20, 70)
-    # Valor por defecto: BD-<TIMESTAMP>.bak
     $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'
     $selectedDb        = $cmbDatabases.SelectedItem
     if ($selectedDb) {
@@ -3326,11 +3315,7 @@ $btnBackup.Add_Click({
         $txtNombre.Text = "Backup-$timestampsDefault.bak"
     }
     $formBackupOptions.Controls.Add($txtNombre)
-
-    # ----------------------------------------------------------------
     # 4.5 Control: Checkbox "Comprimir"
-    #          Se habilita solo si ejecuta en el mismo host (Test-SameHost).
-    # ----------------------------------------------------------------
     $tooltipCHK = New-Object System.Windows.Forms.ToolTip
     $chkComprimir = New-Object System.Windows.Forms.CheckBox
     $chkComprimir.Text     = "Comprimir"
@@ -3344,23 +3329,22 @@ $btnBackup.Add_Click({
         $chkComprimir.Enabled = $true
     }
     $formBackupOptions.Controls.Add($chkComprimir)
-
-    # ----------------------------------------------------------------
+    $chkComprimir.Enabled = $chocoInstalled  # <-- Nueva línea
+    if (-not $chocoInstalled) {
+        $tooltipCHK.SetToolTip($chkComprimir, "Requiere Chocolatey instalado")
+    }
     # 4.6 Control: TextBox para contraseña de ZIP (solo si comprimir está marcado)
-    # ----------------------------------------------------------------
     $lblPassword = New-Object System.Windows.Forms.Label
     $lblPassword.Text     = "Contraseña (opcional) para ZIP:"
     $lblPassword.AutoSize = $true
     $lblPassword.Location = New-Object System.Drawing.Point(40, 135)
     $formBackupOptions.Controls.Add($lblPassword)
-
     $txtPassword = New-Object System.Windows.Forms.TextBox
     $txtPassword.Size     = New-Object System.Drawing.Size(250, 20)
     $txtPassword.Location = New-Object System.Drawing.Point(40, 155)
     $txtPassword.UseSystemPasswordChar = $true
     $txtPassword.Enabled  = $false
     $formBackupOptions.Controls.Add($txtPassword)
-
     # Cuando el usuario activa/desactiva "Comprimir", habilitamos/ deshabilitamos el TextBox de contraseña
     $chkComprimir.Add_CheckedChanged({
         if ($chkComprimir.Checked) {
@@ -3372,11 +3356,7 @@ $btnBackup.Add_Click({
             $chkSubir.Enabled         = $false
         }
     })
-
-    # ----------------------------------------------------------------
     # 4.7 Control: Checkbox "Subir" (solo si comprimir está marcado)
-    #          Además valida que megatools esté instalado y mismo host.
-    # ----------------------------------------------------------------
         $chkSubir = New-Object System.Windows.Forms.CheckBox
         $chkSubir.Text     = "Subir a Mega.nz"
         $chkSubir.AutoSize = $true
@@ -3384,7 +3364,10 @@ $btnBackup.Add_Click({
         $chkSubir.Checked  = $false
         $chkSubir.Enabled  = $false  # inicialmente deshabilitado; se activará al chequeo de "Comprimir"
         $formBackupOptions.Controls.Add($chkSubir)
-
+        $chkSubir.Enabled = $chocoInstalled  # <-- Nueva línea
+        if (-not $chocoInstalled) {
+            $tooltipCHK.SetToolTip($chkSubir, "Requiere Chocolatey instalado")
+        }
         # Asociar validación al cambiar el estado de Comprimir
         $chkComprimir.Add_CheckedChanged({
             if ($chkComprimir.Checked) {
@@ -3404,48 +3387,6 @@ $btnBackup.Add_Click({
                 $chkSubir.Checked = $false
             }
         })
-            $chkSubir.Add_CheckedChanged({
-                if ($chkSubir.Checked) {
-                    # Si megatools NO está instalado, intentar instalar con choco
-                    if (-not (Test-MegaToolsInstalled)) {
-                        # Mostrar progreso en consola/interfaz (si tiene alguna función Update-Progress similar)
-                        #Update-Progress -Value 55 -Message "megatools no encontrado. Instalando con Chocolatey..." -WriteConsole
-                        Write-Host "megatools no encontrado. Instalando con Chocolatey..." -ForegroundColor Yellow
-                        try {
-                            if (Get-Command choco -ErrorAction SilentlyContinue) {
-                                choco install megatools -y | Out-Null
-                                Start-Sleep -Seconds 2  # opcional, darle un momento a que termine
-                                if (-not (Test-MegaToolsInstalled)) {
-                                    throw "megatools no se instaló correctamente."
-                                }
-                            }
-                            else {
-                                throw "Chocolatey no está instalado. Imposible instalar megatools automáticamente."
-                            }
-                        }
-                        catch {
-                            [System.Windows.Forms.MessageBox]::Show(
-                                "Error instalando megatools:`n$($_.Exception.Message)",
-                                "Error",
-                                [System.Windows.Forms.MessageBoxButtons]::OK,
-                                [System.Windows.Forms.MessageBoxIcon]::Error
-                            )
-                            # Desmarcar el CheckBox para evitar que quede seleccionado sin megatools
-                            $chkSubir.Checked = $false
-                            return
-                        }
-                        #Update-Progress -Value 60 -Message "megatools instalado correctamente." -WriteConsole
-                        Write-Host "megatools instalado correctamente." -ForegroundColor Yellow
-                    }
-                    # Si llegamos aquí, megatools ya está instalado (o ya existía)
-                    # No hacemos nada más en el CheckedChanged; la lógica real de subida
-                    # continuará en la sección 4.12.10 al oprimir Aceptar.
-                }
-                else {
-                    # Si el usuario desmarca, no necesitamos hacer nada
-                }
-            })
-    # ----------------------------------------------------------------
     # 4.8 Barra de progreso (invisible hasta iniciar la tarea)
     # ----------------------------------------------------------------
     $pbBackup = New-Object System.Windows.Forms.ProgressBar
@@ -3487,15 +3428,10 @@ $btnBackup.Add_Click({
             )
         }
     })
-
-    # ----------------------------------------------------------------
     # 4.11 Evento Click: "Cerrar" — cierra el formulario sin hacer nada adicional
-    # ----------------------------------------------------------------
     $btnCerrar.Add_Click({
         $formBackupOptions.Close()
     })
-
-    # ----------------------------------------------------------------
     # 4.12 Evento Click: "Aceptar" — aquí se realizará el proceso de Respaldo,
     #          Compresión (si corresponde) y Subida (si corresponde),
     #          mostrando la barra de progreso en "ping-pong" mientras
@@ -3549,8 +3485,6 @@ $btnBackup.Add_Click({
             $bakFileName = $inputName
         }
         $global:backupPath = Join-Path $global:tempBackupFolder $bakFileName
-
-        # ------------------------------------------------------------
         # 4.12.4 Crear carpeta de destino en servidor remoto si no existe
         # ------------------------------------------------------------
         if (-not (Test-Path -Path $global:tempBackupFolder)) {
@@ -3583,8 +3517,6 @@ $btnBackup.Add_Click({
         }
         $global:backupJob = Start-Job -ScriptBlock $scriptBackup -ArgumentList `
             $global:server, $global:user, $global:password, $selectedDb, $global:backupPath
-
-        # ------------------------------------------------------------
         # 4.12.6 Temporizador para animar la ProgressBar (ping-pong)
         # ------------------------------------------------------------
         # Asegúrese de haber declarado previamente estas variables como $null:
@@ -3682,6 +3614,31 @@ $btnBackup.Add_Click({
                         # ----------------------------------------------------
                         # 4.12.10 Si Subir está marcado, procedemos a subir a Mega.nz
                         # ----------------------------------------------------
+                        if ($chkSubir.Checked) {
+                            if (-not (Test-MegaToolsInstalled)) {
+                                Write-Host "MegaTools no encontrado. Intentando instalar con Chocolatey..."
+                                try {
+                                    if (Get-Command choco -ErrorAction SilentlyContinue) {
+                                        choco install megatools -y | Out-Null
+                                        Start-Sleep -Seconds 2
+                                        if (-not (Test-MegaToolsInstalled)) {
+                                            throw "La instalación de megatools falló"
+                                        }
+                                    } else {
+                                        throw "Chocolatey no está instalado"
+                                    }
+                                } catch {
+                                    [System.Windows.Forms.MessageBox]::Show(
+                                        "Error instalando megatools: $($_.Exception.Message)",
+                                        "Error",
+                                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                                        [System.Windows.Forms.MessageBoxIcon]::Error
+                                    )
+                                    $chkSubir.Checked = $false
+                                    return
+                                }
+                            }
+                        }
                         if ($chkSubir.Checked) {
                             if (-not (Test-MegaToolsInstalled)) {
                                 [System.Windows.Forms.MessageBox]::Show(
@@ -3813,6 +3770,9 @@ Password = $MegaPass
     # ----------------------------------------------------------------
     $formBackupOptions.ShowDialog()
 })
+
+
+
 # Botón para salir
 $btnExit.Add_Click({
     $formPrincipal.Dispose()

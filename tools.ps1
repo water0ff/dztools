@@ -3230,12 +3230,21 @@ $btnBackup.Add_Click({
     $chocoInstalled = Test-ChocolateyInstalled
     if (-not $chocoInstalled) {
         Write-Host "Chocolatey no está instalado." -ForegroundColor Yellow
-        $response = [System.Windows.Forms.MessageBox]::Show(
-            "Chocolatey es requerido para comprimir/subir respaldos. ¿Desea instalarlo ahora?",
-            "Instalación Requerida",
-            [System.Windows.Forms.MessageBoxButtons]::YesNo,
-            [System.Windows.Forms.MessageBoxIcon]::Question
-        )
+        $messageInstalacionChoco = @"
+Chocolatey es necesario SOLAMENTE si deseas:
+✓ Comprimir el respaldo (crear ZIP con contraseña)
+✓ Subir el respaldo a Mega.nz
+
+Si solo necesitas crear el respaldo básico (archivo .BAK), NO es necesario instalarlo.
+
+¿Deseas instalar Chocolatey ahora para habilitar estas funciones adicionales?
+"@
+                $response = [System.Windows.Forms.MessageBox]::Show(
+                    $messageInstalacionChoco,
+                    "Instalación Requerida",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Question
+                )
 
         if ($response -eq [System.Windows.Forms.DialogResult]::Yes) {
             Write-Host "Instalando Chocolatey..." -ForegroundColor Cyan

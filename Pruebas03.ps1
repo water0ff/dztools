@@ -709,12 +709,13 @@ $restoreColorOnLeave = {
 }
         $lblHostname.Add_MouseEnter($changeColorOnHover)
         $lblHostname.Add_MouseLeave($restoreColorOnLeave)
+#No se te olvide agregar los botones nuevos aqui:
 $buttonsToUpdate = @(
     $LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler,
     $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool,
     $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion,
     $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
-    $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK
+    $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btn_logMarketplace
 )
 
 foreach ($button in $buttonsToUpdate) {

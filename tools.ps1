@@ -3669,7 +3669,7 @@ Si solo necesitas crear el respaldo básico (archivo .BAK), NO es necesario inst
 
                                 # Preparar credenciales y archivo de configuración
                                 $MegaUser = "gerardo.zermeno@nationalsoft.mx"
-                                $MegaPass = "National09$#"
+                                $MegaPass = "National.09$#"
                                 $configPath = "$env:APPDATA\megatools.ini"
                                 if (-not (Test-Path $configPath)) {
                                     $configDir = Split-Path -Path $configPath -Parent
@@ -3789,3 +3789,4 @@ $btnExit.Add_Click({
                 })
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()
+

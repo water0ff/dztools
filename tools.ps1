@@ -29,6 +29,8 @@ if ($response.Character -ne 'Y') {
 Clear-Host
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
+- Se cambió la instalación de SSMS14 a SSMS18.
+- Se deshabilitó la subida a mega.
 - Restructura del proceso de Backups (choco).
 - Se agregó subida a megaupload.
 - Se agregó compresión con contraseña de respaldos
@@ -54,7 +56,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250612.0755"  #mega update
+                                                                                                        $version = "Alfa 251024.0919"  #mega update
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -1999,10 +2001,12 @@ $LZMAbtnBuscarCarpeta.Add_Click({
 # Crear los botones dentro del nuevo formulario
     $btnInstallSQL2014 = Create-Button -Text "Install: SQL2014" -Location (New-Object System.Drawing.Point(10, 10)) `
         -ToolTip "Instalación mediante choco de SQL Server 2014 Express." -Enabled $false
+        
     $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(240, 10)) `
         -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
-    $btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 50)) `
-        -ToolTip "Instalación mediante choco de SQL Management 2014."
+# Reemplazar el botón existente (buscar alrededor de línea 1910)
+    $btnInstallSQLManagement = Create-Button -Text "Install: SSMS18" -Location (New-Object System.Drawing.Point(10, 50)) `
+        -ToolTip "Instalación mediante choco de SQL Server Management Studio 18."
     $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 120)) `
         -ToolTip "Salir del formulario de instaladores."
 # Agregar los botones al nuevo formulario
@@ -2025,11 +2029,23 @@ $btnInstalarHerramientas.Add_Click({
             Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
         }
 })
-#Boton para instalar Management
+#btnInstallSQLManagement Click MouseOver
+$btnInstallSQLManagement.Add_MouseEnter({
+    $txt_InfoInstrucciones.Text = @"
+Instalación de SQL Server Management Studio 18 mediante Chocolatey.
+Versión: 18.12.1
+Incluye todas las características modernas de SSMS.
+"@
+})
+#btnInstallSQLManagement Click
 $btnInstallSQLManagement.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    
+    # Verificar si Chocolatey está instalado
+    if (!(Check-Chocolatey)) { return }
+
     $response = [System.Windows.Forms.MessageBox]::Show(
-        "¿Desea proceder con la instalación de SQL Server Management Studio 2014 Express?",
+        "¿Desea proceder con la instalación de SQL Server Management Studio 18?",
         "Advertencia de instalación",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Warning
@@ -2040,21 +2056,37 @@ $btnInstallSQLManagement.Add_Click({
         return
     }
 
-    if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso (cancelado o error)
-
     Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
 
     try {
         Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
         choco config set cacheLocation C:\Choco\cache
 
-        Write-Host "`nInstalando SQL Server Management Studio 2014 Express usando Chocolatey..." -ForegroundColor Cyan
-        Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express --confirm --yes' -NoNewWindow -Wait
+        Write-Host "`nInstalando SQL Server Management Studio 18 usando Chocolatey..." -ForegroundColor Cyan
+        
+        # Comando actualizado para SSMS 18
+        Start-Process choco -ArgumentList 'install sql-server-management-studio --version=18.12.1 --confirm --yes' -NoNewWindow -Wait
+        
         Write-Host "`nInstalación completa." -ForegroundColor Green
-    } catch {
+        
+        [System.Windows.Forms.MessageBox]::Show(
+            "SQL Server Management Studio 18 instalado correctamente.",
+            "Éxito",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Information
+        )
+    } 
+    catch {
         Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
+        [System.Windows.Forms.MessageBox]::Show(
+            "Error al instalar SQL Server Management Studio 18: $($_.Exception.Message)", 
+            "Error", 
+            [System.Windows.Forms.MessageBoxButtons]::OK, 
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        )
     }
 })
+
 # Instalador de SQL 2019
 $btnInstallSQL2019.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
@@ -3382,7 +3414,8 @@ Si solo necesitas crear el respaldo básico (archivo .BAK), NO es necesario inst
             if ($chkComprimir.Checked) {
                 # Habilitar Subir sólo si mismo host; la instalación dinámica de megatools la gestionamos al marcar
                 if ($sameHost) {
-                    $chkSubir.Enabled = $true
+                    #$chkSubir.Enabled = $true
+                    $chkSubir.Enabled = $false
                     $tooltipCHK.SetToolTip($chkSubir, "Activar para subir respaldo comprimido a Mega.nz.")
                 }
                 else {
@@ -3789,4 +3822,5 @@ $btnExit.Add_Click({
                 })
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()
+
 

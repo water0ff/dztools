@@ -29,7 +29,7 @@ if ($response.Character -ne 'Y') {
 Clear-Host
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
-- Se cambió la instalación de SSMS14 a SSMS18.
+- Se cambió la instalación de SSMS14 a SSMS21.
 - Se deshabilitó la subida a mega.
 - Restructura del proceso de Backups (choco).
 - Se agregó subida a megaupload.
@@ -56,7 +56,7 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 251024.0919"  #mega update
+                                                                                                        $version = "Alfa 251024.0925"  #SSMS21
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -2065,7 +2065,7 @@ $btnInstallSQLManagement.Add_Click({
         Write-Host "`nInstalando SQL Server Management Studio 18 usando Chocolatey..." -ForegroundColor Cyan
         
         # Comando actualizado para SSMS 18
-        Start-Process choco -ArgumentList 'install sql-server-management-studio --version=18.12.1 --confirm --yes' -NoNewWindow -Wait
+        Start-Process choco -ArgumentList 'install sql-server-management-studio --confirm --yes' -NoNewWindow -Wait
         
         Write-Host "`nInstalación completa." -ForegroundColor Green
         
@@ -3822,5 +3822,6 @@ $btnExit.Add_Click({
                 })
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()
+
 
 

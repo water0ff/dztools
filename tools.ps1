@@ -906,7 +906,37 @@ function Check-Chocolatey {
                 return $true # Retorna verdadero si Chocolatey ya está instalado
             }
 }
-# Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
+# NUEVO: Selector de versión para SSMS
+function Show-SSMSInstallerDialog {
+    $form = Create-Form -Title "Instalar SSMS" `
+        -Size (New-Object System.Drawing.Size(360,180)) `
+        -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+        -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) `
+        -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255,255,255))
+
+    $lbl = Create-Label -Text "Elige la versión a instalar:" -Location (New-Object System.Drawing.Point(10,15)) -Size (New-Object System.Drawing.Size(320,20))
+    $cmb = Create-ComboBox -Location (New-Object System.Drawing.Point(10,40)) -Size (New-Object System.Drawing.Size(320,22)) -DropDownStyle DropDownList
+    $null = $cmb.Items.Add("Último disponible (SSMS actual)")
+    $null = $cmb.Items.Add("SSMS 14 (2014)")
+    $cmb.SelectedIndex = 0
+
+    $btnOK = Create-Button -Text "Instalar" -Location (New-Object System.Drawing.Point(10,80)) -Size (New-Object System.Drawing.Size(140,30))
+    $btnOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $btnCancel = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(190,80)) -Size (New-Object System.Drawing.Size(140,30))
+    $btnCancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+
+    $form.AcceptButton = $btnOK
+    $form.CancelButton = $btnCancel
+    $form.Controls.AddRange(@($lbl,$cmb,$btnOK,$btnCancel))
+
+    $result = $form.ShowDialog()
+    if ($result -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
+
+    switch ($cmb.SelectedIndex) {
+        0 { return "latest" }
+        1 { return "ssms14" }
+    }
+}
     function Check-Permissions {
                 $folderPath = "C:\NationalSoft"
                 $acl = Get-Acl -Path $folderPath
@@ -2029,64 +2059,80 @@ $btnInstalarHerramientas.Add_Click({
             Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
         }
 })
-#btnInstallSQLManagement Click MouseOver
 $btnInstallSQLManagement.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
-Instalación de SQL Server Management Studio 18 mediante Chocolatey.
-Versión: 18.12.1
-Incluye todas las características modernas de SSMS.
+Instalación de SQL Server Management Studio mediante Chocolatey.
+Al presionar, podrás elegir:
+  • Último disponible (paquete: sql-server-management-studio)
+  • SSMS 14 / 2014 (paquete: mssqlservermanagementstudio2014express)
 "@
 })
 #btnInstallSQLManagement Click
 $btnInstallSQLManagement.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-    
-    # Verificar si Chocolatey está instalado
+
+    # Verificar Chocolatey
     if (!(Check-Chocolatey)) { return }
 
+    # Mostrar selector
+    $choice = Show-SSMSInstallerDialog
+    if (-not $choice) {
+        Write-Host "`nInstalación cancelada por el usuario." -ForegroundColor Yellow
+        return
+    }
+
+    # Confirmación
+    $texto = if ($choice -eq "latest") {
+        "¿Desea instalar el SSMS 'Último disponible'?"
+    } else {
+        "¿Desea instalar SSMS 14 (2014)?"
+    }
     $response = [System.Windows.Forms.MessageBox]::Show(
-        "¿Desea proceder con la instalación de SQL Server Management Studio 18?",
-        "Advertencia de instalación",
+        $texto,"Advertencia de instalación",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Warning
     )
-
-    if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+    if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
         Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
         return
     }
 
-    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-
     try {
         Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
-        choco config set cacheLocation C:\Choco\cache
+        choco config set cacheLocation C:\Choco\cache | Out-Null
 
-        Write-Host "`nInstalando SQL Server Management Studio 18 usando Chocolatey..." -ForegroundColor Cyan
-        
-        # Comando actualizado para SSMS 18
-        Start-Process choco -ArgumentList 'install sql-server-management-studio --confirm --yes' -NoNewWindow -Wait
-        
-        Write-Host "`nInstalación completa." -ForegroundColor Green
-        
-        [System.Windows.Forms.MessageBox]::Show(
-            "SQL Server Management Studio 18 instalado correctamente.",
-            "Éxito",
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Information
-        )
-    } 
+        if ($choice -eq "latest") {
+            Write-Host "`nInstalando 'Último disponible' (sql-server-management-studio)..." -ForegroundColor Cyan
+            Start-Process choco -ArgumentList 'install sql-server-management-studio -y' -NoNewWindow -Wait
+            [System.Windows.Forms.MessageBox]::Show(
+                "SSMS (último disponible) instalado correctamente.",
+                "Éxito",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            ) | Out-Null
+        }
+        elseif ($choice -eq "ssms14") {
+            Write-Host "`nInstalando SSMS 14 (mssqlservermanagementstudio2014express)..." -ForegroundColor Cyan
+            Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express -y' -NoNewWindow -Wait
+            [System.Windows.Forms.MessageBox]::Show(
+                "SSMS 14 (2014) instalado correctamente.",
+                "Éxito",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            ) | Out-Null
+        }
+        Write-Host "`nInstalación completada." -ForegroundColor Green
+    }
     catch {
         Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
         [System.Windows.Forms.MessageBox]::Show(
-            "Error al instalar SQL Server Management Studio 18: $($_.Exception.Message)", 
-            "Error", 
-            [System.Windows.Forms.MessageBoxButtons]::OK, 
+            "Error al instalar SSMS: $($_.Exception.Message)",
+            "Error",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
-        )
+        ) | Out-Null
     }
 })
-
 # Instalador de SQL 2019
 $btnInstallSQL2019.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
@@ -3822,6 +3868,7 @@ $btnExit.Add_Click({
                 })
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()
+
 
 
 

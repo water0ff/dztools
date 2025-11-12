@@ -916,7 +916,7 @@ function Show-SSMSInstallerDialog {
 
     $lbl = Create-Label -Text "Elige la versión a instalar:" -Location (New-Object System.Drawing.Point(10,15)) -Size (New-Object System.Drawing.Size(320,20))
     $cmb = Create-ComboBox -Location (New-Object System.Drawing.Point(10,40)) -Size (New-Object System.Drawing.Size(320,22)) -DropDownStyle DropDownList
-    $null = $cmb.Items.Add("Último disponible (SSMS actual)")
+    $null = $cmb.Items.Add("Último disponible.")
     $null = $cmb.Items.Add("SSMS 14 (2014)")
     $cmb.SelectedIndex = 0
 
@@ -2035,8 +2035,8 @@ $LZMAbtnBuscarCarpeta.Add_Click({
     $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(240, 10)) `
         -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
 # Reemplazar el botón existente (buscar alrededor de línea 1910)
-    $btnInstallSQLManagement = Create-Button -Text "Install: SSMS18" -Location (New-Object System.Drawing.Point(10, 50)) `
-        -ToolTip "Instalación mediante choco de SQL Server Management Studio 18."
+    $btnInstallSQLManagement = Create-Button -Text "Install: SQL Server Management Studio" -Location (New-Object System.Drawing.Point(10, 50)) `
+        -ToolTip "Instalación mediante choco de SQL Server Management Studio."
     $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 120)) `
         -ToolTip "Salir del formulario de instaladores."
 # Agregar los botones al nuevo formulario
@@ -3868,6 +3868,7 @@ $btnExit.Add_Click({
                 })
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()
+
 
 
 

@@ -1,4 +1,3 @@
-# Crear la carpeta 'C:\Temp' si no existe
 if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
@@ -8,7 +7,6 @@ if (-not (Test-Path $iconDir)) {
     New-Item -ItemType Directory -Path $iconDir -Force | Out-Null
     Write-Host "Carpeta de íconos creada: $iconDir"
 }
-# Mostrar advertencia ALFA y solicitar confirmación
 Write-Host "`n==============================================" -ForegroundColor Red
 Write-Host "           ADVERTENCIA DE VERSIÓN ALFA          " -ForegroundColor Red
 Write-Host "==============================================" -ForegroundColor Red
@@ -27,8 +25,10 @@ if ($response.Character -ne 'Y') {
     exit
 }
 Clear-Host
+                                                                                                        $version = "Alfa 251115.1125"  #INIS
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
+- Carga de INIS en la conexión a BDD.
 - Se cambió la instalación de SSMS14 a SSMS21.
 - Se deshabilitó la subida a mega.
 - Restructura del proceso de Backups (choco).
@@ -46,7 +46,6 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
     [System.Windows.Forms.Application]::EnableVisualStyles()
-# Crear el formulario
     $formPrincipal = New-Object System.Windows.Forms.Form
     $formPrincipal.Size = New-Object System.Drawing.Size(1000, 600)  # Aumentado de 720x400
     $formPrincipal.StartPosition = "CenterScreen"
@@ -56,7 +55,6 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 251024.0925"  #SSMS21
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -64,7 +62,6 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     Write-Host "=============================================" -ForegroundColor DarkCyan
     Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
     Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
-# Creación maestra de botones
     $toolTip = New-Object System.Windows.Forms.ToolTip
 function Create-Button {
                 param (
@@ -109,7 +106,6 @@ $button.Font = $Font # Usar el parámetro Font
                     }
                 return $button
             }
-#Lo mismo pero para las labels
 function Create-Label {
         param (
             [string]$Text,
@@ -167,16 +163,13 @@ function Create-Form {
             [Parameter()]
             [System.Drawing.Color]$BackColor = [System.Drawing.SystemColors]::Control
         )
-        # Crear la instancia
         $form = New-Object System.Windows.Forms.Form
-        # Propiedades básicas
         $form.Text            = $Title
         $form.Size            = $Size
         $form.StartPosition   = $StartPosition
         $form.FormBorderStyle = $FormBorderStyle
         $form.MaximizeBox     = $MaximizeBox
         $form.MinimizeBox     = $MinimizeBox
-        # Nuevas propiedades
         $form.TopMost     = $TopMost
         $form.ControlBox  = $ControlBox
         if ($Icon) {
@@ -240,7 +233,6 @@ function Create-TextBox {
     }
     return $textBox
 }
-#COMIENZA EL PROGRAMA ----------------------------------
 $global:lastReportedPct = -1  # Añadir al inicio del script
 $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(990, 515)    # Original: 710x315
@@ -252,12 +244,12 @@ $tabControl = New-Object System.Windows.Forms.TabControl
     $tabProSql.AutoScroll = $true  # Habilitar scrollbar si el contenido excede el área
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
-# Panel izquierdo (controles manualmente posicionados)
 $lblServer = Create-Label -Text "Instancia SQL:" `
     -Location (New-Object System.Drawing.Point(10, 10)) `
     -Size (New-Object System.Drawing.Size(100, 10))
-    $txtServer = Create-TextBox -Location (New-Object System.Drawing.Point(10, 20)) `
-        -Size (New-Object System.Drawing.Size(180, 20))
+$txtServer = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) `
+    -Size (New-Object System.Drawing.Size(180, 20)) -DropDownStyle "DropDown"
+    $txtServer.Text = ".\NationalSoft"
 $lblUser = Create-Label -Text "Usuario:" `
     -Location (New-Object System.Drawing.Point(10, 50)) `
     -Size (New-Object System.Drawing.Size(100, 10))
@@ -268,7 +260,6 @@ $lblPassword = Create-Label -Text "Contraseña:" `
     -Size (New-Object System.Drawing.Size(100, 10))
     $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(10, 100)) `
         -Size (New-Object System.Drawing.Size(180, 20)) -UseSystemPasswordChar $true
-        $txtServer.Text = ".\NationalSoft"
         $txtUser.Text = "sa"
 $lblbdd_cmb = Create-Label -Text "Base de datos" `
     -Location (New-Object System.Drawing.Point(10, 130)) `
@@ -298,7 +289,6 @@ $cmbQueries = New-Object System.Windows.Forms.ComboBox
     $cmbQueries.Location = New-Object System.Drawing.Point(330, 25)
     $cmbQueries.Size = New-Object System.Drawing.Size(350, 20)
     $cmbQueries.Enabled = $false
-# Crear RichTextBox
 $rtbQuery = New-Object System.Windows.Forms.RichTextBox
     $rtbQuery.Location   = New-Object System.Drawing.Point(220, 60)
     $rtbQuery.Size = New-Object System.Drawing.Size(740, 140)     # Mayor ancho
@@ -309,23 +299,19 @@ $rtbQuery = New-Object System.Windows.Forms.RichTextBox
     $rtbQuery.Add_TextChanged({
         $pos = $rtbQuery.SelectionStart
         $rtbQuery.SuspendLayout()
-        # 1. Restablecer todo a negro
         $rtbQuery.SelectAll()
         $rtbQuery.SelectionColor = [System.Drawing.Color]::Black
-        # 2. Encontrar y resaltar comentarios de línea (--) y almacenar rangos
         $commentRanges = @()
         foreach ($c in [regex]::Matches($rtbQuery.Text, '--.*', 'Multiline')) {
             $rtbQuery.Select($c.Index, $c.Length)
             $rtbQuery.SelectionColor = [System.Drawing.Color]::Green
             $commentRanges += [PSCustomObject]@{ Start = $c.Index; End = $c.Index + $c.Length }
         }
-        # 3. Encontrar y resaltar comentarios de bloque (/* ... */) y agregar rangos
         foreach ($b in [regex]::Matches($rtbQuery.Text, '/\*[\s\S]*?\*/', 'Multiline')) {
             $rtbQuery.Select($b.Index, $b.Length)
             $rtbQuery.SelectionColor = [System.Drawing.Color]::Green
             $commentRanges += [PSCustomObject]@{ Start = $b.Index; End = $b.Index + $b.Length }
         }
-        # 4. Resaltar keywords en azul sólo fuera de comentarios
         foreach ($m in [regex]::Matches($rtbQuery.Text, "\b($keywords)\b", 'IgnoreCase')) {
             $inComment = $commentRanges | Where-Object { $m.Index -ge $_.Start -and $m.Index -lt $_.End }
             if (-not $inComment) {
@@ -333,11 +319,9 @@ $rtbQuery = New-Object System.Windows.Forms.RichTextBox
                 $rtbQuery.SelectionColor = [System.Drawing.Color]::Blue
             }
         }
-        # 5. Restaurar posición del cursor
         $rtbQuery.Select($pos, 0)
         $rtbQuery.ResumeLayout()
     })
-# Configuración del DataGridView
 $dgvResults = New-Object System.Windows.Forms.DataGridView
 $dgvResults.Location                   = New-Object System.Drawing.Point(220, 205)
 $dgvResults.Size                       = New-Object System.Drawing.Size(740, 280)
@@ -350,27 +334,22 @@ $dgvResults.MultiSelect                = $true
 $dgvResults.ClipboardCopyMode          = [System.Windows.Forms.DataGridViewClipboardCopyMode]::EnableAlwaysIncludeHeaderText
 $dgvResults.DefaultCellStyle.SelectionBackColor  = [System.Drawing.Color]::LightBlue
 $dgvResults.DefaultCellStyle.SelectionForeColor  = [System.Drawing.Color]::Black
-# Capturar estilos originales
 $script:originalForeColor = $dgvResults.DefaultCellStyle.ForeColor
 $script:originalHeaderBackColor = $dgvResults.ColumnHeadersDefaultCellStyle.BackColor
 $script:originalAutoSizeMode = $dgvResults.AutoSizeColumnsMode
-# 1. Crear menú contextual
 $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
 $copyMenu    = New-Object System.Windows.Forms.ToolStripMenuItem
 $copyMenu.Text = "Copiar selección"
 $contextMenu.Items.Add($copyMenu) | Out-Null
 $dgvResults.ContextMenuStrip = $contextMenu
-# 2. Evento Click en “Copiar selección”
 $copyMenu.Add_Click({
     if ($dgvResults.GetCellCount("Selected") -gt 0) {
-        # Obtener texto tabulado de todas las celdas seleccionadas
         $dataObj = $dgvResults.GetClipboardContent()
         if ($dataObj) {
             [Windows.Forms.Clipboard]::SetText($dataObj.GetText())
         }
     }
 })
-# 3. Habilitar Ctrl+C para copiar selección
 $dgvResults.Add_KeyDown({
     param($sender, $e)
     if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::C) {
@@ -381,7 +360,6 @@ $dgvResults.Add_KeyDown({
         $e.Handled = $true
     }
 })
-# 4. Selección con clic derecho puntual
 $dgvResults.Add_MouseDown({
     param($sender, $args)
     if ($args.Button -eq [System.Windows.Forms.MouseButtons]::Right) {
@@ -396,14 +374,12 @@ $dgvResults.Add_MouseDown({
         }
     }
 })
-#PANEL
 $panelGrid = New-Object System.Windows.Forms.Panel
     $panelGrid.Location = $dgvResults.Location
     $panelGrid.Size = $dgvResults.Size
     $panelGrid.AutoScroll = $true
     $dgvResults.Dock = [System.Windows.Forms.DockStyle]::Fill
     $panelGrid.Controls.Add($dgvResults)
-#DISABLE:
         $btnConnectDb.Enabled    = $True
         $btnBackup.Enabled       = $false
         $btnDisconnectDb.Enabled = $false
@@ -414,9 +390,10 @@ $panelGrid = New-Object System.Windows.Forms.Panel
         $txtPassword.Enabled = $true
         $btnExecute.Enabled = $false
         $cmbQueries.Enabled = $false
-    $tabProSql.Controls.AddRange(@(
+$tabProSql.Controls.AddRange(@(
     $btnConnectDb,
     $btnDisconnectDb,
+    $btnReloadConnections,  # <-- Agregar este
     $cmbDatabases,  # <-- Aquí el ComboBox reemplaza al ListBox
     $lblConnectionStatus,
     $btnExecute,
@@ -432,7 +409,6 @@ $panelGrid = New-Object System.Windows.Forms.Panel
     $panelGrid,
     $btnBackup
 ))
-# Hashtable con consultas predefinidas usando here-strings
 $script:predefinedQueries = @{
 "Monitor de Servicios | Ventas a subir" = @"
 SELECT DISTINCT TOP (10)
@@ -595,7 +571,6 @@ WHERE
     p.type IN ('S', 'U') -- Usuarios SQL y Windows
 "@
 }
-#Agregando los Queries en orden:
     $sortedKeys = $script:predefinedQueries.Keys | Sort-Object
     $cmbQueries.Items.Clear()
     foreach ($key in $sortedKeys) {
@@ -665,11 +640,9 @@ $txt_InfoInstrucciones = Create-TextBox `
     -ReadOnly  $true
 $txt_InfoInstrucciones.WordWrap = $true
 $txt_InfoInstrucciones.Text = $global:defaultInstructions
-#FUERA DEL TAB
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(350, 525)) `
                                 -Size (New-Object System.Drawing.Size(500, 30)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
-# Agregar botones a la pestaña de aplicaciones
 $tabAplicaciones.Controls.AddRange(@(
             $btnInstalarHerramientas,
             $btnProfiler,
@@ -695,12 +668,10 @@ $tabAplicaciones.Controls.AddRange(@(
             $txt_InfoInstrucciones,
             $btnCreateAPK
 ))
-# Función para manejar MouseEnter y cambiar el color
 $changeColorOnHover = {
     param($sender, $eventArgs)
     $sender.BackColor = [System.Drawing.Color]::Orange
 }
-# Función para manejar MouseLeave y restaurar el color
 $restoreColorOnLeave = {
     param($sender, $eventArgs)
     $sender.BackColor = [System.Drawing.Color]::Black
@@ -714,7 +685,6 @@ $buttonsToUpdate = @(
     $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
     $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK
 )
-
 foreach ($button in $buttonsToUpdate) {
     $button.Add_MouseLeave({
         $txt_InfoInstrucciones.Text = $global:defaultInstructions
@@ -729,49 +699,42 @@ un nuevo registro y así evite el mensaje de error conocido:
     Error al crear el archivo en temporales
 "@
 })
-# 2.2 “Instalar Herramientas (Chocolatey)”
 $btnInstalarHerramientas.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Abre el menú de instaladores de Chocolatey para instalar o actualizar
 herramientas de línea de comandos y utilerías en el sistema.
 "@
 })
-# 2.3 “Ejecutar ExpressProfiler”
 $btnProfiler.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Ejecuta o descarga ExpressProfiler desde el servidor oficial,
 herramienta para monitorear consultas de SQL Server.
 "@
 })
-# 2.4 “Ejecutar Database4”
 $btnDatabase.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Ejecuta Database4: si no está instalado, lo descarga automáticamente
 y luego lo lanza para la gestión de sus bases de datos.
 "@
 })
-# 2.5 “Ejecutar Manager (SQL 2014)”
 $btnSQLManager.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Ejecuta SQL Server Management Studio (para SQL 2014). Si no lo encuentra,
 avisará al usuario dónde descargarlo desde el repositorio oficial.
 "@
 })
-# 2.6 “Ejecutar Management (SQL Management)”
 $btnSQLManagement.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Busca SQL Management en el equipo, recupera la versión instalada
 y la muestra antes de ejecutarlo.
 "@
 })
-# 2.7 “Printer Tools”
 $btnPrinterTool.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Herramienta de Star Micronics para configurar y diagnosticar impresoras POS:
 permite probar estado, formatear y configurar parámetros fundamentales.
 "@
 })
-# 2.8 “Lector DP - Permisos”
 $btnLectorDPicacls.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Repara el error al instalar el Driver del lector DP.
@@ -779,7 +742,6 @@ Modifica los permisos de la carpeta C:\Windows\System32\en-us
 mediante el comando ICALCS para el driver tenga los permisos necesarios.
 "@
 })
-# 2.9 “Agregar IPs”
 $btnConfigurarIPs.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Agrega direcciones IP adicionales para configurar impresoras en red
@@ -787,14 +749,12 @@ que estén en un segmento diferente al predeterminado.
 Convierte de DHCP a ip fija y tambien permite cambiar la configuración de ip fija a DHCP.
 "@
 })
-# 2.10 “Agregar usuario de Windows”
 $btnAddUser.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Crea un nuevo usuario local en Windows con permisos básicos:
 útil para sesión independiente en estaciones o terminales.
 "@
 })
-# 2.11 “Actualizar datos del sistema”
 $btnForzarActualizacion.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Para el error de descarga de licencia por no tener datos de equipo como el procesador.
@@ -802,35 +762,30 @@ Actualiza la información de hardware del sistema:
 reescanea unidades, adaptadores y muestra un resumen de dispositivos.
 "@
 })
-# 2.12 “Clear AnyDesk”
 $btnClearAnyDesk.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Detiene el servicio de AnyDesk, elimina los archivos temporales
 y forja un nuevo ID para evitar conflictos de acceso remoto.
 "@
 })
-# 2.13 “Mostrar Impresoras”
 $btnShowPrinters.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Muestra en consola las impresoras instaladas en Windows,
 junto con su puerto y driver correspondiente.
 "@
 })
-# 2.14 “Limpia y Reinicia Cola de Impresión”
 $btnClearPrintJobs.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Limpia la cola de impresión y reinicia el servicio de spooler
 para liberar trabajos atascados.
 "@
 })
-# 2.15 “Aplicaciones National Soft”
 $btnAplicacionesNS.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Busca los archivos INI de National Soft en el equipo
 y extrae la información de conexión a bases de datos.
 "@
 })
-# 2.16 “Permisos C:\NationalSoft”
 $btnCheckPermissions.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Revisa los permisos de la carpeta C:\NationalSoft
@@ -838,22 +793,18 @@ y muestra qué usuarios tienen acceso de lectura/escritura.
 * Permite asignar permisos heredados a Everyone a dicha carpeta.
 "@
 })
-# 2.17 “Cambiar OTM a SQL/DBF”
 $btnCambiarOTM.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Cambia la configuración de On The Minute (OTM)
 entre SQL Server y DBF según corresponda.
 "@
 })
-# 2.18 “Creación de SRM APK”
 $btnCreateAPK.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Genera el archivo APK para Comandero Móvil:
 compila el proyecto y lo coloca en la carpeta de salida.
 "@
 })
-#FUNCIONES:
-# Función para verificar e instalar Chocolatey
 function Check-Chocolatey {
             if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
                 $response = [System.Windows.Forms.MessageBox]::Show(
@@ -1023,6 +974,8 @@ function Show-SSMSInstallerDialog {
 # Agregar los controles al formulario
             $formPrincipal.Controls.Add($tabControl)
             $formPrincipal.Controls.Add($btnExit)
+# CARGAR CONEXIONES DE INI AL COMBOBOX - AGREGAR ESTO
+        Load-IniConnectionsToComboBox
 # Obtener el puerto de SQL Server desde el registro
         $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
         $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
@@ -1859,10 +1812,6 @@ $btnClearPrintJobs.Add_Click({
             [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al intentar limpiar las impresoras o reiniciar el servicio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
-
-
-
-#LMZA
 $LZMAbtnBuscarCarpeta.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
 
@@ -2021,10 +1970,7 @@ $LZMAbtnBuscarCarpeta.Add_Click({
             [System.Windows.Forms.MessageBoxIcon]::Error
         )
     }
-})
-
-
-                
+})               
 # Crear el nuevo formulario para los instaladores de Chocolatey
         $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))   
@@ -2401,6 +2347,85 @@ $btnConfigurarIPs.Add_Click({
                 }
             })
             $formIpAssignAsignacion.ShowDialog()
+})
+function Get-IniConnections {
+    $connections = @()
+    
+    # Lista de rutas principales con los archivos .ini correspondientes
+    $pathsToCheck = @(
+        @{ Path = "C:\NationalSoft\Softrestaurant9.5.0Pro"; INI = "restaurant.ini"; Nombre = "SR9.5" },
+        @{ Path = "C:\NationalSoft\Softrestaurant12.0";    INI = "restaurant.ini"; Nombre = "SR12" },
+        @{ Path = "C:\NationalSoft\Softrestaurant11.0";    INI = "restaurant.ini"; Nombre = "SR11" },
+        @{ Path = "C:\NationalSoft\Softrestaurant10.0";    INI = "restaurant.ini"; Nombre = "SR10" },
+        @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0";INI = "nshoteles.ini";   Nombre = "Hoteles" },
+        @{ Path = "C:\NationalSoft\OnTheMinute4.5";        INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
+    )
+
+    # Función para leer valores de archivos INI
+    function Get-IniValue {
+        param([string]$FilePath, [string]$Key)
+        if (Test-Path $FilePath) {
+            $line = Get-Content $FilePath | Where-Object { $_ -match "^$Key\s*=" }
+            if ($line) {
+                return $line.Split('=')[1].Trim()
+            }
+        }
+        return $null
+    }
+
+    # Procesar cada ruta
+    foreach ($entry in $pathsToCheck) {
+        $mainIni = Join-Path $entry.Path $entry.INI
+        
+        # Verificar archivo INI principal
+        if (Test-Path $mainIni) {
+            $dataSource = Get-IniValue -FilePath $mainIni -Key "DataSource"
+            if ($dataSource -and $dataSource -notin $connections) {
+                $connections += $dataSource
+            }
+        }
+
+        # Verificar carpeta INIS para multiempresa (especialmente OTM)
+        $inisFolder = Join-Path $entry.Path "INIS"
+        if (Test-Path $inisFolder) {
+            $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
+            foreach ($iniFile in $iniFiles) {
+                $dataSource = Get-IniValue -FilePath $iniFile.FullName -Key "DataSource"
+                if ($dataSource -and $dataSource -notin $connections) {
+                    $connections += $dataSource
+                }
+            }
+        }
+    }
+
+    return $connections | Sort-Object
+}
+function Load-IniConnectionsToComboBox {
+    $connections = Get-IniConnections
+    $txtServer.Items.Clear()
+    
+    if ($connections.Count -gt 0) {
+        foreach ($connection in $connections) {
+            $txtServer.Items.Add($connection)
+        }
+        Write-Host "Se cargaron $($connections.Count) conexiones desde archivos INI" -ForegroundColor Green
+    } else {
+        Write-Host "No se encontraron conexiones en archivos INI" -ForegroundColor Yellow
+    }
+    
+    # Establecer valor por defecto si existe
+    $defaultServer = ".\NationalSoft"
+    $txtServer.Text = $defaultServer
+}
+# Agregar este botón cerca de los otros controles de conexión
+$btnReloadConnections = Create-Button -Text "Recargar Conexiones" -Location (New-Object System.Drawing.Point(10, 180)) `
+    -Size (New-Object System.Drawing.Size(180, 30)) `
+    -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
+    -ToolTip "Recargar la lista de conexiones desde archivos INI"
+
+$btnReloadConnections.Add_Click({
+    Write-Host "Recargando conexiones desde archivos INI..." -ForegroundColor Cyan
+    Load-IniConnectionsToComboBox
 })
 # ICACLS para dar permisos cuando marca error driver de lector
 $btnLectorDPicacls.Add_Click({
@@ -3868,6 +3893,7 @@ $btnExit.Add_Click({
                 })
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()
+
 
 
 

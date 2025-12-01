@@ -1,0 +1,40 @@
+@"
+# PowerShell
+*.ps1xml
+*.pssc
+*.psm1
+*.psd1
+*.ps1
+*.exe
+*.dll
+
+# Temporales
+*.suo
+*.user
+*.cache
+*.log
+*.tmp
+*.temp
+
+# Directorios
+obj/
+bin/
+.vs/
+.vscode/
+.idea/
+__pycache__/
+node_modules/
+
+# Archivos de usuario
+Thumbs.db
+Desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# VS Code
+.vscode/settings.json
+.vscode/launch.json
+"@ | Out-File -FilePath .gitignore -Encoding UTF8

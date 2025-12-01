@@ -25,7 +25,7 @@ if ($response.Character -ne 'Y') {
     exit
 }
 Clear-Host
-                                                                                                        $version = "Alfa 251120.1026"  #INIS
+                                                                                                        $version = "Alfa 251125.1626"  #INIS
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
 - Carga de INIS en la conexión a BDD.
@@ -2396,7 +2396,7 @@ function Load-IniConnectionsToComboBox {
     
     if ($connections.Count -gt 0) {
         foreach ($connection in $connections) {
-            $txtServer.Items.Add($connection)
+            $txtServer.Items.Add($connection) | Out-Null
         }
         #Write-Host "`tSe cargaron $($connections.Count) conexiones desde archivos INI" -ForegroundColor Green Probar sin este
     } else {
@@ -3625,4 +3625,5 @@ $btnExit.Add_Click({
                 })
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()
+
 

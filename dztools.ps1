@@ -2,17 +2,23 @@ param(
     [string]$Branch = "develop"
 )
 
-# 1) Limpiar pantalla al inicio
+# Carpeta PERSISTENTE donde se guardará siempre
+$baseRuntimePath = "C:\temp\dztools"
+
+# Repo
+$Owner = "water0ff"
+$Repo  = "dztools"
+
+# Limpiar pantalla
 Clear-Host
 
-# 2) Función para mostrar barra de progreso simple
 function Show-ProgressBar {
     param(
         [int]$Percent,
         [string]$Message = ""
     )
 
-    $width = 20  # ancho de la barra
+    $width = 20
     if ($Percent -lt 0) { $Percent = 0 }
     if ($Percent -gt 100) { $Percent = 100 }
 
@@ -23,29 +29,22 @@ function Show-ProgressBar {
     Write-Host "`r$line" -NoNewline
 
     if ($Percent -ge 100) {
-        Write-Host ""  # salto de línea al terminar
+        Write-Host ""
     }
 }
 
-# Configuración del repo
-$Owner = "water0ff"
-$Repo  = "dztools"
-
-# 3) Carpeta PERSISTENTE (ya no se borra)
-#    - Se reutiliza para que arranque más rápido si ya existe
-$baseRuntimePath = Join-Path $env:LOCALAPPDATA "dztools-runtime"
-
+# Crear carpeta base si no existe
 if (-not (Test-Path $baseRuntimePath)) {
     New-Item -ItemType Directory -Path $baseRuntimePath | Out-Null
 }
 
 Show-ProgressBar -Percent 5 -Message "Revisando instalación previa..."
 
-# 4) Intentar usar versión ya descargada
 $projectRoot = $null
 $mainPath    = $null
 $useExisting = $false
 
+# Buscar versión ya descargada
 $existingRoot = Get-ChildItem $baseRuntimePath -Directory -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -like "$Repo-*" } |
     Sort-Object LastWriteTime -Descending |
@@ -61,9 +60,8 @@ if ($existingRoot) {
     }
 }
 
-# 5) Si no hay versión usable, descargar y extraer
+# Si no hay versión usable, descargar
 if (-not $useExisting) {
-
     $zipUrl  = "https://github.com/$Owner/$Repo/archive/refs/heads/$Branch.zip"
     $zipPath = Join-Path $baseRuntimePath "dztools.zip"
 
@@ -81,15 +79,11 @@ if (-not $useExisting) {
 
     Show-ProgressBar -Percent 50 -Message "Extrayendo archivos..."
 
-    # Limpiar versiones anteriores del repo (pero no toda la carpeta runtime)
+    # Borrar versiones anteriores del repo dentro de C:\temp\dztools
     Get-ChildItem $baseRuntimePath -Directory -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -like "$Repo-*" } |
         ForEach-Object {
-            try {
-                Remove-Item $_.FullName -Recurse -Force -ErrorAction Stop
-            } catch {
-                # ignorar errores
-            }
+            try { Remove-Item $_.FullName -Recurse -Force -ErrorAction Stop } catch {}
         }
 
     try {
@@ -140,5 +134,4 @@ Write-Host "   Carpeta: $projectRoot" -ForegroundColor DarkGray
 Write-Host "=============================================" -ForegroundColor Gray
 Write-Host ""
 
-# 6) Ejecutar el main del proyecto
 & $mainPath

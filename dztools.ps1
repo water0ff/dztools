@@ -41,81 +41,85 @@ if (-not (Test-Path $baseRuntimePath)) {
 
 Show-ProgressBar -Percent 5 -Message "Revisando instalación previa..."
 
-# 4) Ver si ya tenemos una versión descargada usable
+# 4) Intentar usar versión ya descargada
+$projectRoot = $null
+$mainPath    = $null
+$useExisting = $false
+
 $existingRoot = Get-ChildItem $baseRuntimePath -Directory -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -like "$Repo-*" } |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
-
-$projectRoot = $null
-$mainPath    = $null
 
 if ($existingRoot) {
     $projectRoot = $existingRoot.FullName
     $mainPath    = Join-Path $projectRoot "src\main.ps1"
 
     if (Test-Path $mainPath) {
+        $useExisting = $true
         Show-ProgressBar -Percent 30 -Message "Usando versión ya descargada"
-        goto ExecuteApp
     }
 }
 
-# Si llegamos aquí, no hay versión usable -> descargar
-$zipUrl  = "https://github.com/$Owner/$Repo/archive/refs/heads/$Branch.zip"
-$zipPath = Join-Path $baseRuntimePath "dztools.zip"
+# 5) Si no hay versión usable, descargar y extraer
+if (-not $useExisting) {
 
-Show-ProgressBar -Percent 15 -Message "Descargando última versión..."
+    $zipUrl  = "https://github.com/$Owner/$Repo/archive/refs/heads/$Branch.zip"
+    $zipPath = Join-Path $baseRuntimePath "dztools.zip"
 
-try {
-    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
-}
-catch {
-    Show-ProgressBar -Percent 100 -Message "Error al descargar"
-    Write-Host ""
-    Write-Host "❌ No se pudo descargar el repositorio: $($_.Exception.Message)" -ForegroundColor Red
-    return
-}
+    Show-ProgressBar -Percent 15 -Message "Descargando última versión..."
 
-Show-ProgressBar -Percent 50 -Message "Extrayendo archivos..."
+    try {
+        Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
+    }
+    catch {
+        Show-ProgressBar -Percent 100 -Message "Error al descargar"
+        Write-Host ""
+        Write-Host "❌ No se pudo descargar el repositorio: $($_.Exception.Message)" -ForegroundColor Red
+        return
+    }
 
-# Opcional: limpiar versiones anteriores del mismo repo (sin borrar todo el runtime)
-Get-ChildItem $baseRuntimePath -Directory -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -like "$Repo-*" } |
-    ForEach-Object {
-        try {
-            Remove-Item $_.FullName -Recurse -Force -ErrorAction Stop
-        } catch {
-            # si algo falla, lo ignoramos y seguimos
+    Show-ProgressBar -Percent 50 -Message "Extrayendo archivos..."
+
+    # Limpiar versiones anteriores del repo (pero no toda la carpeta runtime)
+    Get-ChildItem $baseRuntimePath -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "$Repo-*" } |
+        ForEach-Object {
+            try {
+                Remove-Item $_.FullName -Recurse -Force -ErrorAction Stop
+            } catch {
+                # ignorar errores
+            }
         }
+
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $baseRuntimePath)
+    }
+    catch {
+        Show-ProgressBar -Percent 100 -Message "Error al extraer"
+        Write-Host ""
+        Write-Host "❌ No se pudo extraer el ZIP: $($_.Exception.Message)" -ForegroundColor Red
+        return
     }
 
-try {
-    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $baseRuntimePath)
+    Show-ProgressBar -Percent 70 -Message "Localizando proyecto..."
+
+    $extractedFolder = Get-ChildItem $baseRuntimePath -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "$Repo-*" } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+
+    if (-not $extractedFolder) {
+        Show-ProgressBar -Percent 100 -Message "Error"
+        Write-Host ""
+        Write-Host "❌ No se encontró la carpeta extraída del repositorio." -ForegroundColor Red
+        return
+    }
+
+    $projectRoot = $extractedFolder.FullName
+    $mainPath    = Join-Path $projectRoot "src\main.ps1"
 }
-catch {
-    Show-ProgressBar -Percent 100 -Message "Error al extraer"
-    Write-Host ""
-    Write-Host "❌ No se pudo extraer el ZIP: $($_.Exception.Message)" -ForegroundColor Red
-    return
-}
-
-Show-ProgressBar -Percent 70 -Message "Localizando proyecto..."
-
-$extractedFolder = Get-ChildItem $baseRuntimePath -Directory -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -like "$Repo-*" } |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1
-
-if (-not $extractedFolder) {
-    Show-ProgressBar -Percent 100 -Message "Error"
-    Write-Host ""
-    Write-Host "❌ No se encontró la carpeta extraída del repositorio." -ForegroundColor Red
-    return
-}
-
-$projectRoot = $extractedFolder.FullName
-$mainPath    = Join-Path $projectRoot "src\main.ps1"
 
 Show-ProgressBar -Percent 90 -Message "Preparando aplicación..."
 
@@ -128,8 +132,6 @@ if (-not (Test-Path $mainPath)) {
 
 Show-ProgressBar -Percent 100 -Message "Listo"
 
-:ExecuteApp
-
 Write-Host ""
 Write-Host "=============================================" -ForegroundColor Gray
 Write-Host "   Iniciando Daniel Tools desde GitHub" -ForegroundColor Green
@@ -138,5 +140,5 @@ Write-Host "   Carpeta: $projectRoot" -ForegroundColor DarkGray
 Write-Host "=============================================" -ForegroundColor Gray
 Write-Host ""
 
-# 5) Ejecutar el main del proyecto
+# 6) Ejecutar el main del proyecto
 & $mainPath

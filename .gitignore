@@ -1,40 +1,34 @@
-@"
-# PowerShell
+# === Build / Release ===
+release/
+out/
+bin/
+obj/
+
+# === PowerShell ===
+# (NO ignorar .ps1 ni .psm1 porque SON el código)
 *.ps1xml
 *.pssc
-*.psm1
-*.psd1
-*.ps1
-*.exe
-*.dll
 
-# Temporales
-*.suo
-*.user
-*.cache
+# === Logs / Temporales ===
 *.log
 *.tmp
 *.temp
+*.cache
 
-# Directorios
-obj/
-bin/
-.vs/
+# === Entornos / IDE ===
 .vscode/
+.vs/
 .idea/
-__pycache__/
-node_modules/
 
-# Archivos de usuario
+# === Node / Python basura ===
+node_modules/
+__pycache__/
+
+# === Sistema operativo ===
 Thumbs.db
 Desktop.ini
 
-# Backup files
+# === Backups ===
 *.bak
 *.backup
 *.old
-
-# VS Code
-.vscode/settings.json
-.vscode/launch.json
-"@ | Out-File -FilePath .gitignore -Encoding UTF8

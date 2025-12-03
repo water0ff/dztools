@@ -51,9 +51,19 @@ foreach ($module in $modules) {
 $global:version = "beta.25.12.03.0914"
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
-- Versión modularizada
-- Mejor estructura de código
-- Compatibilidad mejorada
+- Carga de INIS en la conexión a BDD.
+- Se cambió la instalación de SSMS14 a SSMS21.
+- Se deshabilitó la subida a mega.
+- Restructura del proceso de Backups (choco).
+- Se agregó subida a megaupload.
+- Se agregó compresión con contraseña de respaldos
+- Se agregó compresión con contraseña de respaldos
+- Se agregó consola de cambios y tool tip para botones
+- Reorganización de botones
+- Query Browser para SQL en pestaña: Base de datos
+- - Ahora se pueden agregar comentarios con "-" y entre "/* */"
+- - Tabla en consola
+- - Obtener columnas en consola
 "@
 function Initialize-Environment {
     Write-Host "`n=============================================" -ForegroundColor DarkCyan

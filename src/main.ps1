@@ -1,5 +1,5 @@
 ﻿#requires -Version 5.0
-
+$global:version = "beta.25.12.03.1046"
 try {
     Write-Host "Cargando ensamblados de Windows Forms..." -ForegroundColor Yellow
     Add-Type -AssemblyName System.Windows.Forms
@@ -48,7 +48,6 @@ foreach ($module in $modules) {
         Write-Host "  ✗ $module no encontrado" -ForegroundColor Red
     }
 }
-$global:version = "beta.25.12.03.0914"
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
 - Carga de INIS en la conexión a BDD.

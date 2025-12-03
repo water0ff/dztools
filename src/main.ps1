@@ -41,13 +41,18 @@ foreach ($module in $modules) {
             Import-Module $modulePath -Force -ErrorAction Stop
             Write-Host "  ✓ $module" -ForegroundColor Green
         } catch {
-            Write-Host "  ✗ Error importando `$module: `$_" -ForegroundColor Red
-
+            Write-Host "  ✗ Error importando módulo: $module" -ForegroundColor Red
+            Write-Host "    Ruta    : $modulePath" -ForegroundColor DarkYellow
+            Write-Host "    Mensaje : $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "    Detalle : $($_.InvocationInfo.PositionMessage)" -ForegroundColor DarkYellow
+            Write-Host "    Stack   : $($_.ScriptStackTrace)" -ForegroundColor DarkGray
+            throw
         }
     } else {
         Write-Host "  ✗ $module no encontrado" -ForegroundColor Red
     }
 }
+
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
 - Carga de INIS en la conexión a BDD.

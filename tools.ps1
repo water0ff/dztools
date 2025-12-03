@@ -2323,9 +2323,6 @@ Password = $MegaPass
             })
         $formBackupOptions.ShowDialog()
     })
-$btnExit.Add_Click({
-        $formPrincipal.Dispose()
-        $formPrincipal.Close()
-    })
+
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()

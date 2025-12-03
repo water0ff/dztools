@@ -311,6 +311,10 @@ function New-MainForm {
 
         $formPrincipal.Controls.Add($tabControl)
         $formPrincipal.Controls.Add($btnExit)
+        $btnExit.Add_Click({
+                $formPrincipal.Dispose()
+                $formPrincipal.Close()
+            })
         return $formPrincipal
 
     } catch {

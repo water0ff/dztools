@@ -5,16 +5,12 @@ function Invoke-SqlQuery {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Server,
-
         [Parameter(Mandatory = $true)]
         [string]$Database,
-
         [Parameter(Mandatory = $true)]
         [string]$Query,
-
         [Parameter(Mandatory = $true)]
         [string]$Username,
-
         [Parameter(Mandatory = $true)]
         [string]$Password
     )
@@ -22,14 +18,10 @@ function Invoke-SqlQuery {
     try {
         $connectionString = "Server=$Server;Database=$Database;User Id=$Username;Password=$Password;MultipleActiveResultSets=True"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-
         $connection.Open()
-
         $command = $connection.CreateCommand()
         $command.CommandText = $Query
         $command.CommandTimeout = 0
-
-        # Detectar tipo de consulta
         if ($Query -match "(?si)^\s*(SELECT|WITH)") {
             $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
             $dataTable = New-Object System.Data.DataTable
@@ -67,11 +59,7 @@ function Remove-SqlComments {
         [Parameter(Mandatory = $true)]
         [string]$Query
     )
-
-    # Eliminar comentarios multi-línea /* */
     $query = $Query -replace '(?s)/\*.*?\*/', ''
-
-    # Eliminar comentarios de línea --
     $query = $Query -replace '(?m)^\s*--.*\n?', ''
     $query = $Query -replace '(?<!\w)--.*$', ''
 
@@ -117,25 +105,19 @@ function Backup-Database {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Server,
-
         [Parameter(Mandatory = $true)]
         [string]$Database,
-
         [Parameter(Mandatory = $true)]
         [string]$Username,
-
         [Parameter(Mandatory = $true)]
         [string]$Password,
-
         [Parameter(Mandatory = $true)]
         [string]$BackupPath
     )
 
     try {
         $backupQuery = "BACKUP DATABASE [$Database] TO DISK='$BackupPath' WITH CHECKSUM"
-
         $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $backupQuery -Username $Username -Password $Password
-
         if ($result.Success) {
             return @{
                 Success    = $true
@@ -209,7 +191,6 @@ function Show-ResultsConsole {
                 foreach ($col in $columns) {
                     $columnWidths[$col] = $col.Length
                 }
-
                 Write-Host ""
                 $header = ""
                 foreach ($col in $columns) {
@@ -279,18 +260,20 @@ function Get-IniConnections {
     return $connections | Sort-Object
 }
 function Load-IniConnectionsToComboBox {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Windows.Forms.ComboBox]$Combo
+    )
     $connections = Get-IniConnections
-    $txtServer.Items.Clear()
+    $Combo.Items.Clear()
     if ($connections.Count -gt 0) {
         foreach ($connection in $connections) {
-            $txtServer.Items.Add($connection) | Out-Null
+            $Combo.Items.Add($connection) | Out-Null
         }
-        #Write-Host "`tSe cargaron $($connections.Count) conexiones desde archivos INI" -ForegroundColor Green Probar sin este
     } else {
         Write-Host "`tNo se encontraron conexiones en archivos INI" -ForegroundColor Yellow
     }
-    $defaultServer = ".\NationalSoft"
-    $txtServer.Text = $defaultServer
+    $Combo.Text = ".\NationalSoft"
 }
 function ConvertTo-DataTable {
     param($InputObject)

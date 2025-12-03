@@ -123,6 +123,7 @@ function New-MainForm {
         $txtServer = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) `
             -Size (New-Object System.Drawing.Size(180, 20)) -DropDownStyle "DropDown"
         $txtServer.Text = ".\NationalSoft"
+        Load-IniConnectionsToComboBox -Combo $txtServer
         $lblUser = Create-Label -Text "Usuario:" `
             -Location (New-Object System.Drawing.Point(10, 50)) `
             -Size (New-Object System.Drawing.Size(100, 10))

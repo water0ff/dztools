@@ -193,7 +193,7 @@ function New-MainForm {
         $tabProSql.Controls.AddRange(@(
                 $btnConnectDb,
                 $btnDisconnectDb,
-                $btnReloadConnections,  # <-- Agregar este
+                #Todavía no lo migramos                $btnReloadConnections,  # <-- Agregar este
                 $cmbDatabases,  # <-- Aquí el ComboBox reemplaza al ListBox
                 $lblConnectionStatus,
                 $btnExecute,

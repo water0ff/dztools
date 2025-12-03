@@ -38,7 +38,7 @@ foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
         try {
-            Import-Module $modulePath -Force -ErrorAction Stop
+            Import-Module $modulePath -Force -ErrorAction Stop -DisableNameChecking
             Write-Host "  ✓ $module" -ForegroundColor Green
         } catch {
             Write-Host "  ✗ Error importando módulo: $module" -ForegroundColor Red
@@ -52,7 +52,6 @@ foreach ($module in $modules) {
         Write-Host "  ✗ $module no encontrado" -ForegroundColor Red
     }
 }
-
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
 - Carga de INIS en la conexión a BDD.

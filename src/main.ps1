@@ -467,6 +467,25 @@ WHERE
             -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
             -ScrollBars 'Vertical' -Multiline $true -ReadOnly  $true
         $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
+        # Crear el nuevo formulario para los instaladores de Chocolatey
+        $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+            -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))
+        # Crear los botones dentro del nuevo formulario
+        $btnInstallSQL2014 = Create-Button -Text "Install: SQL2014" -Location (New-Object System.Drawing.Point(10, 10)) `
+            -ToolTip "Instalación mediante choco de SQL Server 2014 Express." -Enabled $false
+
+        $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(240, 10)) `
+            -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
+        # Reemplazar el botón existente (buscar alrededor de línea 1910)
+        $btnInstallSQLManagement = Create-Button -Text "Install: SQL Server Management Studio" -Location (New-Object System.Drawing.Point(10, 50)) `
+            -ToolTip "Instalación mediante choco de SQL Server Management Studio."
+        $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 120)) `
+            -ToolTip "Salir del formulario de instaladores."
+        # Agregar los botones al nuevo formulario
+        $formInstaladoresChoco.Controls.Add($btnInstallSQL2014)
+        $formInstaladoresChoco.Controls.Add($btnInstallSQL2019)
+        $formInstaladoresChoco.Controls.Add($btnInstallSQLManagement)
+        $formInstaladoresChoco.Controls.Add($btnExitInstaladores)
         $txt_InfoInstrucciones = Create-TextBox `
             -Location (New-Object System.Drawing.Point(730, 50)) `
             -Size     (New-Object System.Drawing.Size(220, 500)) `
@@ -572,6 +591,14 @@ permitiendo renombrar la carpeta correspondiente para que el instalador genere
 un nuevo registro y así evite el mensaje de error conocido:
 
     Error al crear el archivo en temporales
+"@
+            })
+        $btnInstallSQLManagement.Add_MouseEnter({
+                $txt_InfoInstrucciones.Text = @"
+Instalación de SQL Server Management Studio mediante Chocolatey.
+Al presionar, podrás elegir:
+  • Último disponible (paquete: sql-server-management-studio)
+  • SSMS 14 / 2014 (paquete: mssqlservermanagementstudio2014express)
 "@
             })
         $btnInstalarHerramientas.Add_MouseEnter({
@@ -727,6 +754,425 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     }
                 }
             })
+        $btnForzarActualizacion.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                Show-SystemComponents
+                [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
+                $resultado = [System.Windows.Forms.MessageBox]::Show(
+                    "¿Desea forzar la actualización de datos?",  # Texto de la pregunta
+                    "Confirmación",                              # Título de la ventana
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,  # Botones
+                    [System.Windows.Forms.MessageBoxIcon]::Question   # Icono
+                )
+                if ($resultado -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    Start-SystemUpdate
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Actualización completada",
+                        "Éxito",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Information
+                    ) | Out-Null
+                } else {
+                    Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
+                }
+            })
+        $btnSQLManagement.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+
+                function Get-SSMSVersions {
+                    $ssmsPaths = @()
+                    $possiblePaths = @(
+                        "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",
+                        "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"
+                    )
+                    foreach ($path in $possiblePaths) {
+                        $foundPaths = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+                        if ($foundPaths) {
+                            foreach ($foundPath in $foundPaths) {
+                                $ssmsPaths += $foundPath.FullName
+                            }
+                        }
+                    }
+                    return $ssmsPaths
+                }
+                function Get-SSMSVersionFromPath($path) {
+                    if ($path -match 'Microsoft SQL Server\\(\d+)') {
+                        return "SSMS $($matches[1])"
+                    } elseif ($path -match 'SQL Server Management Studio (\d+)') {
+                        return "SSMS $($matches[1])"
+                    } else {
+                        return "Versión desconocida"
+                    }
+                }
+                $ssmsVersions = Get-SSMSVersions
+                if ($ssmsVersions.Count -eq 0) {
+                    [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                    return
+                }
+                $formSelectionSSMS = Create-Form -Title "Seleccionar versión de SSMS" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                    -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+                $labelSSMS = Create-Label -Text "Seleccione la versión de Management:" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+                $formSelectionSSMS.Controls.Add($labelSSMS)
+                $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80))
+                $formSelectionSSMS.Controls.Add($labelSelectedVersion)
+                $comboBoxSSMS = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(310, 20)) -DropDownStyle DropDownList
+                foreach ($version in $ssmsVersions) {
+                    $comboBoxSSMS.Items.Add($version)
+                }
+                $comboBoxSSMS.SelectedIndex = 0
+                $formSelectionSSMS.Controls.Add($comboBoxSSMS)
+                $selectedVersion = $comboBoxSSMS.SelectedItem
+                $labelSelectedVersion.Text = "Versión seleccionada: $(Get-SSMSVersionFromPath $selectedVersion)"
+                $comboBoxSSMS.Add_SelectedIndexChanged({
+                        $selectedVersion = $comboBoxSSMS.SelectedItem
+                        $labelSelectedVersion.Text = "Versión seleccionada: $(Get-SSMSVersionFromPath $selectedVersion)"
+                    })
+                $buttonOKSSMS = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30))
+                $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
+                $buttonCancelSSMS = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(180, 120)) -Size (New-Object System.Drawing.Size(140, 30))
+                $buttonCancelSSMS.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+                $formSelectionSSMS.AcceptButton = $buttonOKSSMS
+                $formSelectionSSMS.Controls.Add($buttonOKSSMS)
+                $formSelectionSSMS.CancelButton = $buttonCancelSSMS
+                $formSelectionSSMS.Controls.Add($buttonCancelSSMS)
+                $result = $formSelectionSSMS.ShowDialog()
+                if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                    $selectedVersion = $comboBoxSSMS.SelectedItem
+                    try {
+                        Write-Host "`tEjecutando SQL Server Management Studio desde: $selectedVersion" -ForegroundColor Green
+                        Start-Process -FilePath $selectedVersion
+                    } catch {
+                        Write-Host "`tError al intentar ejecutar SSMS desde la ruta seleccionada." -ForegroundColor Red
+                        [System.Windows.Forms.MessageBox]::Show("No se pudo iniciar SSMS. Verifique la ruta seleccionada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                    }
+                } else {
+                    Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
+                }
+            })
+        $btnProfiler.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                $ProfilerUrl = "https://codeplexarchive.org/codeplex/browse/ExpressProfiler/releases/4/ExpressProfiler22wAddinSigned.zip"
+                $ProfilerZipPath = "C:\Temp\ExpressProfiler22wAddinSigned.zip"
+                $ExtractPath = "C:\Temp\ExpressProfiler2"
+                $ExeName = "ExpressProfiler.exe"
+                $ValidationPath = "C:\Temp\ExpressProfiler2\ExpressProfiler.exe"
+
+                DownloadAndRun -url $ProfilerUrl -zipPath $ProfilerZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
+                if ($disableControls) { Enable-Controls -parentControl $formPrincipal }
+            }
+        )
+        $btnPrinterTool.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                $PrinterToolUrl = "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip"
+                $PrinterToolZipPath = "C:\Temp\RPT-RPI-Printer-Tool-1.zip"
+                $ExtractPath = "C:\Temp\RPT-RPI-Printer-Tool-1"
+                $ExeName = "POS Printer Test.exe"
+                $ValidationPath = "C:\Temp\RPT-RPI-Printer-Tool-1\POS Printer Test.exe"
+
+                DownloadAndRun -url $PrinterToolUrl -zipPath $PrinterToolZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
+            })
+        $btnDatabase.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                $DatabaseUrl = "https://fishcodelib.com/files/DatabaseNet4.zip"
+                $DatabaseZipPath = "C:\Temp\DatabaseNet4.zip"
+                $ExtractPath = "C:\Temp\Database4"
+                $ExeName = "Database4.exe"
+                $ValidationPath = "C:\Temp\Database4\Database4.exe"
+
+                DownloadAndRun -url $DatabaseUrl -zipPath $DatabaseZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
+            })
+        $btnSQLManager.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                function Get-SQLServerManagers {
+                    $managers = @()
+                    $possiblePaths = @(
+                        "${env:SystemRoot}\System32\SQLServerManager*.msc",
+                        "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc"
+                    )
+                    foreach ($path in $possiblePaths) {
+                        $foundManagers = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+                        if ($foundManagers) {
+                            $managers += $foundManagers.FullName
+                        }
+                    }
+                    return $managers
+                }
+                $managers = Get-SQLServerManagers
+                if ($managers.Count -eq 0) {
+                    [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                    return
+                }
+                $formSelectionManager = Create-Form -Title "Seleccionar versión de Configuration Manager" -Size (New-Object System.Drawing.Size(350, 250)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                    -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+                $labelManager = Create-Label -Text "Seleccione la versión de Configuration Manager:" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+                $formSelectionManager.Controls.Add($labelManager)
+                $labelManagerInfo = Create-Label -Text "" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+                $formSelectionManager.Controls.Add($labelManagerInfo)
+                function Get-ManagerInfo($path) {
+                    if ($path -match "SQLServerManager(\d+)") {
+                        $version = $matches[1]
+                        if ($path -match "SysWOW64") {
+                            return "SQLServerManager${version} 64bits"
+                        } else {
+                            return "SQLServerManager${version} 32bits"
+                        }
+                    } else {
+                        return "Información no disponible"
+                    }
+                }
+                $UpdateManagerInfo = {
+                    $selectedManager = $comboBoxManager.SelectedItem
+                    $managerInfo = Get-ManagerInfo $selectedManager
+                    $labelManagerInfo.Text = $managerInfo
+                }
+                $comboBoxManager = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(310, 20)) -DropDownStyle DropDownList
+                foreach ($manager in $managers) {
+                    $comboBoxManager.Items.Add($manager)
+                }
+                $comboBoxManager.SelectedIndex = 0
+                $formSelectionManager.Controls.Add($comboBoxManager)
+                $UpdateManagerInfo.Invoke() # Actualizar al inicio
+                $comboBoxManager.Add_SelectedIndexChanged({
+                        $UpdateManagerInfo.Invoke()
+                    })
+                $btnOKManager = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30))
+                $btnOKManager.DialogResult = [System.Windows.Forms.DialogResult]::OK
+                $btnCancelManager = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(180, 120)) -Size (New-Object System.Drawing.Size(140, 30))
+                $btnCancelManager.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+                $formSelectionManager.AcceptButton = $btnOKManager
+                $formSelectionManager.Controls.Add($btnOKManager)
+                $formSelectionManager.CancelButton = $btnCancelManager
+                $formSelectionManager.Controls.Add($btnCancelManager)
+                $result = $formSelectionManager.ShowDialog()
+                if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                    $selectedManager = $comboBoxManager.SelectedItem
+                    try {
+                        Write-Host "`tEjecutando SQL Server Configuration Manager desde: $selectedManager" -ForegroundColor Green
+                        Start-Process -FilePath $selectedManager
+                    } catch {
+                        Write-Host "`tError al intentar ejecutar SQL Server Configuration Manager desde la ruta seleccionada." -ForegroundColor Red
+                        [System.Windows.Forms.MessageBox]::Show("No se pudo iniciar SQL Server Configuration Manager. Verifique la ruta seleccionada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                    }
+                } else {
+                    Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
+                }
+            })
+        $btnClearAnyDesk.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                $confirmationResult = [System.Windows.Forms.MessageBox]::Show(
+                    "¿Estás seguro de renovar AnyDesk?",
+                    "Confirmar Renovación",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Question
+                )
+                if ($confirmationResult -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    $filesToDelete = @(
+                        "C:\ProgramData\AnyDesk\system.conf",
+                        "C:\ProgramData\AnyDesk\service.conf",
+                        "$env:APPDATA\AnyDesk\system.conf",
+                        "$env:APPDATA\AnyDesk\service.conf"
+                    )
+                    $deletedFilesCount = 0
+                    $errors = @()
+                    try {
+                        Write-Host "`tCerrando el proceso AnyDesk..." -ForegroundColor Yellow
+                        Stop-Process -Name "AnyDesk" -Force -ErrorAction Stop
+                        Write-Host "`tAnyDesk ha sido cerrado correctamente." -ForegroundColor Green
+                    } catch {
+                        Write-Host "`tError al cerrar el proceso AnyDesk: $_" -ForegroundColor Red
+                        $errors += "No se pudo cerrar el proceso AnyDesk."
+                    }
+                    foreach ($file in $filesToDelete) {
+                        try {
+                            if (Test-Path $file) {
+                                Remove-Item -Path $file -Force -ErrorAction Stop
+                                Write-Host "`tArchivo eliminado: $file" -ForegroundColor Green
+                                $deletedFilesCount++
+                            } else {
+                                Write-Host "`tArchivo no encontrado: $file" -ForegroundColor Red
+                            }
+                        } catch {
+                            Write-Host "`nError al eliminar el archivo." -ForegroundColor Red
+                        }
+                    }
+                    if ($errors.Count -eq 0) {
+                        [System.Windows.Forms.MessageBox]::Show("$deletedFilesCount archivo(s) eliminado(s) correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                    } else {
+                        [System.Windows.Forms.MessageBox]::Show("Se encontraron errores. Revisa la consola para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                    }
+                } else {
+                    Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
+                }
+            })
+        $btnShowPrinters.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                try {
+                    $printers = Get-WmiObject -Query "SELECT * FROM Win32_Printer" | ForEach-Object {
+                        $printer = $_
+                        $isShared = $printer.Shared -eq $true
+                        [PSCustomObject]@{
+                            Name       = $printer.Name.Substring(0, [Math]::Min(24, $printer.Name.Length))
+                            PortName   = $printer.PortName.Substring(0, [Math]::Min(19, $printer.PortName.Length))
+                            DriverName = $printer.DriverName.Substring(0, [Math]::Min(19, $printer.DriverName.Length))
+                            IsShared   = if ($isShared) { "Sí" } else { "No" }
+                        }
+                    }
+                    Write-Host "`nImpresoras disponibles en el sistema:"
+                    if ($printers.Count -gt 0) {
+                        Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "Nombre", "Puerto", "Driver", "Compartida")
+                        Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "------", "------", "------", "---------")
+                        $printers | ForEach-Object {
+                            Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f $_.Name, $_.PortName, $_.DriverName, $_.IsShared)
+                        }
+                    } else {
+                        Write-Host "`nNo se encontraron impresoras."
+                    }
+                } catch {
+                    Write-Host "`nError al obtener impresoras: $_"
+                }
+            })
+        $btnClearPrintJobs.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                try {
+                    Get-Printer | ForEach-Object {
+                        Get-PrintJob -PrinterName $_.Name | Remove-PrintJob
+                    }
+                    Stop-Service -Name Spooler -Force
+                    Start-Service -Name Spooler
+                    [System.Windows.Forms.MessageBox]::Show("Los trabajos de impresión han sido eliminados y el servicio de cola de impresión se ha reiniciado.", "Operación Exitosa", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                } catch {
+                    [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al intentar limpiar las impresoras o reiniciar el servicio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
+            })
+        $LZMAbtnBuscarCarpeta.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
+                if (-not (Test-Path $LZMAregistryPath)) {
+                    Write-Host "`nLa ruta del registro no existe: $LZMAregistryPath" -ForegroundColor Yellow
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "La ruta del registro no existe:`n$LZMAregistryPath",
+                        "Error",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    )
+                    return
+                }
+                try {
+                    Write-Host "`tLeyendo subcarpetas de LZMA…" -ForegroundColor Gray
+                    $LZMcarpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop |
+                    Where-Object { $_.PSIsContainer }
+                    if ($LZMcarpetasPrincipales.Count -lt 1) {
+                        Write-Host "`tNo se encontraron carpetas principales." -ForegroundColor Yellow
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "No se encontraron carpetas principales en la ruta del registro.",
+                            "Error",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Error
+                        )
+                        return
+                    }
+                    $instaladores = @()
+                    foreach ($carpeta in $LZMcarpetasPrincipales) {
+                        $subdirs = Get-ChildItem -Path $carpeta.PSPath | Where-Object { $_.PSIsContainer }
+                        foreach ($sd in $subdirs) {
+                            $instaladores += [PSCustomObject]@{
+                                Name = $sd.PSChildName
+                                Path = $sd.PSPath
+                            }
+                        }
+                    }
+                    if ($instaladores.Count -lt 1) {
+                        Write-Host "`tNo se encontraron subcarpetas." -ForegroundColor Yellow
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "No se encontraron subcarpetas en la ruta del registro.",
+                            "Error",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Error
+                        )
+                        return
+                    }
+                    $instaladores = $instaladores | Sort-Object -Property Name -Descending
+                    $LZMsubCarpetas = @("Selecciona instalador a renombrar") + ($instaladores | ForEach-Object { $_.Name })
+                    $LZMrutasCompletas = $instaladores | ForEach-Object { $_.Path }
+                    $formLZMA = Create-Form `
+                        -Title "Carpetas LZMA" `
+                        -Size (New-Object System.Drawing.Size(400, 200)) `
+                        -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                        -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) `
+                        -MaximizeBox $false -MinimizeBox $false
+                    $LZMcomboBoxCarpetas = Create-ComboBox `
+                        -Location (New-Object System.Drawing.Point(10, 10)) `
+                        -Size (New-Object System.Drawing.Size(360, 20)) `
+                        -DropDownStyle DropDownList `
+                        -Font $defaultFont
+                    foreach ($nombre in $LZMsubCarpetas) {
+                        $LZMcomboBoxCarpetas.Items.Add($nombre)
+                    }
+                    $LZMcomboBoxCarpetas.SelectedIndex = 0
+                    $lblLZMAExePath = Create-Label `
+                        -Text "AI_ExePath: -" `
+                        -Location (New-Object System.Drawing.Point(10, 35)) `
+                        -Size (New-Object System.Drawing.Size(360, 70)) `
+                        -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 0, 0)) `
+                        -Font $defaultFont
+                    $LZMbtnRenombrar = Create-Button `
+                        -Text "Renombrar" `
+                        -Location (New-Object System.Drawing.Point(10, 120)) `
+                        -Size (New-Object System.Drawing.Size(180, 30)) `
+                        -Enabled $false
+                    $LMZAbtnSalir = Create-Button `
+                        -Text "Salir" `
+                        -Location (New-Object System.Drawing.Point(200, 120)) `
+                        -Size (New-Object System.Drawing.Size(180, 30))
+                    $LZMcomboBoxCarpetas.Add_SelectedIndexChanged({
+                            $idx = $LZMcomboBoxCarpetas.SelectedIndex
+                            $LZMbtnRenombrar.Enabled = ($idx -gt 0)
+                            if ($idx -gt 0) {
+                                $ruta = $LZMrutasCompletas[$idx - 1]
+                                $prop = Get-ItemProperty -Path $ruta -Name "AI_ExePath" -ErrorAction SilentlyContinue
+                                $lblLZMAExePath.Text = if ($prop) { "AI_ExePath: $($prop.AI_ExePath)" } else { "AI_ExePath: No encontrado" }
+                            } else {
+                                $lblLZMAExePath.Text = "AI_ExePath: -"
+                            }
+                        })
+                    $LZMbtnRenombrar.Add_Click({
+                            $idx = $LZMcomboBoxCarpetas.SelectedIndex
+                            if ($idx -gt 0) {
+                                $rutaVieja = $LZMrutasCompletas[$idx - 1]
+                                $nombre = $LZMcomboBoxCarpetas.SelectedItem
+                                $nuevaNombre = "$nombre.backup"
+                                $msg = "¿Está seguro de renombrar:`n$rutaVieja`na:`n$nuevaNombre"
+                                $conf = [System.Windows.Forms.MessageBox]::Show($msg, "Confirmar renombrado", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                                if ($conf -eq [System.Windows.Forms.DialogResult]::Yes) {
+                                    try {
+                                        Rename-Item -Path $rutaVieja -NewName $nuevaNombre
+                                        [System.Windows.Forms.MessageBox]::Show("Registro renombrado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                                        $formLZMA.Close()
+                                    } catch {
+                                        [System.Windows.Forms.MessageBox]::Show("Error al renombrar: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                                    }
+                                }
+                            }
+                        })
+                    $LMZAbtnSalir.Add_Click({
+                            Write-Host "`tCancelado por el usuario." -ForegroundColor Yellow
+                            $formLZMA.Close()
+                        })
+                    $formLZMA.Controls.AddRange(@($LZMcomboBoxCarpetas, $lblLZMAExePath, $LZMbtnRenombrar, $LMZAbtnSalir))
+                    $formLZMA.ShowDialog()
+
+                } catch {
+                    Write-Host "`tError accediendo al registro: $_" -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Error accediendo al registro:`n$_",
+                        "Error",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    )
+                }
+            })
+
+
         $btnExit.Add_Click({
                 $form = $this.FindForm()
                 if ($form -ne $null) {

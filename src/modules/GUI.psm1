@@ -60,7 +60,7 @@ function Create-Label {
     $label.Font = $Font
     $label.BorderStyle = $BorderStyle
     $label.TextAlign = $TextAlign
-    if ($ToolTipText) { $toolTip.SetToolTip($label, $ToolTipText) }
+    if ($ToolTipText) { $script:toolTip.SetToolTip($label, $ToolTipText) }
     return $label
 }
 function Create-Button {
@@ -99,7 +99,7 @@ function Create-Button {
     $button.Add_MouseLeave($button_MouseLeave)
     $button.Enabled = $Enabled
     if ($ToolTipText) {
-        $toolTip.SetToolTip($button, $ToolTipText)
+        $script:toolTip.SetToolTip($button, $ToolTipText)
     }
     if ($PSBoundParameters.ContainsKey('DialogResult')) {
         $button.DialogResult = $DialogResult
@@ -404,7 +404,7 @@ function New-Button {
             $this.Font = $Font
         })
     if ($ToolTipText) {
-        $toolTip.SetToolTip($button, $ToolTipText)
+        $script:toolTip.SetToolTip($button, $ToolTipText)
     }
     return $button
 }
@@ -443,7 +443,7 @@ function New-Label {
     $label.BorderStyle = $BorderStyle
     $label.TextAlign = $TextAlign
     if ($ToolTipText) {
-        $toolTip.SetToolTip($label, $ToolTipText)
+        $script:toolTip.SetToolTip($label, $ToolTipText)
     }
     return $label
 }

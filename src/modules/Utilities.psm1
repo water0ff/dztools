@@ -301,19 +301,15 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
                 return
             }
         } elseif ($response -eq [System.Windows.Forms.DialogResult]::Cancel) {
-            # Si selecciona "Cancelar", no hacer nada y decir que el usuario canceló
             Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
             return  # Aquí se termina la ejecución si el usuario cancela
         }
     }
-    # Proceder con la descarga si no fue cancelada
     Write-Host "`tDescargando desde: $url"
-    # Obtener el tamaño total del archivo antes de la descarga
     $response = Invoke-WebRequest -Uri $url -Method Head
     $totalSize = $response.Headers["Content-Length"]
     $totalSizeKB = [math]::round($totalSize / 1KB, 2)
     Write-Host "`tTamaño total: $totalSizeKB KB" -ForegroundColor Yellow
-    # Descargar el archivo con barra de progreso
     $downloaded = 0
     $request = Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
     foreach ($chunk in $request.Content) {
@@ -323,7 +319,6 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         Write-Progress -PercentComplete $progress -Status "Descargando..." -Activity "Progreso de la descarga" -CurrentOperation "$downloadedKB KB de $totalSizeKB KB descargados"
     }
     Write-Host "`tDescarga completada."  -ForegroundColor Green
-    # Crear directorio de extracción si no existe
     if (!(Test-Path -Path $extractPath)) {
         New-Item -ItemType Directory -Path $extractPath | Out-Null
     }
@@ -344,6 +339,11 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
     }
 }
 function Refresh-AdapterStatus {
+    if ($null -eq $txt_AdapterStatus -or
+        $txt_AdapterStatus.PSObject.Properties.Match('Text').Count -eq 0) {
+        Write-Warning "El control de estado de adaptadores no está disponible."
+        return
+    }
     $statuses = Get-NetworkAdapterStatus
     if ($statuses.Count -gt 0) {
         $lines = $statuses | ForEach-Object {

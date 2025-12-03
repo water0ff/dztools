@@ -14,7 +14,7 @@ function Invoke-SqlQuery {
         [Parameter(Mandatory = $true)]
         [string]$Password
     )
-
+    $connection = $null
     try {
         $connectionString = "Server=$Server;Database=$Database;User Id=$Username;Password=$Password;MultipleActiveResultSets=True"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
@@ -48,8 +48,11 @@ function Invoke-SqlQuery {
             Type         = "Error"
         }
     } finally {
-        if ($connection.State -eq [System.Data.ConnectionState]::Open) {
-            $connection.Close()
+        if ($null -ne $connection) {
+            if ($connection.State -eq [System.Data.ConnectionState]::Open) {
+                $connection.Close()
+            }
+            $connection.Dispose()
         }
     }
 }
@@ -70,14 +73,11 @@ function Get-SqlDatabases {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Server,
-
         [Parameter(Mandatory = $true)]
         [string]$Username,
-
         [Parameter(Mandatory = $true)]
         [string]$Password
     )
-
     $query = @"
 SELECT name
 FROM sys.databases
@@ -85,19 +85,14 @@ WHERE name NOT IN ('tempdb','model','msdb')
   AND state_desc = 'ONLINE'
 ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name
 "@
-
     $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $query -Username $Username -Password $Password
-
     if (-not $result.Success) {
-        Write-Error "Error obteniendo bases de datos: $($result.ErrorMessage)"
-        return @()
+        throw "Error obteniendo bases de datos: $($result.ErrorMessage)"
     }
-
     $databases = @()
     foreach ($row in $result.DataTable.Rows) {
         $databases += $row["name"]
     }
-
     return $databases
 }
 function Backup-Database {
@@ -173,7 +168,14 @@ function Execute-SqlQuery {
         Write-Host "Error en consulta: $($_.Exception.Message)" -ForegroundColor Red
         throw $_
     } finally {
-        $connection.Close()
+        if ($null -ne $connection) {
+            if ($connection.State -ne [System.Data.ConnectionState]::Closed) {
+                $connection.Close()
+            } else {
+                $connection.Dispose()
+            }
+        }
+
     }
 }
 function Show-ResultsConsole {

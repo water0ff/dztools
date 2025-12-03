@@ -3,24 +3,19 @@
 function Test-Administrator {
     [CmdletBinding()]
     param()
-    
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
-
 function Get-SystemInfo {
     [CmdletBinding()]
     param()
-    
     $info = @{
         ComputerName = [System.Net.Dns]::GetHostName()
         OS = (Get-CimInstance -ClassName Win32_OperatingSystem).Caption
         PowerShellVersion = $PSVersionTable.PSVersion.ToString()
         NetAdapters = @()
     }
-    
-    # Obtener adaptadores de red
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
     foreach ($adapter in $adapters) {
         $adapterInfo = @{
@@ -29,30 +24,23 @@ function Get-SystemInfo {
             MacAddress = $adapter.MacAddress
             IPAddresses = @()
         }
-        
         $ipAddresses = Get-NetIPAddress -InterfaceAlias $adapter.Name -AddressFamily IPv4 | 
                        Where-Object { $_.IPAddress -ne '127.0.0.1' }
-        
         foreach ($ip in $ipAddresses) {
             $adapterInfo.IPAddresses += $ip.IPAddress
         }
-        
         $info.NetAdapters += $adapterInfo
     }
-    
     return $info
 }
-
 function Clear-TemporaryFiles {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
         [string[]]$Paths = @("$env:TEMP", "C:\Windows\Temp")
     )
-    
     $totalDeleted = 0
     $totalSize = 0
-    
     foreach ($path in $Paths) {
         if (Test-Path $path) {
             try {
@@ -77,17 +65,14 @@ function Clear-TemporaryFiles {
             }
         }
     }
-    
     return @{
         FilesDeleted = $totalDeleted
         SpaceFreedMB = [math]::Round($totalSize / 1MB, 2)
     }
 }
-
 function Get-IniConnections {
     [CmdletBinding()]
     param()
-    
     $connections = @()
     $pathsToCheck = @(
         @{ Path = "C:\NationalSoft\Softrestaurant9.5.0Pro"; INI = "restaurant.ini"; Nombre = "SR9.5" },
@@ -98,10 +83,8 @@ function Get-IniConnections {
         @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0";INI = "nshoteles.ini";   Nombre = "Hoteles" },
         @{ Path = "C:\NationalSoft\OnTheMinute4.5";        INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
     )
-    
     function Get-IniValue {
         param([string]$FilePath, [string]$Key)
-        
         if (Test-Path $FilePath) {
             $line = Get-Content $FilePath | Where-Object { $_ -match "^$Key\s*=" }
             if ($line) {
@@ -110,7 +93,6 @@ function Get-IniConnections {
         }
         return $null
     }
-    
     foreach ($entry in $pathsToCheck) {
         $mainIni = Join-Path $entry.Path $entry.INI
         if (Test-Path $mainIni) {
@@ -119,7 +101,6 @@ function Get-IniConnections {
                 $connections += $dataSource
             }
         }
-        
         $inisFolder = Join-Path $entry.Path "INIS"
         if (Test-Path $inisFolder) {
             $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
@@ -131,36 +112,26 @@ function Get-IniConnections {
             }
         }
     }
-    
     return $connections | Sort-Object
 }
-
 function Test-ChocolateyInstalled {
     [CmdletBinding()]
     param()
-    
     return [bool](Get-Command choco -ErrorAction SilentlyContinue)
 }
-
 function Install-Chocolatey {
     [CmdletBinding()]
     param()
-    
     if (Test-ChocolateyInstalled) {
         Write-Verbose "Chocolatey ya está instalado"
         return $true
     }
-    
     try {
         Write-Host "Instalando Chocolatey..." -ForegroundColor Yellow
         Set-ExecutionPolicy Bypass -Scope Process -Force
         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-        
         Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-        
-        # Configurar cache location
         choco config set cacheLocation C:\Choco\cache
-        
         Write-Host "Chocolatey instalado correctamente" -ForegroundColor Green
         return $true
     }
@@ -169,6 +140,250 @@ function Install-Chocolatey {
         return $false
     }
 }
+function Get-AdminGroupName {
+    $groups = net localgroup | Where-Object { $_ -match "Administrador|Administrators" }
+    if ($groups -match "\bAdministradores\b") {
+        return "Administradores"
+    } elseif ($groups -match "\bAdministrators\b") {
+        return "Administrators"
+    }
+    try {
+        $adminGroup = Get-LocalGroup | Where-Object { $_.SID -like "S-1-5-32-544" }
+        return $adminGroup.Name
+    } catch {
+        return "Administrators" # Valor por defecto
+    }
+}
+function Invoke-DiskCleanup {
+    try {
+        Write-Host "`nEjecutando Liberador de espacio en disco..." -ForegroundColor Cyan
+        $cleanmgr = "$env:SystemDrive\Windows\System32\cleanmgr.exe"
+        $sagerun = "9999"
+        Start-Process $cleanmgr -ArgumentList "/sageset:$sagerun" -Wait
+        Start-Process $cleanmgr -ArgumentList "/sagerun:$sagerun" -Wait
+        
+        Write-Host "Limpieza de disco completada correctamente" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Error en limpieza de disco: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+function Show-SystemComponents {
+    $criticalError = $false
+    
+    Write-Host "`n=== Componentes del sistema detectados ===" -ForegroundColor Cyan
+    
+    # Versión de Windows (componente crítico)
+    try {
+        $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop
+        Write-Host "`n[Windows]" -ForegroundColor Yellow
+        Write-Host "Versión: $($os.Caption) (Build $($os.Version))" -ForegroundColor White
+    } catch {
+        $criticalError = $true
+        Write-Host "`n[Windows]" -ForegroundColor Yellow
+        Write-Host "ERROR CRÍTICO: $($_.Exception.Message)" -ForegroundColor Red
+        throw "No se pudo obtener información crítica del sistema"
+    }
+
+    # Resto de componentes (no críticos)
+    if (-not $criticalError) {
+        # Procesador
+        try {
+            $procesador = Get-CimInstance -ClassName CIM_Processor -ErrorAction Stop
+            Write-Host "`n[Procesador]" -ForegroundColor Yellow
+            Write-Host "Modelo: $($procesador.Name)" -ForegroundColor White
+            Write-Host "Núcleos: $($procesador.NumberOfCores)" -ForegroundColor White
+        } catch {
+            Write-Host "`n[Procesador]" -ForegroundColor Yellow
+            Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
+        }
+
+        # Memoria RAM
+        try {
+            $memoria = Get-CimInstance -ClassName CIM_PhysicalMemory -ErrorAction Stop
+            Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
+            $memoria | ForEach-Object {
+                Write-Host "Módulo: $([math]::Round($_.Capacity/1GB, 2)) GB $($_.Manufacturer) ($($_.Speed) MHz)" -ForegroundColor White
+            }
+        } catch {
+            Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
+            Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
+        }
+
+        # Discos duros
+        try {
+            $discos = Get-CimInstance -ClassName CIM_DiskDrive -ErrorAction Stop
+            Write-Host "`n[Discos duros]" -ForegroundColor Yellow
+            $discos | ForEach-Object {
+                Write-Host "Disco: $($_.Model) ($([math]::Round($_.Size/1GB, 2)) GB)" -ForegroundColor White
+            }
+        } catch {
+            Write-Host "`n[Discos duros]" -ForegroundColor Yellow
+            Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
+        }
+    }
+}
+function Test-SameHost {
+    param(
+        [string]$serverName
+    )
+    $machinePart = $serverName.Split('\')[0]
+    $machineName = $machinePart.Split(',')[0]
+    if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
+    return ($env:COMPUTERNAME -eq $machineName)
+}
+function Test-7ZipInstalled {
+    return (Test-Path "C:\Program Files\7-Zip\7z.exe")
+}
+function Test-MegaToolsInstalled {
+    return ([bool](Get-Command megatools -ErrorAction SilentlyContinue))
+}
+function Check-Permissions {
+                $folderPath = "C:\NationalSoft"
+                $acl = Get-Acl -Path $folderPath
+                $permissions = @()
+                # Obtener el SID universal de "Everyone" (independiente del idioma del sistema)
+                $everyoneSid = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::WorldSid, $null)
+                $everyonePermissions = @()
+                $everyoneHasFullControl = $false
+                foreach ($access in $acl.Access) {
+                    # Obtener el SID del usuario en la ACL
+                    $userSid = (New-Object System.Security.Principal.NTAccount($access.IdentityReference)).Translate([System.Security.Principal.SecurityIdentifier])
+                    # Almacenar los permisos de todos los usuarios
+                    $permissions += [PSCustomObject]@{
+                        Usuario = $access.IdentityReference
+                        Permiso = $access.FileSystemRights
+                        Tipo    = $access.AccessControlType
+                    }
+                    # Comparar usando el SID universal de "Everyone"
+                    if ($userSid -eq $everyoneSid) {
+                        $everyonePermissions += $access.FileSystemRights
+                        if ($access.FileSystemRights -match "FullControl") {
+                            $everyoneHasFullControl = $true
+                        }
+                    }
+                }
+                # Mostrar los permisos en la consola
+                $permissions | ForEach-Object { 
+                    Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
+                    Write-Host "` $($_.Permiso)" -ForegroundColor Green
+                }
+                # Mostrar los permisos de "Everyone" de forma consolidada
+                if ($everyonePermissions.Count -gt 0) {
+                    Write-Host "`tEveryone tiene los siguientes permisos:"  -NoNewline -ForegroundColor Yellow
+                    Write-Host "` $($everyonePermissions -join ', ')" -ForegroundColor Green
+                } else {
+                    Write-Host "`tNo hay permisos para 'Everyone'" -ForegroundColor Red
+                }
+                # Si "Everyone" no tiene Full Control, preguntar si se desea concederlo
+                if (-not $everyoneHasFullControl) {
+                    $message = "El usuario 'Everyone' no tiene permisos de 'Full Control'. ¿Deseas concederlo?"
+                    $title = "Permisos 'Everyone'"
+                    $buttons = [System.Windows.Forms.MessageBoxButtons]::YesNo
+                    $icon = [System.Windows.Forms.MessageBoxIcon]::Question
+                    $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
+                    if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                        # Agregar Full Control a "Everyone" en la carpeta
+                        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($everyoneSid, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+                        $acl.AddAccessRule($accessRule)
+                        # Forzar la herencia para subcarpetas y archivos
+                        $acl.SetAccessRuleProtection($false, $true)
+                        Set-Acl -Path $folderPath -AclObject $acl
+                        Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
+                    }
+                }
+    }
+function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath) {
+    # Validar si el archivo o aplicación ya existe
+    if (!(Test-Path -Path $validationPath)) {
+        $response = [System.Windows.Forms.MessageBox]::Show(
+            "El archivo o aplicación no se encontró en '$validationPath'. ¿Desea descargarlo?",
+            "Archivo no encontrado",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        )
+        # Si el usuario selecciona "No", salir de la función
+        if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
+            Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
+            return
+        }
+    }
+    # Verificar si el archivo ZIP ya existe
+    if (Test-Path -Path $zipPath) {
+        $response = [System.Windows.Forms.MessageBox]::Show(
+            "Archivo encontrado. ¿Lo desea eliminar y volver a descargar?",
+            "Archivo ya descargado",
+            [System.Windows.Forms.MessageBoxButtons]::YesNoCancel
+        )
+        if ($response -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Remove-Item -Path $zipPath -Force
+            Remove-Item -Path $extractPath -Recurse -Force
+            Write-Host "`tEliminando archivos anteriores..."
+        } elseif ($response -eq [System.Windows.Forms.DialogResult]::No) {
+            # Si selecciona "No", abrir el programa sin eliminar archivos
+            $exePath = Join-Path -Path $extractPath -ChildPath $exeName
+            if (Test-Path -Path $exePath) {
+                Write-Host "`tEjecutando el archivo ya descargado..."
+                Start-Process -FilePath $exePath #-Wait   # Se quitó para ver si se usaban múltiples apps.
+                Write-Host "`t$exeName se está ejecutando."
+                return
+            } else {
+                Write-Host "`tNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
+                return
+            }
+        } elseif ($response -eq [System.Windows.Forms.DialogResult]::Cancel) {
+            # Si selecciona "Cancelar", no hacer nada y decir que el usuario canceló
+            Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
+            return  # Aquí se termina la ejecución si el usuario cancela
+        }
+    }
+    # Proceder con la descarga si no fue cancelada
+    Write-Host "`tDescargando desde: $url"
+    # Obtener el tamaño total del archivo antes de la descarga
+    $response = Invoke-WebRequest -Uri $url -Method Head
+    $totalSize = $response.Headers["Content-Length"]
+    $totalSizeKB = [math]::round($totalSize / 1KB, 2)
+    Write-Host "`tTamaño total: $totalSizeKB KB" -ForegroundColor Yellow
+    # Descargar el archivo con barra de progreso
+    $downloaded = 0
+    $request = Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
+    foreach ($chunk in $request.Content) {
+        $downloaded += $chunk.Length
+        $downloadedKB = [math]::round($downloaded / 1KB, 2)
+        $progress = [math]::round(($downloaded / $totalSize) * 100, 2)
+        Write-Progress -PercentComplete $progress -Status "Descargando..." -Activity "Progreso de la descarga" -CurrentOperation "$downloadedKB KB de $totalSizeKB KB descargados"
+    }
+    Write-Host "`tDescarga completada."  -ForegroundColor Green
+    # Crear directorio de extracción si no existe
+    if (!(Test-Path -Path $extractPath)) {
+        New-Item -ItemType Directory -Path $extractPath | Out-Null
+    }
+    Write-Host "`tExtrayendo archivos..."
+    try {
+        Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+        Write-Host "`tArchivos extraídos correctamente."  -ForegroundColor Green
+    } catch {
+        Write-Host "`tError al descomprimir el archivo: $_"   -ForegroundColor Red
+    }
+    $exePath = Join-Path -Path $extractPath -ChildPath $exeName
+    if (Test-Path -Path $exePath) {
+        Write-Host "`tEjecutando $exeName..."
+        Start-Process -FilePath $exePath #-Wait
+        Write-Host "`n$exeName se está ejecutando."
+    } else {
+        Write-Host "`nNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
+    }
+}
+function Remove-SqlComments {
+    param(
+        [string]$Query
+    )
+    $cleanedQuery = $Query -replace '(?s)/\*.*?\*/', ''
+    $cleanedQuery = $cleanedQuery -replace '(?m)^\s*--.*\n?', ''
+    $cleanedQuery = $cleanedQuery -replace '(?<!\w)--.*$', ''
+    return $cleanedQuery.Trim()
+}
 
 Export-ModuleMember -Function Test-Administrator, Get-SystemInfo, Clear-TemporaryFiles, 
-    Get-IniConnections, Test-ChocolateyInstalled, Install-Chocolatey
+    Get-IniConnections, Test-ChocolateyInstalled, Install-Chocolatey, Get-AdminGroupName, Invoke-DiskCleanup, Remove-SqlComments, Show-SystemComponents, Test-SameHost, Test-7ZipInstalled, Test-MegaToolsInstalled, Check-Permissions, DownloadAndRun      
+    

@@ -6,6 +6,8 @@ param(
     [Parameter(Mandatory = $false)]
     [switch]$Test,
     [Parameter(Mandatory = $false)]
+    [switch]$Release,
+    [Parameter(Mandatory = $false)]
     [string]$Version
 )
 Write-Host "=== Daniel Tools Build Script ===" -ForegroundColor Cyan

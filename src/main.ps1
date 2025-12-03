@@ -342,10 +342,12 @@ function New-MainForm {
             $txt_IpAdress.Text = "No se encontraron direcciones IP"
         }
         $btnExit.Add_Click({
-                $formPrincipal.Dispose()
-                $formPrincipal.Close()
+                $form = $this.FindForm()
+                if ($form -ne $null) {
+                    $form.Close()
+                }
             })
-        Load-IniConnectionsToComboBox
+        #Load-IniConnectionsToComboBox
         return $formPrincipal
 
     } catch {

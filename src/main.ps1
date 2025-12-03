@@ -299,6 +299,8 @@ function New-MainForm {
                 $btnCreateAPK
             ))
 
+        $formPrincipal.Controls.Add($tabControl)
+        $formPrincipal.Controls.Add($btnExit)
         return $formPrincipal
 
     } catch {
@@ -315,7 +317,6 @@ function Start-Application {
         Write-Host "Error inicializando entorno. Saliendo..." -ForegroundColor Red
         return
     }
-
     $mainForm = New-MainForm
     if ($mainForm -eq $null) {
         Write-Host "Error: No se pudo crear el formulario principal" -ForegroundColor Red

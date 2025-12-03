@@ -1326,50 +1326,7 @@ $btnConfigurarIPs.Add_Click({
             })
         $formIpAssignAsignacion.ShowDialog()
     })
-#migrada
-function Get-IniConnections {
-    $connections = @()
-    $pathsToCheck = @(
-        @{ Path = "C:\NationalSoft\Softrestaurant9.5.0Pro"; INI = "restaurant.ini"; Nombre = "SR9.5" },
-        @{ Path = "C:\NationalSoft\Softrestaurant10.0"; INI = "restaurant.ini"; Nombre = "SR10" },
-        @{ Path = "C:\NationalSoft\Softrestaurant11.0"; INI = "restaurant.ini"; Nombre = "SR11" },
-        @{ Path = "C:\NationalSoft\Softrestaurant12.0"; INI = "restaurant.ini"; Nombre = "SR12" },
-        @{ Path = "C:\Program Files (x86)\NsBackOffice1.0"; INI = "DbConfig.ini"; Nombre = "NSBackOffice" },
-        @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0"; INI = "nshoteles.ini"; Nombre = "Hoteles" },
-        @{ Path = "C:\NationalSoft\OnTheMinute4.5"; INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
-    )
-    function Get-IniValue {
-        param([string]$FilePath, [string]$Key)
-        if (Test-Path $FilePath) {
-            $line = Get-Content $FilePath | Where-Object { $_ -match "^$Key\s*=" }
-            if ($line) {
-                return $line.Split('=')[1].Trim()
-            }
-        }
-        return $null
-    }
-    foreach ($entry in $pathsToCheck) {
-        $mainIni = Join-Path $entry.Path $entry.INI
-        if (Test-Path $mainIni) {
-            $dataSource = Get-IniValue -FilePath $mainIni -Key "DataSource"
-            if ($dataSource -and $dataSource -notin $connections) {
-                $connections += $dataSource
-            }
-        }
-        $inisFolder = Join-Path $entry.Path "INIS"
-        if (Test-Path $inisFolder) {
-            $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
-            foreach ($iniFile in $iniFiles) {
-                $dataSource = Get-IniValue -FilePath $iniFile.FullName -Key "DataSource"
-                if ($dataSource -and $dataSource -notin $connections) {
-                    $connections += $dataSource
-                }
-            }
-        }
-    }
 
-    return $connections | Sort-Object
-}
 function Load-IniConnectionsToComboBox {
     $connections = Get-IniConnections
     $txtServer.Items.Clear()
@@ -1773,16 +1730,7 @@ $btnAddUser.Add_Click({
         $formAddUser.Controls.AddRange(@($txtUsername, $txtPassword, $cmbType, $btnCreate, $btnCancel, $btnShow, $lblUsername, $lblPassword, $lblType))
         $formAddUser.ShowDialog()
     })
-#migrada
-function Remove-SqlComments {
-    param(
-        [string]$Query
-    )
-    $cleanedQuery = $Query -replace '(?s)/\*.*?\*/', ''
-    $cleanedQuery = $cleanedQuery -replace '(?m)^\s*--.*\n?', ''
-    $cleanedQuery = $cleanedQuery -replace '(?<!\w)--.*$', ''
-    return $cleanedQuery.Trim()
-}
+
 function ConvertTo-DataTable {
     param($InputObject)
     $dt = New-Object System.Data.DataTable
@@ -1802,47 +1750,7 @@ function ConvertTo-DataTable {
     }
     return $dt
 }
-#migrada
-function Execute-SqlQuery {
-    param (
-        [string]$server,
-        [string]$database,
-        [string]$query
-    )
-    try {
-        $connectionString = "Server=$server;Database=$database;User Id=$global:user;Password=$global:password;MultipleActiveResultSets=True"
-        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        $infoMessages = New-Object System.Collections.ArrayList
-        $connection.add_InfoMessage({
-                param($sender, $e)
-                $infoMessages.Add($e.Message) | Out-Null
-            })
-        $connection.Open()
-        $command = $connection.CreateCommand()
-        $command.CommandText = $query
-        if ($query -match "(?si)^\s*(SELECT|WITH|INSERT|UPDATE|DELETE|RESTORE)") {
-            $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
-            $dataTable = New-Object System.Data.DataTable
-            $adapter.Fill($dataTable) | Out-Null
-            $command.ExecuteNonQuery() | Out-Null
-            return @{
-                DataTable = $dataTable
-                Messages  = $infoMessages
-            }
-        } else {
-            $rowsAffected = $command.ExecuteNonQuery()
-            return @{
-                RowsAffected = $rowsAffected
-                Messages     = $infoMessages
-            }
-        }
-    } catch {
-        Write-Host "Error en consulta: $($_.Exception.Message)" -ForegroundColor Red
-        throw $_
-    } finally {
-        $connection.Close()
-    }
-}
+
 function ConvertTo-DataTable {
     param($InputObject)
     $dt = New-Object System.Data.DataTable
@@ -1859,48 +1767,6 @@ function ConvertTo-DataTable {
         $dt.Rows.Add($row)
     }
     return $dt
-}
-#migrada
-function Show-ResultsConsole {
-    param (
-        [string]$query
-    )
-    try {
-        $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
-
-        if ($results.GetType().Name -eq 'Hashtable') {
-            $consoleData = $results.ConsoleData
-            if ($consoleData.Count -gt 0) {
-                $columns = $consoleData[0].Keys
-                $columnWidths = @{}
-                foreach ($col in $columns) {
-                    $columnWidths[$col] = $col.Length
-                }
-
-                Write-Host ""
-                $header = ""
-                foreach ($col in $columns) {
-                    $header += $col.PadRight($columnWidths[$col] + 4)
-                }
-                Write-Host $header
-                Write-Host ("-" * $header.Length)
-
-                foreach ($row in $consoleData) {
-                    $rowText = ""
-                    foreach ($col in $columns) {
-                        $rowText += ($row[$col].ToString()).PadRight($columnWidths[$col] + 4)
-                    }
-                    Write-Host $rowText
-                }
-            } else {
-                Write-Host "`nNo se encontraron resultados." -ForegroundColor Yellow
-            }
-        } else {
-            Write-Host "`nFilas afectadas: $results" -ForegroundColor Green
-        }
-    } catch {
-        Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
-    }
 }
 $btnExecute.Add_Click({
         Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
@@ -2118,28 +1984,7 @@ $btnCreateAPK.Add_Click({
             [System.Windows.Forms.MessageBox]::Show("Error durante la creación del APK. Consulte la consola para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
-#MIGRADA
-function Test-ChocolateyInstalled {
-    return [bool](Get-Command choco -ErrorAction SilentlyContinue)
-}
-#MIgrada
-function Test-SameHost {
-    param(
-        [string]$serverName
-    )
-    $machinePart = $serverName.Split('\')[0]
-    $machineName = $machinePart.Split(',')[0]
-    if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
-    return ($env:COMPUTERNAME -eq $machineName)
-}
-#migrada
-function Test-7ZipInstalled {
-    return (Test-Path "C:\Program Files\7-Zip\7z.exe")
-}
-#migrada
-function Test-MegaToolsInstalled {
-    return ([bool](Get-Command megatools -ErrorAction SilentlyContinue))
-}
+
 $btnBackup.Add_Click({
         $chocoInstalled = Test-ChocolateyInstalled
         if (-not $chocoInstalled) {

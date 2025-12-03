@@ -70,50 +70,7 @@ function Clear-TemporaryFiles {
         SpaceFreedMB = [math]::Round($totalSize / 1MB, 2)
     }
 }
-function Get-IniConnections {
-    [CmdletBinding()]
-    param()
-    $connections = @()
-    $pathsToCheck = @(
-        @{ Path = "C:\NationalSoft\Softrestaurant9.5.0Pro"; INI = "restaurant.ini"; Nombre = "SR9.5" },
-        @{ Path = "C:\NationalSoft\Softrestaurant10.0";    INI = "restaurant.ini"; Nombre = "SR10" },
-        @{ Path = "C:\NationalSoft\Softrestaurant11.0";    INI = "restaurant.ini"; Nombre = "SR11" },
-        @{ Path = "C:\NationalSoft\Softrestaurant12.0";    INI = "restaurant.ini"; Nombre = "SR12" },
-        @{ Path = "C:\Program Files (x86)\NsBackOffice1.0";    INI = "DbConfig.ini"; Nombre = "NSBackOffice" },
-        @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0";INI = "nshoteles.ini";   Nombre = "Hoteles" },
-        @{ Path = "C:\NationalSoft\OnTheMinute4.5";        INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
-    )
-    function Get-IniValue {
-        param([string]$FilePath, [string]$Key)
-        if (Test-Path $FilePath) {
-            $line = Get-Content $FilePath | Where-Object { $_ -match "^$Key\s*=" }
-            if ($line) {
-                return $line.Split('=')[1].Trim()
-            }
-        }
-        return $null
-    }
-    foreach ($entry in $pathsToCheck) {
-        $mainIni = Join-Path $entry.Path $entry.INI
-        if (Test-Path $mainIni) {
-            $dataSource = Get-IniValue -FilePath $mainIni -Key "DataSource"
-            if ($dataSource -and $dataSource -notin $connections) {
-                $connections += $dataSource
-            }
-        }
-        $inisFolder = Join-Path $entry.Path "INIS"
-        if (Test-Path $inisFolder) {
-            $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
-            foreach ($iniFile in $iniFiles) {
-                $dataSource = Get-IniValue -FilePath $iniFile.FullName -Key "DataSource"
-                if ($dataSource -and $dataSource -notin $connections) {
-                    $connections += $dataSource
-                }
-            }
-        }
-    }
-    return $connections | Sort-Object
-}
+
 function Test-ChocolateyInstalled {
     [CmdletBinding()]
     param()
@@ -374,15 +331,6 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
         Write-Host "`nNo se pudo encontrar el archivo ejecutable."  -ForegroundColor Red
     }
 }
-function Remove-SqlComments {
-    param(
-        [string]$Query
-    )
-    $cleanedQuery = $Query -replace '(?s)/\*.*?\*/', ''
-    $cleanedQuery = $cleanedQuery -replace '(?m)^\s*--.*\n?', ''
-    $cleanedQuery = $cleanedQuery -replace '(?<!\w)--.*$', ''
-    return $cleanedQuery.Trim()
-}
 function Refresh-AdapterStatus {
     $statuses = Get-NetworkAdapterStatus
     if ($statuses.Count -gt 0) {
@@ -474,4 +422,6 @@ function Start-SystemUpdate {
     }
 }
 Export-ModuleMember -Function Test-Administrator, Get-SystemInfo, Clear-TemporaryFiles,
-    Get-IniConnections, Test-ChocolateyInstalled, Install-Chocolatey, Get-AdminGroupName, Invoke-DiskCleanup, Remove-SqlComments, Show-SystemComponents, Test-SameHost, Test-7ZipInstalled, Test-MegaToolsInstalled, Refresh-AdapterStatus, Get-NetworkAdapterStatus, DownloadAndRun, Start-SystemUpdate
+    Test-ChocolateyInstalled, Install-Chocolatey, Get-AdminGroupName, Invoke-DiskCleanup,
+    Show-SystemComponents, Test-SameHost, Test-7ZipInstalled, Test-MegaToolsInstalled,
+    Refresh-AdapterStatus, Get-NetworkAdapterStatus, DownloadAndRun, Start-SystemUpdate

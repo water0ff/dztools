@@ -496,6 +496,16 @@ WHERE
             -ReadOnly  $true
         $txt_InfoInstrucciones.WordWrap = $true
         $txt_InfoInstrucciones.Text = $global:defaultInstructions
+        $script:setInstructionText = {
+            param(
+                [string]$Message
+            )
+
+            if ($null -ne $txt_InfoInstrucciones -and
+                $txt_InfoInstrucciones.PSObject.Properties.Match('Text').Count -gt 0) {
+                $txt_InfoInstrucciones.Text = $Message
+            }
+        }.GetNewClosure()
         $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(350, 525)) `
             -Size (New-Object System.Drawing.Size(500, 30)) `
             -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
@@ -572,12 +582,6 @@ WHERE
         }
         $lblHostname.Add_MouseEnter($changeColorOnHover)
         $lblHostname.Add_MouseLeave($restoreColorOnLeave)
-        $setInstructionText = {
-            param([string]$message)
-            if ($null -ne $txt_InfoInstrucciones -and $txt_InfoInstrucciones.PSObject.Properties.Match('Text')) {
-                $txt_InfoInstrucciones.Text = $message
-            }
-        }.GetNewClosure()
         $buttonsToUpdate = @(
             $LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler,
             $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool,
@@ -587,131 +591,171 @@ WHERE
         )
         foreach ($button in $buttonsToUpdate) {
             $button.Add_MouseLeave({
-                    & $setInstructionText $global:defaultInstructions
+                    if ($script:setInstructionText) {
+                        $script:setInstructionText.Invoke($global:defaultInstructions)
+                    }
                 })
         }
         $LZMAbtnBuscarCarpeta.Add_MouseEnter({
-                & $setInstructionText @"
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
 Busca en los registros de Windows el histórico de instalaciones que han fallado,
 permitiendo renombrar la carpeta correspondiente para que el instalador genere
 un nuevo registro y así evite el mensaje de error conocido:
 
     Error al crear el archivo en temporales
-"@
+"@)
+                }
             })
         $btnInstallSQLManagement.Add_MouseEnter({
-                & $setInstructionText @"
-Instalación de SQL Server Management Studio mediante Chocolatey.
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Instalación de SQL Server Management Studio mediante Chocolatey.
 Al presionar, podrás elegir:
   • Último disponible (paquete: sql-server-management-studio)
   • SSMS 14 / 2014 (paquete: mssqlservermanagementstudio2014express)
-"@
+"@)
+                }
             })
         $btnInstalarHerramientas.Add_MouseEnter({
-                & $setInstructionText @"
-Abre el menú de instaladores de Chocolatey para instalar o actualizar
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Abre el menú de instaladores de Chocolatey para instalar o actualizar
 herramientas de línea de comandos y utilerías en el sistema.
-"@
+"@)
+                }
             })
         $btnProfiler.Add_MouseEnter({
-                & $setInstructionText @"
-Ejecuta o descarga ExpressProfiler desde el servidor oficial,
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Ejecuta o descarga ExpressProfiler desde el servidor oficial,
 herramienta para monitorear consultas de SQL Server.
-"@
+"@)
+                }
             })
         $btnDatabase.Add_MouseEnter({
-                & $setInstructionText @"
-Ejecuta Database4: si no está instalado, lo descarga automáticamente
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Ejecuta Database4: si no está instalado, lo descarga automáticamente
 y luego lo lanza para la gestión de sus bases de datos.
-"@
+"@)
+                }
             })
         $btnSQLManager.Add_MouseEnter({
-                & $setInstructionText @"
-Ejecuta SQL Server Management Studio (para SQL 2014). Si no lo encuentra,
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Ejecuta SQL Server Management Studio (para SQL 2014). Si no lo encuentra,
 avisará al usuario dónde descargarlo desde el repositorio oficial.
-"@
+"@)
+                }
             })
         $btnSQLManagement.Add_MouseEnter({
-                & $setInstructionText @"
-Busca SQL Management en el equipo, recupera la versión instalada
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Busca SQL Management en el equipo, recupera la versión instalada
 y la muestra antes de ejecutarlo.
-"@
+"@)
+                }
             })
         $btnPrinterTool.Add_MouseEnter({
-                & $setInstructionText @"
-Herramienta de Star Micronics para configurar y diagnosticar impresoras POS:
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Herramienta de Star Micronics para configurar y diagnosticar impresoras POS:
 permite probar estado, formatear y configurar parámetros fundamentales.
-"@
+"@)
+                }
             })
         $btnLectorDPicacls.Add_MouseEnter({
-                & $setInstructionText @"
-Repara el error al instalar el Driver del lector DP.
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Repara el error al instalar el Driver del lector DP.
 Modifica los permisos de la carpeta C:\Windows\System32\en-us
 mediante el comando ICALCS para el driver tenga los permisos necesarios.
-"@
+"@)
+                }
             })
         $btnConfigurarIPs.Add_MouseEnter({
-                & $setInstructionText @"
-Agrega direcciones IP adicionales para configurar impresoras en red
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Agrega direcciones IP adicionales para configurar impresoras en red
 que estén en un segmento diferente al predeterminado.
 Convierte de DHCP a ip fija y tambien permite cambiar la configuración de ip fija a DHCP.
-"@
+"@)
+                }
             })
         $btnAddUser.Add_MouseEnter({
-                & $setInstructionText @"
-Crea un nuevo usuario local en Windows con permisos básicos:
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Crea un nuevo usuario local en Windows con permisos básicos:
 útil para sesión independiente en estaciones o terminales.
-"@
+"@)
+                }
             })
         $btnForzarActualizacion.Add_MouseEnter({
-                & $setInstructionText @"
-Para el error de descarga de licencia por no tener datos de equipo como el procesador.
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Para el error de descarga de licencia por no tener datos de equipo como el procesador.
 Actualiza la información de hardware del sistema:
 reescanea unidades, adaptadores y muestra un resumen de dispositivos.
-"@
+"@)
+                }
             })
         $btnClearAnyDesk.Add_MouseEnter({
-                & $setInstructionText @"
-Detiene el servicio de AnyDesk, elimina los archivos temporales
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Detiene el servicio de AnyDesk, elimina los archivos temporales
 y forja un nuevo ID para evitar conflictos de acceso remoto.
-"@
+"@)
+                }
             })
         $btnShowPrinters.Add_MouseEnter({
-                & $setInstructionText @"
-Muestra en consola las impresoras instaladas en Windows,
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Muestra en consola las impresoras instaladas en Windows,
 junto con su puerto y driver correspondiente.
-"@
+"@)
+                }
             })
         $btnClearPrintJobs.Add_MouseEnter({
-                & $setInstructionText @"
-Limpia la cola de impresión y reinicia el servicio de spooler
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Limpia la cola de impresión y reinicia el servicio de spooler
 para liberar trabajos atascados.
-"@
+"@)
+                }
             })
         $btnAplicacionesNS.Add_MouseEnter({
-                & $setInstructionText @"
-Busca los archivos INI de National Soft en el equipo
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Busca los archivos INI de National Soft en el equipo
 y extrae la información de conexión a bases de datos.
-"@
+"@)
+                }
             })
         $btnCheckPermissions.Add_MouseEnter({
-                & $setInstructionText @"
-Revisa los permisos de la carpeta C:\NationalSoft
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Revisa los permisos de la carpeta C:\NationalSoft
 y muestra qué usuarios tienen acceso de lectura/escritura.
 * Permite asignar permisos heredados a Everyone a dicha carpeta.
-"@
+"@)
+                }
             })
         $btnCambiarOTM.Add_MouseEnter({
-                & $setInstructionText @"
-Cambia la configuración de On The Minute (OTM)
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Cambia la configuración de On The Minute (OTM)
 entre SQL Server y DBF según corresponda.
-"@
+"@)
+                }
             })
         $btnCreateAPK.Add_MouseEnter({
-                & $setInstructionText @"
-Genera el archivo APK para Comandero Móvil:
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Genera el archivo APK para Comandero Móvil:
 compila el proyecto y lo coloca en la carpeta de salida.
-"@
+"@)
+                }
             })
         $lblPort.Add_Click({
                 if ($lblPort.Text -match "\d+") {

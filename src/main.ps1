@@ -48,7 +48,7 @@ foreach ($module in $modules) {
         Write-Host "  ✗ $module no encontrado" -ForegroundColor Red
     }
 }
-$global:version = "0.1.0"
+$global:version = "beta.25.12.03.0914"
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
 - Versión modularizada

@@ -24,7 +24,7 @@ function Get-SystemInfo {
             MacAddress = $adapter.MacAddress
             IPAddresses = @()
         }
-        $ipAddresses = Get-NetIPAddress -InterfaceAlias $adapter.Name -AddressFamily IPv4 | 
+        $ipAddresses = Get-NetIPAddress -InterfaceAlias $adapter.Name -AddressFamily IPv4 |
                        Where-Object { $_.IPAddress -ne '127.0.0.1' }
         foreach ($ip in $ipAddresses) {
             $adapterInfo.IPAddresses += $ip.IPAddress
@@ -161,7 +161,7 @@ function Invoke-DiskCleanup {
         $sagerun = "9999"
         Start-Process $cleanmgr -ArgumentList "/sageset:$sagerun" -Wait
         Start-Process $cleanmgr -ArgumentList "/sagerun:$sagerun" -Wait
-        
+
         Write-Host "Limpieza de disco completada correctamente" -ForegroundColor Green
     }
     catch {
@@ -170,9 +170,9 @@ function Invoke-DiskCleanup {
 }
 function Show-SystemComponents {
     $criticalError = $false
-    
+
     Write-Host "`n=== Componentes del sistema detectados ===" -ForegroundColor Cyan
-    
+
     # Versión de Windows (componente crítico)
     try {
         $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop
@@ -264,7 +264,7 @@ function Check-Permissions {
                     }
                 }
                 # Mostrar los permisos en la consola
-                $permissions | ForEach-Object { 
+                $permissions | ForEach-Object {
                     Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
                     Write-Host "` $($_.Permiso)" -ForegroundColor Green
                 }
@@ -383,7 +383,95 @@ function Remove-SqlComments {
     $cleanedQuery = $cleanedQuery -replace '(?<!\w)--.*$', ''
     return $cleanedQuery.Trim()
 }
-
-Export-ModuleMember -Function Test-Administrator, Get-SystemInfo, Clear-TemporaryFiles, 
-    Get-IniConnections, Test-ChocolateyInstalled, Install-Chocolatey, Get-AdminGroupName, Invoke-DiskCleanup, Remove-SqlComments, Show-SystemComponents, Test-SameHost, Test-7ZipInstalled, Test-MegaToolsInstalled, Check-Permissions, DownloadAndRun      
-    
+function Refresh-AdapterStatus {
+    $statuses = Get-NetworkAdapterStatus
+    if ($statuses.Count -gt 0) {
+        $lines = $statuses | ForEach-Object {
+            "- $($_.AdapterName) - $($_.NetworkCategory)"
+        }
+        $txt_AdapterStatus.Text = $lines -join "`r`n"
+    } else {
+        $txt_AdapterStatus.Text = "No se encontraron adaptadores activos."
+    }
+}
+function Get-NetworkAdapterStatus {
+    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+    $profiles = Get-NetConnectionProfile
+    $adapterStatus = @()
+    foreach ($adapter in $adapters) {
+        $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
+        $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
+        $adapterStatus += [PSCustomObject]@{
+            AdapterName     = $adapter.Name
+            NetworkCategory = $networkCategory
+            InterfaceIndex  = $adapter.ifIndex  # Guardar el InterfaceIndex para identificar el adaptador
+        }
+    }
+    return $adapterStatus
+}
+function Start-SystemUpdate {
+    $progressForm = $null
+    try {
+        $progressForm = Show-ProgressBar
+        $totalSteps = 6
+        $currentStep = 0
+        Write-Host "`nIniciando proceso de actualización..." -ForegroundColor Cyan
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Write-Host "`n[Paso 1/$totalSteps] Deteniendo servicio winmgmt..." -ForegroundColor Yellow
+        $service = Get-Service -Name "winmgmt" -ErrorAction Stop
+        if ($service.Status -eq "Running") {
+            Stop-Service -Name "winmgmt" -Force -ErrorAction Stop
+            Write-Host "Servicio detenido correctamente." -ForegroundColor Green
+        }
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Write-Host "`n[Paso 2/$totalSteps] Renombrando carpeta Repository..." -ForegroundColor Yellow
+        try {
+            $repoPath = Join-Path $env:windir "System32\Wbem\Repository"
+            if (Test-Path $repoPath) {
+                $newName = "Repository_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+                Rename-Item -Path $repoPath -NewName $newName -Force -ErrorAction Stop
+                Write-Host "Carpeta renombrada: $newName" -ForegroundColor Green
+            }
+        } catch {
+            Write-Host "Advertencia: No se pudo renombrar la carpeta Repository. Continuando..." -ForegroundColor Yellow
+        }
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Write-Host "`n[Paso 3/$totalSteps] Reiniciando servicio winmgmt..." -ForegroundColor Yellow
+        net start winmgmt *>&1 | Write-Host
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Write-Host "`n[Paso 4/$totalSteps] Limpiando archivos temporales (ignorar si hay errores)..." -ForegroundColor Cyan
+        $totalDeleted = 0
+        $totalDeleted += Clear-TemporaryFiles -folderPath $env:TEMP
+        $totalDeleted += Clear-TemporaryFiles -folderPath "$env:SystemDrive\Windows\Temp"
+        Write-Host "Total archivos eliminados: $totalDeleted" -ForegroundColor Green
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Write-Host "`n[Paso 5/$totalSteps] Ejecutando Liberador de espacio..." -ForegroundColor Cyan
+        Invoke-DiskCleanup
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Write-Host "`n[Paso 6/$totalSteps] Obteniendo información del sistema..." -ForegroundColor Cyan
+        Show-SystemComponents
+        $currentStep++
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Write-Host "`nProceso completado con éxito" -ForegroundColor Green
+    } catch {
+        Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Detalles: $($_.ScriptStackTrace)" -ForegroundColor DarkGray
+        [System.Windows.Forms.MessageBox]::Show(
+            "Error: $($_.Exception.Message)`nRevise los logs antes de reiniciar.",
+            "Error crítico",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        )
+    } finally {
+        if ($progressForm -ne $null -and -not $progressForm.IsDisposed) {
+            Close-ProgressBar $progressForm
+        }
+    }
+}
+Export-ModuleMember -Function Test-Administrator, Get-SystemInfo, Clear-TemporaryFiles,
+    Get-IniConnections, Test-ChocolateyInstalled, Install-Chocolatey, Get-AdminGroupName, Invoke-DiskCleanup, Remove-SqlComments, Show-SystemComponents, Test-SameHost, Test-7ZipInstalled, Test-MegaToolsInstalled, Refresh-AdapterStatus, Get-NetworkAdapterStatus, DownloadAndRun, Start-SystemUpdate

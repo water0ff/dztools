@@ -1,34 +1,26 @@
 #requires -Version 5.0
+$script:toolTip = New-Object System.Windows.Forms.ToolTip
 function Create-Form {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
         [string]$Title,
-
         [Parameter()]
         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(350, 200)),
-
         [Parameter()]
         [System.Windows.Forms.FormStartPosition]$StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen,
-
         [Parameter()]
         [System.Windows.Forms.FormBorderStyle]$FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog,
-
         [Parameter()]
         [bool]$MaximizeBox = $false,
-
         [Parameter()]
         [bool]$MinimizeBox = $false,
-
         [Parameter()]
         [bool]$TopMost = $false,
-
         [Parameter()]
         [bool]$ControlBox = $true,
-
         [Parameter()]
         [System.Drawing.Icon]$Icon = $null,
-
         [Parameter()]
         [System.Drawing.Color]$BackColor = [System.Drawing.SystemColors]::Control
     )
@@ -44,9 +36,7 @@ function Create-Form {
     if ($Icon) {
         $form.Icon = $Icon
     }
-
     $form.BackColor = $BackColor
-
     return $form
 }
 function Create-Label {
@@ -185,27 +175,20 @@ function Show-ProgressBar {
     $type = $progressBar.GetType()
     $flags = [Reflection.BindingFlags]::NonPublic -bor [Reflection.BindingFlags]::Instance
     $type.GetField("DoubleBuffered", $flags).SetValue($progressBar, $true)
-
     $lblPercentage = New-Object System.Windows.Forms.Label
     $lblPercentage.Location = New-Object System.Drawing.Point(10, 20)
     $lblPercentage.Size = New-Object System.Drawing.Size(360, 20)
     $lblPercentage.Text = "0% Completado"
     $lblPercentage.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-
-    # Agregar controles al formulario usando la propiedad Controls nativa
     $formProgress.Controls.Add($progressBar)
     $formProgress.Controls.Add($lblPercentage)
-
-    # Exponer los controles como propiedades personalizadas (opcional, si es necesario)
     $formProgress | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $progressBar -Force
     $formProgress | Add-Member -MemberType NoteProperty -Name Label -Value $lblPercentage -Force
-
     $formProgress.Show()
     return $formProgress
 }
 # Función para actualizar la barra de progreso
 function Update-ProgressBar {
-
     param($ProgressForm, $CurrentStep, $TotalSteps)
     $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)
     if (-not $ProgressForm.IsDisposed) {
@@ -215,7 +198,6 @@ function Update-ProgressBar {
     }
 }
 
-# Función para cerrar la barra de progreso
 function Close-ProgressBar {
     param($ProgressForm)
     $ProgressForm.Close()
@@ -226,18 +208,15 @@ function Show-SSMSInstallerDialog {
         -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
         -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) `
         -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
-
     $lbl = Create-Label -Text "Elige la versión a instalar:" -Location (New-Object System.Drawing.Point(10, 15)) -Size (New-Object System.Drawing.Size(320, 20))
     $cmb = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 40)) -Size (New-Object System.Drawing.Size(320, 22)) -DropDownStyle DropDownList
     $null = $cmb.Items.Add("Último disponible.")
     $null = $cmb.Items.Add("SSMS 14 (2014)")
     $cmb.SelectedIndex = 0
-
     $btnOK = Create-Button -Text "Instalar" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(140, 30))
     $btnOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $btnCancel = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(190, 80)) -Size (New-Object System.Drawing.Size(140, 30))
     $btnCancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
-
     $form.AcceptButton = $btnOK
     $form.CancelButton = $btnCancel
     $form.Controls.AddRange(@($lbl, $cmb, $btnOK, $btnCancel))
@@ -253,11 +232,9 @@ function Show-SSMSInstallerDialog {
 function Show-NewIpForm {
     $formIpAssign = Create-Form -Title "Agregar IP Adicional" -Size (New-Object System.Drawing.Size(350, 150)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
         -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
-
     $lblipAssignER = Create-Label -Text "Ingrese la nueva dirección IP:" -Location (New-Object System.Drawing.Point(10, 20))
     $lblipAssignER.AutoSize = $true
     $formIpAssign.Controls.Add($lblipAssignER)
-
     $ipAssignTextBox1 = Create-TextBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(50, 20))
     $ipAssignTextBox1.MaxLength = 3
     $ipAssignTextBox1.Add_KeyPress({
@@ -271,7 +248,6 @@ function Show-NewIpForm {
             if ($ipAssignTextBox1.Text.Length -eq 3) { $ipAssignTextBox2.Focus() }
         })
     $formIpAssign.Controls.Add($ipAssignTextBox1)
-
     $lblipAssignERDot1 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(65, 53))
     $lblipAssignERDot1.AutoSize = $true
     $formIpAssign.Controls.Add($lblipAssignERDot1)
@@ -288,11 +264,9 @@ function Show-NewIpForm {
             if ($ipAssignTextBox2.Text.Length -eq 3) { $ipAssignTextBox3.Focus() }
         })
     $formIpAssign.Controls.Add($ipAssignTextBox2)
-
     $lblipAssignERDot2 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(135, 53))
     $lblipAssignERDot2.AutoSize = $true
     $formIpAssign.Controls.Add($lblipAssignERDot2)
-
     $ipAssignTextBox3 = Create-TextBox -Location (New-Object System.Drawing.Point(150, 50)) -Size (New-Object System.Drawing.Size(50, 20))
     $ipAssignTextBox3.MaxLength = 3
     $ipAssignTextBox3.Add_KeyPress({
@@ -306,7 +280,6 @@ function Show-NewIpForm {
             if ($ipAssignTextBox3.Text.Length -eq 3) { $ipAssignTextBox4.Focus() }
         })
     $formIpAssign.Controls.Add($ipAssignTextBox3)
-
     $lblipAssignERDot3 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(205, 53))
     $lblipAssignERDot3.AutoSize = $true
     $formIpAssign.Controls.Add($lblipAssignERDot3)
@@ -327,7 +300,6 @@ function Show-NewIpForm {
         $octet2 = [int]$ipAssignTextBox2.Text
         $octet3 = [int]$ipAssignTextBox3.Text
         $octet4 = [int]$ipAssignTextBox4.Text
-
         if ($octet1 -ge 0 -and $octet1 -le 255 -and
             $octet2 -ge 0 -and $octet2 -le 255 -and
             $octet3 -ge 0 -and $octet3 -le 255 -and
@@ -356,35 +328,25 @@ function New-FormBuilder {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Title,
-
         [Parameter()]
         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(1000, 600)),
-
         [Parameter()]
         [System.Windows.Forms.FormStartPosition]$StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen,
-
         [Parameter()]
         [System.Windows.Forms.FormBorderStyle]$FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog,
-
         [Parameter()]
         [bool]$MaximizeBox = $false,
-
         [Parameter()]
         [bool]$MinimizeBox = $false,
-
         [Parameter()]
         [bool]$TopMost = $false,
-
         [Parameter()]
         [bool]$ControlBox = $true,
-
         [Parameter()]
         [System.Drawing.Icon]$Icon = $null,
-
         [Parameter()]
         [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White
     )
-
     $form = New-Object System.Windows.Forms.Form
     $form.Text            = $Title
     $form.Size            = $Size
@@ -394,40 +356,29 @@ function New-FormBuilder {
     $form.MinimizeBox     = $MinimizeBox
     $form.TopMost         = $TopMost
     $form.ControlBox      = $ControlBox
-
     if ($Icon) {
         $form.Icon = $Icon
     }
-
     $form.BackColor = $BackColor
-
     return $form
 }
-
 function New-Button {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [string]$Text,
-
         [Parameter(Mandatory = $true)]
         [System.Drawing.Point]$Location,
-
         [Parameter()]
         [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
-
         [Parameter()]
         [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-
         [Parameter()]
         [string]$ToolTipText = $null,
-
         [Parameter()]
         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(220, 35)),
-
         [Parameter()]
         [System.Drawing.Font]$Font = $null,
-
         [Parameter()]
         [bool]$Enabled = $true
     )
@@ -435,7 +386,6 @@ function New-Button {
     if (-not $Font) {
         $Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     }
-
     $button = New-Object System.Windows.Forms.Button
     $button.Text = $Text
     $button.Size = $Size
@@ -445,60 +395,44 @@ function New-Button {
     $button.Font = $Font
     $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
     $button.Enabled = $Enabled
-
-    # Configurar eventos hover
     $button.Add_MouseEnter({
         $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)
         $this.Font = New-Object System.Drawing.Font($this.Font.Name, $this.Font.Size, [System.Drawing.FontStyle]::Bold)
     })
-
     $button.Add_MouseLeave({
         $this.BackColor = $BackColor
         $this.Font = $Font
     })
-
     if ($ToolTipText) {
         $toolTip.SetToolTip($button, $ToolTipText)
     }
-
     return $button
 }
-
 function New-Label {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [string]$Text,
-
         [Parameter(Mandatory = $true)]
         [System.Drawing.Point]$Location,
-
         [Parameter()]
         [System.Drawing.Color]$BackColor = [System.Drawing.Color]::Transparent,
-
         [Parameter()]
         [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-
         [Parameter()]
         [string]$ToolTipText = $null,
-
         [Parameter()]
         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
-
         [Parameter()]
         [System.Drawing.Font]$Font = $null,
-
         [Parameter()]
         [System.Windows.Forms.BorderStyle]$BorderStyle = [System.Windows.Forms.BorderStyle]::None,
-
         [Parameter()]
         [System.Drawing.ContentAlignment]$TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
     )
-
     if (-not $Font) {
         $Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     }
-
     $label = New-Object System.Windows.Forms.Label
     $label.Text = $Text
     $label.Size = $Size
@@ -508,52 +442,38 @@ function New-Label {
     $label.Font = $Font
     $label.BorderStyle = $BorderStyle
     $label.TextAlign = $TextAlign
-
     if ($ToolTipText) {
         $toolTip.SetToolTip($label, $ToolTipText)
     }
-
     return $label
 }
-
 function New-TextBox {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [System.Drawing.Point]$Location,
-
         [Parameter()]
         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
-
         [Parameter()]
         [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
-
         [Parameter()]
         [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-
         [Parameter()]
         [System.Drawing.Font]$Font = $null,
-
         [Parameter()]
         [string]$Text = "",
-
         [Parameter()]
         [bool]$Multiline = $false,
-
         [Parameter()]
         [System.Windows.Forms.ScrollBars]$ScrollBars = [System.Windows.Forms.ScrollBars]::None,
-
         [Parameter()]
         [bool]$ReadOnly = $false,
-
         [Parameter()]
         [bool]$UseSystemPasswordChar = $false
     )
-
     if (-not $Font) {
         $Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     }
-
     $textBox = New-Object System.Windows.Forms.TextBox
     $textBox.Location = $Location
     $textBox.Size = $Size
@@ -576,7 +496,6 @@ function New-ComboBox {
     param(
         [Parameter(Mandatory = $true)]
         [System.Drawing.Point]$Location,
-
         [Parameter()]
         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
 

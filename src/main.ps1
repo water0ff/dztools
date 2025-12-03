@@ -190,11 +190,11 @@ function New-MainForm {
         $txtPassword.Enabled = $true
         $btnExecute.Enabled = $false
         $cmbQueries.Enabled = $false
+        #Todavía no lo migramos                $btnReloadConnections,  # <-- Agregar este
         $tabProSql.Controls.AddRange(@(
                 $btnConnectDb,
                 $btnDisconnectDb,
-                #Todavía no lo migramos                $btnReloadConnections,  # <-- Agregar este
-                $cmbDatabases,  # <-- Aquí el ComboBox reemplaza al ListBox
+                $cmbDatabases,
                 $lblConnectionStatus,
                 $btnExecute,
                 $cmbQueries,
@@ -320,7 +320,6 @@ function Start-Application {
         [System.Windows.Forms.MessageBox]::Show("No se pudo crear la interfaz gráfica. Verifique los logs.", "Error crítico")
         return
     }
-
     try {
         Write-Host "Mostrando formulario..." -ForegroundColor Yellow
         $mainForm.ShowDialog()

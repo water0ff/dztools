@@ -69,10 +69,6 @@ $global:defaultInstructions = @"
 - - Obtener columnas en consola
 "@
 function Initialize-Environment {
-    Write-Host "`n=============================================" -ForegroundColor DarkCyan
-    Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
-    Write-Host "              Versión: v$($global:version)               " -ForegroundColor Green
-    Write-Host "=============================================" -ForegroundColor DarkCyan
     if (!(Test-Path -Path "C:\Temp")) {
         try {
             New-Item -ItemType Directory -Path "C:\Temp" -Force | Out-Null

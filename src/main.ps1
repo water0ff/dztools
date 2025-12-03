@@ -312,9 +312,34 @@ function New-MainForm {
                 $txt_InfoInstrucciones,
                 $btnCreateAPK
             ))
-
         $formPrincipal.Controls.Add($tabControl)
         $formPrincipal.Controls.Add($btnExit)
+        $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
+        Where-Object { $_.OperationalStatus -eq 'Up' } |
+        ForEach-Object {
+            $interface = $_
+            $interface.GetIPProperties().UnicastAddresses |
+            Where-Object {
+                $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1'
+            } |
+            ForEach-Object {
+                @{
+                    AdapterName = $interface.Name
+                    IPAddress   = $_.Address.ToString()
+                }
+            }
+        }
+        if ($ipsWithAdapters.Count -gt 0) {
+            $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
+                    $_.IPAddress
+                }) -join ", "
+            $ipsTextForLabel = $ipsWithAdapters | ForEach-Object {
+                "- $($_.AdapterName) - IP: $($_.IPAddress)"
+            } | Out-String
+            $txt_IpAdress.Text = $ipsTextForLabel
+        } else {
+            $txt_IpAdress.Text = "No se encontraron direcciones IP"
+        }
         $btnExit.Add_Click({
                 $formPrincipal.Dispose()
                 $formPrincipal.Close()

@@ -564,30 +564,4 @@ function Show-ProgressDialog {
     $form.Controls.AddRange(@($progressBar, $label))
     return $form
 }
-$ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
-Where-Object { $_.OperationalStatus -eq 'Up' } |
-ForEach-Object {
-    $interface = $_
-    $interface.GetIPProperties().UnicastAddresses |
-    Where-Object {
-        $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1'
-    } |
-    ForEach-Object {
-        @{
-            AdapterName = $interface.Name
-            IPAddress   = $_.Address.ToString()
-        }
-    }
-}
-if ($ipsWithAdapters.Count -gt 0) {
-    $ipsTextForClipboard = ($ipsWithAdapters | ForEach-Object {
-            $_.IPAddress
-        }) -join ", "
-    $ipsTextForLabel = $ipsWithAdapters | ForEach-Object {
-        "- $($_.AdapterName) - IP: $($_.IPAddress)"
-    } | Out-String
-    $txt_IpAdress.Text = $ipsTextForLabel
-} else {
-    $txt_IpAdress.Text = "No se encontraron direcciones IP"
-}
 Export-ModuleMember -Function New-FormBuilder, New-Button, New-Label, New-TextBox, New-ComboBox, Show-ProgressDialog, Create-Form, Create-Button, Create-Label, Create-TextBox, Create-ComboBox, Show-ProgressBar, Update-ProgressBar, Close-ProgressBar, Show-SSMSInstallerDialog, Show-NewIpForm

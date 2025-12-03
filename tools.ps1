@@ -1,12 +1,6 @@
-if (!(Test-Path -Path "C:\Temp")) {
-    New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
-    Write-Host "Carpeta 'C:\Temp' creada correctamente."
-}
-$iconDir = "C:\Temp\icos"
-if (-not (Test-Path $iconDir)) {
-    New-Item -ItemType Directory -Path $iconDir -Force | Out-Null
-    Write-Host "Carpeta de íconos creada: $iconDir"
-}
+Import-Module "$PSScriptRoot/src/Modules/DanielTools.psd1"
+
+$initContext = Initialize-DanielToolsEnvironment -TempPath "C:\Temp" -IconDirectory "C:\Temp\icos"
 Write-Host "`n==============================================" -ForegroundColor Red
 Write-Host "           ADVERTENCIA DE VERSIÓN ALFA          " -ForegroundColor Red
 Write-Host "==============================================" -ForegroundColor Red
@@ -43,19 +37,9 @@ $global:defaultInstructions = @"
 - - Obtener columnas en consola
 "@
 Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundColor Green
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName System.Drawing
-    [System.Windows.Forms.Application]::EnableVisualStyles()
-    $formPrincipal = New-Object System.Windows.Forms.Form
-    $formPrincipal.Size = New-Object System.Drawing.Size(1000, 600)  # Aumentado de 720x400
-    $formPrincipal.StartPosition = "CenterScreen"
-    $formPrincipal.BackColor = [System.Drawing.Color]::White
-    $formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-    $formPrincipal.MaximizeBox = $false
-    $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-    $formPrincipal.Text = "Daniel Tools v$version"
+    $formPrincipal = New-MainForm -Title "Daniel Tools v$version" -Size (New-Object System.Drawing.Size(1000, 600)) -BackColor ([System.Drawing.Color]::White) -DefaultFont $defaultFont -BoldFont $boldFont
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
     Write-Host "              Versión: v$($version)               " -ForegroundColor Green
@@ -63,176 +47,6 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
     Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
     $toolTip = New-Object System.Windows.Forms.ToolTip
-function Create-Button {
-                param (
-                    [string]$Text,
-                    [System.Drawing.Point]$Location,
-                    [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
-                    [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-                    [string]$ToolTipText = $null,
-                    [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(220, 35)),
-[System.Drawing.Font]$Font = $defaultFont, # Agregar parámetro Font con valor predeterminado
-                    [bool]$Enabled = $true
-                )
-                $buttonStyle = @{
-                    FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
-                    Font      = $defaultFont
-                }
-                $button_MouseEnter = {
-                    $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
-                    $this.Font = $boldFont
-                }
-                $button_MouseLeave = {
-                    $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
-                    $this.Font = $defaultFont
-                }
-                $button = New-Object System.Windows.Forms.Button
-                $button.Text = $Text
-                $button.Size = $Size  # Usar el tamaño personalizado
-                $button.Location = $Location
-                $button.BackColor = $BackColor
-                $button.ForeColor = $ForeColor
-$button.Font = $Font # Usar el parámetro Font
-                $button.FlatStyle = $buttonStyle.FlatStyle
-                $button.Tag = $BackColor  # Almacena el color original en Tag
-                $button.Add_MouseEnter($button_MouseEnter)
-                $button.Add_MouseLeave($button_MouseLeave)
-                $button.Enabled = $Enabled
-                if ($ToolTipText) {
-                    $toolTip.SetToolTip($button, $ToolTipText)
-                }
-                 if ($PSBoundParameters.ContainsKey('DialogResult')) {
-                    $button.DialogResult = $DialogResult
-                    }
-                return $button
-            }
-function Create-Label {
-        param (
-            [string]$Text,
-            [System.Drawing.Point]$Location,
-            [System.Drawing.Color]$BackColor = [System.Drawing.Color]::Transparent,
-            [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-            [string]$ToolTipText = $null,
-            [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
-            [System.Drawing.Font]$Font = $defaultFont,
-            [System.Windows.Forms.BorderStyle]$BorderStyle = [System.Windows.Forms.BorderStyle]::None,
-            [System.Drawing.ContentAlignment]$TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
-        )
-        $label = New-Object System.Windows.Forms.Label
-        $label.Text = $Text
-        $label.Size = $Size
-        $label.Location = $Location
-        $label.BackColor = $BackColor
-        $label.ForeColor = $ForeColor
-        $label.Font = $Font
-        $label.BorderStyle = $BorderStyle
-        $label.TextAlign = $TextAlign
-        if ($ToolTipText) { $toolTip.SetToolTip($label, $ToolTipText) }
-        return $label
-}
-function Create-Form {
-        [CmdletBinding()]
-        param (
-            [Parameter(Mandatory = $true)]
-            [string]$Title,
-    
-            [Parameter()]
-            [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(350, 200)),
-    
-            [Parameter()]
-            [System.Windows.Forms.FormStartPosition]$StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen,
-    
-            [Parameter()]
-            [System.Windows.Forms.FormBorderStyle]$FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog,
-    
-            [Parameter()]
-            [bool]$MaximizeBox = $false,
-    
-            [Parameter()]
-            [bool]$MinimizeBox = $false,
-    
-            [Parameter()]
-            [bool]$TopMost = $false,
-    
-            [Parameter()]
-            [bool]$ControlBox = $true,
-    
-            [Parameter()]
-            [System.Drawing.Icon]$Icon = $null,
-    
-            [Parameter()]
-            [System.Drawing.Color]$BackColor = [System.Drawing.SystemColors]::Control
-        )
-        $form = New-Object System.Windows.Forms.Form
-        $form.Text            = $Title
-        $form.Size            = $Size
-        $form.StartPosition   = $StartPosition
-        $form.FormBorderStyle = $FormBorderStyle
-        $form.MaximizeBox     = $MaximizeBox
-        $form.MinimizeBox     = $MinimizeBox
-        $form.TopMost     = $TopMost
-        $form.ControlBox  = $ControlBox
-        if ($Icon) {
-            $form.Icon = $Icon
-        }
-    
-        $form.BackColor = $BackColor
-    
-        return $form
-}
-function Create-ComboBox {
-            param (
-                [System.Drawing.Point]$Location,
-                [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
-                [System.Windows.Forms.ComboBoxStyle]$DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList,
-                [System.Drawing.Font]$Font = $defaultFont,
-                [string[]]$Items = @(),
-                [int]$SelectedIndex = -1,
-                [string]$DefaultText = $null
-            )
-            $comboBox = New-Object System.Windows.Forms.ComboBox
-            $comboBox.Location = $Location
-            $comboBox.Size = $Size
-            $comboBox.DropDownStyle = $DropDownStyle
-            $comboBox.Font = $Font
-            if ($Items.Count -gt 0) {
-                $comboBox.Items.AddRange($Items)
-                $comboBox.SelectedIndex = $SelectedIndex
-            }
-            if ($DefaultText) {
-                $comboBox.Text = $DefaultText
-            }
-            return $comboBox
-}
-function Create-TextBox {
-    param (
-        [System.Drawing.Point]$Location,
-        [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
-        [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White,
-        [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
-        [System.Drawing.Font]$Font = $defaultFont,
-        [string]$Text = "",
-        [bool]$Multiline = $false,
-        [System.Windows.Forms.ScrollBars]$ScrollBars = [System.Windows.Forms.ScrollBars]::None,
-        [bool]$ReadOnly = $false,
-        [bool]$UseSystemPasswordChar = $false
-    )
-    $textBox = New-Object System.Windows.Forms.TextBox
-    $textBox.Location = $Location
-    $textBox.Size = $Size
-    $textBox.BackColor = $BackColor
-    $textBox.ForeColor = $ForeColor
-    $textBox.Font = $Font
-    $textBox.Text = $Text
-    $textBox.Multiline = $Multiline
-    $textBox.ScrollBars = $ScrollBars
-    $textBox.ReadOnly = $ReadOnly
-    $textBox.WordWrap = $false
-    if ($UseSystemPasswordChar) {
-        $textBox.UseSystemPasswordChar = $true
-    }
-    return $textBox
-}
 $global:lastReportedPct = -1  # Añadir al inicio del script
 $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(990, 515)    # Original: 710x315
@@ -2796,138 +2610,6 @@ $btnAddUser.Add_Click({
     $formAddUser.Controls.AddRange(@($txtUsername,$txtPassword,$cmbType,$btnCreate,$btnCancel,$btnShow,$lblUsername,$lblPassword,$lblType))
     $formAddUser.ShowDialog()
 })
-function Remove-SqlComments {
-    param(
-        [string]$Query
-    )
-    $cleanedQuery = $Query -replace '(?s)/\*.*?\*/', ''
-    $cleanedQuery = $cleanedQuery -replace '(?m)^\s*--.*\n?', ''
-    $cleanedQuery = $cleanedQuery -replace '(?<!\w)--.*$', ''
-    return $cleanedQuery.Trim()
-}
-function ConvertTo-DataTable {
-    param($InputObject)
-    $dt = New-Object System.Data.DataTable
-    if (-not $InputObject) { return $dt }
-
-    $columns = $InputObject[0].Keys
-    foreach ($col in $columns) {
-        $dt.Columns.Add($col) | Out-Null
-    }
-
-    foreach ($row in $InputObject) {
-        $dr = $dt.NewRow()
-        foreach ($col in $columns) {
-            $dr[$col] = $row[$col]
-        }
-        $dt.Rows.Add($dr)
-    }
-    return $dt
-}
-function Execute-SqlQuery {
-    param (
-        [string]$server,
-        [string]$database,
-        [string]$query
-    )
-    try {
-        $connectionString = "Server=$server;Database=$database;User Id=$global:user;Password=$global:password;MultipleActiveResultSets=True"
-        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        $infoMessages = New-Object System.Collections.ArrayList
-        $connection.add_InfoMessage({
-            param($sender, $e)
-            $infoMessages.Add($e.Message) | Out-Null
-        })        
-        $connection.Open()
-        $command = $connection.CreateCommand()
-        $command.CommandText = $query
-        if ($query -match "(?si)^\s*(SELECT|WITH|INSERT|UPDATE|DELETE|RESTORE)") {
-            $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
-            $dataTable = New-Object System.Data.DataTable
-            $adapter.Fill($dataTable) | Out-Null
-            $command.ExecuteNonQuery() | Out-Null
-            return @{
-                DataTable = $dataTable
-                Messages = $infoMessages
-            }
-        } 
-        else {
-            $rowsAffected = $command.ExecuteNonQuery()
-            return @{
-                RowsAffected = $rowsAffected
-                Messages = $infoMessages
-            }
-        }
-    }
-    catch {
-        Write-Host "Error en consulta: $($_.Exception.Message)" -ForegroundColor Red
-        throw $_
-    }
-    finally {
-        $connection.Close()
-    }
-}
-function ConvertTo-DataTable {
-    param($InputObject)
-    $dt = New-Object System.Data.DataTable
-    $InputObject | ForEach-Object {
-        if (!$dt.Columns.Count) {
-            $_.PSObject.Properties | ForEach-Object {
-                $dt.Columns.Add($_.Name, $_.Value.GetType())
-            }
-        }
-        $row = $dt.NewRow()
-        $_.PSObject.Properties | ForEach-Object {
-            $row[$_.Name] = $_.Value
-        }
-        $dt.Rows.Add($row)
-    }
-    return $dt
-}
-function Show-ResultsConsole {
-    param (
-        [string]$query
-    )
-    try {
-        $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
-        
-        if ($results.GetType().Name -eq 'Hashtable') {
-            $consoleData = $results.ConsoleData
-            if ($consoleData.Count -gt 0) {
-                $columns = $consoleData[0].Keys
-                $columnWidths = @{}
-                foreach ($col in $columns) {
-                    $columnWidths[$col] = $col.Length
-                }
-                
-                Write-Host ""
-                $header = ""
-                foreach ($col in $columns) {
-                    $header += $col.PadRight($columnWidths[$col] + 4)
-                }
-                Write-Host $header
-                Write-Host ("-" * $header.Length)
-                
-                foreach ($row in $consoleData) {
-                    $rowText = ""
-                    foreach ($col in $columns) {
-                        $rowText += ($row[$col].ToString()).PadRight($columnWidths[$col] + 4)
-                    }
-                    Write-Host $rowText
-                }
-            } 
-            else {
-                Write-Host "`nNo se encontraron resultados." -ForegroundColor Yellow
-            }
-        }
-        else {
-            Write-Host "`nFilas afectadas: $results" -ForegroundColor Green
-        }
-    } 
-    catch {
-        Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
-    }
-}
 $btnExecute.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     try {
@@ -2945,7 +2627,7 @@ $btnExecute.Add_Click({
         if (-not $selectedDb) { throw "Selecciona una base de datos" }        
         $rawQuery = $rtbQuery.Text
         $cleanQuery = Remove-SqlComments -Query $rawQuery
-        $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $cleanQuery
+        $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $cleanQuery -Username $global:user -Password $global:password
         if ($result.Messages.Count -gt 0) {
             Write-Host "`nMensajes de SQL:" -ForegroundColor Cyan
             $result.Messages | ForEach-Object { Write-Host $_ }
@@ -3010,7 +2692,7 @@ $btnConnectDb.Add_Click({
         $global:connection = [System.Data.SqlClient.SqlConnection]::new($connStr)
         $global:connection.Open()
         $query = "SELECT name FROM sys.databases WHERE name NOT IN ('tempdb','model','msdb') AND state_desc = 'ONLINE' ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name;"
-        $result = Execute-SqlQuery -server $global:server -database "master" -query $query
+        $result = Execute-SqlQuery -server $global:server -database "master" -query $query -Username $global:user -Password $global:password
         $cmbDatabases.Items.Clear()
         foreach ($row in $result.DataTable.Rows) {
             $cmbDatabases.Items.Add($row["name"])

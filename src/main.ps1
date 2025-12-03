@@ -344,6 +344,7 @@ function New-MainForm {
                 $formPrincipal.Dispose()
                 $formPrincipal.Close()
             })
+        Load-IniConnectionsToComboBox
         return $formPrincipal
 
     } catch {

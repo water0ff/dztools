@@ -36,29 +36,26 @@ function Invoke-SqlQuery {
             [void]$adapter.Fill($dataTable)
 
             return @{
-                Success = $true
+                Success   = $true
                 DataTable = $dataTable
-                Type = "Query"
+                Type      = "Query"
             }
-        }
-        else {
+        } else {
             $rowsAffected = $command.ExecuteNonQuery()
 
             return @{
-                Success = $true
+                Success      = $true
                 RowsAffected = $rowsAffected
-                Type = "NonQuery"
+                Type         = "NonQuery"
             }
         }
-    }
-    catch {
+    } catch {
         return @{
-            Success = $false
+            Success      = $false
             ErrorMessage = $_.Exception.Message
-            Type = "Error"
+            Type         = "Error"
         }
-    }
-    finally {
+    } finally {
         if ($connection.State -eq [System.Data.ConnectionState]::Open) {
             $connection.Close()
         }
@@ -141,20 +138,18 @@ function Backup-Database {
 
         if ($result.Success) {
             return @{
-                Success = $true
+                Success    = $true
                 BackupPath = $BackupPath
             }
-        }
-        else {
+        } else {
             return @{
-                Success = $false
+                Success      = $false
                 ErrorMessage = $result.ErrorMessage
             }
         }
-    }
-    catch {
+    } catch {
         return @{
-            Success = $false
+            Success      = $false
             ErrorMessage = $_.Exception.Message
         }
     }
@@ -286,7 +281,6 @@ function Get-IniConnections {
 function Load-IniConnectionsToComboBox {
     $connections = Get-IniConnections
     $txtServer.Items.Clear()
-
     if ($connections.Count -gt 0) {
         foreach ($connection in $connections) {
             $txtServer.Items.Add($connection) | Out-Null
@@ -298,17 +292,14 @@ function Load-IniConnectionsToComboBox {
     $defaultServer = ".\NationalSoft"
     $txtServer.Text = $defaultServer
 }
-Load-IniConnectionsToComboBox
 function ConvertTo-DataTable {
     param($InputObject)
     $dt = New-Object System.Data.DataTable
     if (-not $InputObject) { return $dt }
-
     $columns = $InputObject[0].Keys
     foreach ($col in $columns) {
         $dt.Columns.Add($col) | Out-Null
     }
-
     foreach ($row in $InputObject) {
         $dr = $dt.NewRow()
         foreach ($col in $columns) {
@@ -319,4 +310,4 @@ function ConvertTo-DataTable {
     return $dt
 }
 Export-ModuleMember -Function Invoke-SqlQuery, Remove-SqlComments, Get-SqlDatabases, Backup-Database, Execute-SqlQuery, Show-ResultsConsole,
-    Get-IniConnections, Load-IniConnectionsToComboBox, ConvertTo-DataTable
+Get-IniConnections, Load-IniConnectionsToComboBox, ConvertTo-DataTable

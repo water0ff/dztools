@@ -442,8 +442,7 @@ function New-Label {
     $label.Font = $Font
     $label.BorderStyle = $BorderStyle
     $label.TextAlign = $TextAlign
-    if ($ToolTipText) {
-        $script:toolTip.SetToolTip($label, $ToolTipText)
+    if ($ToolTipText) {        $script:toolTip.SetToolTip($label, $ToolTipText)
     }
     return $label
 }

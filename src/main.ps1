@@ -572,6 +572,12 @@ WHERE
         }
         $lblHostname.Add_MouseEnter($changeColorOnHover)
         $lblHostname.Add_MouseLeave($restoreColorOnLeave)
+        $setInstructionText = {
+            param([string]$message)
+            if ($null -ne $txt_InfoInstrucciones -and $txt_InfoInstrucciones.PSObject.Properties.Match('Text')) {
+                $txt_InfoInstrucciones.Text = $message
+            }
+        }
         $buttonsToUpdate = @(
             $LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler,
             $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool,
@@ -581,11 +587,11 @@ WHERE
         )
         foreach ($button in $buttonsToUpdate) {
             $button.Add_MouseLeave({
-                    $txt_InfoInstrucciones.Text = $global:defaultInstructions
+                    & $setInstructionText $global:defaultInstructions
                 })
         }
         $LZMAbtnBuscarCarpeta.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Busca en los registros de Windows el histórico de instalaciones que han fallado,
 permitiendo renombrar la carpeta correspondiente para que el instalador genere
 un nuevo registro y así evite el mensaje de error conocido:
@@ -594,7 +600,7 @@ un nuevo registro y así evite el mensaje de error conocido:
 "@
             })
         $btnInstallSQLManagement.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Instalación de SQL Server Management Studio mediante Chocolatey.
 Al presionar, podrás elegir:
   • Último disponible (paquete: sql-server-management-studio)
@@ -602,107 +608,107 @@ Al presionar, podrás elegir:
 "@
             })
         $btnInstalarHerramientas.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Abre el menú de instaladores de Chocolatey para instalar o actualizar
 herramientas de línea de comandos y utilerías en el sistema.
 "@
             })
         $btnProfiler.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Ejecuta o descarga ExpressProfiler desde el servidor oficial,
 herramienta para monitorear consultas de SQL Server.
 "@
             })
         $btnDatabase.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Ejecuta Database4: si no está instalado, lo descarga automáticamente
 y luego lo lanza para la gestión de sus bases de datos.
 "@
             })
         $btnSQLManager.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Ejecuta SQL Server Management Studio (para SQL 2014). Si no lo encuentra,
 avisará al usuario dónde descargarlo desde el repositorio oficial.
 "@
             })
         $btnSQLManagement.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Busca SQL Management en el equipo, recupera la versión instalada
 y la muestra antes de ejecutarlo.
 "@
             })
         $btnPrinterTool.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Herramienta de Star Micronics para configurar y diagnosticar impresoras POS:
 permite probar estado, formatear y configurar parámetros fundamentales.
 "@
             })
         $btnLectorDPicacls.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Repara el error al instalar el Driver del lector DP.
 Modifica los permisos de la carpeta C:\Windows\System32\en-us
 mediante el comando ICALCS para el driver tenga los permisos necesarios.
 "@
             })
         $btnConfigurarIPs.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Agrega direcciones IP adicionales para configurar impresoras en red
 que estén en un segmento diferente al predeterminado.
 Convierte de DHCP a ip fija y tambien permite cambiar la configuración de ip fija a DHCP.
 "@
             })
         $btnAddUser.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Crea un nuevo usuario local en Windows con permisos básicos:
 útil para sesión independiente en estaciones o terminales.
 "@
             })
         $btnForzarActualizacion.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Para el error de descarga de licencia por no tener datos de equipo como el procesador.
 Actualiza la información de hardware del sistema:
 reescanea unidades, adaptadores y muestra un resumen de dispositivos.
 "@
             })
         $btnClearAnyDesk.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Detiene el servicio de AnyDesk, elimina los archivos temporales
 y forja un nuevo ID para evitar conflictos de acceso remoto.
 "@
             })
         $btnShowPrinters.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Muestra en consola las impresoras instaladas en Windows,
 junto con su puerto y driver correspondiente.
 "@
             })
         $btnClearPrintJobs.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Limpia la cola de impresión y reinicia el servicio de spooler
 para liberar trabajos atascados.
 "@
             })
         $btnAplicacionesNS.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Busca los archivos INI de National Soft en el equipo
 y extrae la información de conexión a bases de datos.
 "@
             })
         $btnCheckPermissions.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Revisa los permisos de la carpeta C:\NationalSoft
 y muestra qué usuarios tienen acceso de lectura/escritura.
 * Permite asignar permisos heredados a Everyone a dicha carpeta.
 "@
             })
         $btnCambiarOTM.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Cambia la configuración de On The Minute (OTM)
 entre SQL Server y DBF según corresponda.
 "@
             })
         $btnCreateAPK.Add_MouseEnter({
-                $txt_InfoInstrucciones.Text = @"
+                & $setInstructionText @"
 Genera el archivo APK para Comandero Móvil:
 compila el proyecto y lo coloca en la carpeta de salida.
 "@

@@ -283,4 +283,40 @@ function Get-IniConnections {
 
     return $connections | Sort-Object
 }
-Export-ModuleMember -Function Invoke-SqlQuery, Remove-SqlComments, Get-SqlDatabases, Backup-Database, Execute-SqlQuery, Show-ResultsConsole, Get-IniConnections
+function Load-IniConnectionsToComboBox {
+    $connections = Get-IniConnections
+    $txtServer.Items.Clear()
+
+    if ($connections.Count -gt 0) {
+        foreach ($connection in $connections) {
+            $txtServer.Items.Add($connection) | Out-Null
+        }
+        #Write-Host "`tSe cargaron $($connections.Count) conexiones desde archivos INI" -ForegroundColor Green Probar sin este
+    } else {
+        Write-Host "`tNo se encontraron conexiones en archivos INI" -ForegroundColor Yellow
+    }
+    $defaultServer = ".\NationalSoft"
+    $txtServer.Text = $defaultServer
+}
+Load-IniConnectionsToComboBox
+function ConvertTo-DataTable {
+    param($InputObject)
+    $dt = New-Object System.Data.DataTable
+    if (-not $InputObject) { return $dt }
+
+    $columns = $InputObject[0].Keys
+    foreach ($col in $columns) {
+        $dt.Columns.Add($col) | Out-Null
+    }
+
+    foreach ($row in $InputObject) {
+        $dr = $dt.NewRow()
+        foreach ($col in $columns) {
+            $dr[$col] = $row[$col]
+        }
+        $dt.Rows.Add($dr)
+    }
+    return $dt
+}
+Export-ModuleMember -Function Invoke-SqlQuery, Remove-SqlComments, Get-SqlDatabases, Backup-Database, Execute-SqlQuery, Show-ResultsConsole,
+    Get-IniConnections, Load-IniConnectionsToComboBox, ConvertTo-DataTable

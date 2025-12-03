@@ -375,58 +375,8 @@ if ($tcpPort -and $tcpPort.TcpPort) {
     $lblPort.Text = "No se encontró puerto o instancia."
 }
 
-function Show-ProgressBar {
-    #Create-Form HACER ESTO
-    $sizeProgress = New-Object System.Drawing.Size(400, 150)
-    $formProgress = Create-Form `
-        -Title "Progreso" -Size $sizeProgress -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-        -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -TopMost $true -ControlBox $false
-    $progressBar = New-Object System.Windows.Forms.ProgressBar
-    $progressBar.Size = New-Object System.Drawing.Size(360, 20)
-    $progressBar.Location = New-Object System.Drawing.Point(10, 50)
-    $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
-    $progressBar.Maximum = 100
-    $progressBar.SetStyle([System.Windows.Forms.ProgressBarStyle]::Continuous)
-    $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
-    $type = $progressBar.GetType()
-    $flags = [Reflection.BindingFlags]::NonPublic -bor [Reflection.BindingFlags]::Instance
-    $type.GetField("DoubleBuffered", $flags).SetValue($progressBar, $true)
 
-    $lblPercentage = New-Object System.Windows.Forms.Label
-    $lblPercentage.Location = New-Object System.Drawing.Point(10, 20)
-    $lblPercentage.Size = New-Object System.Drawing.Size(360, 20)
-    $lblPercentage.Text = "0% Completado"
-    $lblPercentage.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
 
-    # Agregar controles al formulario usando la propiedad Controls nativa
-    $formProgress.Controls.Add($progressBar)
-    $formProgress.Controls.Add($lblPercentage)
-
-    # Exponer los controles como propiedades personalizadas (opcional, si es necesario)
-    $formProgress | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $progressBar -Force
-    $formProgress | Add-Member -MemberType NoteProperty -Name Label -Value $lblPercentage -Force
-
-    $formProgress.Show()
-    return $formProgress
-}
-# Función para actualizar la barra de progreso
-function Update-ProgressBar {
-
-    param($ProgressForm, $CurrentStep, $TotalSteps)
-    $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)
-    if (-not $ProgressForm.IsDisposed) {
-        $ProgressForm.ProgressBar.Value = $percent
-        $ProgressForm.Label.Text = "$percent% Completado"
-        [System.Windows.Forms.Application]::DoEvents() # Usar con precaución
-    }
-}
-
-# Función para cerrar la barra de progreso
-function Close-ProgressBar {
-    param($ProgressForm)
-    $ProgressForm.Close()
-}
-##-------------------------------------------------------------------------------BOTONES ACCIONES
 $lblPort.Add_Click({
         if ($lblPort.Text -match "\d+") {
             # Asegurarse de que el texto es un número
@@ -1327,22 +1277,7 @@ $btnConfigurarIPs.Add_Click({
         $formIpAssignAsignacion.ShowDialog()
     })
 
-function Load-IniConnectionsToComboBox {
-    $connections = Get-IniConnections
-    $txtServer.Items.Clear()
 
-    if ($connections.Count -gt 0) {
-        foreach ($connection in $connections) {
-            $txtServer.Items.Add($connection) | Out-Null
-        }
-        #Write-Host "`tSe cargaron $($connections.Count) conexiones desde archivos INI" -ForegroundColor Green Probar sin este
-    } else {
-        Write-Host "`tNo se encontraron conexiones en archivos INI" -ForegroundColor Yellow
-    }
-    $defaultServer = ".\NationalSoft"
-    $txtServer.Text = $defaultServer
-}
-Load-IniConnectionsToComboBox
 $btnReloadConnections = Create-Button -Text "Recargar Conexiones" -Location (New-Object System.Drawing.Point(10, 180)) `
     -Size (New-Object System.Drawing.Size(180, 30)) `
     -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
@@ -1730,44 +1665,6 @@ $btnAddUser.Add_Click({
         $formAddUser.Controls.AddRange(@($txtUsername, $txtPassword, $cmbType, $btnCreate, $btnCancel, $btnShow, $lblUsername, $lblPassword, $lblType))
         $formAddUser.ShowDialog()
     })
-
-function ConvertTo-DataTable {
-    param($InputObject)
-    $dt = New-Object System.Data.DataTable
-    if (-not $InputObject) { return $dt }
-
-    $columns = $InputObject[0].Keys
-    foreach ($col in $columns) {
-        $dt.Columns.Add($col) | Out-Null
-    }
-
-    foreach ($row in $InputObject) {
-        $dr = $dt.NewRow()
-        foreach ($col in $columns) {
-            $dr[$col] = $row[$col]
-        }
-        $dt.Rows.Add($dr)
-    }
-    return $dt
-}
-
-function ConvertTo-DataTable {
-    param($InputObject)
-    $dt = New-Object System.Data.DataTable
-    $InputObject | ForEach-Object {
-        if (!$dt.Columns.Count) {
-            $_.PSObject.Properties | ForEach-Object {
-                $dt.Columns.Add($_.Name, $_.Value.GetType())
-            }
-        }
-        $row = $dt.NewRow()
-        $_.PSObject.Properties | ForEach-Object {
-            $row[$_.Name] = $_.Value
-        }
-        $dt.Rows.Add($row)
-    }
-    return $dt
-}
 $btnExecute.Add_Click({
         Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         try {

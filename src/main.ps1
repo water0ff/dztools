@@ -48,9 +48,8 @@ foreach ($module in $modules) {
         try {
             Import-Module $modulePath -Force -ErrorAction Stop
             Write-Host "  ✓ $module" -ForegroundColor Green
-        }
-        catch {
-                         Write-Host "  ✗ Error importando `$module: `$_" -ForegroundColor Red
+        } catch {
+            Write-Host "  ✗ Error importando `$module: `$_" -ForegroundColor Red
 
         }
     } else {
@@ -90,75 +89,27 @@ function Initialize-Environment {
 # Función para crear formulario principal SIMPLIFICADA
 function New-MainForm {
     Write-Host "Creando formulario principal..." -ForegroundColor Yellow
-
     try {
-        # Crear formulario usando la función del módulo GUI
-        if (Get-Command New-FormBuilder -ErrorAction SilentlyContinue) {
-            $form = New-FormBuilder -Title "Daniel Tools v$($global:version)" -Size (New-Object System.Drawing.Size(800, 500))
-            Write-Host "✓ Formulario creado" -ForegroundColor Green
-        } else {
-            Write-Host "✗ Función New-FormBuilder no encontrada. Creando formulario manualmente..." -ForegroundColor Yellow
-            $form = New-Object System.Windows.Forms.Form
-            $form.Text = "Daniel Tools v$($global:version)"
-            $form.Size = New-Object System.Drawing.Size(800, 500)
-            $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-            $form.BackColor = [System.Drawing.Color]::White
-        }
-
-        # Crear controles básicos
-        $lblTitulo = New-Object System.Windows.Forms.Label
-        $lblTitulo.Text = "Daniel Tools - Versión $($global:version)"
-        $lblTitulo.Location = New-Object System.Drawing.Point(10, 10)
-        $lblTitulo.Size = New-Object System.Drawing.Size(400, 30)
-        $lblTitulo.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
-
-        $btnProbar = New-Object System.Windows.Forms.Button
-        $btnProbar.Text = "Probar Conexión SQL"
-        $btnProbar.Location = New-Object System.Drawing.Point(10, 50)
-        $btnProbar.Size = New-Object System.Drawing.Size(150, 30)
-
-        $btnSalir = New-Object System.Windows.Forms.Button
-        $btnSalir.Text = "Salir"
-        $btnSalir.Location = New-Object System.Drawing.Point(170, 50)
-        $btnSalir.Size = New-Object System.Drawing.Size(150, 30)
-        $btnSalir.BackColor = [System.Drawing.Color]::LightGray
-
-        # Agregar controles
-        $form.Controls.AddRange(@($lblTitulo, $btnProbar, $btnSalir))
-
-        # Eventos
-        $btnProbar.Add_Click({
-            Write-Host "Botón Probar presionado" -ForegroundColor Cyan
-            [System.Windows.Forms.MessageBox]::Show("Funcionalidad en desarrollo", "Información")
-        })
-
-	$btnSalir.Add_Click({
-	    try {
-	        Write-Host "Botón Salir presionado" -ForegroundColor Cyan
-
-	        # $this es el botón; FindForm() regresa el formulario que lo contiene
-	        $currentForm = $this.FindForm()
-
-	        if ($null -ne $currentForm) {
-	            Write-Host "  Cerrando formulario..." -ForegroundColor Yellow
-	            $currentForm.Close()
-	        }
-	        else {
-	            Write-Host "  No se encontró formulario, cerrando aplicación..." -ForegroundColor Yellow
-	            [System.Windows.Forms.Application]::Exit()
-	        }
-	    }
-	    catch {
-	        Write-Host "Error en botón Salir: $($_.Exception.Message)" -ForegroundColor Red
-	        [System.Windows.Forms.MessageBox]::Show(
-	            "Ocurrió un error al intentar cerrar la aplicación:`n$($_.Exception.Message)",
-	            "Error",
-	            [System.Windows.Forms.MessageBoxButtons]::OK,
-	            [System.Windows.Forms.MessageBoxIcon]::Error
-	        )
-	    }
-	})
-
+        Add-Type -AssemblyName System.Windows.Forms
+        Add-Type -AssemblyName System.Drawing
+        [System.Windows.Forms.Application]::EnableVisualStyles()
+        $formPrincipal = New-Object System.Windows.Forms.Form
+        $formPrincipal.Size = New-Object System.Drawing.Size(1000, 600)  # Aumentado de 720x400
+        $formPrincipal.StartPosition = "CenterScreen"
+        $formPrincipal.BackColor = [System.Drawing.Color]::White
+        $formPrincipal.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+        $formPrincipal.MaximizeBox = $false
+        $formPrincipal.MinimizeBox = $false
+        $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
+        $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+        $formPrincipal.Text = "Daniel Tools v$version"
+        Write-Host "`n=============================================" -ForegroundColor DarkCyan
+        Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
+        Write-Host "              Versión: v$($version)               " -ForegroundColor Green
+        Write-Host "=============================================" -ForegroundColor DarkCyan
+        Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
+        Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
+        $toolTip = New-Object System.Windows.Forms.ToolTip
 
         return $form
 
@@ -188,8 +139,7 @@ function Start-Application {
         Write-Host "Mostrando formulario..." -ForegroundColor Yellow
         $mainForm.ShowDialog()
         Write-Host "Aplicación finalizada correctamente." -ForegroundColor Green
-    }
-    catch {
+    } catch {
         Write-Host "Error mostrando formulario: $_" -ForegroundColor Red
         [System.Windows.Forms.MessageBox]::Show("Error: $_", "Error en la aplicación")
     }
@@ -198,8 +148,7 @@ function Start-Application {
 # Punto de entrada
 try {
     Start-Application
-}
-catch {
+} catch {
     Write-Host "Error fatal: $_" -ForegroundColor Red
     Write-Host "Stack Trace: $($_.Exception.StackTrace)" -ForegroundColor Red
     pause

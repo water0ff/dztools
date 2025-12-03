@@ -131,9 +131,6 @@ function New-MainForm {
         $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(10, 100)) `
             -Size (New-Object System.Drawing.Size(180, 20)) -UseSystemPasswordChar $true
         $txtUser.Text = "sa"
-        $global:txtServer = $txtServer
-        $global:txtUser = $txtUser
-        $global:txtPassword = $txtPassword
         $lblbdd_cmb = Create-Label -Text "Base de datos" `
             -Location (New-Object System.Drawing.Point(10, 130)) `
             -Size (New-Object System.Drawing.Size(100, 10))
@@ -168,6 +165,17 @@ function New-MainForm {
         $rtbQuery.Multiline = $true
         $rtbQuery.ScrollBars = 'Vertical'
         $rtbQuery.WordWrap = $true
+        $global:txtServer = $txtServer
+        $global:txtUser = $txtUser
+        $global:txtPassword = $txtPassword
+        $global:cmbDatabases = $cmbDatabases
+        $global:btnConnectDb = $btnConnectDb
+        $global:btnDisconnectDb = $btnDisconnectDb
+        $global:btnExecute = $btnExecute
+        $global:btnBackup = $btnBackup
+        $global:cmbQueries = $cmbQueries
+        $global:rtbQuery = $rtbQuery
+        $global:lblConnectionStatus = $lblConnectionStatus
         $keywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
         $script:predefinedQueries = @{
             "Monitor de Servicios | Ventas a subir"           = @"
@@ -1950,45 +1958,60 @@ compila el proyecto y lo coloca en la carpeta de salida.
                         $null -eq $global:txtPassword) {
                         throw "Error interno: controles de conexión no inicializados."
                     }
+
                     $serverText = $global:txtServer.Text.Trim()
                     $userText = $global:txtUser.Text.Trim()
                     $passwordText = $global:txtPassword.Text
+
                     Write-Host "DEBUG | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)" -ForegroundColor DarkGray
+
                     if ([string]::IsNullOrWhiteSpace($serverText) -or
                         [string]::IsNullOrWhiteSpace($userText) -or
                         [string]::IsNullOrWhiteSpace($passwordText)) {
                         throw "Complete todos los campos de conexión"
                     }
+
                     $global:server = $serverText
                     $global:user = $userText
                     $global:password = $passwordText
+
                     $databases = Get-SqlDatabases -Server $serverText -Username $userText -Password $passwordText
+
                     if (-not $databases -or $databases.Count -eq 0) {
                         throw "Conexión correcta, pero no se encontraron bases de datos disponibles."
                     }
+
                     $global:cmbDatabases.Items.Clear()
                     foreach ($db in $databases) {
                         [void]$global:cmbDatabases.Items.Add($db)
                     }
+
                     $global:cmbDatabases.Enabled = $true
                     $global:cmbDatabases.SelectedIndex = 0
-                    $lblConnectionStatus.Text = @"
+
+                    $global:lblConnectionStatus.Text = @"
 Conectado a:
 Servidor: $serverText
 Base de datos: $($global:database)
 "@.Trim()
-                    $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
+                    $global:lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
 
-                    $global:txtServer.Enabled = $false
-                    $global:txtUser.Enabled = $false
-                    $global:txtPassword.Enabled = $false
-                    $btnExecute.Enabled = $true
-                    $cmbQueries.Enabled = $true
-                    $btnConnectDb.Enabled = $false
-                    $btnBackup.Enabled = $true
-                    $btnDisconnectDb.Enabled = $true
-                    $rtbQuery.Enabled = $true
+                    Set-ControlEnabled -Control $global:txtServer       -Enabled $false -Name 'txtServer'
+                    Set-ControlEnabled -Control $global:txtUser         -Enabled $false -Name 'txtUser'
+                    Set-ControlEnabled -Control $global:txtPassword     -Enabled $false -Name 'txtPassword'
+
+                    Set-ControlEnabled -Control $global:btnExecute      -Enabled $true  -Name 'btnExecute'
+                    Set-ControlEnabled -Control $global:cmbQueries      -Enabled $true  -Name 'cmbQueries'
+                    Set-ControlEnabled -Control $global:btnConnectDb    -Enabled $false -Name 'btnConnectDb'
+                    Set-ControlEnabled -Control $global:btnBackup       -Enabled $true  -Name 'btnBackup'
+                    Set-ControlEnabled -Control $global:btnDisconnectDb -Enabled $true  -Name 'btnDisconnectDb'
+                    Set-ControlEnabled -Control $global:rtbQuery        -Enabled $true  -Name 'rtbQuery'
+
                 } catch {
+                    Write-Host "DEBUG[btnConnectDb] CATCH: $($_.Exception.Message)" -ForegroundColor Red
+                    Write-Host "DEBUG[btnConnectDb] Tipo: $($_.Exception.GetType().FullName)" -ForegroundColor Red
+                    Write-Host "DEBUG[btnConnectDb] Stack: $($_.ScriptStackTrace)" -ForegroundColor DarkYellow
+
                     [System.Windows.Forms.MessageBox]::Show(
                         "Error de conexión: $($_.Exception.Message)",
                         "Error",
@@ -1998,6 +2021,10 @@ Base de datos: $($global:database)
                     Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
                 }
             })
+
+
+
+
 
         $cmbDatabases.Add_SelectedIndexChanged({
                 if ($cmbDatabases.SelectedItem) {

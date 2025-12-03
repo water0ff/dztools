@@ -550,6 +550,27 @@ function Show-ProgressDialog {
     $form.Controls.AddRange(@($progressBar, $label))
     return $form
 }
+function Set-ControlEnabled {
+    param(
+        [object]$Control,
+        [bool]$Enabled,
+        [string]$Name
+    )
+
+    if ($null -eq $Control) {
+        Write-Host "DEBUG[Set-ControlEnabled] $Name es NULL" -ForegroundColor Yellow
+        return
+    }
+
+    if ($Control -is [System.Windows.Forms.Control]) {
+        $Control.Enabled = $Enabled
+        Write-Host "DEBUG[Set-ControlEnabled] $Name ($($Control.GetType().Name)) Enabled=$Enabled" -ForegroundColor DarkGray
+    } else {
+        Write-Host "DEBUG[Set-ControlEnabled] $Name tipo inesperado: $($Control.GetType().FullName)" -ForegroundColor Red
+    }
+}
+
+
 Export-ModuleMember -Function New-FormBuilder, New-Button, New-Label, New-TextBox, New-ComboBox,
 Show-ProgressDialog, Create-Form, Create-Button, Create-Label, Create-TextBox, Create-ComboBox,
-Show-ProgressBar, Update-ProgressBar, Close-ProgressBar, Show-SSMSInstallerDialog, Show-NewIpForm
+Show-ProgressBar, Update-ProgressBar, Close-ProgressBar, Show-SSMSInstallerDialog, Show-NewIpForm, Set-ControlEnabled

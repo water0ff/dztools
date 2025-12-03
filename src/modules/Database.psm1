@@ -15,24 +15,31 @@ function Invoke-SqlQuery {
         [string]$Password
     )
     $connection = $null
+    Write-Host "DEBUG[Invoke-SqlQuery] INICIO" -ForegroundColor DarkCyan
+    Write-Host "DEBUG[Invoke-SqlQuery] Server='$Server' Database='$Database' User='$Username'" -ForegroundColor DarkCyan
     try {
         $connectionString = "Server=$Server;Database=$Database;User Id=$Username;Password=$Password;MultipleActiveResultSets=True"
+        Write-Host "DEBUG[Invoke-SqlQuery] Creando SqlConnection..." -ForegroundColor DarkCyan
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+        Write-Host "DEBUG[Invoke-SqlQuery] Connection type: $($connection.GetType().FullName)" -ForegroundColor DarkCyan
+        Write-Host "DEBUG[Invoke-SqlQuery] Abriendo conexión..." -ForegroundColor DarkCyan
         $connection.Open()
+        Write-Host "DEBUG[Invoke-SqlQuery] Estado conexión tras Open(): $($connection.State)" -ForegroundColor DarkCyan
         $command = $connection.CreateCommand()
         $command.CommandText = $Query
         $command.CommandTimeout = 0
         if ($Query -match "(?si)^\s*(SELECT|WITH)") {
+            Write-Host "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo SELECT/WITH" -ForegroundColor DarkCyan
             $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
             $dataTable = New-Object System.Data.DataTable
             [void]$adapter.Fill($dataTable)
-
             return @{
                 Success   = $true
                 DataTable = $dataTable
                 Type      = "Query"
             }
         } else {
+            Write-Host "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo NonQuery" -ForegroundColor DarkCyan
             $rowsAffected = $command.ExecuteNonQuery()
 
             return @{
@@ -42,18 +49,26 @@ function Invoke-SqlQuery {
             }
         }
     } catch {
+        Write-Host "DEBUG[Invoke-SqlQuery] CATCH: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "DEBUG[Invoke-SqlQuery] Tipo de excepción: $($_.Exception.GetType().FullName)" -ForegroundColor Red
+        Write-Host "DEBUG[Invoke-SqlQuery] Stack: $($_.ScriptStackTrace)" -ForegroundColor DarkYellow
         return @{
             Success      = $false
             ErrorMessage = $_.Exception.Message
             Type         = "Error"
         }
     } finally {
+        Write-Host "DEBUG[Invoke-SqlQuery] FINALLY: connection = $($connection)" -ForegroundColor DarkCyan
         if ($null -ne $connection) {
+            Write-Host "DEBUG[Invoke-SqlQuery] Estado antes de cerrar: $($connection.State)" -ForegroundColor DarkCyan
             if ($connection.State -eq [System.Data.ConnectionState]::Open) {
+                Write-Host "DEBUG[Invoke-SqlQuery] Cerrando conexión..." -ForegroundColor DarkCyan
                 $connection.Close()
             }
+            Write-Host "DEBUG[Invoke-SqlQuery] Disposing conexión..." -ForegroundColor DarkCyan
             $connection.Dispose()
         }
+        Write-Host "DEBUG[Invoke-SqlQuery] FIN" -ForegroundColor DarkCyan
     }
 }
 function Remove-SqlComments {

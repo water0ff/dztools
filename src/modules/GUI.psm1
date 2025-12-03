@@ -348,14 +348,14 @@ function New-FormBuilder {
         [System.Drawing.Color]$BackColor = [System.Drawing.Color]::White
     )
     $form = New-Object System.Windows.Forms.Form
-    $form.Text            = $Title
-    $form.Size            = $Size
-    $form.StartPosition   = $StartPosition
+    $form.Text = $Title
+    $form.Size = $Size
+    $form.StartPosition = $StartPosition
     $form.FormBorderStyle = $FormBorderStyle
-    $form.MaximizeBox     = $MaximizeBox
-    $form.MinimizeBox     = $MinimizeBox
-    $form.TopMost         = $TopMost
-    $form.ControlBox      = $ControlBox
+    $form.MaximizeBox = $MaximizeBox
+    $form.MinimizeBox = $MinimizeBox
+    $form.TopMost = $TopMost
+    $form.ControlBox = $ControlBox
     if ($Icon) {
         $form.Icon = $Icon
     }
@@ -396,13 +396,13 @@ function New-Button {
     $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
     $button.Enabled = $Enabled
     $button.Add_MouseEnter({
-        $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)
-        $this.Font = New-Object System.Drawing.Font($this.Font.Name, $this.Font.Size, [System.Drawing.FontStyle]::Bold)
-    })
+            $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)
+            $this.Font = New-Object System.Drawing.Font($this.Font.Name, $this.Font.Size, [System.Drawing.FontStyle]::Bold)
+        })
     $button.Add_MouseLeave({
-        $this.BackColor = $BackColor
-        $this.Font = $Font
-    })
+            $this.BackColor = $BackColor
+            $this.Font = $Font
+        })
     if ($ToolTipText) {
         $toolTip.SetToolTip($button, $ToolTipText)
     }
@@ -488,7 +488,6 @@ function New-TextBox {
     if ($UseSystemPasswordChar) {
         $textBox.UseSystemPasswordChar = $true
     }
-
     return $textBox
 }
 function New-ComboBox {
@@ -498,19 +497,14 @@ function New-ComboBox {
         [System.Drawing.Point]$Location,
         [Parameter()]
         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(200, 30)),
-
         [Parameter()]
         [System.Windows.Forms.ComboBoxStyle]$DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList,
-
         [Parameter()]
         [System.Drawing.Font]$Font = $null,
-
         [Parameter()]
         [string[]]$Items = @(),
-
         [Parameter()]
         [int]$SelectedIndex = -1,
-
         [Parameter()]
         [string]$DefaultText = $null
     )
@@ -518,7 +512,6 @@ function New-ComboBox {
     if (-not $Font) {
         $Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     }
-
     $comboBox = New-Object System.Windows.Forms.ComboBox
     $comboBox.Location = $Location
     $comboBox.Size = $Size
@@ -529,11 +522,9 @@ function New-ComboBox {
         $comboBox.Items.AddRange($Items)
         $comboBox.SelectedIndex = $SelectedIndex
     }
-
     if ($DefaultText) {
         $comboBox.Text = $DefaultText
     }
-
     return $comboBox
 }
 function Show-ProgressDialog {
@@ -548,20 +539,18 @@ function Show-ProgressDialog {
         [Parameter()]
         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(400, 150))
     )
-
     $form = New-FormBuilder -Title $Title -Size $Size -TopMost $true -ControlBox $false
     $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-
     $progressBar = New-Object System.Windows.Forms.ProgressBar
     $progressBar.Size = New-Object System.Drawing.Size(360, 20)
     $progressBar.Location = New-Object System.Drawing.Point(20, 50)
     $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Marquee
     $progressBar.MarqueeAnimationSpeed = 30
-
     $label = New-Label -Text $Message -Location (New-Object System.Drawing.Point(20, 20)) -Size (New-Object System.Drawing.Size(360, 20))
     $label.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-
     $form.Controls.AddRange(@($progressBar, $label))
     return $form
 }
-Export-ModuleMember -Function New-FormBuilder, New-Button, New-Label, New-TextBox, New-ComboBox, Show-ProgressDialog, Create-Form, Create-Button, Create-Label, Create-TextBox, Create-ComboBox, Show-ProgressBar, Update-ProgressBar, Close-ProgressBar, Show-SSMSInstallerDialog, Show-NewIpForm
+Export-ModuleMember -Function New-FormBuilder, New-Button, New-Label, New-TextBox, New-ComboBox,
+Show-ProgressDialog, Create-Form, Create-Button, Create-Label, Create-TextBox, Create-ComboBox,
+Show-ProgressBar, Update-ProgressBar, Close-ProgressBar, Show-SSMSInstallerDialog, Show-NewIpForm

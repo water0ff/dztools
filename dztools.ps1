@@ -1,7 +1,8 @@
 param(
-    [string]$Branch = "develop"
+    [string]$Branch = "release"   # solo informativo ahora
 )
 $baseRuntimePath = "C:\temp\dztools"
+$releasePath = Join-Path $baseRuntimePath "release"
 $Owner = "water0ff"
 $Repo = "dztools"
 Clear-Host
@@ -26,75 +27,60 @@ function Show-ProgressBar {
 if (-not (Test-Path $baseRuntimePath)) {
     New-Item -ItemType Directory -Path $baseRuntimePath | Out-Null
 }
-Show-ProgressBar -Percent 5 -Message "Revisando instalación previa..."
-$projectRoot = $null
-$mainPath = $null
-$useExisting = $false
-$existingRoot = Get-ChildItem $baseRuntimePath -Directory -ErrorAction SilentlyContinue |
-Where-Object { $_.Name -like "$Repo-*" } |
-Sort-Object LastWriteTime -Descending |
-Select-Object -First 1
-if ($existingRoot) {
-    $projectRoot = $existingRoot.FullName
-    $mainPath = Join-Path $projectRoot "src\main.ps1"
-    if (Test-Path $mainPath) {
-        $useExisting = $true
-        Show-ProgressBar -Percent 30 -Message "Usando versión ya descargada"
+Show-ProgressBar -Percent 5 -Message "Preparando entorno..."
+$zipPath = Join-Path $baseRuntimePath "dztools.zip"
+Show-ProgressBar -Percent 10 -Message "Limpiando versión anterior..."
+
+try {
+    if (Test-Path $zipPath) {
+        Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
     }
+
+    if (Test-Path $releasePath) {
+        Remove-Item $releasePath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+} catch {
+    # Si algo truena limpiando, no es fatal, seguimos intentando
 }
-if (-not $useExisting) {
-    $zipUrl = "https://github.com/$Owner/$Repo/releases/latest/download/dztools-release.zip"
-    $zipPath = Join-Path $baseRuntimePath "dztools.zip"
-    Show-ProgressBar -Percent 15 -Message "Descargando última versión..."
-    try {
-        Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
-    } catch {
-        Show-ProgressBar -Percent 100 -Message "Error al descargar"
-        Write-Host ""
-        Write-Host "❌ No se pudo descargar el repositorio: $($_.Exception.Message)" -ForegroundColor Red
-        return
-    }
-    Show-ProgressBar -Percent 50 -Message "Extrayendo archivos..."
-    Get-ChildItem $baseRuntimePath -Directory -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -like "$Repo-*" } |
-    ForEach-Object {
-        try { Remove-Item $_.FullName -Recurse -Force -ErrorAction Stop } catch {}
-    }
-    try {
-        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $baseRuntimePath)
-    } catch {
-        Show-ProgressBar -Percent 100 -Message "Error al extraer"
-        Write-Host ""
-        Write-Host "❌ No se pudo extraer el ZIP: $($_.Exception.Message)" -ForegroundColor Red
-        return
-    }
-    Show-ProgressBar -Percent 70 -Message "Localizando proyecto..."
-    $extractedFolder = Get-ChildItem $baseRuntimePath -Directory -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -like "$Repo-*" } |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1
-    if (-not $extractedFolder) {
-        Show-ProgressBar -Percent 100 -Message "Error"
-        Write-Host ""
-        Write-Host "❌ No se encontró la carpeta extraída del repositorio." -ForegroundColor Red
-        return
-    }
-    $projectRoot = $extractedFolder.FullName
-    $mainPath = Join-Path $projectRoot "src\main.ps1"
+$zipUrl = "https://github.com/$Owner/$Repo/releases/latest/download/dztools-release.zip"
+Show-ProgressBar -Percent 20 -Message "Descargando última versión..."
+try {
+    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
+} catch {
+    Show-ProgressBar -Percent 100 -Message "Error al descargar"
+    Write-Host ""
+    Write-Host "❌ No se pudo descargar el release: $($_.Exception.Message)" -ForegroundColor Red
+    return
 }
-Show-ProgressBar -Percent 90 -Message "Preparando aplicación..."
+Show-ProgressBar -Percent 50 -Message "Extrayendo archivos..."
+try {
+    if (-not (Test-Path $releasePath)) {
+        New-Item -ItemType Directory -Path $releasePath | Out-Null
+    }
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $releasePath)
+} catch {
+    Show-ProgressBar -Percent 100 -Message "Error al extraer"
+    Write-Host ""
+    Write-Host "❌ No se pudo extraer el ZIP: $($_.Exception.Message)" -ForegroundColor Red
+    return
+}
+Show-ProgressBar -Percent 70 -Message "Preparando aplicación..."
+$projectRoot = $releasePath
+$mainPath = Join-Path $projectRoot "main.ps1"
 if (-not (Test-Path $mainPath)) {
     Show-ProgressBar -Percent 100 -Message "Error"
     Write-Host ""
-    Write-Host "❌ No se encontró src\main.ps1 en el proyecto." -ForegroundColor Red
+    Write-Host "❌ No se encontró main.ps1 en la carpeta release." -ForegroundColor Red
+    Write-Host "Ruta esperada: $mainPath" -ForegroundColor DarkYellow
     return
 }
 Show-ProgressBar -Percent 100 -Message "Listo"
 Write-Host ""
 Write-Host "=============================================" -ForegroundColor Gray
 Write-Host "   Iniciando Daniel Tools desde GitHub" -ForegroundColor Green
-Write-Host "   Rama: $Branch" -ForegroundColor DarkGray
+Write-Host "   Canal: $Branch" -ForegroundColor DarkGray
 Write-Host "   Carpeta: $projectRoot" -ForegroundColor DarkGray
 Write-Host "=============================================" -ForegroundColor Gray
 Write-Host ""

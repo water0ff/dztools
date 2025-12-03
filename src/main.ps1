@@ -577,7 +577,7 @@ WHERE
             if ($null -ne $txt_InfoInstrucciones -and $txt_InfoInstrucciones.PSObject.Properties.Match('Text')) {
                 $txt_InfoInstrucciones.Text = $message
             }
-        }
+        }.GetNewClosure()
         $buttonsToUpdate = @(
             $LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler,
             $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool,

@@ -9,7 +9,6 @@ try {
     pause
     exit 1
 }
-
 try {
     Add-Type -AssemblyName System.Drawing
     Write-Host "✓ System.Drawing cargado" -ForegroundColor Green
@@ -18,30 +17,23 @@ try {
     pause
     exit 1
 }
-
 try {
     [System.Windows.Forms.Application]::EnableVisualStyles()
     Write-Host "✓ VisualStyles habilitado" -ForegroundColor Green
 } catch {
     Write-Host "✗ Error habilitando VisualStyles: $_" -ForegroundColor Red
 }
-
-# Configurar política de ejecución
 if (Get-Command Set-ExecutionPolicy -ErrorAction SilentlyContinue) {
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 }
-
-# Importar módulos con verificación
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
-
 $modules = @(
     "GUI.psm1",
     "Database.psm1",
     "Utilities.psm1",
     "Installers.psm1"
 )
-
 foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
@@ -56,8 +48,6 @@ foreach ($module in $modules) {
         Write-Host "  ✗ $module no encontrado" -ForegroundColor Red
     }
 }
-
-# Variables globales
 $global:version = "0.1.0"
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
@@ -65,15 +55,11 @@ $global:defaultInstructions = @"
 - Mejor estructura de código
 - Compatibilidad mejorada
 "@
-
-# Configuración inicial simplificada
 function Initialize-Environment {
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
     Write-Host "              Versión: v$($global:version)               " -ForegroundColor Green
     Write-Host "=============================================" -ForegroundColor DarkCyan
-
-    # Crear carpeta temporal si no existe
     if (!(Test-Path -Path "C:\Temp")) {
         try {
             New-Item -ItemType Directory -Path "C:\Temp" -Force | Out-Null
@@ -85,13 +71,9 @@ function Initialize-Environment {
 
     return $true
 }
-
-# Función para crear formulario principal SIMPLIFICADA
 function New-MainForm {
     Write-Host "Creando formulario principal..." -ForegroundColor Yellow
     try {
-        Add-Type -AssemblyName System.Windows.Forms
-        Add-Type -AssemblyName System.Drawing
         [System.Windows.Forms.Application]::EnableVisualStyles()
         $formPrincipal = New-Object System.Windows.Forms.Form
         $formPrincipal.Size = New-Object System.Drawing.Size(1000, 600)  # Aumentado de 720x400
@@ -111,15 +93,13 @@ function New-MainForm {
         Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
         $toolTip = New-Object System.Windows.Forms.ToolTip
 
-        return $form
+        return $formPrincipal
 
     } catch {
         Write-Host "✗ Error creando formulario: $_" -ForegroundColor Red
         return $null
     }
 }
-
-# Función principal con mejor manejo de errores
 function Start-Application {
     Write-Host "Iniciando aplicación..." -ForegroundColor Cyan
 
@@ -144,8 +124,6 @@ function Start-Application {
         [System.Windows.Forms.MessageBox]::Show("Error: $_", "Error en la aplicación")
     }
 }
-
-# Punto de entrada
 try {
     Start-Application
 } catch {

@@ -11,21 +11,21 @@ function Get-SystemInfo {
     [CmdletBinding()]
     param()
     $info = @{
-        ComputerName = [System.Net.Dns]::GetHostName()
-        OS = (Get-CimInstance -ClassName Win32_OperatingSystem).Caption
+        ComputerName      = [System.Net.Dns]::GetHostName()
+        OS                = (Get-CimInstance -ClassName Win32_OperatingSystem).Caption
         PowerShellVersion = $PSVersionTable.PSVersion.ToString()
-        NetAdapters = @()
+        NetAdapters       = @()
     }
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
     foreach ($adapter in $adapters) {
         $adapterInfo = @{
-            Name = $adapter.Name
-            Status = $adapter.Status
-            MacAddress = $adapter.MacAddress
+            Name        = $adapter.Name
+            Status      = $adapter.Status
+            MacAddress  = $adapter.MacAddress
             IPAddresses = @()
         }
         $ipAddresses = Get-NetIPAddress -InterfaceAlias $adapter.Name -AddressFamily IPv4 |
-                       Where-Object { $_.IPAddress -ne '127.0.0.1' }
+        Where-Object { $_.IPAddress -ne '127.0.0.1' }
         foreach ($ip in $ipAddresses) {
             $adapterInfo.IPAddresses += $ip.IPAddress
         }
@@ -54,13 +54,11 @@ function Clear-TemporaryFiles {
                             Remove-Item -Path $item.FullName -Force -ErrorAction SilentlyContinue
                         }
                         $totalDeleted++
-                    }
-                    catch {
+                    } catch {
                         Write-Verbose "No se pudo eliminar: $($item.FullName)"
                     }
                 }
-            }
-            catch {
+            } catch {
                 Write-Warning "Error accediendo a $path : $_"
             }
         }
@@ -91,8 +89,7 @@ function Install-Chocolatey {
         choco config set cacheLocation C:\Choco\cache
         Write-Host "Chocolatey instalado correctamente" -ForegroundColor Green
         return $true
-    }
-    catch {
+    } catch {
         Write-Error "Error instalando Chocolatey: $_"
         return $false
     }
@@ -120,8 +117,7 @@ function Invoke-DiskCleanup {
         Start-Process $cleanmgr -ArgumentList "/sagerun:$sagerun" -Wait
 
         Write-Host "Limpieza de disco completada correctamente" -ForegroundColor Green
-    }
-    catch {
+    } catch {
         Write-Host "Error en limpieza de disco: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
@@ -196,60 +192,76 @@ function Test-MegaToolsInstalled {
     return ([bool](Get-Command megatools -ErrorAction SilentlyContinue))
 }
 function Check-Permissions {
-                $folderPath = "C:\NationalSoft"
-                $acl = Get-Acl -Path $folderPath
-                $permissions = @()
-                # Obtener el SID universal de "Everyone" (independiente del idioma del sistema)
-                $everyoneSid = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::WorldSid, $null)
-                $everyonePermissions = @()
-                $everyoneHasFullControl = $false
-                foreach ($access in $acl.Access) {
-                    # Obtener el SID del usuario en la ACL
-                    $userSid = (New-Object System.Security.Principal.NTAccount($access.IdentityReference)).Translate([System.Security.Principal.SecurityIdentifier])
-                    # Almacenar los permisos de todos los usuarios
-                    $permissions += [PSCustomObject]@{
-                        Usuario = $access.IdentityReference
-                        Permiso = $access.FileSystemRights
-                        Tipo    = $access.AccessControlType
-                    }
-                    # Comparar usando el SID universal de "Everyone"
-                    if ($userSid -eq $everyoneSid) {
-                        $everyonePermissions += $access.FileSystemRights
-                        if ($access.FileSystemRights -match "FullControl") {
-                            $everyoneHasFullControl = $true
-                        }
-                    }
-                }
-                # Mostrar los permisos en la consola
-                $permissions | ForEach-Object {
-                    Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
-                    Write-Host "` $($_.Permiso)" -ForegroundColor Green
-                }
-                # Mostrar los permisos de "Everyone" de forma consolidada
-                if ($everyonePermissions.Count -gt 0) {
-                    Write-Host "`tEveryone tiene los siguientes permisos:"  -NoNewline -ForegroundColor Yellow
-                    Write-Host "` $($everyonePermissions -join ', ')" -ForegroundColor Green
-                } else {
-                    Write-Host "`tNo hay permisos para 'Everyone'" -ForegroundColor Red
-                }
-                # Si "Everyone" no tiene Full Control, preguntar si se desea concederlo
-                if (-not $everyoneHasFullControl) {
-                    $message = "El usuario 'Everyone' no tiene permisos de 'Full Control'. ¿Deseas concederlo?"
-                    $title = "Permisos 'Everyone'"
-                    $buttons = [System.Windows.Forms.MessageBoxButtons]::YesNo
-                    $icon = [System.Windows.Forms.MessageBoxIcon]::Question
-                    $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
-                    if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-                        # Agregar Full Control a "Everyone" en la carpeta
-                        $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($everyoneSid, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-                        $acl.AddAccessRule($accessRule)
-                        # Forzar la herencia para subcarpetas y archivos
-                        $acl.SetAccessRuleProtection($false, $true)
-                        Set-Acl -Path $folderPath -AclObject $acl
-                        Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
-                    }
-                }
+    $folderPath = "C:\NationalSoft"
+    try {
+        $directoryInfo = New-Object System.IO.DirectoryInfo($folderPath)
+        $acl = $directoryInfo.GetAccessControl()  # Devuelve DirectorySecurity
+    } catch {
+        Write-Host ("Error obteniendo ACL de {0}: {1}" -f $folderPath, $_.Exception.Message) -ForegroundColor Red
+        return
     }
+    $permissions = @()
+    $everyoneSid = New-Object System.Security.Principal.SecurityIdentifier(
+        [System.Security.Principal.WellKnownSidType]::WorldSid,
+        $null
+    )
+    $everyonePermissions = @()
+    $everyoneHasFullControl = $false
+    foreach ($access in $acl.Access) {
+        try {
+            $userSid = ($access.IdentityReference).Translate(
+                [System.Security.Principal.SecurityIdentifier]
+            )
+        } catch {
+            continue
+        }
+        $permissions += [PSCustomObject]@{
+            Usuario = $access.IdentityReference
+            Permiso = $access.FileSystemRights
+            Tipo    = $access.AccessControlType
+        }
+        if ($userSid -eq $everyoneSid) {
+            $everyonePermissions += $access.FileSystemRights
+            if ($access.FileSystemRights -match "FullControl") {
+                $everyoneHasFullControl = $true
+            }
+        }
+    }
+    $permissions | ForEach-Object {
+        Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
+        Write-Host "` $($_.Permiso)" -ForegroundColor Green
+    }
+    if ($everyonePermissions.Count -gt 0) {
+        Write-Host "`tEveryone tiene los siguientes permisos:" -NoNewline -ForegroundColor Yellow
+        Write-Host " $($everyonePermissions -join ', ')" -ForegroundColor Green
+    } else {
+        Write-Host "`tNo hay permisos para 'Everyone'" -ForegroundColor Red
+    }
+    if (-not $everyoneHasFullControl) {
+        $message = "El usuario 'Everyone' no tiene permisos de 'Full Control'. ¿Deseas concederlo?"
+        $title = "Permisos 'Everyone'"
+        $buttons = [System.Windows.Forms.MessageBoxButtons]::YesNo
+        $icon = [System.Windows.Forms.MessageBoxIcon]::Question
+        $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            try {
+                $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                    $everyoneSid,
+                    [System.Security.AccessControl.FileSystemRights]::FullControl,
+                    [System.Security.AccessControl.InheritanceFlags]"ContainerInherit, ObjectInherit",
+                    [System.Security.AccessControl.PropagationFlags]::None,
+                    [System.Security.AccessControl.AccessControlType]::Allow
+                )
+                $acl.AddAccessRule($accessRule)
+                $acl.SetAccessRuleProtection($false, $true)
+                $directoryInfo.SetAccessControl($acl)
+                Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
+            } catch {
+                Write-Host ("Error aplicando permisos a {0}: {1}" -f $folderPath, $_.Exception.Message) -ForegroundColor Red
+            }
+        }
+    }
+}
 function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath) {
     # Validar si el archivo o aplicación ya existe
     if (!(Test-Path -Path $validationPath)) {
@@ -421,7 +433,8 @@ function Start-SystemUpdate {
         }
     }
 }
+#requires -Version 5.0
 Export-ModuleMember -Function Test-Administrator, Get-SystemInfo, Clear-TemporaryFiles,
-    Test-ChocolateyInstalled, Install-Chocolatey, Get-AdminGroupName, Invoke-DiskCleanup,
-    Show-SystemComponents, Test-SameHost, Test-7ZipInstalled, Test-MegaToolsInstalled,
-    Refresh-AdapterStatus, Get-NetworkAdapterStatus, DownloadAndRun, Start-SystemUpdate
+Test-ChocolateyInstalled, Install-Chocolatey, Get-AdminGroupName, Invoke-DiskCleanup,
+Show-SystemComponents, Test-SameHost, Test-7ZipInstalled, Test-MegaToolsInstalled,
+Refresh-AdapterStatus, Get-NetworkAdapterStatus, DownloadAndRun, Start-SystemUpdate, Check-Permissions

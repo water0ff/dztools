@@ -1221,7 +1221,571 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     )
                 }
             })
+        $btnInstallSQLManagement.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                if (!(Check-Chocolatey)) { return }
+                $choice = Show-SSMSInstallerDialog
+                if (-not $choice) {
+                    Write-Host "`nInstalación cancelada por el usuario." -ForegroundColor Yellow
+                    return
+                }
+                $texto = if ($choice -eq "latest") {
+                    "¿Desea instalar el SSMS 'Último disponible'?"
+                } else {
+                    "¿Desea instalar SSMS 14 (2014)?"
+                }
+                $response = [System.Windows.Forms.MessageBox]::Show(
+                    $texto, "Advertencia de instalación",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Warning
+                )
+                if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
+                    Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+                    return
+                }
+                try {
+                    Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
+                    choco config set cacheLocation C:\Choco\cache | Out-Null
 
+                    if ($choice -eq "latest") {
+                        Write-Host "`nInstalando 'Último disponible' (sql-server-management-studio)..." -ForegroundColor Cyan
+                        Start-Process choco -ArgumentList 'install sql-server-management-studio -y' -NoNewWindow -Wait
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "SSMS (último disponible) instalado correctamente.",
+                            "Éxito",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Information
+                        ) | Out-Null
+                    } elseif ($choice -eq "ssms14") {
+                        Write-Host "`nInstalando SSMS 14 (mssqlservermanagementstudio2014express)..." -ForegroundColor Cyan
+                        Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express -y' -NoNewWindow -Wait
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "SSMS 14 (2014) instalado correctamente.",
+                            "Éxito",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Information
+                        ) | Out-Null
+                    }
+                    Write-Host "`nInstalación completada." -ForegroundColor Green
+                } catch {
+                    Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Error al instalar SSMS: $($_.Exception.Message)",
+                        "Error",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    ) | Out-Null
+                }
+            })
+        $btnInstallSQL2019.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                $response = [System.Windows.Forms.MessageBox]::Show(
+                    "¿Desea proceder con la instalación de SQL Server 2019 Express?",
+                    "Advertencia de instalación",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Warning
+                )
+                if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+                    Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+                    return
+                }
+                if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso
+                Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+                try {
+                    Write-Host "`nInstalando SQL Server 2019 Express usando Chocolatey..." -ForegroundColor Cyan
+                    Start-Process choco -ArgumentList 'install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"' -NoNewWindow -Wait
+                    Write-Host "`nInstalación completa." -ForegroundColor Green
+                    Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
+                    sqlcmd -S SQL2019 -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
+                    [System.Windows.Forms.MessageBox]::Show("SQL Server 2019 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                } catch {
+                    [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2019 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
+            })
+        $btnInstallSQL2014.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                $response = [System.Windows.Forms.MessageBox]::Show(
+                    "¿Desea proceder con la instalación de SQL Server 2014 Express?",
+                    "Advertencia de instalación",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Warning
+                )
+                if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+                    Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+                    return
+                }
+                if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso
+                Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+                try {
+                    $instanceExists = Get-Service -Name "MSSQL`$NationalSoft" -ErrorAction SilentlyContinue
+                    if ($instanceExists) {
+                        Write-Host "`nLa instancia 'NationalSoft' ya existe. Cancelando la instalación." -ForegroundColor Red
+                        [System.Windows.Forms.MessageBox]::Show("La instancia 'NationalSoft' ya existe. Cancelando la instalación.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                        return
+                    }
+                    Write-Host "`nInstalando SQL Server 2014 Express usando Chocolatey..." -ForegroundColor Cyan
+                    Start-Process choco -ArgumentList 'install sql-server-express -y --version=2014.0.2000.8 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:NationalSoft /FEATURES:SQL"' -NoNewWindow -Wait
+                    Write-Host "`nInstalación completa." -ForegroundColor Green
+                    Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
+                    sqlcmd -S NationalSoft -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
+                    [System.Windows.Forms.MessageBox]::Show("SQL Server 2014 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                } catch {
+                    [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2014 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
+            })
+        $btnConfigurarIPs.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                $formIpAssignAsignacion = Create-Form -Title "Asignación de IPs" -Size (New-Object System.Drawing.Size(400, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+                    -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false
+                $lblipAssignAdapter = Create-Label -Text "Seleccione el adaptador de red:" -Location (New-Object System.Drawing.Point(10, 20))
+                $lblipAssignAdapter.AutoSize = $true
+                $formIpAssignAsignacion.Controls.Add($lblipAssignAdapter)
+                $ComboBipAssignAdapters = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(360, 20)) -DropDownStyle DropDownList `
+                    -DefaultText "Selecciona 1 adaptador de red"
+                $ComboBipAssignAdapters.Add_SelectedIndexChanged({
+                        if ($ComboBipAssignAdapters.SelectedItem -ne "") {
+                            $btnipAssignAssignIP.Enabled = $true
+                            $btnipAssignChangeToDhcp.Enabled = $true
+                        } else {
+                            $btnipAssignAssignIP.Enabled = $false
+                            $btnipAssignChangeToDhcp.Enabled = $false
+                        }
+                    })
+                $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
+                foreach ($adapter in $adapters) {
+                    $ComboBipAssignAdapters.Items.Add($adapter.Name)
+                }
+                $formIpAssignAsignacion.Controls.Add($ComboBipAssignAdapters)
+                $lblipAssignIps = Create-Label -Text "IPs asignadas:" -Location (New-Object System.Drawing.Point(10, 80))
+                $lblipAssignIps.AutoSize = $true
+                $formIpAssignAsignacion.Controls.Add($lblipAssignIps)
+                $btnipAssignAssignIP = Create-Button -Text "Asignar Nueva IP" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
+                $btnipAssignAssignIP.Add_Click({
+                        $selectedAdapterName = $ComboBipAssignAdapters.SelectedItem
+                        if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
+                            Write-Host "`nPor favor, selecciona un adaptador de red." -ForegroundColor Red
+                            [System.Windows.Forms.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error")
+                            return
+                        }
+                        $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
+                        $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
+                        if ($currentConfig) {
+                            $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
+                            $currentIPAddress = $currentConfig.IPAddress
+                            $currentPrefixLength = $currentConfig.PrefixLength
+                            $currentGateway = (Get-NetIPConfiguration -InterfaceAlias $selectedAdapter.Name).IPv4DefaultGateway | Select-Object -ExpandProperty NextHop
+                            if (-not $isDhcp) {
+                                Write-Host "`nEl adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?" -ForegroundColor Yellow
+                                $confirmation = [System.Windows.Forms.MessageBox]::Show("El adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                                if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
+                                    $newIp = Show-NewIpForm
+                                    if ($newIp) {
+                                        $existingIp = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.IPAddress -eq $newIp }
+                                        if ($existingIp) {
+                                            Write-Host "`nLa dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name)." -ForegroundColor Red
+                                            [System.Windows.Forms.MessageBox]::Show("La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name).", "Error")
+                                        } else {
+                                            try {
+                                                New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
+                                                Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                                [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
+                                                $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                                                $ips = $currentIPs.IPAddress -join ", "
+                                                $lblipAssignIps.Text = "IPs asignadas: $ips"
+                                            } catch {
+                                                Write-Host "`nError al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
+                                                [System.Windows.Forms.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)", "Error")
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                Write-Host "`n¿Desea cambiar a IP fija usando la IP actual ($currentIPAddress)?" -ForegroundColor Yellow
+                                $confirmation = [System.Windows.Forms.MessageBox]::Show("¿Desea cambiar a IP fija usando la IP actual ($currentIPAddress)?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                                if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
+                                    try {
+                                        Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Disabled
+                                        New-NetIPAddress -IPAddress $currentIPAddress -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
+                                        if ($currentGateway) {
+                                            Remove-NetRoute -InterfaceAlias $selectedAdapter.Name -NextHop $currentGateway -Confirm:$false -ErrorAction SilentlyContinue
+                                            New-NetRoute -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -NextHop $currentGateway -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue
+                                        }
+                                        $dnsServers = @("8.8.8.8", "8.8.4.4")
+                                        Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ServerAddresses $dnsServers
+                                        Write-Host "`nSe cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                        [System.Windows.Forms.MessageBox]::Show("Se cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name).", "Éxito")
+                                        $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                                        $ips = $currentIPs.IPAddress -join ", "
+                                        $lblipAssignIps.Text = "IPs asignadas: $ips"
+                                        Write-Host "`n¿Desea agregar una dirección IP adicional?" -ForegroundColor Yellow
+                                        $confirmationAdditionalIP = [System.Windows.Forms.MessageBox]::Show("¿Desea agregar una dirección IP adicional?", "IP Adicional", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                                        if ($confirmationAdditionalIP -eq [System.Windows.Forms.DialogResult]::Yes) {
+                                            $newIp = Show-NewIpForm
+                                            if ($newIp) {
+                                                $existingIp = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.IPAddress -eq $newIp }
+                                                if ($existingIp) {
+                                                    Write-Host "`nLa dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name)." -ForegroundColor Red
+                                                    [System.Windows.Forms.MessageBox]::Show("La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name).", "Error")
+                                                } else {
+                                                    try {
+                                                        New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
+                                                        Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                                        [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
+                                                        $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                                                        $ips = $currentIPs.IPAddress -join ", "
+                                                        $lblipAssignIps.Text = "IPs asignadas: $ips"
+                                                    } catch {
+                                                        Write-Host "`nError al agregar la dirección IP adicional: $($_.Exception.Message)" -ForegroundColor Red
+                                                        [System.Windows.Forms.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)", "Error")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } catch {
+                                        Write-Host "`nError al cambiar a IP fija: $($_.Exception.Message)" -ForegroundColor Red
+                                        [System.Windows.Forms.MessageBox]::Show("Error al cambiar a IP fija: $($_.Exception.Message)", "Error")
+                                    }
+                                }
+                            }
+                        } else {
+                            Write-Host "`nNo se pudo obtener la configuración actual del adaptador." -ForegroundColor Red
+                            [System.Windows.Forms.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error")
+                        }
+                    })
+                $formIpAssignAsignacion.Controls.Add($btnipAssignAssignIP)
+                $btnipAssignChangeToDhcp = Create-Button -Text "Cambiar a DHCP" -Location (New-Object System.Drawing.Point(140, 120)) -Size (New-Object System.Drawing.Size(140, 30)) -Enabled $false
+                $btnipAssignChangeToDhcp.Add_Click({
+                        $selectedAdapterName = $ComboBipAssignAdapters.SelectedItem
+                        if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
+                            Write-Host "`nPor favor, selecciona un adaptador de red." -ForegroundColor Red
+                            [System.Windows.Forms.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error")
+                            return
+                        }
+                        $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
+                        $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
+                        if ($currentConfig) {
+                            $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
+                            if ($isDhcp) {
+                                Write-Host "`nEl adaptador ya está en DHCP." -ForegroundColor Yellow
+                                [System.Windows.Forms.MessageBox]::Show("El adaptador ya está en DHCP.", "Información")
+                            } else {
+                                Write-Host "`n¿Está seguro de que desea cambiar a DHCP?" -ForegroundColor Yellow
+                                $confirmation = [System.Windows.Forms.MessageBox]::Show("¿Está seguro de que desea cambiar a DHCP?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                                if ($confirmation -eq [System.Windows.Forms.DialogResult]::Yes) {
+                                    try {
+                                        $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq "Manual" }
+                                        foreach ($ip in $currentIPs) {
+                                            Remove-NetIPAddress -IPAddress $ip.IPAddress -PrefixLength $ip.PrefixLength -Confirm:$false -ErrorAction SilentlyContinue
+                                        }
+                                        Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Enabled
+                                        Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ResetServerAddresses
+                                        Write-Host "`nSe cambió a DHCP en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                        [System.Windows.Forms.MessageBox]::Show("Se cambió a DHCP en el adaptador $($selectedAdapter.Name).", "Éxito")
+                                        $lblipAssignIps.Text = "Generando IP por DHCP. Seleccione de nuevo."
+                                    } catch {
+                                        Write-Host "`nError al cambiar a DHCP: $($_.Exception.Message)" -ForegroundColor Red
+                                        [System.Windows.Forms.MessageBox]::Show("Error al cambiar a DHCP: $($_.Exception.Message)", "Error")
+                                    }
+                                }
+                            }
+                        } else {
+                            Write-Host "`nNo se pudo obtener la configuración actual del adaptador." -ForegroundColor Red
+                            [System.Windows.Forms.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error")
+                        }
+                    })
+                $formIpAssignAsignacion.Controls.Add($btnipAssignChangeToDhcp)
+                $btnCloseFormipAssign = Create-Button -Text "Cerrar" -Location (New-Object System.Drawing.Point(270, 120))  -Size (New-Object System.Drawing.Size(140, 30))
+                $btnCloseFormipAssign.Add_Click({
+                        $formIpAssignAsignacion.Close()
+                    })
+                $formIpAssignAsignacion.Controls.Add($btnCloseFormipAssign)
+                $ComboBipAssignAdapters.Add_SelectedIndexChanged({
+                        $selectedAdapterName = $ComboBipAssignAdapters.SelectedItem
+                        if ($selectedAdapterName -ne "Selecciona 1 adaptador de red") {
+                            $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
+                            $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                            $ips = $currentIPs.IPAddress -join ", "
+                            $lblipAssignIps.Text = "IPs asignadas: $ips"
+                        } else {
+                            $lblipAssignIps.Text = "IPs asignadas:"
+                        }
+                    })
+                $formIpAssignAsignacion.ShowDialog()
+            })
+        $btnLectorDPicacls.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                try {
+                    $psexecPath = "C:\Temp\PsExec\PsExec.exe"
+                    $psexecZip = "C:\Temp\PSTools.zip"
+                    $psexecUrl = "https://download.sysinternals.com/files/PSTools.zip"
+                    $psexecExtractPath = "C:\Temp\PsExec"
+                    if (-Not (Test-Path $psexecPath)) {
+                        Write-Host "`tPsExec no encontrado. Descargando desde Sysinternals..." -ForegroundColor Yellow
+                        if (-Not (Test-Path "C:\Temp")) {
+                            New-Item -Path "C:\Temp" -ItemType Directory | Out-Null
+                        }
+                        Invoke-WebRequest -Uri $psexecUrl -OutFile $psexecZip
+                        Write-Host "`tExtrayendo PsExec..." -ForegroundColor Cyan
+                        Expand-Archive -Path $psexecZip -DestinationPath $psexecExtractPath -Force
+                        if (-Not (Test-Path $psexecPath)) {
+                            Write-Host "`tError: No se pudo extraer PsExec.exe." -ForegroundColor Red
+                            return
+                        }
+                        Write-Host "`tPsExec descargado y extraído correctamente." -ForegroundColor Green
+                    } else {
+                        Write-Host "`tPsExec ya está instalado en: $psexecPath" -ForegroundColor Green
+                    }
+                    $grupoAdmin = ""
+                    $gruposLocales = net localgroup | Where-Object { $_ -match "Administrators|Administradores" }
+                    if ($gruposLocales -match "Administrators") {
+                        $grupoAdmin = "Administrators"
+                    } elseif ($gruposLocales -match "Administradores") {
+                        $grupoAdmin = "Administradores"
+                    } else {
+                        Write-Host "`tNo se encontró el grupo de administradores en el sistema." -ForegroundColor Red
+                        return
+                    }
+                    Write-Host "`tGrupo de administradores detectado: " -NoNewline
+                    Write-Host "$grupoAdmin" -ForegroundColor Green
+                    $comando1 = "icacls C:\Windows\System32\en-us /grant `"$grupoAdmin`":F"
+                    $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
+                    $psexecCmd1 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando1`""
+                    $psexecCmd2 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando2`""
+                    Write-Host "`nEjecutando primer comando: $comando1" -ForegroundColor Yellow
+                    $output1 = & cmd /c $psexecCmd1
+                    Write-Host $output1
+                    Write-Host "`nEjecutando segundo comando: $comando2" -ForegroundColor Yellow
+                    $output2 = & cmd /c $psexecCmd2
+                    Write-Host $output2
+                    Write-Host "`nModificación de permisos completada." -ForegroundColor Cyan
+                    $ResponderDriver = [System.Windows.Forms.MessageBox]::Show(
+                        "¿Desea descargar e instalar el driver del lector?",
+                        "Descargar Driver",
+                        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                        [System.Windows.Forms.MessageBoxIcon]::Question
+                    )
+                    if ($ResponderDriver -eq [System.Windows.Forms.DialogResult]::Yes) {
+                        $url = "https://softrestaurant.com/drivers?download=120:dp"
+                        $zipPath = "C:\Temp\Driver_DP.zip"
+                        $extractPath = "C:\Temp\Driver_DP"
+                        $exeName = "x64\Setup.msi"
+                        $validationPath = "C:\Temp\Driver_DP\x64\Setup.msi"
+                        DownloadAndRun -url $url -zipPath $zipPath -extractPath $extractPath -exeName $exeName -validationPath $validationPath
+                    }
+
+                } catch {
+                    Write-Host "Error: $_" -ForegroundColor Red
+                }
+            })
+        $btnAplicacionesNS.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                $resultados = @()
+                function Leer-Ini($filePath) {
+                    if (Test-Path $filePath) {
+                        $content = Get-Content $filePath
+                        $dataSource = ($content | Select-String -Pattern "^DataSource=(.*)" | Select-Object -First 1).Matches.Groups[1].Value
+                        $catalog = ($content | Select-String -Pattern "^Catalog=(.*)"    | Select-Object -First 1).Matches.Groups[1].Value
+                        $authType = ($content | Select-String -Pattern "^autenticacion=(\d+)").Matches.Groups[1].Value
+                        $authUser = if ($authType -eq "2") { "sa" } elseif ($authType -eq "1") { "Windows" } else { "Desconocido" }
+
+                        return @{
+                            DataSource = $dataSource
+                            Catalog    = $catalog
+                            Usuario    = $authUser
+                        }
+                    }
+                    return $null
+                }
+                $pathsToCheck = @(
+                    @{ Path = "C:\NationalSoft\Softrestaurant9.5.0Pro"; INI = "restaurant.ini"; Nombre = "SR9.5" },
+                    @{ Path = "C:\NationalSoft\Softrestaurant12.0"; INI = "restaurant.ini"; Nombre = "SR12" },
+                    @{ Path = "C:\NationalSoft\Softrestaurant11.0"; INI = "restaurant.ini"; Nombre = "SR11" },
+                    @{ Path = "C:\NationalSoft\Softrestaurant10.0"; INI = "restaurant.ini"; Nombre = "SR10" },
+                    @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0"; INI = "nshoteles.ini"; Nombre = "Hoteles" },
+                    @{ Path = "C:\NationalSoft\OnTheMinute4.5"; INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
+                )
+                foreach ($entry in $pathsToCheck) {
+                    $basePath = $entry.Path
+                    $mainIni = "$basePath\$($entry.INI)"
+                    $appName = $entry.Nombre
+                    if (Test-Path $mainIni) {
+                        $iniData = Leer-Ini $mainIni
+                        if ($iniData) {
+                            $resultados += [PSCustomObject]@{
+                                Aplicacion = $appName
+                                INI        = $entry.INI
+                                DataSource = $iniData.DataSource
+                                Catalog    = $iniData.Catalog
+                                Usuario    = $iniData.Usuario
+                            }
+                        }
+                    } else {
+                        $resultados += [PSCustomObject]@{
+                            Aplicacion = $appName
+                            INI        = "No encontrado"
+                            DataSource = "NA"
+                            Catalog    = "NA"
+                            Usuario    = "NA"
+                        }
+                    }
+                    $inisFolder = "$basePath\INIS"
+                    if ($appName -eq "OnTheMinute" -and (Test-Path $inisFolder)) {
+                        $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
+                        if ($iniFiles.Count -gt 1) {
+                            foreach ($iniFile in $iniFiles) {
+                                $iniData = Leer-Ini $iniFile.FullName
+                                if ($iniData) {
+                                    $resultados += [PSCustomObject]@{
+                                        Aplicacion = $appName
+                                        INI        = $iniFile.Name
+                                        DataSource = $iniData.DataSource
+                                        Catalog    = $iniData.Catalog
+                                        Usuario    = $iniData.Usuario
+                                    }
+                                }
+                            }
+                        }
+                    } elseif (Test-Path $inisFolder) {
+                        $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
+                        foreach ($iniFile in $iniFiles) {
+                            $iniData = Leer-Ini $iniFile.FullName
+                            if ($iniData) {
+                                $resultados += [PSCustomObject]@{
+                                    Aplicacion = $appName
+                                    INI        = $iniFile.Name
+                                    DataSource = $iniData.DataSource
+                                    Catalog    = $iniData.Catalog
+                                    Usuario    = $iniData.Usuario
+                                }
+                            }
+                        }
+                    }
+                }
+                $restCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
+                if (Test-Path $restCardPath) {
+                    $resultados += [PSCustomObject]@{
+                        Aplicacion = "Restcard"
+                        INI        = "RestCard.ini"
+                        DataSource = "existe"
+                        Catalog    = "existe"
+                        Usuario    = "existe"
+                    }
+                } else {
+                    $resultados += [PSCustomObject]@{
+                        Aplicacion = "Restcard"
+                        INI        = "No encontrado"
+                        DataSource = "NA"
+                        Catalog    = "NA"
+                        Usuario    = "NA"
+                    }
+                }
+                $columnas = @("Aplicacion", "INI", "DataSource", "Catalog", "Usuario")
+                $anchos = @{}
+                foreach ($col in $columnas) { $anchos[$col] = $col.Length }
+                foreach ($res in $resultados) {
+                    foreach ($col in $columnas) {
+                        if ($res.$col.Length -gt $anchos[$col]) {
+                            $anchos[$col] = $res.$col.Length
+                        }
+                    }
+                }
+                $titulos = $columnas | ForEach-Object { $_.PadRight($anchos[$_] + 2) }
+                Write-Host ($titulos -join "") -ForegroundColor Cyan
+                $separador = $columnas | ForEach-Object { ("-" * $anchos[$_]).PadRight($anchos[$_] + 2) }
+                Write-Host ($separador -join "") -ForegroundColor Cyan
+                foreach ($res in $resultados) {
+                    $fila = $columnas | ForEach-Object { $res.$_.PadRight($anchos[$_] + 2) }
+                    if ($res.INI -eq "No encontrado") {
+                        Write-Host ($fila -join "") -ForegroundColor Red
+                    } else {
+                        Write-Host ($fila -join "")
+                    }
+                }
+            })
+        $btnCambiarOTM.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                $syscfgPath = "C:\Windows\SysWOW64\Syscfg45_2.0.dll"
+                $iniPath = "C:\NationalSoft\OnTheMinute4.5"
+                if (-not (Test-Path $syscfgPath)) {
+                    [System.Windows.Forms.MessageBox]::Show("El archivo de configuración no existe.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
+                    Write-Host "`tEl archivo de configuración no existe." -ForegroundColor Red
+                    return
+                }
+                $fileContent = Get-Content $syscfgPath
+                $isSQL = $fileContent -match "494E5354414C4C=1" -and $fileContent -match "56455253495354454D41=3"
+                $isDBF = $fileContent -match "494E5354414C4C=2" -and $fileContent -match "56455253495354454D41=2"
+                if (!$isSQL -and !$isDBF) {
+                    [System.Windows.Forms.MessageBox]::Show("No se detectó una configuración válida de SQL o DBF.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
+                    Write-Host "`tNo se detectó una configuración válida de SQL o DBF." -ForegroundColor Red
+                    return
+                }
+                $iniFiles = Get-ChildItem -Path $iniPath -Filter "*.ini"
+                if ($iniFiles.Count -eq 0) {
+                    [System.Windows.Forms.MessageBox]::Show("No se encontraron archivos INI en $iniPath.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
+                    Write-Host "`tNo se encontraron archivos INI en $iniPath." -ForegroundColor Red
+                    return
+                }
+                $iniSQLFile = $null
+                $iniDBFFile = $null
+                foreach ($iniFile in $iniFiles) {
+                    $content = Get-Content $iniFile.FullName
+                    if ($content -match "Provider=VFPOLEDB.1" -and -not $iniDBFFile) {
+                        $iniDBFFile = $iniFile
+                    }
+                    if ($content -match "Provider=SQLOLEDB.1" -and -not $iniSQLFile) {
+                        $iniSQLFile = $iniFile
+                    }
+                    if ($iniSQLFile -and $iniDBFFile) {
+                        break
+                    }
+                }
+                if (-not $iniSQLFile -or -not $iniDBFFile) {
+                    [System.Windows.Forms.MessageBox]::Show("No se encontraron los archivos INI esperados.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
+                    Write-Host "`tNo se encontraron los archivos INI esperados." -ForegroundColor Red
+                    Write-Host "`tArchivos encontrados:" -ForegroundColor Yellow
+                    $iniFiles | ForEach-Object { Write-Host "`t- $_.Name" }
+                    return
+                }
+                $currentConfig = if ($isSQL) { "SQL" } else { "DBF" }
+                $newConfig = if ($isSQL) { "DBF" } else { "SQL" }
+                $message = "Actualmente tienes configurado: $currentConfig.`n¿Quieres cambiar a $newConfig?"
+                $result = [System.Windows.Forms.MessageBox]::Show($message, "Cambiar Configuración", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+                if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    if ($newConfig -eq "SQL") {
+                        Write-Host "`tCambiando a SQL: C:\Windows\SysWOW64\Syscfg45_2.0.dll" -ForegroundColor Yellow
+                        Write-Host "`t494E5354414C4C=1"
+                        Write-Host "`t56455253495354454D41=3"
+                        (Get-Content $syscfgPath) -replace "494E5354414C4C=2", "494E5354414C4C=1" | Set-Content $syscfgPath
+                        (Get-Content $syscfgPath) -replace "56455253495354454D41=2", "56455253495354454D41=3" | Set-Content $syscfgPath
+                    } else {
+                        Write-Host "`tCambiando a DBF: C:\Windows\SysWOW64\Syscfg45_2.0.dll" -ForegroundColor Yellow
+                        Write-Host "`t494E5354414C4C=2"
+                        Write-Host "`t56455253495354454D41=1"
+                        (Get-Content $syscfgPath) -replace "494E5354414C4C=1", "494E5354414C4C=2" | Set-Content $syscfgPath
+                        (Get-Content $syscfgPath) -replace "56455253495354454D41=3", "56455253495354454D41=2" | Set-Content $syscfgPath
+                    }
+                    if ($newConfig -eq "SQL") {
+                        Rename-Item -Path $iniDBFFile.FullName -NewName "checadorsql_DBF_old.ini" -ErrorAction Stop
+                        Rename-Item -Path $iniSQLFile.FullName -NewName "checadorsql.ini" -ErrorAction Stop
+                    } else {
+                        Rename-Item -Path $iniSQLFile.FullName -NewName "checadorsql_SQL_old.ini" -ErrorAction Stop
+                        Rename-Item -Path $iniDBFFile.FullName -NewName "checadorsql.ini" -ErrorAction Stop
+                    }
+                    [System.Windows.Forms.MessageBox]::Show("Configuración cambiada exitosamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK)
+                    Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
+                }
+            })
+        $btnExitInstaladores.Add_Click({
+                $formInstaladoresChoco.Close()
+            })
+        $btnInstalarHerramientas.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                if (Check-Chocolatey) {
+                    $formInstaladoresChoco.ShowDialog()
+                } else {
+                    Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
+                }
+            })
 
         $btnExit.Add_Click({
                 $form = $this.FindForm()

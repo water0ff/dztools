@@ -2340,6 +2340,7 @@ $btnConfigurarIPs.Add_Click({
             })
         $formIpAssignAsignacion.ShowDialog()
     })
+#migrada
 function Get-IniConnections {
     $connections = @()
     $pathsToCheck = @(
@@ -2815,6 +2816,7 @@ function ConvertTo-DataTable {
     }
     return $dt
 }
+#migrada
 function Execute-SqlQuery {
     param (
         [string]$server,
@@ -2872,6 +2874,7 @@ function ConvertTo-DataTable {
     }
     return $dt
 }
+#migrada
 function Show-ResultsConsole {
     param (
         [string]$query

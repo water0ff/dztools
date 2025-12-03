@@ -571,7 +571,6 @@ function New-TextBox {
 
     return $textBox
 }
-
 function New-ComboBox {
     [CmdletBinding()]
     param(

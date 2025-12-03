@@ -1,6 +1,5 @@
 ﻿#requires -Version 5.0
 
-# Cargar ensamblados necesarios con manejo de errores
 try {
     Write-Host "Cargando ensamblados de Windows Forms..." -ForegroundColor Yellow
     Add-Type -AssemblyName System.Windows.Forms
@@ -38,7 +37,7 @@ $modulesPath = Join-Path $PSScriptRoot "modules"
 
 $modules = @(
     "GUI.psm1",
-    "Database.psm1", 
+    "Database.psm1",
     "Utilities.psm1",
     "Installers.psm1"
 )
@@ -74,7 +73,7 @@ function Initialize-Environment {
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
     Write-Host "              Versión: v$($global:version)               " -ForegroundColor Green
     Write-Host "=============================================" -ForegroundColor DarkCyan
-    
+
     # Crear carpeta temporal si no existe
     if (!(Test-Path -Path "C:\Temp")) {
         try {
@@ -84,14 +83,14 @@ function Initialize-Environment {
             Write-Host "Error creando C:\Temp: $_" -ForegroundColor Yellow
         }
     }
-    
+
     return $true
 }
 
 # Función para crear formulario principal SIMPLIFICADA
 function New-MainForm {
     Write-Host "Creando formulario principal..." -ForegroundColor Yellow
-    
+
     try {
         # Crear formulario usando la función del módulo GUI
         if (Get-Command New-FormBuilder -ErrorAction SilentlyContinue) {
@@ -105,41 +104,41 @@ function New-MainForm {
             $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
             $form.BackColor = [System.Drawing.Color]::White
         }
-        
+
         # Crear controles básicos
         $lblTitulo = New-Object System.Windows.Forms.Label
         $lblTitulo.Text = "Daniel Tools - Versión $($global:version)"
         $lblTitulo.Location = New-Object System.Drawing.Point(10, 10)
         $lblTitulo.Size = New-Object System.Drawing.Size(400, 30)
         $lblTitulo.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
-        
+
         $btnProbar = New-Object System.Windows.Forms.Button
         $btnProbar.Text = "Probar Conexión SQL"
         $btnProbar.Location = New-Object System.Drawing.Point(10, 50)
         $btnProbar.Size = New-Object System.Drawing.Size(150, 30)
-        
+
         $btnSalir = New-Object System.Windows.Forms.Button
         $btnSalir.Text = "Salir"
         $btnSalir.Location = New-Object System.Drawing.Point(170, 50)
         $btnSalir.Size = New-Object System.Drawing.Size(150, 30)
         $btnSalir.BackColor = [System.Drawing.Color]::LightGray
-        
+
         # Agregar controles
         $form.Controls.AddRange(@($lblTitulo, $btnProbar, $btnSalir))
-        
+
         # Eventos
         $btnProbar.Add_Click({
             Write-Host "Botón Probar presionado" -ForegroundColor Cyan
             [System.Windows.Forms.MessageBox]::Show("Funcionalidad en desarrollo", "Información")
         })
-        
+
 	$btnSalir.Add_Click({
 	    try {
 	        Write-Host "Botón Salir presionado" -ForegroundColor Cyan
-	
+
 	        # $this es el botón; FindForm() regresa el formulario que lo contiene
 	        $currentForm = $this.FindForm()
-	
+
 	        if ($null -ne $currentForm) {
 	            Write-Host "  Cerrando formulario..." -ForegroundColor Yellow
 	            $currentForm.Close()
@@ -160,9 +159,9 @@ function New-MainForm {
 	    }
 	})
 
-        
+
         return $form
-        
+
     } catch {
         Write-Host "✗ Error creando formulario: $_" -ForegroundColor Red
         return $null
@@ -172,19 +171,19 @@ function New-MainForm {
 # Función principal con mejor manejo de errores
 function Start-Application {
     Write-Host "Iniciando aplicación..." -ForegroundColor Cyan
-    
+
     if (-not (Initialize-Environment)) {
         Write-Host "Error inicializando entorno. Saliendo..." -ForegroundColor Red
         return
     }
-    
+
     $mainForm = New-MainForm
     if ($mainForm -eq $null) {
         Write-Host "Error: No se pudo crear el formulario principal" -ForegroundColor Red
         [System.Windows.Forms.MessageBox]::Show("No se pudo crear la interfaz gráfica. Verifique los logs.", "Error crítico")
         return
     }
-    
+
     try {
         Write-Host "Mostrando formulario..." -ForegroundColor Yellow
         $mainForm.ShowDialog()

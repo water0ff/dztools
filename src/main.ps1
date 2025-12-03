@@ -302,8 +302,10 @@ function New-MainForm {
         return $formPrincipal
 
     } catch {
-        Write-Host "✗ Error creando formulario: $_" -ForegroundColor Red
-        return $null
+        Write-Host "✗ Error creando formulario: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  Detalle: $($_.InvocationInfo.PositionMessage)" -ForegroundColor Yellow
+        Write-Host "  Stack : $($_.ScriptStackTrace)" -ForegroundColor DarkYellow
+        throw    # <-- re-lanza para que también lo veas fuera
     }
 }
 function Start-Application {

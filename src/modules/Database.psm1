@@ -76,10 +76,9 @@ function Remove-SqlComments {
         [Parameter(Mandatory = $true)]
         [string]$Query
     )
-    $query = $Query -replace '(?s)/\*.*?\*/', ''
-    $query = $Query -replace '(?m)^\s*--.*\n?', ''
-    $query = $Query -replace '(?<!\w)--.*$', ''
-
+    $query = $Query -replace '(?s)/\*.*?\*/', ''             # /* ... */
+    $query = $query -replace '(?m)^\s*--.*\n?', ''           # -- al inicio de línea
+    $query = $query -replace '(?<!\w)--.*$', ''              # -- inline
     return $query.Trim()
 }
 function Get-SqlDatabases {

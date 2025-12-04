@@ -179,7 +179,11 @@ function New-MainForm {
         $global:cmbQueries = $cmbQueries
         $global:rtbQuery = $rtbQuery
         $global:lblConnectionStatus = $lblConnectionStatus
-        $keywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
+        $script:SqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
+        $script:SqlKeywordRegex = [System.Text.RegularExpressions.Regex]::new(
+            "\b($script:SqlKeywords)\b",
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+        )
         $script:predefinedQueries = @{
             "Monitor de Servicios | Ventas a subir"           = @"
 SELECT DISTINCT TOP (10)
@@ -366,7 +370,8 @@ WHERE
                     $rtbQuery.SelectionColor = [System.Drawing.Color]::Green
                     $commentRanges += [PSCustomObject]@{ Start = $b.Index; End = $b.Index + $b.Length }
                 }
-                foreach ($m in [regex]::Matches($rtbQuery.Text, "\b($keywords)\b", 'IgnoreCase')) {
+                $matches = $script:SqlKeywordRegex.Matches($rtbQuery.Text)
+                foreach ($m in $matches) {
                     $inComment = $commentRanges | Where-Object { $m.Index -ge $_.Start -and $m.Index -lt $_.End }
                     if (-not $inComment) {
                         $rtbQuery.Select($m.Index, $m.Length)
@@ -388,6 +393,7 @@ WHERE
         $dgvResults.ClipboardCopyMode = [System.Windows.Forms.DataGridViewClipboardCopyMode]::EnableAlwaysIncludeHeaderText
         $dgvResults.DefaultCellStyle.SelectionBackColor = [System.Drawing.Color]::LightBlue
         $dgvResults.DefaultCellStyle.SelectionForeColor = [System.Drawing.Color]::Black
+        $script:dgvResults = $dgvResults
         $script:originalForeColor = $dgvResults.DefaultCellStyle.ForeColor
         $script:originalHeaderBackColor = $dgvResults.ColumnHeadersDefaultCellStyle.BackColor
         $script:originalAutoSizeMode = $dgvResults.AutoSizeColumnsMode
@@ -791,6 +797,45 @@ compila el proyecto y lo coloca en la carpeta de salida.
             })
         $lblPort.Add_MouseEnter($changeColorOnHover)
         $lblPort.Add_MouseLeave($restoreColorOnLeave)
+        $lblHostname.Add_Click({
+                param($sender, $e)
+                $hostnameText = $sender.Text  # <- usamos el control que disparó el evento
+                if ([string]::IsNullOrWhiteSpace($hostnameText)) {
+                    Write-Host "`n[AVISO] El hostname está vacío o nulo, no se copió nada." -ForegroundColor Yellow
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "El nombre de equipo está vacío, no hay nada que copiar.",
+                        "Daniel Tools",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Information
+                    ) | Out-Null
+                    return
+                }
+                [System.Windows.Forms.Clipboard]::SetText($hostnameText)
+                Write-Host "`nNombre del equipo copiado al portapapeles: $hostnameText" -ForegroundColor Green
+            })
+        $txt_IpAdress.Add_Click({
+                param($sender, $e)
+                $ipsText = $sender.Text  # <- usamos el Text del textbox que hizo click
+                if ([string]::IsNullOrWhiteSpace($ipsText)) {
+                    Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow
+                    return
+                }
+                [System.Windows.Forms.Clipboard]::SetText($ipsText)
+                Write-Host "`nIP's copiadas al portapapeles: $ipsText" -ForegroundColor Green
+            })
+        $txt_IpAdress.Add_MouseEnter($changeColorOnHover)
+        $txt_IpAdress.Add_MouseLeave($restoreColorOnLeave)
+        $txt_AdapterStatus.Add_Click({
+                Get-NetConnectionProfile |
+                Where-Object { $_.NetworkCategory -ne 'Private' } |
+                ForEach-Object {
+                    Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private
+                }
+                Write-Host "Todas las redes se han establecido como Privadas."
+                Refresh-AdapterStatus
+            })
+        $txt_AdapterStatus.Add_MouseEnter($changeColorOnHover)
+        $txt_AdapterStatus.Add_MouseLeave($restoreColorOnLeave)
         $btnCheckPermissions.Add_Click({
                 Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
                 if (-not (Test-Administrator)) {
@@ -1038,6 +1083,95 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     }
                 } else {
                     Write-Host "`tEl usuario canceló la operación."  -ForegroundColor Red
+                }
+            })
+        $btnExecute.Add_Click({
+                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                try {
+                    if ($null -eq $script:dgvResults) {
+                        Write-Host "[DEBUG] dgvResults es NULL dentro del Click" -ForegroundColor Red
+                        throw "DataGridView no inicializado."
+                    } else {
+                        Write-Host ("[DEBUG] dgvResults tipo: {0}" -f ($script:dgvResults.GetType().FullName)) -ForegroundColor DarkYellow
+                    }
+                    if ($script:originalForeColor) {
+                        $script:dgvResults.DefaultCellStyle.ForeColor = $script:originalForeColor
+                    }
+                    if ($script:originalHeaderBackColor) {
+                        $script:dgvResults.ColumnHeadersDefaultCellStyle.BackColor = $script:originalHeaderBackColor
+                    }
+                    if ($script:originalAutoSizeMode) {
+                        $script:dgvResults.AutoSizeColumnsMode = $script:originalAutoSizeMode
+                    }
+                    if ($script:dgvResults.DataSource) {
+                        $script:dgvResults.DataSource = $null
+                    }
+                    if ($script:dgvResults.Rows -ne $null) {
+                        $script:dgvResults.Rows.Clear()
+                    }
+                    if ($null -ne $toolTip -and ($toolTip | Get-Member -Name 'SetToolTip' -MemberType Method -ErrorAction SilentlyContinue)) {
+                        $toolTip.SetToolTip($script:dgvResults, $null)
+                    }
+                    $selectedDb = $cmbDatabases.SelectedItem
+                    if (-not $selectedDb) { throw "Selecciona una base de datos" }
+                    $rawQuery = $rtbQuery.Text
+                    $cleanQuery = Remove-SqlComments -Query $rawQuery
+                    $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $cleanQuery
+                    if ($result -and $result.ContainsKey('Messages') -and $result.Messages) {
+                        if ($result.Messages.Count -gt 0) {
+                            Write-Host "`nMensajes de SQL:" -ForegroundColor Cyan
+                            $result.Messages | ForEach-Object { Write-Host $_ }
+                        }
+                    }
+                    if ($result -and $result.ContainsKey('DataTable') -and $result.DataTable) {
+                        $script:dgvResults.DataSource = $result.DataTable.DefaultView
+                        $script:dgvResults.Enabled = $true
+                        Write-Host "`nColumnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
+                        $script:dgvResults.DefaultCellStyle.ForeColor = 'Blue'
+                        $script:dgvResults.AlternatingRowsDefaultCellStyle.BackColor = '#F0F8FF'
+                        $script:dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
+                        foreach ($col in $script:dgvResults.Columns) {
+                            $col.AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::DisplayedCells
+                            $col.Width = [Math]::Max($col.Width, $col.HeaderText.Length * 8)
+                        }
+                        if ($result.DataTable.Rows.Count -eq 0) {
+                            Write-Host "La consulta no devolvió resultados" -ForegroundColor Yellow
+                        } else {
+                            $result.DataTable | Format-Table -AutoSize | Out-String | Write-Host
+                        }
+                    } elseif ($result -and $result.ContainsKey('RowsAffected')) {
+                        Write-Host "`nFilas afectadas: $($result.RowsAffected)" -ForegroundColor Green
+                    } else {
+                        Write-Host "`nNo se recibió DataTable ni RowsAffected en el resultado." -ForegroundColor Yellow
+                    }
+                } catch {
+                    $errorTable = New-Object System.Data.DataTable
+                    $errorTable.Columns.Add("Tipo")    | Out-Null
+                    $errorTable.Columns.Add("Mensaje") | Out-Null
+                    $errorTable.Columns.Add("Detalle") | Out-Null
+                    $cleanQuery = $rtbQuery.Text -replace '(?s)/\*.*?\*/', '' -replace '(?m)^\s*--.*'
+                    $shortQuery = if ($cleanQuery.Length -gt 50) { $cleanQuery.Substring(0, 47) + "..." } else { $cleanQuery }
+                    $errorTable.Rows.Add("ERROR SQL", $_.Exception.Message, $shortQuery) | Out-Null
+                    if ($null -ne $script:dgvResults) {
+                        $script:dgvResults.DataSource = $errorTable
+                        if ($script:dgvResults.Columns.Count -ge 3) {
+                            $script:dgvResults.Columns[1].DefaultCellStyle.WrapMode = [System.Windows.Forms.DataGridViewTriState]::True
+                            $script:dgvResults.AutoSizeRowsMode = [System.Windows.Forms.DataGridViewAutoSizeRowsMode]::AllCells
+                            $script:dgvResults.AutoSizeColumnsMode = 'Fill'
+                            $script:dgvResults.Columns[0].Width = 100
+                            $script:dgvResults.Columns[1].Widh = 300
+                            $script:dgvResults.Columns[2].Width = 200
+                        }
+                        $script:dgvResults.DefaultCellStyle.ForeColor = 'Red'
+                        $script:dgvResults.ColumnHeadersDefaultCellStyle.BackColor = '#FFB3B3'
+                        if ($null -ne $toolTip -and ($toolTip | Get-Member -Name 'SetToolTip' -MemberType Method -ErrorAction SilentlyContinue)) {
+                            $toolTip.SetToolTip($script:dgvResults, "Consulta completa:`n$cleanQuery")
+                        }
+                    }
+                    Write-Host "`n=============== ERROR ==============" -ForegroundColor Red
+                    Write-Host "Mensaje: $($_.Exception.Message)" -ForegroundColor Yellow
+                    Write-Host "Consulta: $shortQuery" -ForegroundColor Cyan
+                    Write-Host "====================================" -ForegroundColor Red
                 }
             })
         $btnClearAnyDesk.Add_Click({
@@ -1986,71 +2120,6 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 $formAddUser.Controls.AddRange(@($txtUsername, $txtPassword, $cmbType, $btnCreate, $btnCancel, $btnShow, $lblUsername, $lblPassword, $lblType))
                 $formAddUser.ShowDialog()
             })
-        $btnExecute.Add_Click({
-                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-                try {
-                    $dgvResults.DefaultCellStyle.ForeColor = $script:originalForeColor
-                    $dgvResults.ColumnHeadersDefaultCellStyle.BackColor = $script:originalHeaderBackColor
-                    $dgvResults.AutoSizeColumnsMode = $script:originalAutoSizeMode
-                    $dgvResults.DefaultCellStyle.ForeColor = $originalForeColor
-                    $dgvResults.ColumnHeadersDefaultCellStyle.BackColor = $originalHeaderBackColor
-                    $dgvResults.AutoSizeColumnsMode = $originalAutoSizeMode
-                    $toolTip.SetToolTip($dgvResults, $null)
-                    $dgvResults.DataSource = $null
-                    $dgvResults.Rows.Clear()
-                    Clear-Host
-                    $selectedDb = $cmbDatabases.SelectedItem
-                    if (-not $selectedDb) { throw "Selecciona una base de datos" }
-                    $rawQuery = $rtbQuery.Text
-                    $cleanQuery = Remove-SqlComments -Query $rawQuery
-                    $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $cleanQuery
-                    if ($result.Messages.Count -gt 0) {
-                        Write-Host "`nMensajes de SQL:" -ForegroundColor Cyan
-                        $result.Messages | ForEach-Object { Write-Host $_ }
-                    }
-                    if ($result.DataTable) {
-                        $dgvResults.DataSource = $result.DataTable.DefaultView
-                        $dgvResults.Enabled = $true
-                        Write-Host "`nColumnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
-                        $dgvResults.DefaultCellStyle.ForeColor = 'Blue'
-                        $dgvResults.AlternatingRowsDefaultCellStyle.BackColor = '#F0F8FF'
-                        $dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
-                        foreach ($col in $dgvResults.Columns) {
-                            $col.AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::DisplayedCells
-                            $col.Width = [Math]::Max($col.Width, $col.HeaderText.Length * 8)
-                        }
-                        if ($result.DataTable.Rows.Count -eq 0) {
-                            Write-Host "La consulta no devolvió resultados" -ForegroundColor Yellow
-                        } else {
-                            $result.DataTable | Format-Table -AutoSize | Out-String | Write-Host
-                        }
-                    } else {
-                        Write-Host "`nFilas afectadas: $($result.RowsAffected)" -ForegroundColor Green
-                    }
-                } catch {
-                    $errorTable = New-Object System.Data.DataTable
-                    $errorTable.Columns.Add("Tipo") | Out-Null
-                    $errorTable.Columns.Add("Mensaje") | Out-Null
-                    $errorTable.Columns.Add("Detalle") | Out-Null
-                    $cleanQuery = $rtbQuery.Text -replace '(?s)/\*.*?\*/', '' -replace '(?m)^\s*--.*'
-                    $shortQuery = if ($cleanQuery.Length -gt 50) { $cleanQuery.Substring(0, 47) + "..." } else { $cleanQuery }
-                    $errorTable.Rows.Add("ERROR SQL", $_.Exception.Message, $shortQuery) | Out-Null
-                    $dgvResults.DataSource = $errorTable
-                    $dgvResults.Columns[1].DefaultCellStyle.WrapMode = [System.Windows.Forms.DataGridViewTriState]::True
-                    $dgvResults.AutoSizeRowsMode = [System.Windows.Forms.DataGridViewAutoSizeRowsMode]::AllCells
-                    $dgvResults.AutoSizeColumnsMode = 'Fill'
-                    $dgvResults.Columns[0].Width = 100
-                    $dgvResults.Columns[1].Width = 300
-                    $dgvResults.Columns[2].Width = 200
-                    $dgvResults.DefaultCellStyle.ForeColor = 'Red'
-                    $dgvResults.ColumnHeadersDefaultCellStyle.BackColor = '#FFB3B3'
-                    $toolTip.SetToolTip($dgvResults, "Consulta completa:`n$cleanQuery")
-                    Write-Host "`n=============== ERROR ==============" -ForegroundColor Red
-                    Write-Host "Mensaje: $($_.Exception.Message)" -ForegroundColor Yellow
-                    Write-Host "Consulta: $shortQuery" -ForegroundColor Cyan
-                    Write-Host "====================================" -ForegroundColor Red
-                }
-            })
         $btnConnectDb.Add_Click({
                 Write-Host "`nConectando a la instancia..." -ForegroundColor Gray
                 try {
@@ -2162,27 +2231,6 @@ Base de datos: $($global:database)
                     Write-Host "`nError al desconectar: $_" -ForegroundColor Red
                 }
             })
-        $lblHostname.Add_Click({
-                [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
-                Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
-            })
-        $txt_IpAdress.Add_Click({
-                [System.Windows.Forms.Clipboard]::SetText($txt_IpAdress.Text)
-                Write-Host "`nIP's copiadas al equipo: $($txt_IpAdress.Text)"
-            })
-        $txt_IpAdress.Add_MouseEnter($changeColorOnHover)
-        $txt_IpAdress.Add_MouseLeave($restoreColorOnLeave)
-        $txt_AdapterStatus.Add_Click({
-                Get-NetConnectionProfile |
-                Where-Object { $_.NetworkCategory -ne 'Private' } |
-                ForEach-Object {
-                    Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private
-                }
-                Write-Host "Todas las redes se han establecido como Privadas."
-                Refresh-AdapterStatus
-            })
-        $txt_AdapterStatus.Add_MouseEnter($changeColorOnHover)
-        $txt_AdapterStatus.Add_MouseLeave($restoreColorOnLeave)
         $btnCreateAPK.Add_Click({
                 Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
                 $dllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll"

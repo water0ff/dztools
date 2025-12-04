@@ -1,4 +1,5 @@
 ﻿#requires -Version 5.0
+#requires -Version 5.0
 function Invoke-SqlQuery {
     [CmdletBinding()]
     param(
@@ -9,42 +10,48 @@ function Invoke-SqlQuery {
         [Parameter(Mandatory = $true)]
         [string]$Query,
         [Parameter(Mandatory = $true)]
-        [string]$Username,
-        [Parameter(Mandatory = $true)]
-        [string]$Password
+        [System.Management.Automation.PSCredential]$Credential
     )
     $connection = $null
     Write-Host "DEBUG[Invoke-SqlQuery] INICIO" -ForegroundColor DarkCyan
-    Write-Host "DEBUG[Invoke-SqlQuery] Server='$Server' Database='$Database' User='$Username'" -ForegroundColor DarkCyan
+    Write-Host "DEBUG[Invoke-SqlQuery] Server='$Server' Database='$Database' User='$($Credential.UserName)'" -ForegroundColor DarkCyan
     try {
-        $connectionString = "Server=$Server;Database=$Database;User Id=$Username;Password=$Password;MultipleActiveResultSets=True"
-        Write-Host "DEBUG[Invoke-SqlQuery] Creando SqlConnection..." -ForegroundColor DarkCyan
-        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        Write-Host "DEBUG[Invoke-SqlQuery] Connection type: $($connection.GetType().FullName)" -ForegroundColor DarkCyan
-        Write-Host "DEBUG[Invoke-SqlQuery] Abriendo conexión..." -ForegroundColor DarkCyan
-        $connection.Open()
-        Write-Host "DEBUG[Invoke-SqlQuery] Estado conexión tras Open(): $($connection.State)" -ForegroundColor DarkCyan
-        $command = $connection.CreateCommand()
-        $command.CommandText = $Query
-        $command.CommandTimeout = 0
-        if ($Query -match "(?si)^\s*(SELECT|WITH)") {
-            Write-Host "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo SELECT/WITH" -ForegroundColor DarkCyan
-            $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
-            $dataTable = New-Object System.Data.DataTable
-            [void]$adapter.Fill($dataTable)
-            return @{
-                Success   = $true
-                DataTable = $dataTable
-                Type      = "Query"
+        $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+        try {
+            $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+            $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
+            Write-Host "DEBUG[Invoke-SqlQuery] Creando SqlConnection..." -ForegroundColor DarkCyan
+            $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+            Write-Host "DEBUG[Invoke-SqlQuery] Connection type: $($connection.GetType().FullName)" -ForegroundColor DarkCyan
+            Write-Host "DEBUG[Invoke-SqlQuery] Abriendo conexión..." -ForegroundColor DarkCyan
+            $connection.Open()
+            Write-Host "DEBUG[Invoke-SqlQuery] Estado conexión tras Open(): $($connection.State)" -ForegroundColor DarkCyan
+            $command = $connection.CreateCommand()
+            $command.CommandText = $Query
+            $command.CommandTimeout = 0
+            if ($Query -match "(?si)^\s*(SELECT|WITH)") {
+                Write-Host "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo SELECT/WITH" -ForegroundColor DarkCyan
+                $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
+                $dataTable = New-Object System.Data.DataTable
+                [void]$adapter.Fill($dataTable)
+                return @{
+                    Success   = $true
+                    DataTable = $dataTable
+                    Type      = "Query"
+                }
+            } else {
+                Write-Host "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo NonQuery" -ForegroundColor DarkCyan
+                $rowsAffected = $command.ExecuteNonQuery()
+                return @{
+                    Success      = $true
+                    RowsAffected = $rowsAffected
+                    Type         = "NonQuery"
+                }
             }
-        } else {
-            Write-Host "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo NonQuery" -ForegroundColor DarkCyan
-            $rowsAffected = $command.ExecuteNonQuery()
-
-            return @{
-                Success      = $true
-                RowsAffected = $rowsAffected
-                Type         = "NonQuery"
+        } finally {
+            if ($plainPassword) { $plainPassword = $null }
+            if ($passwordBstr -ne [IntPtr]::Zero) {
+                [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr)
             }
         }
     } catch {
@@ -87,9 +94,7 @@ function Get-SqlDatabases {
         [Parameter(Mandatory = $true)]
         [string]$Server,
         [Parameter(Mandatory = $true)]
-        [string]$Username,
-        [Parameter(Mandatory = $true)]
-        [string]$Password
+        [System.Management.Automation.PSCredential]$Credential
     )
     $query = @"
 SELECT name
@@ -98,7 +103,7 @@ WHERE name NOT IN ('tempdb','model','msdb')
   AND state_desc = 'ONLINE'
 ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name
 "@
-    $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $query -Username $Username -Password $Password
+    $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $query -Credential $Credential
     if (-not $result.Success) {
         throw "Error obteniendo bases de datos: $($result.ErrorMessage)"
     }
@@ -116,16 +121,13 @@ function Backup-Database {
         [Parameter(Mandatory = $true)]
         [string]$Database,
         [Parameter(Mandatory = $true)]
-        [string]$Username,
-        [Parameter(Mandatory = $true)]
-        [string]$Password,
+        [System.Management.Automation.PSCredential]$Credential,
         [Parameter(Mandatory = $true)]
         [string]$BackupPath
     )
-
     try {
         $backupQuery = "BACKUP DATABASE [$Database] TO DISK='$BackupPath' WITH CHECKSUM"
-        $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $backupQuery -Username $Username -Password $Password
+        $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $backupQuery -Credential $Credential
         if ($result.Success) {
             return @{
                 Success    = $true

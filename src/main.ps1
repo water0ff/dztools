@@ -2130,60 +2130,50 @@ compila el proyecto y lo coloca en la carpeta de salida.
                         $null -eq $global:txtPassword) {
                         throw "Error interno: controles de conexión no inicializados."
                     }
-
                     $serverText = $global:txtServer.Text.Trim()
                     $userText = $global:txtUser.Text.Trim()
                     $passwordText = $global:txtPassword.Text
-
                     Write-Host "DEBUG | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)" -ForegroundColor DarkGray
-
                     if ([string]::IsNullOrWhiteSpace($serverText) -or
                         [string]::IsNullOrWhiteSpace($userText) -or
                         [string]::IsNullOrWhiteSpace($passwordText)) {
                         throw "Complete todos los campos de conexión"
                     }
-
+                    $securePassword = (New-Object System.Net.NetworkCredential('', $passwordText)).SecurePassword
+                    $credential = New-Object System.Management.Automation.PSCredential($userText, $securePassword)
                     $global:server = $serverText
                     $global:user = $userText
                     $global:password = $passwordText
-
-                    $databases = Get-SqlDatabases -Server $serverText -Username $userText -Password $passwordText
-
+                    $global:dbCredential = $credential
+                    $databases = Get-SqlDatabases -Server $serverText -Credential $credential
                     if (-not $databases -or $databases.Count -eq 0) {
                         throw "Conexión correcta, pero no se encontraron bases de datos disponibles."
                     }
-
                     $global:cmbDatabases.Items.Clear()
                     foreach ($db in $databases) {
                         [void]$global:cmbDatabases.Items.Add($db)
                     }
-
                     $global:cmbDatabases.Enabled = $true
                     $global:cmbDatabases.SelectedIndex = 0
-
                     $global:lblConnectionStatus.Text = @"
 Conectado a:
 Servidor: $serverText
 Base de datos: $($global:database)
 "@.Trim()
                     $global:lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-
                     Set-ControlEnabled -Control $global:txtServer       -Enabled $false -Name 'txtServer'
                     Set-ControlEnabled -Control $global:txtUser         -Enabled $false -Name 'txtUser'
                     Set-ControlEnabled -Control $global:txtPassword     -Enabled $false -Name 'txtPassword'
-
                     Set-ControlEnabled -Control $global:btnExecute      -Enabled $true  -Name 'btnExecute'
                     Set-ControlEnabled -Control $global:cmbQueries      -Enabled $true  -Name 'cmbQueries'
                     Set-ControlEnabled -Control $global:btnConnectDb    -Enabled $false -Name 'btnConnectDb'
                     Set-ControlEnabled -Control $global:btnBackup       -Enabled $true  -Name 'btnBackup'
                     Set-ControlEnabled -Control $global:btnDisconnectDb -Enabled $true  -Name 'btnDisconnectDb'
                     Set-ControlEnabled -Control $global:rtbQuery        -Enabled $true  -Name 'rtbQuery'
-
                 } catch {
                     Write-Host "DEBUG[btnConnectDb] CATCH: $($_.Exception.Message)" -ForegroundColor Red
                     Write-Host "DEBUG[btnConnectDb] Tipo: $($_.Exception.GetType().FullName)" -ForegroundColor Red
                     Write-Host "DEBUG[btnConnectDb] Stack: $($_.ScriptStackTrace)" -ForegroundColor DarkYellow
-
                     [System.Windows.Forms.MessageBox]::Show(
                         "Error de conexión: $($_.Exception.Message)",
                         "Error",
@@ -2191,24 +2181,6 @@ Base de datos: $($global:database)
                         [System.Windows.Forms.MessageBoxIcon]::Error
                     ) | Out-Null
                     Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
-                }
-            })
-
-
-
-
-
-        $cmbDatabases.Add_SelectedIndexChanged({
-                if ($cmbDatabases.SelectedItem) {
-                    $global:database = $cmbDatabases.SelectedItem
-                    $lblConnectionStatus.Text = @"
-Conectado a:
-Servidor: $($global:server)
-Base de datos: $($global:database)
-"@.Trim()
-                    $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-
-                    Write-Host "`nBase de datos seleccionada:`t $($cmbDatabases.SelectedItem)" -ForegroundColor Cyan
                 }
             })
         $btnDisconnectDb.Add_Click({
@@ -2219,7 +2191,8 @@ Base de datos: $($global:database)
                         $global:connection.Close()
                         $global:connection.Dispose()
                     }
-                    $global:connection = $null  # por si acaso
+                    $global:connection = $null
+                    $global:dbCredential = $null  # NUEVO: limpiamos la credencial
                     $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
                     $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Red
                     $btnConnectDb.Enabled = $true

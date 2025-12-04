@@ -160,30 +160,37 @@ function Create-TextBox {
     return $textBox
 }
 function Show-ProgressBar {
-    #Create-Form HACER ESTO
+    # Crear formulario de progreso
     $sizeProgress = New-Object System.Drawing.Size(400, 150)
     $formProgress = Create-Form `
-        -Title "Progreso" -Size $sizeProgress -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-        -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -TopMost $true -ControlBox $false
+        -Title "Progreso" `
+        -Size $sizeProgress `
+        -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+        -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) `
+        -TopMost $true `
+        -ControlBox $false
+    # Barra de progreso
     $progressBar = New-Object System.Windows.Forms.ProgressBar
     $progressBar.Size = New-Object System.Drawing.Size(360, 20)
     $progressBar.Location = New-Object System.Drawing.Point(10, 50)
     $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
     $progressBar.Maximum = 100
-    $progressBar.SetStyle([System.Windows.Forms.ProgressBarStyle]::Continuous)
-    $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
+    # Opcional: suavizar parpadeo con DoubleBuffered (hack por reflexión)
     $type = $progressBar.GetType()
     $flags = [Reflection.BindingFlags]::NonPublic -bor [Reflection.BindingFlags]::Instance
     $type.GetField("DoubleBuffered", $flags).SetValue($progressBar, $true)
+    # Label de porcentaje
     $lblPercentage = New-Object System.Windows.Forms.Label
     $lblPercentage.Location = New-Object System.Drawing.Point(10, 20)
     $lblPercentage.Size = New-Object System.Drawing.Size(360, 20)
     $lblPercentage.Text = "0% Completado"
     $lblPercentage.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    # Agregar controles
     $formProgress.Controls.Add($progressBar)
     $formProgress.Controls.Add($lblPercentage)
+    # Exponer las propiedades para Update-ProgressBar
     $formProgress | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $progressBar -Force
-    $formProgress | Add-Member -MemberType NoteProperty -Name Label -Value $lblPercentage -Force
+    $formProgress | Add-Member -MemberType NoteProperty -Name Label       -Value $lblPercentage -Force
     $formProgress.Show()
     return $formProgress
 }

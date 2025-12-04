@@ -104,6 +104,7 @@ function New-MainForm {
         Write-Host "=============================================" -ForegroundColor DarkCyan
         Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
         Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
+        Write-Host "O crea un issue en GitHub. https://github.com/water0ff/dztools/issues/new" -ForegroundColor Cyan
         $toolTip = New-Object System.Windows.Forms.ToolTip
         $global:lastReportedPct = -1  # Añadir al inicio del script
         $tabControl = New-Object System.Windows.Forms.TabControl

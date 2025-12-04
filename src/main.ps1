@@ -81,7 +81,12 @@ function Initialize-Environment {
             Write-Host "Error creando C:\Temp: $_" -ForegroundColor Yellow
         }
     }
-
+    try {
+        $debugEnabled = Initialize-DzToolsConfig
+        Write-Host "Configuración de debug cargada (debug=$debugEnabled)" -Color DarkGray
+    } catch {
+        Write-Host "Advertencia: No se pudo inicializar la configuración de debug. $_" -ForegroundColor Yellow
+    }
     return $true
 }
 function New-MainForm {
@@ -493,10 +498,10 @@ WHERE
         # Crear el nuevo formulario para los instaladores de Chocolatey
         $script:formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
             -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))
-        Write-Host "[DEBUG] formInstaladoresChoco creado en sección principal." -ForegroundColor DarkGray
-        Write-Host ("[DEBUG]   Es nulo?          : {0}" -f ($null -eq $script:formInstaladoresChoco)) -ForegroundColor DarkGray
+        Write-DzDebug "DEBUG formInstaladoresChoco creado en sección principal."
+        Write-DzDebug ("DEBUG   Es nulo?          : {0}" -f ($null -eq $script:formInstaladoresChoco))
         if ($null -ne $script:formInstaladoresChoco) {
-            Write-Host ("[DEBUG]   Tipo              : {0}" -f $script:formInstaladoresChoco.GetType().FullName) -ForegroundColor DarkGray
+            Write-DzDebug ("DEBUG   Tipo              : {0}" -f $script:formInstaladoresChoco.GetType().FullName)
         }
         # Crear los botones dentro del nuevo formulario
         $btnInstallSQL2014 = Create-Button -Text "Install: SQL2014" -Location (New-Object System.Drawing.Point(10, 10)) `
@@ -789,7 +794,7 @@ compila el proyecto y lo coloca en la carpeta de salida.
         $lblPort.Add_Click({
                 param($sender, $e)
                 $text = $sender.Text
-                Write-Host "DEBUG lblPort.Text al hacer clic: '$text'" -ForegroundColor DarkGray
+                Write-DzDebug "DEBUG lblPort.Text al hacer clic: '$text'"
                 $port = [regex]::Match($text, '\d+').Value
                 if ([string]::IsNullOrWhiteSpace($port)) {
                     Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
@@ -1092,10 +1097,10 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
                 try {
                     if ($null -eq $script:dgvResults) {
-                        Write-Host "[DEBUG] dgvResults es NULL dentro del Click" -ForegroundColor DarkGray
+                        Write-DzDebug "DEBUG dgvResults es NULL dentro del Click"
                         throw "DataGridView no inicializado."
                     } else {
-                        Write-Host ("[DEBUG] dgvResults tipo: {0}" -f ($script:dgvResults.GetType().FullName)) -ForegroundColor DarkGray
+                        Write-DzDebug ("DEBUG dgvResults tipo: {0}" -f ($script:dgvResults.GetType().FullName))
                     }
                     if ($script:originalForeColor) {
                         $script:dgvResults.DefaultCellStyle.ForeColor = $script:originalForeColor
@@ -2030,15 +2035,15 @@ compila el proyecto y lo coloca en la carpeta de salida.
             })
         $btnInstalarHerramientas.Add_Click({
                 Write-Host ""
-                Write-Host ("[DEBUG] Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor DarkGray
+                Write-DzDebug ("DEBUG Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss"))
                 Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
                 if (-not (Check-Chocolatey)) {
                     Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
                     return
                 }
-                Write-Host ("[DEBUG] `\$script:formInstaladoresChoco es nulo? : {0}" -f ($null -eq $script:formInstaladoresChoco)) -ForegroundColor DarkGray
+                Write-DzDebug ("DEBUG `\$script:formInstaladoresChoco es nulo? : {0}" -f ($null -eq $script:formInstaladoresChoco))
                 if ($null -eq $script:formInstaladoresChoco) {
-                    Write-Host "[DEBUG] ERROR: `\$script:formInstaladoresChoco es `$null dentro del manejador de clic."  -ForegroundColor DarkGray
+                    Write-DzDebug "DEBUG ERROR: `\$script:formInstaladoresChoco es `$null dentro del manejador de clic."
                     return
                 }
                 $script:formInstaladoresChoco.ShowDialog()
@@ -2141,7 +2146,7 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     $serverText = $global:txtServer.Text.Trim()
                     $userText = $global:txtUser.Text.Trim()
                     $passwordText = $global:txtPassword.Text
-                    Write-Host "DEBUG | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)" -ForegroundColor DarkGray
+                    Write-DzDebug "DEBUG | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
                     if ([string]::IsNullOrWhiteSpace($serverText) -or
                         [string]::IsNullOrWhiteSpace($userText) -or
                         [string]::IsNullOrWhiteSpace($passwordText)) {
@@ -2180,9 +2185,9 @@ Base de datos: $($global:database)
                     Set-ControlEnabled -Control $global:btnDisconnectDb -Enabled $true  -Name 'btnDisconnectDb'
                     Set-ControlEnabled -Control $global:rtbQuery        -Enabled $true  -Name 'rtbQuery'
                 } catch {
-                    Write-Host "DEBUG[btnConnectDb] CATCH: $($_.Exception.Message)"  -ForegroundColor DarkGray
-                    Write-Host "DEBUG[btnConnectDb] Tipo: $($_.Exception.GetType().FullName)" -ForegroundColor DarkGray
-                    Write-Host "DEBUG[btnConnectDb] Stack: $($_.ScriptStackTrace)" -ForegroundColor DarkGray
+                    Write-DzDebug "DEBUG[btnConnectDb] CATCH: $($_.Exception.Message)"
+                    Write-DzDebug "DEBUG[btnConnectDb] Tipo: $($_.Exception.GetType().FullName)"
+                    Write-DzDebug "DEBUG[btnConnectDb] Stack: $($_.ScriptStackTrace)"
                     [System.Windows.Forms.MessageBox]::Show(
                         "Error de conexión: $($_.Exception.Message)",
                         "Error",

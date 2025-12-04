@@ -1,5 +1,61 @@
 ﻿#requires -Version 5.0
 
+$script:DzToolsConfigPath = "C:\Temp\dztools.ini"
+$script:DzDebugEnabled = $null
+function Get-DzToolsConfigPath {
+    return $script:DzToolsConfigPath
+}
+function Get-DzDebugPreference {
+    $configPath = Get-DzToolsConfigPath
+
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        return $false
+    }
+    $content = Get-Content -LiteralPath $configPath -ErrorAction SilentlyContinue
+    $inDevSection = $false
+    foreach ($line in $content) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^\s*;') { continue }
+        if ($trimmed -match '^\[desarrollo\]\s*$') {
+            $inDevSection = $true
+            continue
+        }
+        if ($inDevSection -and $trimmed -match '^\[') {
+            break
+        }
+        if ($inDevSection -and $trimmed -match '^\s*debug\s*=\s*(.+)\s*$') {
+            return ($matches[1].ToLower() -eq 'true')
+        }
+    }
+    return $false
+}
+function Initialize-DzToolsConfig {
+    $configPath = Get-DzToolsConfigPath
+    $configDir = Split-Path -Path $configPath -Parent
+    if (-not (Test-Path -LiteralPath $configDir)) {
+        New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+    }
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        "[desarrollo]`ndebug=false" | Out-File -FilePath $configPath -Encoding UTF8 -Force
+    }
+    $script:DzDebugEnabled = Get-DzDebugPreference
+    return $script:DzDebugEnabled
+}
+function Write-DzDebug {
+    param(
+        [Parameter(Mandatory = $true)][string]$Message,
+        [Parameter()][System.ConsoleColor]$Color = [System.ConsoleColor]::Gray
+    )
+
+    if ($null -eq $script:DzDebugEnabled) {
+        $script:DzDebugEnabled = Get-DzDebugPreference
+    }
+
+    if ($script:DzDebugEnabled) {
+        Write-Host $Message -ForegroundColor $Color
+    }
+}
+
 function Test-Administrator {
     [CmdletBinding()]
     param()
@@ -467,7 +523,23 @@ function Start-SystemUpdate {
     }
 }
 
-Export-ModuleMember -Function Test-Administrator, Get-SystemInfo, Clear-TemporaryFiles,
-Test-ChocolateyInstalled, Install-Chocolatey, Get-AdminGroupName, Invoke-DiskCleanup,
-Show-SystemComponents, Test-SameHost, Test-7ZipInstalled, Test-MegaToolsInstalled,
-Refresh-AdapterStatus, Get-NetworkAdapterStatus, DownloadAndRun, Start-SystemUpdate, Check-Permissions
+Export-ModuleMember -Function Get-DzToolsConfigPath,
+    Get-DzDebugPreference,
+    Initialize-DzToolsConfig,
+    Write-DzDebug,
+    Test-Administrator,
+    Get-SystemInfo,
+    Clear-TemporaryFiles,
+    Test-ChocolateyInstalled,
+    Install-Chocolatey,
+    Get-AdminGroupName,
+    Invoke-DiskCleanup,
+    Show-SystemComponents,
+    Test-SameHost,
+    Test-7ZipInstalled,
+    Test-MegaToolsInstalled,
+    Check-Permissions,
+    DownloadAndRun,
+    Refresh-AdapterStatus,
+    Get-NetworkAdapterStatus,
+    Start-SystemUpdate

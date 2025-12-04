@@ -561,15 +561,15 @@ function Set-ControlEnabled {
     )
 
     if ($null -eq $Control) {
-        Write-Host "DEBUG[Set-ControlEnabled] $Name es NULL" -ForegroundColor DarkGray
+        Write-DzDebug "DEBUG[Set-ControlEnabled] $Name es NULL"
         return
     }
 
     if ($Control -is [System.Windows.Forms.Control]) {
         $Control.Enabled = $Enabled
-        Write-Host "DEBUG[Set-ControlEnabled] $Name ($($Control.GetType().Name)) Enabled=$Enabled" -ForegroundColor DarkGray
+        Write-DzDebug "DEBUG[Set-ControlEnabled] $Name ($($Control.GetType().Name)) Enabled=$Enabled"
     } else {
-        Write-Host "DEBUG[Set-ControlEnabled] $Name tipo inesperado: $($Control.GetType().FullName)" -ForegroundColor DarkGray
+        Write-DzDebug "DEBUG[Set-ControlEnabled] $Name tipo inesperado: $($Control.GetType().FullName)"
     }
 }
 

@@ -1144,6 +1144,13 @@ compila el proyecto y lo coloca en la carpeta de salida.
                         }
                     } elseif ($result -and $result.ContainsKey('RowsAffected')) {
                         Write-Host "`nFilas afectadas: $($result.RowsAffected)" -ForegroundColor Green
+                        $rowsAffectedTable = New-Object System.Data.DataTable
+                        $rowsAffectedTable.Columns.Add("Resultado") | Out-Null
+                        $rowsAffectedTable.Rows.Add("Filas afectadas: $($result.RowsAffected)") | Out-Null
+                        $script:dgvResults.DataSource = $rowsAffectedTable
+                        $script:dgvResults.Enabled = $true
+                        $script:dgvResults.DefaultCellStyle.ForeColor = 'Green'
+                        $script:dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::Fill
                     } else {
                         Write-Host "`nNo se recibió DataTable ni RowsAffected en el resultado." -ForegroundColor Yellow
                     }

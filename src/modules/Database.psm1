@@ -162,11 +162,10 @@ function Execute-SqlQuery {
         $connection.Open()
         $command = $connection.CreateCommand()
         $command.CommandText = $query
-        if ($query -match "(?si)^\s*(SELECT|WITH|INSERT|UPDATE|DELETE|RESTORE)") {
+        if ($query -match "(?si)^\s*(SELECT|WITH)") {
             $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
             $dataTable = New-Object System.Data.DataTable
             $adapter.Fill($dataTable) | Out-Null
-            $command.ExecuteNonQuery() | Out-Null
             return @{
                 DataTable = $dataTable
                 Messages  = $infoMessages

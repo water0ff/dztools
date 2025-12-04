@@ -23,14 +23,12 @@ Describe "Pruebas básicas del proyecto" {
 
     Context "Verificación de formato" {
 
-        $versionPath = ".\src\version.json"
-
         It "version.json debe ser JSON válido" {
-            { Get-Content $versionPath -Raw | ConvertFrom-Json } | Should -Not -Throw
+            { Get-Content ".\src\version.json" -Raw | ConvertFrom-Json } | Should -Not -Throw
         }
 
         It "version.json debe tener propiedad Version" {
-            $json = Get-Content $versionPath -Raw | ConvertFrom-Json
+            $json = Get-Content ".\src\version.json" -Raw | ConvertFrom-Json
             $json.Version | Should -Not -BeNullOrEmpty
         }
     }

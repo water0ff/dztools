@@ -12,24 +12,25 @@ function Invoke-SqlQuery {
         [System.Management.Automation.PSCredential]$Credential
     )
     $connection = $null
-    Write-Host "DEBUG[Invoke-SqlQuery] INICIO" -ForegroundColor DarkCyan
-    Write-Host "DEBUG[Invoke-SqlQuery] Server='$Server' Database='$Database' User='$($Credential.UserName)'" -ForegroundColor DarkCyan
+    Write-Host "DEBUG[Invoke-SqlQuery] INICIO" -ForegroundColor DarkGray
+    Write-Host "DEBUG[Invoke-SqlQuery] Server='$Server' Database='$Database' User='$($Credential.UserName)'" -ForegroundColor DarkGray
     try {
         $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
         try {
             $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
             $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
-            Write-Host "DEBUG[Invoke-SqlQuery] Creando SqlConnection..." -ForegroundColor DarkCyan
+            Write-Host "DEBUG[Invoke-SqlQuery] Creando SqlConnection..." -ForegroundColor DarkGray
             $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-            Write-Host "DEBUG[Invoke-SqlQuery] Connection type: $($connection.GetType().FullName)" -ForegroundColor DarkCyan
-            Write-Host "DEBUG[Invoke-SqlQuery] Abriendo conexión..." -ForegroundColor DarkCyan
+            Write-Host "DEBUG[Invoke-SqlQuery] Connection type: $($connection.GetType().FullName)" -ForegroundColor DarkGray
+            Write-Host "DEBUG[Invoke-SqlQuery] Abriendo conexión..." -ForegroundColor DarkGray
             $connection.Open()
-            Write-Host "DEBUG[Invoke-SqlQuery] Estado conexión tras Open(): $($connection.State)" -ForegroundColor DarkCyan
+            Write-Host "DEBUG[Invoke-SqlQuery] Estado conexión tras Open(): $($connection.State)" -ForegroundColor DarkGray
             $command = $connection.CreateCommand()
             $command.CommandText = $Query
             $command.CommandTimeout = 0
-            if ($Query -match "(?si)^\s*(SELECT|WITH)") {
-                Write-Host "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo SELECT/WITH" -ForegroundColor DarkCyan
+            $returnsResultSet = $query -match "(?si)^\s*(SELECT|WITH)" -or $query -match "(?si)\bOUTPUT\b"
+            if ($returnsResultSet) {
+                Write-Host "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo SELECT/WITH" -ForegroundColor DarkGray
                 $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
                 $dataTable = New-Object System.Data.DataTable
                 [void]$adapter.Fill($dataTable)
@@ -39,7 +40,7 @@ function Invoke-SqlQuery {
                     Type      = "Query"
                 }
             } else {
-                Write-Host "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo NonQuery" -ForegroundColor DarkCyan
+                Write-Host "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo NonQuery" -ForegroundColor DarkGray
                 $rowsAffected = $command.ExecuteNonQuery()
                 return @{
                     Success      = $true
@@ -54,26 +55,26 @@ function Invoke-SqlQuery {
             }
         }
     } catch {
-        Write-Host "DEBUG[Invoke-SqlQuery] CATCH: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "DEBUG[Invoke-SqlQuery] Tipo de excepción: $($_.Exception.GetType().FullName)" -ForegroundColor Red
-        Write-Host "DEBUG[Invoke-SqlQuery] Stack: $($_.ScriptStackTrace)" -ForegroundColor DarkYellow
+        Write-Host "DEBUG[Invoke-SqlQuery] CATCH: $($_.Exception.Message)" -ForegroundColor DarkGray
+        Write-Host "DEBUG[Invoke-SqlQuery] Tipo de excepción: $($_.Exception.GetType().FullName)" -ForegroundColor DarkGray
+        Write-Host "DEBUG[Invoke-SqlQuery] Stack: $($_.ScriptStackTrace)" -ForegroundColor DarkGray
         return @{
             Success      = $false
             ErrorMessage = $_.Exception.Message
             Type         = "Error"
         }
     } finally {
-        Write-Host "DEBUG[Invoke-SqlQuery] FINALLY: connection = $($connection)" -ForegroundColor DarkCyan
+        Write-Host "DEBUG[Invoke-SqlQuery] FINALLY: connection = $($connection)" -ForegroundColor DarkGray
         if ($null -ne $connection) {
-            Write-Host "DEBUG[Invoke-SqlQuery] Estado antes de cerrar: $($connection.State)" -ForegroundColor DarkCyan
+            Write-Host "DEBUG[Invoke-SqlQuery] Estado antes de cerrar: $($connection.State)" -ForegroundColor DarkGray
             if ($connection.State -eq [System.Data.ConnectionState]::Open) {
-                Write-Host "DEBUG[Invoke-SqlQuery] Cerrando conexión..." -ForegroundColor DarkCyan
+                Write-Host "DEBUG[Invoke-SqlQuery] Cerrando conexión..." -ForegroundColor DarkGray
                 $connection.Close()
             }
-            Write-Host "DEBUG[Invoke-SqlQuery] Disposing conexión..." -ForegroundColor DarkCyan
+            Write-Host "DEBUG[Invoke-SqlQuery] Disposing conexión..." -ForegroundColor DarkGray
             $connection.Dispose()
         }
-        Write-Host "DEBUG[Invoke-SqlQuery] FIN" -ForegroundColor DarkCyan
+        Write-Host "DEBUG[Invoke-SqlQuery] FIN" -ForegroundColor DarkGray
     }
 }
 function Remove-SqlComments {
@@ -162,7 +163,11 @@ function Execute-SqlQuery {
         $connection.Open()
         $command = $connection.CreateCommand()
         $command.CommandText = $query
-        if ($query -match "(?si)^\s*(SELECT|WITH)") {
+        # 🔹 NUEVO: misma lógica que en Invoke-SqlQuery
+        $returnsResultSet = $query -match "(?si)^\s*(SELECT|WITH)" -or $query -match "(?si)\bOUTPUT\b"
+
+        if ($returnsResultSet) {
+            # 🔹 Aquí ya cubres SELECT, WITH y cualquier cosa con OUTPUT
             $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
             $dataTable = New-Object System.Data.DataTable
             $adapter.Fill($dataTable) | Out-Null
@@ -178,7 +183,7 @@ function Execute-SqlQuery {
             }
         }
     } catch {
-        Write-Host "Error en consulta: $($_.Exception.Message)" -ForegroundColor Red
+        #Write-Host "Error en consulta: $($_.Exception.Message)" -ForegroundColor Red
         throw $_
     } finally {
         if ($null -ne $connection) {
@@ -188,7 +193,6 @@ function Execute-SqlQuery {
                 $connection.Dispose()
             }
         }
-
     }
 }
 function Show-ResultsConsole {

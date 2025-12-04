@@ -1,4 +1,6 @@
 ﻿#requires -Version 5.0
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
 $global:version = "beta.25.12.03.1046"
 try {
     Write-Host "Cargando ensamblados de Windows Forms..." -ForegroundColor Yellow
@@ -80,7 +82,6 @@ function Initialize-Environment {
 
     return $true
 }
-Refresh-AdapterStatus
 function New-MainForm {
     Write-Host "Creando formulario principal..." -ForegroundColor Yellow
     try {
@@ -478,6 +479,7 @@ WHERE
         $txt_AdapterStatus = Create-TextBox -Location (New-Object System.Drawing.Point(730, 1)) -Size(New-Object System.Drawing.Size(220, 40)) `
             -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
             -ScrollBars 'Vertical' -Multiline $true -ReadOnly  $true
+        $global:txt_AdapterStatus = $txt_AdapterStatus
         $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
         # Crear el nuevo formulario para los instaladores de Chocolatey
         $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
@@ -546,6 +548,7 @@ WHERE
                 $txt_InfoInstrucciones,
                 $btnCreateAPK
             ))
+        Refresh-AdapterStatus
         $formPrincipal.Controls.Add($tabControl)
         $formPrincipal.Controls.Add($btnExit)
         $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |

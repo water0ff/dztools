@@ -1,4 +1,6 @@
 #requires -Version 5.0
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
 $script:toolTip = New-Object System.Windows.Forms.ToolTip
 function Create-Form {
     [CmdletBinding()]
@@ -442,7 +444,8 @@ function New-Label {
     $label.Font = $Font
     $label.BorderStyle = $BorderStyle
     $label.TextAlign = $TextAlign
-    if ($ToolTipText) {        $script:toolTip.SetToolTip($label, $ToolTipText)
+    if ($ToolTipText) {
+        $script:toolTip.SetToolTip($label, $ToolTipText)
     }
     return $label
 }

@@ -1,5 +1,6 @@
 #requires -Version 5.0
-
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
 function Check-Chocolatey {
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
         $response = [System.Windows.Forms.MessageBox]::Show(

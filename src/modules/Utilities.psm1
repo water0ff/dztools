@@ -437,10 +437,9 @@ function Start-SystemUpdate {
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
         Write-Host "`n[Paso 4/$totalSteps] Limpiando archivos temporales (ignorar si hay errores)..." -ForegroundColor Cyan
-        $totalDeleted = 0
-        $totalDeleted += Clear-TemporaryFiles -folderPath $env:TEMP
-        $totalDeleted += Clear-TemporaryFiles -folderPath "$env:SystemDrive\Windows\Temp"
-        Write-Host "Total archivos eliminados: $totalDeleted" -ForegroundColor Green
+        $cleanupResult = Clear-TemporaryFiles
+        Write-Host "Total archivos eliminados: $($cleanupResult.FilesDeleted)" -ForegroundColor Green
+        Write-Host "Espacio liberado: $($cleanupResult.SpaceFreedMB) MB" -ForegroundColor Green
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
         Write-Host "`n[Paso 5/$totalSteps] Ejecutando Liberador de espacio..." -ForegroundColor Cyan
@@ -460,7 +459,7 @@ function Start-SystemUpdate {
             "Error crítico",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
-        )
+        ) | Out-Null
     } finally {
         if ($progressForm -ne $null -and -not $progressForm.IsDisposed) {
             Close-ProgressBar $progressForm

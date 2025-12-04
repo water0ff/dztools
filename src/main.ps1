@@ -2107,8 +2107,8 @@ compila el proyecto y lo coloca en la carpeta de salida.
                             if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
                                 Write-Host "`nError: El usuario '$username' ya existe" -ForegroundColor Red; return
                             }
-                            $securePwd = ConvertTo-SecureString $password -AsPlainText -Force
-                            New-LocalUser -Name $username -Password $securePwd -AccountNeverExpires -PasswordNeverExpires
+                            $securePassword = (New-Object System.Net.NetworkCredential('', $passwordText)).SecurePassword
+                            New-LocalUser -Name $username -Password $securePassword -AccountNeverExpires -PasswordNeverExpires
                             Write-Host "`nUsuario '$username' creado exitosamente" -ForegroundColor Green
                             $group = if ($type -eq 'Administrador') { $adminGroup } else { $userGroup }
                             Add-LocalGroupMember -Group $group -Member $username
@@ -2140,7 +2140,7 @@ compila el proyecto y lo coloca en la carpeta de salida.
                         throw "Complete todos los campos de conexión"
                     }
                     $securePassword = (New-Object System.Net.NetworkCredential('', $passwordText)).SecurePassword
-                    $credential = New-Object System.Management.Automation.PSCredential($userText, $securePassword)
+                    $credential = New-Object System.Management.Automation.PSCredential($global:user, $securePassword)
                     $global:server = $serverText
                     $global:user = $userText
                     $global:password = $passwordText

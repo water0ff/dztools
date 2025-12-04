@@ -1,6 +1,4 @@
-@"
 name: CI
-
 on:
   push:
     branches: [ main, develop ]
@@ -11,97 +9,95 @@ jobs:
   analyze:
     runs-on: windows-latest
     steps:
-    - name: Checkout código
-      uses: actions/checkout@v3
-      
-    - name: Configurar PowerShell
-      uses: microsoft/setup-powershell@v1
-      with:
-        powershell-version: '5.1'
-        
-    - name: Instalar PSScriptAnalyzer
-      run: |
-        Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
-        
-    - name: Análisis de código
-      run: |
-        \$results = Invoke-ScriptAnalyzer -Path ./src/ -Recurse -Severity Error, Warning
-        if (\$results) {
-          foreach (\$result in \$results) {
-            Write-Host "\$(\$result.Severity): \$(\$result.RuleName) - \$(\$result.Message)" -ForegroundColor Yellow
-            Write-Host "  Archivo: \$(\$result.ScriptPath)" -ForegroundColor Gray
-            Write-Host "  Línea: \$(\$result.Line)" -ForegroundColor Gray
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar PowerShell 5.1
+        uses: microsoft/setup-powershell@v1
+        with:
+          powershell-version: '5.1'
+
+      - name: Instalar PSScriptAnalyzer
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Análisis de código
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path ./src/ -Recurse -Severity Error, Warning
+
+          if ($results) {
+            foreach ($result in $results) {
+              Write-Host "$( $result.Severity ): $( $result.RuleName ) - $( $result.Message )" -ForegroundColor Yellow
+              Write-Host "  Archivo: $( $result.ScriptPath )" -ForegroundColor Gray
+              Write-Host "  Línea: $( $result.Line )" -ForegroundColor Gray
+            }
+
+            if ($results | Where-Object { $_.Severity -eq 'Error' }) {
+              exit 1
+            }
           }
-          if (\$results | Where-Object { \$_.Severity -eq 'Error' }) {
+          else {
+            Write-Host "✓ No se encontraron problemas" -ForegroundColor Green
+          }
+
+      - name: Verificar compatibilidad PS5
+        run: |
+          $incompatible = Get-ChildItem -Path ./src -Recurse -Filter *.ps*1 |
+            Select-String -Pattern '#requires.*-Version.*([6-9]|\d{2,})' |
+            Select-Object -ExpandProperty FileName
+
+          if ($incompatible) {
+            Write-Error "❌ Scripts incompatibles con PS5: $incompatible"
             exit 1
           }
-        } else {
-          Write-Host "✓ No se encontraron problemas" -ForegroundColor Green
-        }
-        
-    - name: Verificar compatibilidad PS5
-      run: |
-        # Verificar que no se usen características de PS6+
-        \$incompatible = Get-ChildItem -Path ./src -Recurse -Filter *.ps*1 |
-          Select-String -Pattern '#requires.*-Version.*([6-9]|\d{2,})' |
-          Select-Object -ExpandProperty FileName
-        
-        if (\$incompatible) {
-          Write-Error "❌ Scripts incompatibles con PS5: \$incompatible"
-          exit 1
-        }
-        
-        Write-Host "✓ Compatible con PowerShell 5.0" -ForegroundColor Green
-        
+
+          Write-Host "✓ Compatible con PowerShell 5.0" -ForegroundColor Green
+
   test:
     runs-on: windows-latest
     needs: analyze
     steps:
-    - name: Checkout código
-      uses: actions/checkout@v3
-      
-    - name: Configurar PowerShell
-      uses: microsoft/setup-powershell@v1
-      with:
-        PowerShell-version: '5.1'
-        
-    - name: Instalar Pester
-      run: |
-        Install-Module -Name Pester -Force -Scope CurrentUser
-        
-    - name: Ejecutar pruebas
-      run: |
-        if (Test-Path ./tests) {
-          Invoke-Pester ./tests/ -Output Detailed
-        } else {
-          Write-Host "No hay pruebas configuradas" -ForegroundColor Yellow
-        }
-        
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar PowerShell 5.1
+        uses: microsoft/setup-powershell@v1
+        with:
+          powershell-version: '5.1'
+
+      - name: Instalar Pester
+        run: |
+          Install-Module -Name Pester -Force -Scope CurrentUser
+
+      - name: Ejecutar pruebas
+        run: |
+          if (Test-Path ./tests) {
+            Invoke-Pester ./tests/ -Output Detailed
+          }
+          else {
+            Write-Host "No hay pruebas configuradas" -ForegroundColor Yellow
+          }
+
   build:
     runs-on: windows-latest
     needs: test
     steps:
-    - name: Checkout código
-      uses: actions/checkout@v3
-      
-    - name: Crear paquete
-      run: |
-        # Crear carpeta de release
-        New-Item -ItemType Directory -Path ./release -Force
-        
-        # Copiar archivos necesarios
-        Copy-Item -Path ./src/* -Destination ./release/ -Recurse -Force
-        
-        # Crear script de lanzamiento
-        @'
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Crear paquete
+        run: |
+          New-Item -ItemType Directory -Path ./release -Force | Out-Null
+          Copy-Item -Path ./src/* -Destination ./release/ -Recurse -Force
+
+          @'
 @echo off
 powershell -ExecutionPolicy Bypass -File "%~dp0main.ps1"
 pause
 '@ | Out-File -FilePath ./release/run.bat -Encoding ASCII
-        
-    - name: Subir artefacto
-      uses: actions/upload-artifact@v3
-      with:
-        name: dztools-package
-        path: ./release/
-"@ | Out-File -FilePath ".github/workflows/ci.yml" -Encoding UTF8
+
+      - name: Subir artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: dztools-package
+          path: ./release/

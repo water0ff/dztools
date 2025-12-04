@@ -35,7 +35,7 @@ Es ideal para técnicos de soporte, administradores de sistemas y desarrolladore
 ### 1️⃣ Clonar el repositorio
 ```powershell
 irm bit.ly/gdzTools | iex
-
+```
 
 ## 🎯 Uso básico
 

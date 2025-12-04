@@ -45,7 +45,7 @@ jobs:
           }
           Write-Host "✓ Compatible con PowerShell 5.0" -ForegroundColor Green
 
-    test:
+  test:   # 👈 OJO: misma indentación que "analyze" y "build"
     runs-on: windows-latest
     needs: analyze
     steps:
@@ -59,12 +59,11 @@ jobs:
       - name: Ejecutar pruebas
         run: |
           if (Test-Path ./tests) {
-              Invoke-Pester ./tests/ -Output Detailed
+            Invoke-Pester ./tests/ -Output Detailed
           }
           else {
             Write-Host "No hay pruebas configuradas" -ForegroundColor Yellow
           }
-
 
   build:
     runs-on: windows-latest

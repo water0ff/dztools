@@ -793,6 +793,17 @@ compila el proyecto y lo coloca en la carpeta de salida.
         $lblPort.Add_MouseLeave($restoreColorOnLeave)
         $btnCheckPermissions.Add_Click({
                 Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
+                if (-not (Test-Administrator)) {
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Esta acción requiere permisos de administrador.`r`n" +
+                        "Por favor, ejecuta Daniel Tools como administrador.",
+                        "Permisos insuficientes",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Warning
+                    ) | Out-Null
+                    return
+                }
+
                 Check-Permissions
             })
         $copyMenu.Add_Click({

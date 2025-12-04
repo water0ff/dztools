@@ -192,12 +192,30 @@ function Test-MegaToolsInstalled {
     return ([bool](Get-Command megatools -ErrorAction SilentlyContinue))
 }
 function Check-Permissions {
-    $folderPath = "C:\NationalSoft"
+    param(
+        [string]$folderPath = "C:\NationalSoft"
+    )
+    if (-not (Test-Path -LiteralPath $folderPath)) {
+        Write-Host ("La carpeta {0} no existe. No se puede revisar permisos." -f $folderPath) -ForegroundColor Red
+        [System.Windows.Forms.MessageBox]::Show(
+            "La carpeta '$folderPath' no existe en este equipo." +
+            "`r`nCrea la carpeta o corrige la ruta antes de continuar.",
+            "Carpeta no encontrada",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        ) | Out-Null
+        return
+    }
     try {
-        $directoryInfo = New-Object System.IO.DirectoryInfo($folderPath)
-        $acl = $directoryInfo.GetAccessControl()  # Devuelve DirectorySecurity
+        $acl = Get-Acl -LiteralPath $folderPath -ErrorAction Stop
     } catch {
         Write-Host ("Error obteniendo ACL de {0}: {1}" -f $folderPath, $_.Exception.Message) -ForegroundColor Red
+        [System.Windows.Forms.MessageBox]::Show(
+            "Error obteniendo permisos de '$folderPath':`r`n$($_.Exception.Message)",
+            "Error al obtener permisos",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        ) | Out-Null
         return
     }
     $permissions = @()
@@ -227,6 +245,8 @@ function Check-Permissions {
             }
         }
     }
+    Write-Host ""
+    Write-Host ("Permisos en {0}:" -f $folderPath) -ForegroundColor Cyan
     $permissions | ForEach-Object {
         Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
         Write-Host "` $($_.Permiso)" -ForegroundColor Green
@@ -245,6 +265,8 @@ function Check-Permissions {
         $result = [System.Windows.Forms.MessageBox]::Show($message, $title, $buttons, $icon)
         if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
             try {
+                $directoryInfo = New-Object System.IO.DirectoryInfo($folderPath)
+                $dirAcl = $directoryInfo.GetAccessControl()
                 $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
                     $everyoneSid,
                     [System.Security.AccessControl.FileSystemRights]::FullControl,
@@ -252,12 +274,24 @@ function Check-Permissions {
                     [System.Security.AccessControl.PropagationFlags]::None,
                     [System.Security.AccessControl.AccessControlType]::Allow
                 )
-                $acl.AddAccessRule($accessRule)
-                $acl.SetAccessRuleProtection($false, $true)
-                $directoryInfo.SetAccessControl($acl)
+                $dirAcl.AddAccessRule($accessRule)
+                $dirAcl.SetAccessRuleProtection($false, $true)
+                $directoryInfo.SetAccessControl($dirAcl)
                 Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Se ha concedido 'Full Control' a 'Everyone' en '$folderPath'.",
+                    "Permisos actualizados",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Information
+                ) | Out-Null
             } catch {
                 Write-Host ("Error aplicando permisos a {0}: {1}" -f $folderPath, $_.Exception.Message) -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Error aplicando permisos a '$folderPath':`r`n$($_.Exception.Message)",
+                    "Error al aplicar permisos",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error
+                ) | Out-Null
             }
         }
     }

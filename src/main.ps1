@@ -2213,11 +2213,16 @@ Base de datos: $($global:database)
             })
         $btnDisconnectDb.Add_Click({
                 try {
-                    Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
-                    $global:connection.Close()
+                    if ($global:connection -and
+                        $global:connection.State -ne [System.Data.ConnectionState]::Closed) {
+
+                        $global:connection.Close()
+                        $global:connection.Dispose()
+                    }
+                    $global:connection = $null  # por si acaso
                     $lblConnectionStatus.Text = "Conectado a BDD: Ninguna"
                     $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Red
-                    $btnConnectDb.Enabled = $True
+                    $btnConnectDb.Enabled = $true
                     $btnBackup.Enabled = $false
                     $btnDisconnectDb.Enabled = $false
                     $btnExecute.Enabled = $false
@@ -2225,12 +2230,12 @@ Base de datos: $($global:database)
                     $txtServer.Enabled = $true
                     $txtUser.Enabled = $true
                     $txtPassword.Enabled = $true
-                    $btnExecute.Enabled = $false
                     $cmbQueries.Enabled = $false
                     $cmbDatabases.Items.Clear()
                     $cmbDatabases.Enabled = $false
+                    Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
                 } catch {
-                    Write-Host "`nError al desconectar: $_" -ForegroundColor Red
+                    Write-Host "`nError al desconectar: $($_.Exception.Message)" -ForegroundColor Red
                 }
             })
         $btnCreateAPK.Add_Click({

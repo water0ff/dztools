@@ -1,6 +1,4 @@
 #requires -Version 5.0
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-[Console]::InputEncoding = [System.Text.Encoding]::UTF8
 function Check-Chocolatey {
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
         $response = [System.Windows.Forms.MessageBox]::Show(
@@ -112,8 +110,7 @@ function Install-Software {
 
         Write-Host "$Software instalado correctamente" -ForegroundColor Green
         return $true
-    }
-    catch {
+    } catch {
         Write-Error "Error instalando $Software : $_"
         return $false
     }
@@ -154,16 +151,14 @@ function Download-File {
 
             $webClient.remove_DownloadProgressChanged($eventHandler)
             Write-Progress -Activity "Descargando..." -Completed
-        }
-        else {
+        } else {
             # Descarga simple
             Invoke-WebRequest -Uri $Url -OutFile $OutputPath -UseBasicParsing
         }
 
         Write-Verbose "Archivo descargado: $OutputPath"
         return $true
-    }
-    catch {
+    } catch {
         Write-Error "Error descargando archivo: $_"
         return $false
     }
@@ -196,8 +191,7 @@ function Expand-ArchiveFile {
 
         Write-Verbose "Archivo extraído a: $DestinationPath"
         return $true
-    }
-    catch {
+    } catch {
         Write-Error "Error extrayendo archivo: $_"
         return $false
     }

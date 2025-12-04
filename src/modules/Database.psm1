@@ -1,6 +1,4 @@
-#requires -Version 5.0
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+﻿#requires -Version 5.0
 function Invoke-SqlQuery {
     [CmdletBinding()]
     param(

@@ -1,6 +1,8 @@
 ﻿#requires -Version 5.0
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+chcp 65001 > $null  # Cambiar codepage de la consola a UTF-8
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+[Console]::InputEncoding = [System.Text.UTF8Encoding]::new()
+$OutputEncoding = [Console]::OutputEncoding
 $global:version = "beta.25.12.03.1046"
 try {
     Write-Host "Cargando ensamblados de Windows Forms..." -ForegroundColor Yellow
@@ -482,8 +484,13 @@ WHERE
         $global:txt_AdapterStatus = $txt_AdapterStatus
         $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
         # Crear el nuevo formulario para los instaladores de Chocolatey
-        $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+        $script:formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
             -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))
+        Write-Host "[DEBUG] formInstaladoresChoco creado en sección principal." -ForegroundColor DarkYellow
+        Write-Host ("[DEBUG]   Es nulo?          : {0}" -f ($null -eq $script:formInstaladoresChoco)) -ForegroundColor DarkYellow
+        if ($null -ne $script:formInstaladoresChoco) {
+            Write-Host ("[DEBUG]   Tipo              : {0}" -f $script:formInstaladoresChoco.GetType().FullName) -ForegroundColor DarkYellow
+        }
         # Crear los botones dentro del nuevo formulario
         $btnInstallSQL2014 = Create-Button -Text "Install: SQL2014" -Location (New-Object System.Drawing.Point(10, 10)) `
             -ToolTip "Instalación mediante choco de SQL Server 2014 Express." -Enabled $false
@@ -496,10 +503,10 @@ WHERE
         $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 120)) `
             -ToolTip "Salir del formulario de instaladores."
         # Agregar los botones al nuevo formulario
-        $formInstaladoresChoco.Controls.Add($btnInstallSQL2014)
-        $formInstaladoresChoco.Controls.Add($btnInstallSQL2019)
-        $formInstaladoresChoco.Controls.Add($btnInstallSQLManagement)
-        $formInstaladoresChoco.Controls.Add($btnExitInstaladores)
+        $script:formInstaladoresChoco.Controls.Add($btnInstallSQL2014)
+        $script:formInstaladoresChoco.Controls.Add($btnInstallSQL2019)
+        $script:formInstaladoresChoco.Controls.Add($btnInstallSQLManagement)
+        $script:formInstaladoresChoco.Controls.Add($btnExitInstaladores)
         $txt_InfoInstrucciones = Create-TextBox `
             -Location (New-Object System.Drawing.Point(730, 50)) `
             -Size     (New-Object System.Drawing.Size(220, 500)) `
@@ -1098,17 +1105,90 @@ compila el proyecto y lo coloca en la carpeta de salida.
             })
         $btnClearPrintJobs.Add_Click({
                 Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+
                 try {
-                    Get-Printer | ForEach-Object {
-                        Get-PrintJob -PrinterName $_.Name | Remove-PrintJob
+                    # 1) Validar que se esté ejecutando como administrador
+                    if (-not (Test-Administrator)) {
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "Esta acción requiere permisos de administrador.`r`n" +
+                            "Por favor, ejecuta Daniel Tools como administrador.",
+                            "Permisos insuficientes",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Warning
+                        )
+                        return
                     }
-                    Stop-Service -Name Spooler -Force
-                    Start-Service -Name Spooler
-                    [System.Windows.Forms.MessageBox]::Show("Los trabajos de impresión han sido eliminados y el servicio de cola de impresión se ha reiniciado.", "Operación Exitosa", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+
+                    # 2) Intentar obtener el servicio Spooler
+                    $spooler = Get-Service -Name Spooler -ErrorAction SilentlyContinue
+                    if (-not $spooler) {
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "No se encontró el servicio 'Cola de impresión (Spooler)' en este equipo.",
+                            "Servicio no encontrado",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Error
+                        )
+                        return
+                    }
+
+                    # 3) Limpiar trabajos de impresión (sin reventar en cada impresora)
+                    try {
+                        Get-Printer -ErrorAction Stop | ForEach-Object {
+                            try {
+                                Get-PrintJob -PrinterName $_.Name -ErrorAction SilentlyContinue | Remove-PrintJob -ErrorAction SilentlyContinue
+                            } catch {
+                                Write-Host "`tNo se pudieron limpiar trabajos de la impresora '$($_.Name)': $($_.Exception.Message)" -ForegroundColor Yellow
+                            }
+                        }
+                    } catch {
+                        Write-Host "`tNo se pudieron enumerar impresoras (Get-Printer). ¿Está instalado el módulo PrintManagement?" -ForegroundColor Yellow
+                    }
+
+                    # 4) Detener Spooler (si está corriendo)
+                    if ($spooler.Status -eq 'Running') {
+                        Write-Host "`tDeteniendo servicio Spooler..." -ForegroundColor DarkYellow
+                        Stop-Service -Name Spooler -Force -ErrorAction Stop
+                    } else {
+                        Write-Host "`tSpooler no está en estado 'Running' (estado actual: $($spooler.Status))." -ForegroundColor DarkYellow
+                    }
+
+                    # Refrescar datos por si cambiaron
+                    $spooler.Refresh()
+
+                    # 5) Validar si el servicio está deshabilitado
+                    if ($spooler.StartType -eq 'Disabled') {
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "El servicio 'Cola de impresión (Spooler)' está DESHABILITADO." +
+                            "`r`nHabilítalo manualmente desde services.msc para poder iniciarlo.",
+                            "Spooler deshabilitado",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Warning
+                        )
+                        return
+                    }
+
+                    # 6) Iniciar Spooler
+                    Write-Host "`tIniciando servicio Spooler..." -ForegroundColor DarkYellow
+                    Start-Service -Name Spooler -ErrorAction Stop
+
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Los trabajos de impresión han sido eliminados y el servicio de cola de impresión se ha reiniciado correctamente.",
+                        "Operación exitosa",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Information
+                    )
                 } catch {
-                    [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al intentar limpiar las impresoras o reiniciar el servicio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                    Write-Host "`n[ERROR ClearPrintJobs] $($_.Exception.Message)" -ForegroundColor Red
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Ocurrió un error al intentar limpiar las impresoras o reiniciar el servicio:" +
+                        "`r`n$($_.Exception.Message)",
+                        "Error",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    )
                 }
             })
+
         $LZMAbtnBuscarCarpeta.Add_Click({
                 Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
                 $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
@@ -1794,12 +1874,19 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 $formInstaladoresChoco.Close()
             })
         $btnInstalarHerramientas.Add_Click({
-                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-                if (Check-Chocolatey) {
-                    $formInstaladoresChoco.ShowDialog()
-                } else {
+                Write-Host ""
+                Write-Host ("[DEBUG] Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Cyan
+                Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+                if (-not (Check-Chocolatey)) {
                     Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
+                    return
                 }
+                Write-Host ("[DEBUG] `\$script:formInstaladoresChoco es nulo? : {0}" -f ($null -eq $script:formInstaladoresChoco)) -ForegroundColor Magenta
+                if ($null -eq $script:formInstaladoresChoco) {
+                    Write-Host "[DEBUG] ERROR: `\$script:formInstaladoresChoco es `$null dentro del manejador de clic." -ForegroundColor Red
+                    return
+                }
+                $script:formInstaladoresChoco.ShowDialog()
             })
         $btnAddUser.Add_Click({
                 Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray

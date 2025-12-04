@@ -1,6 +1,5 @@
-#requires -Version 5.0
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+﻿#requires -Version 5.0
+
 function Test-Administrator {
     [CmdletBinding()]
     param()
@@ -434,7 +433,7 @@ function Start-SystemUpdate {
         }
     }
 }
-#requires -Version 5.0
+
 Export-ModuleMember -Function Test-Administrator, Get-SystemInfo, Clear-TemporaryFiles,
 Test-ChocolateyInstalled, Install-Chocolatey, Get-AdminGroupName, Invoke-DiskCleanup,
 Show-SystemComponents, Test-SameHost, Test-7ZipInstalled, Test-MegaToolsInstalled,

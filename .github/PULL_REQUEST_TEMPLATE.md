@@ -1,34 +1,42 @@
-@"
-## Descripción
-<!-- Describe los cambios realizados -->
+## Resumen breve
+- Issue/Tarea relacionada: <!-- enlaza al issue o describe el contexto -->
+- Alcance principal (marca lo que aplique):
+  - [ ] Interfaz GUI (Windows Forms)
+  - [ ] Funciones SQL Server (consultas/backup)
+  - [ ] Utilidades de sistema/instaladores
+  - [ ] Configuración de CI/CD o tooling
+
+## Descripción detallada
+<!-- Explica el problema, la solución propuesta y los cambios principales. Incluye cualquier decisión técnica relevante. -->
 
 ## Tipo de cambio
-- [ ] Nueva funcionalidad (non-breaking change)
-- [ ] Bug fix (non-breaking change)
-- [ ] Breaking change (cambia funcionalidad existente)
-- [ ] Refactorización
-- [ ] Documentación
+- [ ] Nueva funcionalidad (sin romper compatibilidad)
+- [ ] Corrección de bug
+- [ ] Breaking change (cambia comportamiento existente)
+- [ ] Refactorización interna
+- [ ] Documentación o guías de uso
 
-## Compatibilidad PS5.0
-- [ ] He verificado que funciona en PowerShell 5.0
-- [ ] No uso cmdlets de versiones superiores
-- [ ] He probado en Windows 10/Server 2016
+## Compatibilidad con PowerShell 5.0
+- [ ] Ejecutado en Windows 10/Server 2016 con PowerShell 5.0/5.1
+- [ ] Sin cmdlets ni APIs exclusivos de versiones superiores
+- [ ] Validé dependencias externas (módulos, .NET) disponibles en esos entornos
 
-## Testing
-- [ ] He ejecutado las pruebas existentes
-- [ ] He añadido nuevas pruebas
-- [ ] He probado manualmente las funcionalidades
+## Pruebas y calidad
+- [ ] `Invoke-Pester ./tests/ -Output Detailed`
+- [ ] `Invoke-ScriptAnalyzer` sin violaciones críticas
+- [ ] Pruebas manuales de las rutas principales impactadas
+- [ ] Capturas actualizadas si hay cambios visibles en la GUI
 
-## Checklist
-- [ ] Mi código sigue el estilo del proyecto
-- [ ] He comentado mi código donde sea necesario
-- [ ] No he dejado código de debugging
-- [ ] He actualizado la documentación
-- [ ] No rompe funcionalidades existentes
+## Documentación y versionado
+- [ ] Actualicé README/ayuda en línea si el comportamiento cambia
+- [ ] Ajusté `CHANGELOG.md` o notas de release si aplica
+- [ ] Revisé/actualicé `src/version.json` cuando cambia la versión de la herramienta
 
-## Screenshots (si aplica)
-<!-- Capturas de pantalla de los cambios -->
+## Checklist final
+- [ ] El código sigue el estilo y convenciones del proyecto
+- [ ] Sin código de depuración ni trazas temporales
+- [ ] No rompe funcionalidades existentes (probado en escenarios relevantes)
+- [ ] CI local o remoto revisado cuando corresponde
 
 ## Contexto adicional
-<!-- Información adicional sobre el PR -->
-"@ | Out-File -FilePath ".github/PULL_REQUEST_TEMPLATE.md" -Encoding UTF8
+<!-- Información extra, riesgos conocidos o pasos de despliegue. -->

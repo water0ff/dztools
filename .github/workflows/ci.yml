@@ -78,7 +78,7 @@ jobs:
             Write-Host "No hay pruebas configuradas" -ForegroundColor Yellow
           }
 
-    build:
+  build:
     runs-on: windows-latest
     needs: test
     steps:

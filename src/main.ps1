@@ -2141,7 +2141,8 @@ compila el proyecto y lo coloca en la carpeta de salida.
                         throw "Complete todos los campos de conexión"
                     }
                     $securePassword = (New-Object System.Net.NetworkCredential('', $passwordText)).SecurePassword
-                    $credential = New-Object System.Management.Automation.PSCredential($global:user, $securePassword)
+                    # Usa el valor recién leído del textbox
+                    $credential = New-Object System.Management.Automation.PSCredential($userText, $securePassword)
                     $global:server = $serverText
                     $global:user = $userText
                     $global:password = $passwordText

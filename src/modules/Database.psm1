@@ -1,5 +1,4 @@
 ﻿#requires -Version 5.0
-#requires -Version 5.0
 function Invoke-SqlQuery {
     [CmdletBinding()]
     param(

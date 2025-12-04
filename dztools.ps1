@@ -84,4 +84,4 @@ Write-Host "   Canal: $Branch" -ForegroundColor DarkGray
 Write-Host "   Carpeta: $projectRoot" -ForegroundColor DarkGray
 Write-Host "=============================================" -ForegroundColor Gray
 Write-Host ""
-& $mainPath
+powershell -ExecutionPolicy Bypass -NoProfile -File $mainPath

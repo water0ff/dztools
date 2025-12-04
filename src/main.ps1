@@ -786,14 +786,16 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 }
             })
         $lblPort.Add_Click({
-                if ($lblPort.Text -match "\d+") {
-                    # Asegurarse de que el texto es un número
-                    $port = $matches[0]  # Extraer el número del texto
-                    [System.Windows.Forms.Clipboard]::SetText($port)
-                    Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
-                } else {
+                param($sender, $e)
+                $text = $sender.Text
+                Write-Host "DEBUG lblPort.Text al hacer clic: '$text'"
+                $port = [regex]::Match($text, '\d+').Value
+                if ([string]::IsNullOrWhiteSpace($port)) {
                     Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
+                    return
                 }
+                [System.Windows.Forms.Clipboard]::SetText($port)
+                Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
             })
         $lblPort.Add_MouseEnter($changeColorOnHover)
         $lblPort.Add_MouseLeave($restoreColorOnLeave)

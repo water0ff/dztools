@@ -78,7 +78,7 @@ jobs:
             Write-Host "No hay pruebas configuradas" -ForegroundColor Yellow
           }
 
-  build:
+    build:
     runs-on: windows-latest
     needs: test
     steps:
@@ -91,10 +91,10 @@ jobs:
           Copy-Item -Path ./src/* -Destination ./release/ -Recurse -Force
 
           @'
-@echo off
-powershell -ExecutionPolicy Bypass -File "%~dp0main.ps1"
-pause
-'@ | Out-File -FilePath ./release/run.bat -Encoding ASCII
+          @echo off
+          powershell -ExecutionPolicy Bypass -File "%~dp0main.ps1"
+          pause
+          '@ | Out-File -FilePath ./release/run.bat -Encoding ASCII
 
       - name: Subir artefacto
         uses: actions/upload-artifact@v4

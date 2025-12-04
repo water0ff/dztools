@@ -175,10 +175,6 @@ function Show-ProgressBar {
     $progressBar.Location = New-Object System.Drawing.Point(10, 50)
     $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
     $progressBar.Maximum = 100
-    # Opcional: suavizar parpadeo con DoubleBuffered (hack por reflexión)
-    $type = $progressBar.GetType()
-    $flags = [Reflection.BindingFlags]::NonPublic -bor [Reflection.BindingFlags]::Instance
-    $type.GetField("DoubleBuffered", $flags).SetValue($progressBar, $true)
     # Label de porcentaje
     $lblPercentage = New-Object System.Windows.Forms.Label
     $lblPercentage.Location = New-Object System.Drawing.Point(10, 20)
@@ -194,7 +190,6 @@ function Show-ProgressBar {
     $formProgress.Show()
     return $formProgress
 }
-# Función para actualizar la barra de progreso
 function Update-ProgressBar {
     param($ProgressForm, $CurrentStep, $TotalSteps)
     $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)

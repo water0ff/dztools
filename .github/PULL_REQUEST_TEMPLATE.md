@@ -39,4 +39,5 @@
 - [ ] CI local o remoto revisado cuando corresponde
 
 ## Contexto adicional
-<!-- Información extra, riesgos conocidos o pasos de despliegue. -->
+<!-- Información adicional sobre el PR -->
+"@ | Out-File -FilePath ".github/PULL_REQUEST_TEMPLATE.md" -Encoding UTF8

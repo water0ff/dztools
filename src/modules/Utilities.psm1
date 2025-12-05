@@ -124,11 +124,49 @@ function Invoke-DiskCleanup {
 function Show-SystemComponents {
     $criticalError = $false
 
+    function Get-CimInstanceWithRetry {
+        param(
+            [Parameter(Mandatory = $true)]
+            [string]$ClassName,
+
+            [Parameter(Mandatory = $false)]
+            [int]$MaxRetries = 3,
+
+            [Parameter(Mandatory = $false)]
+            [int]$DelaySeconds = 2
+        )
+
+        for ($attempt = 1; $attempt -le $MaxRetries; $attempt++) {
+            try {
+                return Get-CimInstance -ClassName $ClassName -ErrorAction Stop
+            } catch {
+                $message = "Show-SystemComponents: ERROR intento $attempt Get-CimInstance($ClassName): $($_.Exception.Message)"
+                if ($attempt -lt $MaxRetries) {
+                    $message += " . Reintento en ${DelaySeconds}s"
+                    Write-Host $message -ForegroundColor Yellow
+                    Start-Sleep -Seconds $DelaySeconds
+                } else {
+                    Write-Host $message -ForegroundColor Red
+                }
+            }
+        }
+
+        return $null
+    }
+
     Write-Host "`n=== Componentes del sistema detectados ===" -ForegroundColor Cyan
 
     # Versión de Windows (componente crítico)
     try {
-        $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop
+        $os = Get-CimInstanceWithRetry -ClassName CIM_OperatingSystem -MaxRetries 4
+        if (-not $os) {
+            try {
+                $os = Get-WmiObject -Class Win32_OperatingSystem -ErrorAction Stop
+                Write-Host "Show-SystemComponents: Se usó Win32_OperatingSystem como método alternativo" -ForegroundColor DarkYellow
+            } catch {
+                throw
+            }
+        }
         Write-Host "`n[Windows]" -ForegroundColor Yellow
         Write-Host "Versión: $($os.Caption) (Build $($os.Version))" -ForegroundColor White
     } catch {
@@ -142,7 +180,7 @@ function Show-SystemComponents {
     if (-not $criticalError) {
         # Procesador
         try {
-            $procesador = Get-CimInstance -ClassName CIM_Processor -ErrorAction Stop
+            $procesador = Get-CimInstanceWithRetry -ClassName CIM_Processor -MaxRetries 3
             Write-Host "`n[Procesador]" -ForegroundColor Yellow
             Write-Host "Modelo: $($procesador.Name)" -ForegroundColor White
             Write-Host "Núcleos: $($procesador.NumberOfCores)" -ForegroundColor White
@@ -153,7 +191,7 @@ function Show-SystemComponents {
 
         # Memoria RAM
         try {
-            $memoria = Get-CimInstance -ClassName CIM_PhysicalMemory -ErrorAction Stop
+            $memoria = Get-CimInstanceWithRetry -ClassName CIM_PhysicalMemory -MaxRetries 3
             Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
             $memoria | ForEach-Object {
                 Write-Host "Módulo: $([math]::Round($_.Capacity/1GB, 2)) GB $($_.Manufacturer) ($($_.Speed) MHz)" -ForegroundColor White
@@ -165,7 +203,7 @@ function Show-SystemComponents {
 
         # Discos duros
         try {
-            $discos = Get-CimInstance -ClassName CIM_DiskDrive -ErrorAction Stop
+            $discos = Get-CimInstanceWithRetry -ClassName CIM_DiskDrive -MaxRetries 3
             Write-Host "`n[Discos duros]" -ForegroundColor Yellow
             $discos | ForEach-Object {
                 Write-Host "Disco: $($_.Model) ($([math]::Round($_.Size/1GB, 2)) GB)" -ForegroundColor White

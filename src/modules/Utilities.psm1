@@ -528,14 +528,13 @@ function Start-SystemUpdate {
     Write-DzDebug "`t[DEBUG]Start-SystemUpdate: INICIO"
 
     try {
-        # Crear la barra de progreso en un runspace separado para evitar bloqueos
         $progressForm = Show-ProgressBar
-        $totalSteps = 6
+        $totalSteps = 5  # Reducido de 6 a 5 (eliminamos el paso de info del sistema)
         $currentStep = 0
 
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: ProgressForm creado. totalSteps=$totalSteps"
         Write-Host "`nIniciando proceso de actualización..." -ForegroundColor Cyan
-        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Iniciando proceso..."
 
         # PASO 1 - Detener servicio winmgmt
         Write-DzDebug "`t[DEBUG]Paso 1: Deteniendo servicio winmgmt..."
@@ -552,7 +551,7 @@ function Start-SystemUpdate {
         }
 
         $currentStep++
-        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Servicio WMI detenido"
 
         # PASO 2 - Renombrar Repository
         Write-DzDebug "`t[DEBUG]Paso 2: Renombrando carpeta Repository..."
@@ -576,34 +575,28 @@ function Start-SystemUpdate {
         }
 
         $currentStep++
-        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Repository renovado"
 
-        # PASO 3 - Reiniciar winmgmt y esperar a que esté listo
+        # PASO 3 - Reiniciar winmgmt
         Write-DzDebug "`t[DEBUG]Paso 3: Reiniciando servicio winmgmt..."
         Write-Host "`n[Paso 3/$totalSteps] Reiniciando servicio winmgmt..." -ForegroundColor Yellow
         net start winmgmt *>&1 | Write-Host
         Write-DzDebug "`t[DEBUG]Paso 3: net start winmgmt ejecutado"
-
-        # CRÍTICO: Esperar activamente a que WMI esté listo
-        $wmiReady = Wait-WmiReady -MaxWaitSeconds 30 -RetryIntervalSeconds 2
-
-        if (-not $wmiReady) {
-            Write-Host "`n`tAdvertencia: WMI tardó en inicializarse. Continuando con precaución..." -ForegroundColor Yellow
-        }
+        Write-Host "`n`tServicio WMI reiniciado." -ForegroundColor Green
 
         $currentStep++
-        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Servicio WMI reiniciado"
 
         # PASO 4 - Limpiar temporales
         Write-DzDebug "`t[DEBUG]Paso 4: Limpiando archivos temporales..."
-        Write-Host "`n[Paso 4/$totalSteps] Limpiando archivos temporales (ignorar si hay errores)..." -ForegroundColor Cyan
+        Write-Host "`n[Paso 4/$totalSteps] Limpiando archivos temporales..." -ForegroundColor Cyan
         $cleanupResult = Clear-TemporaryFiles
         Write-DzDebug "`t[DEBUG]Paso 4: FilesDeleted=$($cleanupResult.FilesDeleted) SpaceFreedMB=$($cleanupResult.SpaceFreedMB)"
         Write-Host "`n`tTotal archivos eliminados: $($cleanupResult.FilesDeleted)" -ForegroundColor Green
         Write-Host "`n`tEspacio liberado: $($cleanupResult.SpaceFreedMB) MB" -ForegroundColor Green
 
         $currentStep++
-        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Archivos temporales limpiados"
 
         # PASO 5 - Liberador de espacio
         Write-DzDebug "`t[DEBUG]Paso 5: BEFORE Invoke-DiskCleanup"
@@ -612,75 +605,68 @@ function Start-SystemUpdate {
         Write-DzDebug "`t[DEBUG]Paso 5: AFTER Invoke-DiskCleanup"
 
         $currentStep++
-        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Proceso completado"
 
-        # PASO 6 - Info del sistema (con opción de omitir si falla)
-        Write-DzDebug "`t[DEBUG]Paso 6: BEFORE Show-SystemComponents"
-        Write-Host "`n[Paso 6/$totalSteps] Obteniendo información del sistema..." -ForegroundColor Cyan
-
-        try {
-            Show-SystemComponents -SkipOnError
-            Write-DzDebug "`t[DEBUG]Paso 6: AFTER Show-SystemComponents (sin excepción)"
-        } catch {
-            Write-DzDebug "`t[DEBUG]Paso 6: Excepción capturada: $($_.Exception.Message)" Red
-            Write-Host "`n`tNo se pudo obtener información completa del sistema." -ForegroundColor Yellow
-            Write-Host "`tEl proceso continuó exitosamente." -ForegroundColor Green
+        # Cerrar barra de progreso antes de mostrar el mensaje
+        if ($progressForm -ne $null -and -not $progressForm.IsDisposed) {
+            Close-ProgressBar $progressForm
+            $progressForm = $null
         }
 
-        $currentStep++
-        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+        # MENSAJE FINAL - Recomendar reinicio
+        Write-Host "`n`n============================================" -ForegroundColor Green
+        Write-Host "   Proceso de actualización completado" -ForegroundColor Green
+        Write-Host "============================================" -ForegroundColor Green
+        Write-Host "`nSe recomienda REINICIAR el equipo para completar" -ForegroundColor Yellow
+        Write-Host "la actualización del sistema WMI." -ForegroundColor Yellow
 
-        Write-Host "`n`tProceso completado con éxito" -ForegroundColor Green
+        Write-DzDebug "`t[DEBUG]Start-SystemUpdate: Mostrando diálogo de reinicio"
+
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "El proceso de actualización se completó exitosamente.`n`n" +
+            "Se recomienda REINICIAR el equipo para completar la actualización del sistema WMI.`n`n" +
+            "¿Desea reiniciar ahora?",
+            "Actualización completada",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Write-Host "`n`tReiniciando equipo en 10 segundos..." -ForegroundColor Yellow
+            Write-Host "`tPresione Ctrl+C para cancelar" -ForegroundColor Yellow
+            Write-DzDebug "`t[DEBUG]Start-SystemUpdate: Usuario eligió reiniciar"
+
+            Start-Sleep -Seconds 3
+            shutdown /r /t 10 /c "Reinicio para completar actualización de sistema WMI"
+        } else {
+            Write-Host "`n`tRecuerde reiniciar el equipo más tarde para completar la actualización." -ForegroundColor Yellow
+            Write-DzDebug "`t[DEBUG]Start-SystemUpdate: Usuario canceló reinicio"
+        }
+
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: FIN OK"
         return $true
+
     } catch {
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: EXCEPCIÓN: $($_.Exception.Message)" Red
         Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
         Write-Host "Detalles: $($_.ScriptStackTrace)" -ForegroundColor DarkGray
+
         [System.Windows.Forms.MessageBox]::Show(
-            "Error: $($_.Exception.Message)`nRevise los logs antes de reiniciar.",
-            "Error crítico",
+            "Error durante la actualización: $($_.Exception.Message)`n`n" +
+            "Revise los logs y considere reiniciar manualmente el equipo.",
+            "Error en actualización",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         ) | Out-Null
+
         return $false
+
     } finally {
-        Write-DzDebug "`t[DEBUG]Start-SystemUpdate: FINALLY (cerrando progressForm)"
+        Write-DzDebug "`t[DEBUG]Start-SystemUpdate: FINALLY (cerrando progressForm si existe)"
         if ($progressForm -ne $null -and -not $progressForm.IsDisposed) {
             Close-ProgressBar $progressForm
         }
     }
-}
-function Wait-WmiReady {
-    [CmdletBinding()]
-    param(
-        [int]$MaxWaitSeconds = 30,
-        [int]$RetryIntervalSeconds = 2
-    )
-    Write-Host "`n`tEsperando a que WMI se inicialice..." -ForegroundColor Cyan
-    Write-DzDebug "`t[DEBUG]Wait-WmiReady: Iniciando verificación WMI (max ${MaxWaitSeconds}s)"
-    $elapsed = 0
-    $wmiReady = $false
-    while (-not $wmiReady -and $elapsed -lt $MaxWaitSeconds) {
-        try {
-            # Intentar consulta simple a WMI
-            $null = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
-            $wmiReady = $true
-            Write-DzDebug "`t[DEBUG]Wait-WmiReady: WMI listo después de ${elapsed}s"
-            Write-Host "`n`tWMI inicializado correctamente." -ForegroundColor Green
-        } catch {
-            Write-DzDebug "`t[DEBUG]Wait-WmiReady: Intento fallido en ${elapsed}s: $($_.Exception.Message)"
-            Start-Sleep -Seconds $RetryIntervalSeconds
-            $elapsed += $RetryIntervalSeconds
-            Write-Host "." -NoNewline -ForegroundColor Yellow
-        }
-    }
-    if (-not $wmiReady) {
-        Write-DzDebug "`t[DEBUG]Wait-WmiReady: TIMEOUT después de ${MaxWaitSeconds}s" Red
-        Write-Host "`n`tAdvertencia: WMI no respondió en ${MaxWaitSeconds}s" -ForegroundColor Red
-        return $false
-    }
-    return $true
 }
 Export-ModuleMember -Function Get-DzToolsConfigPath,
 Get-DzDebugPreference,
@@ -701,4 +687,4 @@ Check-Permissions,
 DownloadAndRun,
 Refresh-AdapterStatus,
 Get-NetworkAdapterStatus,
-Start-SystemUpdate, Wait-WmiReady
+Start-SystemUpdate

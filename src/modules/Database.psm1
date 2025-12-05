@@ -12,25 +12,25 @@ function Invoke-SqlQuery {
         [System.Management.Automation.PSCredential]$Credential
     )
     $connection = $null
-    Write-DzDebug "DEBUG[Invoke-SqlQuery] INICIO"
-    Write-DzDebug "DEBUG[Invoke-SqlQuery] Server='$Server' Database='$Database' User='$($Credential.UserName)'"
+    Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] INICIO"
+    Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Server='$Server' Database='$Database' User='$($Credential.UserName)'"
     try {
         $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
         try {
             $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
             $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
-            Write-DzDebug "DEBUG[Invoke-SqlQuery] Creando SqlConnection..."
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Creando SqlConnection..."
             $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-            Write-DzDebug "DEBUG[Invoke-SqlQuery] Connection type: $($connection.GetType().FullName)"
-            Write-DzDebug "DEBUG[Invoke-SqlQuery] Abriendo conexión..."
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Connection type: $($connection.GetType().FullName)"
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Abriendo conexión..."
             $connection.Open()
-            Write-DzDebug "DEBUG[Invoke-SqlQuery] Estado conexión tras Open(): $($connection.State)"
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Estado conexión tras Open(): $($connection.State)"
             $command = $connection.CreateCommand()
             $command.CommandText = $Query
             $command.CommandTimeout = 0
             $returnsResultSet = $query -match "(?si)^\s*(SELECT|WITH)" -or $query -match "(?si)\bOUTPUT\b"
             if ($returnsResultSet) {
-                Write-DzDebug "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo SELECT/WITH"
+                Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Ejecutando consulta tipo SELECT/WITH"
                 $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
                 $dataTable = New-Object System.Data.DataTable
                 [void]$adapter.Fill($dataTable)
@@ -40,7 +40,7 @@ function Invoke-SqlQuery {
                     Type      = "Query"
                 }
             } else {
-                Write-DzDebug "DEBUG[Invoke-SqlQuery] Ejecutando consulta tipo NonQuery"
+                Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Ejecutando consulta tipo NonQuery"
                 $rowsAffected = $command.ExecuteNonQuery()
                 return @{
                     Success      = $true
@@ -55,26 +55,26 @@ function Invoke-SqlQuery {
             }
         }
     } catch {
-        Write-DzDebug "DEBUG[Invoke-SqlQuery] CATCH: $($_.Exception.Message)"
-        Write-DzDebug "DEBUG[Invoke-SqlQuery] Tipo de excepción: $($_.Exception.GetType().FullName)"
-        Write-DzDebug "DEBUG[Invoke-SqlQuery] Stack: $($_.ScriptStackTrace)"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] CATCH: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Tipo de excepción: $($_.Exception.GetType().FullName)"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Stack: $($_.ScriptStackTrace)"
         return @{
             Success      = $false
             ErrorMessage = $_.Exception.Message
             Type         = "Error"
         }
     } finally {
-        Write-DzDebug "DEBUG[Invoke-SqlQuery] FINALLY: connection = $($connection)"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] FINALLY: connection = $($connection)"
         if ($null -ne $connection) {
-            Write-DzDebug "DEBUG[Invoke-SqlQuery] Estado antes de cerrar: $($connection.State)"
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Estado antes de cerrar: $($connection.State)"
             if ($connection.State -eq [System.Data.ConnectionState]::Open) {
-                Write-DzDebug "DEBUG[Invoke-SqlQuery] Cerrando conexión..."
+                Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Cerrando conexión..."
                 $connection.Close()
             }
-            Write-DzDebug "DEBUG[Invoke-SqlQuery] Disposing conexión..."
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Disposing conexión..."
             $connection.Dispose()
         }
-        Write-DzDebug "DEBUG[Invoke-SqlQuery] FIN"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] FIN"
     }
 }
 function Remove-SqlComments {

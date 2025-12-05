@@ -168,7 +168,7 @@ function Show-ProgressBar {
         -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
         -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) `
         -TopMost $true `
-        -ControlBox $false
+        -ControlBox $true
     # Barra de progreso
     $progressBar = New-Object System.Windows.Forms.ProgressBar
     $progressBar.Size = New-Object System.Drawing.Size(360, 20)
@@ -561,15 +561,15 @@ function Set-ControlEnabled {
     )
 
     if ($null -eq $Control) {
-        Write-DzDebug "DEBUG[Set-ControlEnabled] $Name es NULL"
+        Write-DzDebug "`t[DEBUG][Set-ControlEnabled] $Name es NULL"
         return
     }
 
     if ($Control -is [System.Windows.Forms.Control]) {
         $Control.Enabled = $Enabled
-        Write-DzDebug "DEBUG[Set-ControlEnabled] $Name ($($Control.GetType().Name)) Enabled=$Enabled"
+        Write-DzDebug "`t[DEBUG][Set-ControlEnabled] $Name ($($Control.GetType().Name)) Enabled=$Enabled"
     } else {
-        Write-DzDebug "DEBUG[Set-ControlEnabled] $Name tipo inesperado: $($Control.GetType().FullName)"
+        Write-DzDebug "`t[DEBUG][Set-ControlEnabled] $Name tipo inesperado: $($Control.GetType().FullName)"
     }
 }
 

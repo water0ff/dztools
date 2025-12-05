@@ -165,73 +165,131 @@ function Get-AdminGroupName {
     }
 }
 function Invoke-DiskCleanup {
-    try {
-        Write-Host "`nEjecutando Liberador de espacio en disco..." -ForegroundColor Cyan
-        $cleanmgr = "$env:SystemDrive\Windows\System32\cleanmgr.exe"
-        $sagerun = "9999"
-        Start-Process $cleanmgr -ArgumentList "/sageset:$sagerun" -Wait
-        Start-Process $cleanmgr -ArgumentList "/sagerun:$sagerun" -Wait
+    [CmdletBinding()]
+    param(
+        [switch]$Configure
+    )
 
-        Write-Host "Limpieza de disco completada correctamente" -ForegroundColor Green
+    try {
+        $cleanmgr = Join-Path $env:SystemRoot "System32\cleanmgr.exe"
+        $profileId = 9999
+
+        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: INICIO Configure=$Configure, cleanmgr=$cleanmgr, profileId=$profileId"
+
+        if ($Configure) {
+            Write-Host "`n`tAbriendo configuración del Liberador de espacio..." -ForegroundColor Cyan
+            Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzando /sageset:$profileId"
+            Start-Process $cleanmgr -ArgumentList "/sageset:$profileId" -Verb RunAs
+            return
+        }
+
+        Write-Host "`n`tEjecutando Liberador de espacio en disco..." -ForegroundColor Cyan
+        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzando /sagerun:$profileId (no bloqueante)"
+
+        $proc = Start-Process $cleanmgr `
+            -ArgumentList "/sagerun:$profileId" `
+            -WindowStyle Hidden `
+            -PassThru
+
+        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzado. PID=$($proc.Id)"
+
+        Start-Sleep -Seconds 2
+        Write-Host "`n`tLlamada al Liberador de espacio finalizada (no bloqueante)." -ForegroundColor Green
+
+        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: FIN OK"
     } catch {
-        Write-Host "Error en limpieza de disco: $($_.Exception.Message)" -ForegroundColor Red
+        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: EXCEPCIÓN: $($_.Exception.Message)" Red
+        Write-Host "`n`tError en limpieza de disco: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
+
 function Show-SystemComponents {
     $criticalError = $false
-
     Write-Host "`n=== Componentes del sistema detectados ===" -ForegroundColor Cyan
 
     # Versión de Windows (componente crítico)
-    try {
-        $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop
-        Write-Host "`n[Windows]" -ForegroundColor Yellow
-        Write-Host "Versión: $($os.Caption) (Build $($os.Version))" -ForegroundColor White
-    } catch {
+    $os = $null
+    $maxAttempts = 5
+    $retryDelaySeconds = 2
+
+    for ($attempt = 1; $attempt -le $maxAttempts -and -not $os; $attempt++) {
+        try {
+            $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop
+        } catch {
+            if ($attempt -lt $maxAttempts) {
+                # IMPORTANTE: sin "\" y con el -f todo en una sola expresión
+                $msg = "Show-SystemComponents: ERROR intento {0} Get-CimInstance(CIM_OperatingSystem): {1}. Reintento en {2}s" -f `
+                    $attempt, $_.Exception.Message, $retryDelaySeconds
+
+                Write-Host $msg -ForegroundColor DarkYellow
+                Start-Sleep -Seconds $retryDelaySeconds
+            } else {
+                $criticalError = $true
+                Write-Host "`n[Windows]" -ForegroundColor Yellow
+                Write-Host "ERROR CRÍTICO: $($_.Exception.Message)" -ForegroundColor Red
+                throw "No se pudo obtener información crítica del sistema"
+            }
+        }
+    }
+
+    if (-not $os) {
+        # Por si acaso, aunque en teoría ya hizo throw arriba
         $criticalError = $true
         Write-Host "`n[Windows]" -ForegroundColor Yellow
-        Write-Host "ERROR CRÍTICO: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "ERROR CRÍTICO: No se obtuvo información de CIM_OperatingSystem." -ForegroundColor Red
         throw "No se pudo obtener información crítica del sistema"
     }
+
+    Write-Host "`n[Windows]" -ForegroundColor Yellow
+    Write-Host "Versión: $($os.Caption) (Build $($os.Version))" -ForegroundColor White
 
     # Resto de componentes (no críticos)
     if (-not $criticalError) {
         # Procesador
         try {
+            Write-DzDebug "`t[DEBUG]Show-SystemComponents: Obteniendo CIM_Processor..."
             $procesador = Get-CimInstance -ClassName CIM_Processor -ErrorAction Stop
             Write-Host "`n[Procesador]" -ForegroundColor Yellow
             Write-Host "Modelo: $($procesador.Name)" -ForegroundColor White
             Write-Host "Núcleos: $($procesador.NumberOfCores)" -ForegroundColor White
         } catch {
+            Write-DzDebug "`t[DEBUG]Show-SystemComponents: Error leyendo procesador: $($_.Exception.Message)" Red
             Write-Host "`n[Procesador]" -ForegroundColor Yellow
             Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
         }
 
         # Memoria RAM
         try {
+            Write-DzDebug "`t[DEBUG]Show-SystemComponents: Obteniendo CIM_PhysicalMemory..."
             $memoria = Get-CimInstance -ClassName CIM_PhysicalMemory -ErrorAction Stop
             Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
             $memoria | ForEach-Object {
                 Write-Host "Módulo: $([math]::Round($_.Capacity/1GB, 2)) GB $($_.Manufacturer) ($($_.Speed) MHz)" -ForegroundColor White
             }
         } catch {
+            Write-DzDebug "`t[DEBUG]Show-SystemComponents: Error leyendo memoria: $($_.Exception.Message)" Red
             Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
             Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
         }
 
         # Discos duros
         try {
+            Write-DzDebug "`t[DEBUG]Show-SystemComponents: Obteniendo CIM_DiskDrive..."
             $discos = Get-CimInstance -ClassName CIM_DiskDrive -ErrorAction Stop
             Write-Host "`n[Discos duros]" -ForegroundColor Yellow
             $discos | ForEach-Object {
                 Write-Host "Disco: $($_.Model) ($([math]::Round($_.Size/1GB, 2)) GB)" -ForegroundColor White
             }
         } catch {
+            Write-DzDebug "`t[DEBUG]Show-SystemComponents: Error leyendo discos: $($_.Exception.Message)" Red
             Write-Host "`n[Discos duros]" -ForegroundColor Yellow
             Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
+
+    Write-DzDebug "`t[DEBUG]Show-SystemComponents: FIN"
 }
+
 function Test-SameHost {
     param(
         [string]$serverName
@@ -461,53 +519,105 @@ function Get-NetworkAdapterStatus {
 }
 function Start-SystemUpdate {
     $progressForm = $null
+    Write-DzDebug "`t[DEBUG]Start-SystemUpdate: INICIO"
+
     try {
         $progressForm = Show-ProgressBar
         $totalSteps = 6
         $currentStep = 0
+
+        Write-DzDebug "`t[DEBUG]Start-SystemUpdate: ProgressForm creado. totalSteps=$totalSteps"
         Write-Host "`nIniciando proceso de actualización..." -ForegroundColor Cyan
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # PASO 1 - Detener servicio winmgmt
+        Write-DzDebug "`t[DEBUG]Paso 1: Deteniendo servicio winmgmt..."
         Write-Host "`n[Paso 1/$totalSteps] Deteniendo servicio winmgmt..." -ForegroundColor Yellow
         $service = Get-Service -Name "winmgmt" -ErrorAction Stop
+        Write-DzDebug "`t[DEBUG]Paso 1: Estado actual winmgmt=$($service.Status)"
+
         if ($service.Status -eq "Running") {
             Stop-Service -Name "winmgmt" -Force -ErrorAction Stop
-            Write-Host "Servicio detenido correctamente." -ForegroundColor Green
+            Write-DzDebug "`t[DEBUG]Paso 1: winmgmt detenido OK"
+            Write-Host "`n`tServicio detenido correctamente." -ForegroundColor Green
+        } else {
+            Write-DzDebug "`t[DEBUG]Paso 1: winmgmt NO estaba en Running (estado=$($service.Status))"
         }
+
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # PASO 2 - Renombrar Repository
+        Write-DzDebug "`t[DEBUG]Paso 2: Renombrando carpeta Repository..."
         Write-Host "`n[Paso 2/$totalSteps] Renombrando carpeta Repository..." -ForegroundColor Yellow
+
         try {
             $repoPath = Join-Path $env:windir "System32\Wbem\Repository"
+            Write-DzDebug "`t[DEBUG]Paso 2: repoPath=$repoPath, Exists=$(Test-Path $repoPath)"
+
             if (Test-Path $repoPath) {
                 $newName = "Repository_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
                 Rename-Item -Path $repoPath -NewName $newName -Force -ErrorAction Stop
-                Write-Host "Carpeta renombrada: $newName" -ForegroundColor Green
+                Write-DzDebug "`t[DEBUG]Paso 2: Carpeta renombrada a $newName"
+                Write-Host "`n`tCarpeta renombrada: $newName" -ForegroundColor Green
+            } else {
+                Write-DzDebug "`t[DEBUG]Paso 2: Repository NO existe, se omite renombrado"
             }
         } catch {
-            Write-Host "Advertencia: No se pudo renombrar la carpeta Repository. Continuando..." -ForegroundColor Yellow
+            Write-DzDebug "`t[DEBUG]Paso 2: EXCEPCIÓN renombrando Repository: $($_.Exception.Message)" Red
+            Write-Host "`n`tAdvertencia: No se pudo renombrar la carpeta Repository. Continuando..." -ForegroundColor Yellow
         }
+
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # PASO 3 - Reiniciar winmgmt
+        Write-DzDebug "`t[DEBUG]Paso 3: Reiniciando servicio winmgmt..."
         Write-Host "`n[Paso 3/$totalSteps] Reiniciando servicio winmgmt..." -ForegroundColor Yellow
         net start winmgmt *>&1 | Write-Host
+        Write-DzDebug "`t[DEBUG]Paso 3: net start winmgmt ejecutado"
+
+        # Pequeño delay para que WMI se estabilice
+        Start-Sleep -Seconds 2
+        Write-DzDebug "`t[DEBUG]Paso 3: Sleep 2s después de net start"
+
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # PASO 4 - Limpiar temporales
+        Write-DzDebug "`t[DEBUG]Paso 4: Limpiando archivos temporales..."
         Write-Host "`n[Paso 4/$totalSteps] Limpiando archivos temporales (ignorar si hay errores)..." -ForegroundColor Cyan
         $cleanupResult = Clear-TemporaryFiles
-        Write-Host "Total archivos eliminados: $($cleanupResult.FilesDeleted)" -ForegroundColor Green
-        Write-Host "Espacio liberado: $($cleanupResult.SpaceFreedMB) MB" -ForegroundColor Green
+        Write-DzDebug "`t[DEBUG]Paso 4: FilesDeleted=$($cleanupResult.FilesDeleted) SpaceFreedMB=$($cleanupResult.SpaceFreedMB)"
+        Write-Host "`n`tTotal archivos eliminados: $($cleanupResult.FilesDeleted)" -ForegroundColor Green
+        Write-Host "`n`tEspacio liberado: $($cleanupResult.SpaceFreedMB) MB" -ForegroundColor Green
+
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # PASO 5 - Liberador de espacio
+        Write-DzDebug "`t[DEBUG]Paso 5: BEFORE Invoke-DiskCleanup"
         Write-Host "`n[Paso 5/$totalSteps] Ejecutando Liberador de espacio..." -ForegroundColor Cyan
         Invoke-DiskCleanup
+        Write-DzDebug "`t[DEBUG]Paso 5: AFTER Invoke-DiskCleanup"
+
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
+
+        # PASO 6 - Info del sistema
+        Write-DzDebug "`t[DEBUG]Paso 6: BEFORE Show-SystemComponents"
         Write-Host "`n[Paso 6/$totalSteps] Obteniendo información del sistema..." -ForegroundColor Cyan
         Show-SystemComponents
+        Write-DzDebug "`t[DEBUG]Paso 6: AFTER Show-SystemComponents (sin excepción)"
+
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
-        Write-Host "`nProceso completado con éxito" -ForegroundColor Green
+
+        Write-Host "`n`tProceso completado con éxito" -ForegroundColor Green
+        Write-DzDebug "`t[DEBUG]Start-SystemUpdate: FIN OK"
+        return $true
     } catch {
+        Write-DzDebug "`t[DEBUG]Start-SystemUpdate: EXCEPCIÓN: $($_.Exception.Message)" Red
         Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
         Write-Host "Detalles: $($_.ScriptStackTrace)" -ForegroundColor DarkGray
         [System.Windows.Forms.MessageBox]::Show(
@@ -516,30 +626,31 @@ function Start-SystemUpdate {
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         ) | Out-Null
+        return $false
     } finally {
+        Write-DzDebug "`t[DEBUG]Start-SystemUpdate: FINALLY (cerrando progressForm)"
         if ($progressForm -ne $null -and -not $progressForm.IsDisposed) {
             Close-ProgressBar $progressForm
         }
     }
 }
-
 Export-ModuleMember -Function Get-DzToolsConfigPath,
-    Get-DzDebugPreference,
-    Initialize-DzToolsConfig,
-    Write-DzDebug,
-    Test-Administrator,
-    Get-SystemInfo,
-    Clear-TemporaryFiles,
-    Test-ChocolateyInstalled,
-    Install-Chocolatey,
-    Get-AdminGroupName,
-    Invoke-DiskCleanup,
-    Show-SystemComponents,
-    Test-SameHost,
-    Test-7ZipInstalled,
-    Test-MegaToolsInstalled,
-    Check-Permissions,
-    DownloadAndRun,
-    Refresh-AdapterStatus,
-    Get-NetworkAdapterStatus,
-    Start-SystemUpdate
+Get-DzDebugPreference,
+Initialize-DzToolsConfig,
+Write-DzDebug,
+Test-Administrator,
+Get-SystemInfo,
+Clear-TemporaryFiles,
+Test-ChocolateyInstalled,
+Install-Chocolatey,
+Get-AdminGroupName,
+Invoke-DiskCleanup,
+Show-SystemComponents,
+Test-SameHost,
+Test-7ZipInstalled,
+Test-MegaToolsInstalled,
+Check-Permissions,
+DownloadAndRun,
+Refresh-AdapterStatus,
+Get-NetworkAdapterStatus,
+Start-SystemUpdate

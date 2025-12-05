@@ -203,21 +203,19 @@ function Invoke-DiskCleanup {
     }
 }
 
+
 function Show-SystemComponents {
     $criticalError = $false
     Write-Host "`n=== Componentes del sistema detectados ===" -ForegroundColor Cyan
-
     # Versión de Windows (componente crítico)
     $os = $null
     $maxAttempts = 5
-    $retryDelaySeconds = 2
-
+    $retryDelaySeconds = 3  # Aumentado de 2 a 3 segundos
     for ($attempt = 1; $attempt -le $maxAttempts -and -not $os; $attempt++) {
         try {
             $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop
         } catch {
             if ($attempt -lt $maxAttempts) {
-                # IMPORTANTE: sin "\" y con el -f todo en una sola expresión
                 $msg = "Show-SystemComponents: ERROR intento {0} Get-CimInstance(CIM_OperatingSystem): {1}. Reintento en {2}s" -f `
                     $attempt, $_.Exception.Message, $retryDelaySeconds
 
@@ -231,18 +229,14 @@ function Show-SystemComponents {
             }
         }
     }
-
     if (-not $os) {
-        # Por si acaso, aunque en teoría ya hizo throw arriba
         $criticalError = $true
         Write-Host "`n[Windows]" -ForegroundColor Yellow
         Write-Host "ERROR CRÍTICO: No se obtuvo información de CIM_OperatingSystem." -ForegroundColor Red
         throw "No se pudo obtener información crítica del sistema"
     }
-
     Write-Host "`n[Windows]" -ForegroundColor Yellow
     Write-Host "Versión: $($os.Caption) (Build $($os.Version))" -ForegroundColor White
-
     # Resto de componentes (no críticos)
     if (-not $criticalError) {
         # Procesador
@@ -257,7 +251,6 @@ function Show-SystemComponents {
             Write-Host "`n[Procesador]" -ForegroundColor Yellow
             Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
         }
-
         # Memoria RAM
         try {
             Write-DzDebug "`t[DEBUG]Show-SystemComponents: Obteniendo CIM_PhysicalMemory..."
@@ -271,7 +264,6 @@ function Show-SystemComponents {
             Write-Host "`n[Memoria RAM]" -ForegroundColor Yellow
             Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
         }
-
         # Discos duros
         try {
             Write-DzDebug "`t[DEBUG]Show-SystemComponents: Obteniendo CIM_DiskDrive..."
@@ -286,7 +278,6 @@ function Show-SystemComponents {
             Write-Host "Error de lectura: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
-
     Write-DzDebug "`t[DEBUG]Show-SystemComponents: FIN"
 }
 
@@ -577,9 +568,10 @@ function Start-SystemUpdate {
         net start winmgmt *>&1 | Write-Host
         Write-DzDebug "`t[DEBUG]Paso 3: net start winmgmt ejecutado"
 
-        # Pequeño delay para que WMI se estabilice
-        Start-Sleep -Seconds 2
-        Write-DzDebug "`t[DEBUG]Paso 3: Sleep 2s después de net start"
+        # CRÍTICO: Aumentar tiempo de espera para que WMI se inicialice completamente
+        Write-Host "`n`tEsperando a que WMI se inicialice completamente..." -ForegroundColor Cyan
+        Start-Sleep -Seconds 5  # Aumentado de 2 a 5 segundos
+        Write-DzDebug "`t[DEBUG]Paso 3: Sleep 5s después de net start (esperando inicialización WMI)"
 
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps

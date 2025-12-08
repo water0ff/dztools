@@ -93,25 +93,18 @@ function Invoke-ChocoCommandWithProgress {
         # Actualizar progreso inicial
         $currentPercent = 0
         if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
-            try {
-                Update-ProgressBar $progressForm $currentPercent 100 "Preparando comando..."
-            } catch {
-                Write-DzDebug ("`t[WARN] Error actualizando progreso: {0}" -f $_) -Color DarkYellow
-            }
+            # Update-ProgressBar(ProgressForm, CurrentStep, TotalSteps, Status)
+            Update-ProgressBar $progressForm $currentPercent 100 "Preparando comando de Chocolatey..."
         }
-
-        # Cola concurrente para output
-        Write-DzDebug "`t[DEBUG] Creando cola de output..."
         $queue = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
-
-        # Configurar proceso
-        Write-DzDebug "`t[DEBUG] Configurando proceso..."
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName = 'choco'
         $psi.Arguments = "$Arguments --verbose"
         $psi.UseShellExecute = $false
         $psi.RedirectStandardOutput = $true
         $psi.RedirectStandardError = $true
+        $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+        $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
         $psi.CreateNoWindow = $true
         $psi.WorkingDirectory = [System.IO.Path]::GetTempPath()
 
@@ -119,156 +112,48 @@ function Invoke-ChocoCommandWithProgress {
 
         $process = New-Object System.Diagnostics.Process
         $process.StartInfo = $psi
-
-        Write-DzDebug "`t[DEBUG] Proceso configurado"
-
-        # Handler para output (MUY IMPORTANTE: sin excepciones)
         $outputHandler = {
             param($sender, $eventArgs)
-            # NO usar try-catch aquí, puede causar problemas
-            # NO usar Write-Host o Write-Debug aquí
-            if ($null -ne $eventArgs -and $null -ne $eventArgs.Data) {
-                [void]$queue.Enqueue($eventArgs.Data)
-            }
-        }
-
-        # Registrar handlers
-        Write-DzDebug "`t[DEBUG] Registrando event handlers..."
-        try {
-            $process.add_OutputDataReceived($outputHandler)
-            $process.add_ErrorDataReceived($outputHandler)
-            Write-DzDebug "`t[DEBUG] Event handlers registrados"
-        } catch {
-            Write-DzDebug ("`t[ERROR] Error registrando handlers: {0}" -f $_) -Color Red
-            throw "No se pudieron registrar los manejadores de eventos: $($_.Exception.Message)"
-        }
-
-        # Iniciar proceso
-        Write-DzDebug "`t[DEBUG] Iniciando proceso de Chocolatey..."
-
-        try {
-            $startResult = $process.Start()
-
-            if (-not $startResult) {
-                throw "Start() retornó false"
-            }
-
-            Write-DzDebug ("`t[DEBUG] Proceso iniciado (PID: {0})" -f $process.Id)
-
-        } catch {
-            Write-DzDebug ("`t[ERROR] Error iniciando proceso: {0}" -f $_) -Color Red
-            Write-DzDebug ("`t[ERROR] Tipo: {0}" -f $_.Exception.GetType().FullName) -Color Red
-            throw "No se pudo iniciar Chocolatey: $($_.Exception.Message)"
-        }
-
-        # Comenzar a leer streams
-        Write-DzDebug "`t[DEBUG] Iniciando lectura de streams..."
-        try {
-            $process.BeginOutputReadLine()
-            $process.BeginErrorReadLine()
-            Write-DzDebug "`t[DEBUG] Lectura de streams iniciada"
-        } catch {
-            Write-DzDebug ("`t[ERROR] Error iniciando streams: {0}" -f $_) -Color Red
-            throw "Error al leer output de Chocolatey: $($_.Exception.Message)"
-        }
-
-        # Loop principal CON PROTECCIÓN
-        Write-DzDebug "`t[DEBUG] Entrando al loop principal..."
-        $line = $null
-        $loopCount = 0
-        $lastUpdate = [DateTime]::Now
-        $totalLinesProcessed = 0
-
-        while (-not $process.HasExited) {
-            $loopCount++
-
-            # Procesar cola (protegido)
             try {
-                $linesThisLoop = 0
-                while ($queue.TryDequeue([ref]$line)) {
-                    $linesThisLoop++
-                    $totalLinesProcessed++
-                    $currentPercent = [math]::Min(95, 5 + ($totalLinesProcessed * 2))
-
-                    # Actualizar UI si existe
-                    if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
-                        try {
-                            Update-ProgressBar $progressForm $currentPercent 100 $line
-                        } catch {
-                            # Ignorar errores de UI
-                        }
-                    }
-
-                    # Log (seguro)
-                    Write-DzDebug ("`t[CHOCO] {0}" -f $line)
+                if ($eventArgs -and -not [string]::IsNullOrWhiteSpace($eventArgs.Data)) {
+                    $queue.Enqueue($eventArgs.Data)
                 }
-
-                # Debug periódico
-                $now = [DateTime]::Now
-                if (($now - $lastUpdate).TotalSeconds -ge 3) {
-                    Write-DzDebug ("`t[DEBUG] Loop #{0} - Líneas procesadas: {1} (total: {2}) - Progreso: {3}% - Proceso vivo: {4}" -f
-                        $loopCount, $linesThisLoop, $totalLinesProcessed, $currentPercent, (-not $process.HasExited))
-                    $lastUpdate = $now
-                }
-
-                # Procesar eventos de Windows Forms (protegido)
-                if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
-                    try {
-                        [System.Windows.Forms.Application]::DoEvents()
-                    } catch {
-                        Write-DzDebug ("`t[WARN] Error en DoEvents: {0}" -f $_) -Color DarkYellow
-                    }
-                }
-
             } catch {
-                Write-DzDebug ("`t[ERROR] Error en loop principal: {0}" -f $_) -Color Red
-                # NO lanzar excepción, continuar el loop
+                Write-DzDebug "[ERROR handler] $($_.Exception.Message)" -Color Red
             }
-
+        }
+        if ($process -eq $null) {
+            throw "El objeto Process es NULL antes de iniciar Chocolatey."
+        }
+        $process.add_OutputDataReceived($outputHandler)
+        $process.add_ErrorDataReceived($outputHandler)
+        if (-not $process.Start()) {
+            throw "No se pudo iniciar el proceso de Chocolatey."
+        }
+        $process.BeginOutputReadLine()
+        $process.BeginErrorReadLine()
+        $line = $null
+        while (-not $process.HasExited) {
+            while ($queue.TryDequeue([ref]$line)) {
+                $currentPercent = [math]::Min(95, $currentPercent + 1)
+                if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+                    Update-ProgressBar $progressForm $currentPercent 100 $line
+                }
+                Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
+            }
             Start-Sleep -Milliseconds 150
         }
-
-        Write-DzDebug "`t[DEBUG] Proceso finalizado, esperando limpieza..."
-
-        # Esperar a que termine completamente
-        try {
-            if (-not $process.WaitForExit(10000)) {
-                # 10 segundos
-                Write-DzDebug "`t[WARN] Timeout esperando proceso" -Color DarkYellow
-            }
-        } catch {
-            Write-DzDebug ("`t[WARN] Error en WaitForExit: {0}" -f $_) -Color DarkYellow
-        }
-
-        # Drenar cola final
-        Write-DzDebug "`t[DEBUG] Drenando cola final..."
-        $finalLines = 0
+        $process.WaitForExit()
+        # Drenar lo que quede en la cola
         while ($queue.TryDequeue([ref]$line)) {
-            $finalLines++
-            $totalLinesProcessed++
-
+            $currentPercent = [math]::Min(95, $currentPercent + 1)
             if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
-                try {
-                    Update-ProgressBar $progressForm 98 100 $line
-                } catch {}
+                Update-ProgressBar $progressForm $currentPercent 100 $line
             }
-
-            Write-DzDebug ("`t[CHOCO] {0}" -f $line)
+            Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
         }
-
-        Write-DzDebug ("`t[DEBUG] Líneas finales drenadas: {0}" -f $finalLines)
-        Write-DzDebug ("`t[DEBUG] Total de líneas procesadas: {0}" -f $totalLinesProcessed)
-
-        # Obtener código de salida
-        try {
-            $exitCode = $process.ExitCode
-            Write-DzDebug ("`t[DEBUG] Código de salida: {0}" -f $exitCode)
-        } catch {
-            Write-DzDebug ("`t[ERROR] No se pudo obtener código de salida: {0}" -f $_) -Color Red
-            $exitCode = -1
-        }
-
-        # Mostrar 100%
+        $exitCode = $process.ExitCode
+        $finalStatus = "Chocolatey finalizó con código $exitCode"
         if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
             try {
                 $finalStatus = if ($exitCode -eq 0) { "Completado exitosamente" } else { "Finalizado con código $exitCode" }

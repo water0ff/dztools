@@ -72,6 +72,34 @@ $global:defaultInstructions = @"
 - - Tabla en consola
 - - Obtener columnas en consola
 "@
+function Register-GlobalErrorHandlers {
+    try {
+        Write-DzDebug "`t[DEBUG] Registrando manejadores globales de excepciones" -Color DarkGray
+        [System.Windows.Forms.Application]::SetUnhandledExceptionMode(
+            [System.Windows.Forms.UnhandledExceptionMode]::CatchException
+        )
+        [System.Windows.Forms.Application]::add_ThreadException({
+                param($sender, $eventArgs)
+                Write-DzDebug (
+                    "`t[DEBUG] Excepción en hilo de UI: {0}" -f $eventArgs.Exception
+                ) -Color DarkRed
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Ocurrió un error inesperado en la interfaz: $($eventArgs.Exception.Message)",
+                    "Error no controlado",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error
+                ) | Out-Null
+            })
+        [System.AppDomain]::CurrentDomain.add_UnhandledException({
+                param($sender, $eventArgs)
+                Write-DzDebug (
+                    "`t[DEBUG] Excepción no controlada: {0}" -f $eventArgs.ExceptionObject
+                ) -Color DarkRed
+            })
+    } catch {
+        Write-DzDebug "`t[DEBUG] No se pudieron registrar los manejadores globales de excepciones" -Color DarkYellow
+    }
+}
 function Initialize-Environment {
     if (!(Test-Path -Path "C:\Temp")) {
         try {
@@ -2945,6 +2973,7 @@ function Start-Application {
         Write-Host "Error inicializando entorno. Saliendo..." -ForegroundColor Red
         return
     }
+    Register-GlobalErrorHandlers
     $mainForm = New-MainForm
     if ($mainForm -eq $null) {
         Write-Host "Error: No se pudo crear el formulario principal" -ForegroundColor Red
@@ -2962,6 +2991,7 @@ function Start-Application {
 }
 try {
     Start-Application
+    exit 0
 } catch {
     Write-Host "Error fatal: $_" -ForegroundColor Red
     Write-Host "Stack Trace: $($_.Exception.StackTrace)" -ForegroundColor Red

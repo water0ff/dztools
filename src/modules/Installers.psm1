@@ -51,38 +51,42 @@ function Check-Chocolatey {
         return $true # Retorna verdadero si Chocolatey ya está instalado
     }
 }
+
 function Invoke-ChocoCommandWithProgress {
     param(
         [Parameter(Mandatory = $true)][string]$Arguments,
         [Parameter(Mandatory = $true)][string]$OperationTitle
     )
-    Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress: argumentos='{0}'" -f $Arguments)
-    $progressForm = Show-ProgressBar
-    if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
-        $progressForm.HeaderLabel.Text = $OperationTitle
-    }
-    $currentPercent = 0
-    Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentPercent -TotalSteps 100 -Status "Preparando comando de Chocolatey..."
-    $queue = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = 'choco'
-    $psi.Arguments = "$Arguments --verbose"
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.CreateNoWindow = $true
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $psi
-    $outputHandler = {
-        param($sender, $eventArgs)
-        if (-not [string]::IsNullOrWhiteSpace($eventArgs.Data)) {
-            $queue.Enqueue($eventArgs.Data)
-        }
-    }
-    $process.add_OutputDataReceived($outputHandler)
-    $process.add_ErrorDataReceived($outputHandler)
+    $progressForm = $null
     try {
-        $null = $process.Start()
+        Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress: argumentos='{0}'" -f $Arguments)
+        $progressForm = Show-ProgressBar
+        if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+            $progressForm.HeaderLabel.Text = $OperationTitle
+        }
+        $currentPercent = 0
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentPercent -TotalSteps 100 -Status "Preparando comando de Chocolatey..."
+        $queue = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = 'choco'
+        $psi.Arguments = "$Arguments --verbose"
+        $psi.UseShellExecute = $false
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+        $psi.CreateNoWindow = $true
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $psi
+        $outputHandler = {
+            param($sender, $eventArgs)
+            if (-not [string]::IsNullOrWhiteSpace($eventArgs.Data)) {
+                $queue.Enqueue($eventArgs.Data)
+            }
+        }
+        $process.add_OutputDataReceived($outputHandler)
+        $process.add_ErrorDataReceived($outputHandler)
+        if (-not $process.Start()) {
+            throw "No se pudo iniciar el proceso de Chocolatey."
+        }
         $process.BeginOutputReadLine()
         $process.BeginErrorReadLine()
         $line = $null
@@ -289,4 +293,4 @@ function Show-SSMSInstallerDialog {
         1 { return "ssms14" }
     }
 }
-Export-ModuleMember -Function Install-Software, Download-File, Expand-ArchiveFile, Check-Chocolatey, Show-SSMSInstallerDialog
+Export-ModuleMember -Function Install-Software, Download-File, Expand-ArchiveFile, Check-Chocolatey, Show-SSMSInstallerDialog, Invoke-ChocoCommandWithProgress

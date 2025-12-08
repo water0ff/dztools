@@ -61,12 +61,22 @@ function Invoke-ChocoCommandWithProgress {
     $exitCode = -1
     try {
         Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress: argumentos='{0}'" -f $Arguments)
-        $progressForm = Show-ProgressBar
-        if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+        # Intentar crear la barra de progreso, pero si truena, seguimos sin GUI
+        try {
+            $progressForm = Show-ProgressBar
+        } catch {
+            Write-DzDebug ("`t[DEBUG] Show-ProgressBar lanzó excepción: {0}" -f $_) -Color DarkYellow
+            $progressForm = $null
+        }
+        if ($null -ne $progressForm -and -not $progressForm.IsDisposed -and
+            $progressForm.PSObject.Properties.Name -contains 'HeaderLabel') {
             $progressForm.HeaderLabel.Text = $OperationTitle
         }
         $currentPercent = 0
-        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentPercent -TotalSteps 100 -Status "Preparando comando de Chocolatey..."
+        if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+            # Update-ProgressBar(ProgressForm, CurrentStep, TotalSteps, Status)
+            Update-ProgressBar $progressForm $currentPercent 100 "Preparando comando de Chocolatey..."
+        }
         $queue = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName = 'choco'
@@ -79,14 +89,16 @@ function Invoke-ChocoCommandWithProgress {
         $process.StartInfo = $psi
         $outputHandler = {
             param($sender, $eventArgs)
-
             try {
-                if (-not [string]::IsNullOrWhiteSpace($eventArgs.Data)) {
+                if ($eventArgs -and -not [string]::IsNullOrWhiteSpace($eventArgs.Data)) {
                     $queue.Enqueue($eventArgs.Data)
                 }
             } catch {
                 Write-DzDebug "[ERROR handler] $($_.Exception.Message)" -Color Red
             }
+        }
+        if ($process -eq $null) {
+            throw "El objeto Process es NULL antes de iniciar Chocolatey."
         }
         $process.add_OutputDataReceived($outputHandler)
         $process.add_ErrorDataReceived($outputHandler)
@@ -99,24 +111,37 @@ function Invoke-ChocoCommandWithProgress {
         while (-not $process.HasExited) {
             while ($queue.TryDequeue([ref]$line)) {
                 $currentPercent = [math]::Min(95, $currentPercent + 1)
-                Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentPercent -TotalSteps 100 -Status $line
+                if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+                    Update-ProgressBar $progressForm $currentPercent 100 $line
+                }
                 Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
             }
             Start-Sleep -Milliseconds 150
         }
         $process.WaitForExit()
+        # Drenar lo que quede en la cola
         while ($queue.TryDequeue([ref]$line)) {
             $currentPercent = [math]::Min(95, $currentPercent + 1)
-            Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentPercent -TotalSteps 100 -Status $line
+            if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+                Update-ProgressBar $progressForm $currentPercent 100 $line
+            }
             Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
         }
         $exitCode = $process.ExitCode
         $finalStatus = "Chocolatey finalizó con código $exitCode"
-        Update-ProgressBar -ProgressForm $progressForm -CurrentStep 100 -TotalSteps 100 -Status $finalStatus
+        if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+            Update-ProgressBar $progressForm 100 100 $finalStatus
+        }
         Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress: código de salida {0}" -f $exitCode)
         return $exitCode
     } catch {
         Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress - Error: {0}" -f $_)
+        if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) {
+            Write-DzDebug ("`t[DEBUG] Línea: {0}" -f $_.InvocationInfo.PositionMessage) -Color DarkYellow
+        }
+        if ($_.ScriptStackTrace) {
+            Write-DzDebug ("`t[DEBUG] Stack: {0}" -f $_.ScriptStackTrace) -Color DarkGray
+        }
         [System.Windows.Forms.MessageBox]::Show(
             "Ocurrió un error al ejecutar Chocolatey: $($_.Exception.Message)",
             "Error en instalación/desinstalación",
@@ -125,7 +150,7 @@ function Invoke-ChocoCommandWithProgress {
         ) | Out-Null
         return $exitCode
     } finally {
-        if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+        if ($null -ne $process) {
             try {
                 $process.Dispose()
             } catch {
@@ -134,9 +159,9 @@ function Invoke-ChocoCommandWithProgress {
         }
         if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
             try {
-                Close-ProgressBar -ProgressForm $progressForm
+                Close-ProgressBar $progressForm
             } catch {
-                Write-DzDebug "`t[DEBUG] No se pudo cerrar la barra de progreso de Chocolatey" -Color DarkYellow
+                Write-DzDebug "`t[DEBUG] No se pudo cerrar la barra de progreso de Chocolatey: $($_.Exception.Message)" -Color DarkYellow
             }
         }
     }

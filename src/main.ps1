@@ -1138,122 +1138,145 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 }
             })
         $btnInstallSelectedChoco.Add_Click({
-                Write-DzDebug "`t[DEBUG] Click en 'Instalar seleccionado'"
-                if ($script:lvChocoResults.SelectedItems.Count -eq 0) {
-                    Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado para instalar."
-                    [System.Windows.Forms.MessageBox]::Show("Seleccione un paquete de la lista antes de instalar.", "Instalación de paquete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                    return
-                }
-                $selectedItem = $script:lvChocoResults.SelectedItems[0]
-                $packageName = $selectedItem.Text
-                $packageVersion = if ($selectedItem.SubItems.Count -gt 1) { $selectedItem.SubItems[1].Text } else { "" }
-                $packageDescription = if ($selectedItem.SubItems.Count -gt 2) { $selectedItem.SubItems[2].Text } else { "" }
-                $confirmationText = "Vas a instalar el paquete: $packageName $packageVersion $packageDescription"
-                Write-DzDebug ("`t[DEBUG] Confirmación de instalación: {0}" -f $confirmationText)
-                $response = [System.Windows.Forms.MessageBox]::Show(
-                    $confirmationText,
-                    "Confirmar instalación",
-                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
-                    [System.Windows.Forms.MessageBoxIcon]::Question
-                )
-                if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
-                    Write-DzDebug "`t[DEBUG] Instalación cancelada por el usuario en la confirmación."
-                    return
-                }
-                if (-not (Check-Chocolatey)) {
-                    Write-DzDebug "`t[DEBUG] Chocolatey no está instalado; se cancela la instalación."
-                    return
-                }
-                $arguments = "install $packageName -y"
-                if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
-                    $arguments = "install $packageName --version=$packageVersion -y"
-                }
                 try {
+                    Write-DzDebug "`t[DEBUG] Click en 'Instalar seleccionado' (handler completo)"
+                    if ($script:lvChocoResults.SelectedItems.Count -eq 0) {
+                        Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado para instalar."
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "Seleccione un paquete de la lista antes de instalar.",
+                            "Instalación de paquete",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Warning
+                        ) | Out-Null
+                        return
+                    }
+                    $selectedItem = $script:lvChocoResults.SelectedItems[0]
+                    $packageName = $selectedItem.Text
+                    $packageVersion = if ($selectedItem.SubItems.Count -gt 1) { $selectedItem.SubItems[1].Text } else { "" }
+                    $packageDescription = if ($selectedItem.SubItems.Count -gt 2) { $selectedItem.SubItems[2].Text } else { "" }
+                    $confirmationText = "Vas a instalar el paquete: $packageName $packageVersion $packageDescription"
+                    Write-DzDebug ("`t[DEBUG] Confirmación de instalación: {0}" -f $confirmationText)
+                    $response = [System.Windows.Forms.MessageBox]::Show(
+                        $confirmationText,
+                        "Confirmar instalación",
+                        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                        [System.Windows.Forms.MessageBoxIcon]::Question
+                    )
+                    if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
+                        Write-DzDebug "`t[DEBUG] Instalación cancelada por el usuario en la confirmación."
+                        return
+                    }
+                    if (-not (Check-Chocolatey)) {
+                        Write-DzDebug "`t[DEBUG] Chocolatey no está instalado; se cancela la instalación."
+                        return
+                    }
+                    $arguments = "install $packageName -y"
+                    if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
+                        $arguments = "install $packageName --version=$packageVersion -y"
+                    }
                     Write-DzDebug ("`t[DEBUG] Ejecutando instalación con argumentos: {0}" -f $arguments)
                     $exitCode = Invoke-ChocoCommandWithProgress -Arguments $arguments -OperationTitle "Instalando $packageName"
+                    Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress devolvió código {0}" -f $exitCode)
                     if ($exitCode -eq 0) {
                         [System.Windows.Forms.MessageBox]::Show(
                             "Instalación completada para $packageName.",
                             "Éxito",
                             [System.Windows.Forms.MessageBoxButtons]::OK,
                             [System.Windows.Forms.MessageBoxIcon]::Information
-                        )
+                        ) | Out-Null
                     } else {
-                        Write-DzDebug ("`t[DEBUG] Instalación de {0} finalizó con código {1}" -f $packageName, $exitCode)
                         [System.Windows.Forms.MessageBox]::Show(
                             "La instalación terminó con código $exitCode para $packageName.",
                             "Aviso",
                             [System.Windows.Forms.MessageBoxButtons]::OK,
                             [System.Windows.Forms.MessageBoxIcon]::Warning
-                        )
+                        ) | Out-Null
                     }
                 } catch {
-                    Write-DzDebug ("`t[DEBUG] Error en la instalación de {0}: {1}" -f $packageName, $_)
+                    Write-DzDebug ("`t[DEBUG] ERROR en handler 'Instalar seleccionado': {0}" -f $_) -Color DarkRed
+                    if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) {
+                        Write-DzDebug ("`t[DEBUG] Línea: {0}" -f $_.InvocationInfo.PositionMessage) -Color DarkYellow
+                    }
+                    if ($_.ScriptStackTrace) {
+                        Write-DzDebug ("`t[DEBUG] Stack: {0}" -f $_.ScriptStackTrace) -Color DarkGray
+                    }
                     [System.Windows.Forms.MessageBox]::Show(
-                        "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
-                        "Error",
+                        "Ocurrió un error al iniciar la instalación: $($_.Exception.Message)",
+                        "Error en botón Instalar",
                         [System.Windows.Forms.MessageBoxButtons]::OK,
                         [System.Windows.Forms.MessageBoxIcon]::Error
-                    )
+                    ) | Out-Null
+                    # MUY IMPORTANTE: NO se relanza la excepción -> no tumba la herramienta.
                 }
             })
         $btnUninstallSelectedChoco.Add_Click({
-                Write-DzDebug "`t[DEBUG] Click en 'Desinstalar seleccionado'"
-                if ($script:lvChocoResults.SelectedItems.Count -eq 0) {
-                    Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado para desinstalar."
-                    [System.Windows.Forms.MessageBox]::Show("Seleccione un paquete de la lista antes de desinstalar.", "Desinstalación de paquete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                    return
-                }
-                $selectedItem = $script:lvChocoResults.SelectedItems[0]
-                $packageName = $selectedItem.Text
-                $packageVersion = if ($selectedItem.SubItems.Count -gt 1) { $selectedItem.SubItems[1].Text } else { "" }
-                $packageDescription = if ($selectedItem.SubItems.Count -gt 2) { $selectedItem.SubItems[2].Text } else { "" }
-                $confirmationText = "¿Deseas desinstalar el paquete: $packageName $packageVersion $packageDescription?"
-                $response = [System.Windows.Forms.MessageBox]::Show(
-                    $confirmationText,
-                    "Confirmar desinstalación",
-                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
-                    [System.Windows.Forms.MessageBoxIcon]::Question
-                )
-                if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
-                    Write-DzDebug "`t[DEBUG] Desinstalación cancelada por el usuario."
-                    return
-                }
-                if (-not (Check-Chocolatey)) {
-                    Write-DzDebug "`t[DEBUG] Chocolatey no está instalado; se cancela la desinstalación."
-                    return
-                }
-                $arguments = "uninstall $packageName -y"
-                if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
-                    $arguments = "uninstall $packageName --version=$packageVersion -y"
-                }
                 try {
+                    Write-DzDebug "`t[DEBUG] Click en 'Desinstalar seleccionado' (handler completo)"
+                    if ($script:lvChocoResults.SelectedItems.Count -eq 0) {
+                        Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado para desinstalar."
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "Seleccione un paquete de la lista antes de desinstalar.",
+                            "Desinstalación de paquete",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Warning
+                        ) | Out-Null
+                        return
+                    }
+                    $selectedItem = $script:lvChocoResults.SelectedItems[0]
+                    $packageName = $selectedItem.Text
+                    $packageVersion = if ($selectedItem.SubItems.Count -gt 1) { $selectedItem.SubItems[1].Text } else { "" }
+                    $packageDescription = if ($selectedItem.SubItems.Count -gt 2) { $selectedItem.SubItems[2].Text } else { "" }
+                    $confirmationText = "¿Deseas desinstalar el paquete: $packageName $packageVersion $packageDescription?"
+                    $response = [System.Windows.Forms.MessageBox]::Show(
+                        $confirmationText,
+                        "Confirmar desinstalación",
+                        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                        [System.Windows.Forms.MessageBoxIcon]::Question
+                    )
+                    if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
+                        Write-DzDebug "`t[DEBUG] Desinstalación cancelada por el usuario."
+                        return
+                    }
+                    if (-not (Check-Chocolatey)) {
+                        Write-DzDebug "`t[DEBUG] Chocolatey no está instalado; se cancela la desinstalación."
+                        return
+                    }
+                    $arguments = "uninstall $packageName -y"
+                    if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
+                        $arguments = "uninstall $packageName --version=$packageVersion -y"
+                    }
                     Write-DzDebug ("`t[DEBUG] Ejecutando desinstalación con argumentos: {0}" -f $arguments)
                     $exitCode = Invoke-ChocoCommandWithProgress -Arguments $arguments -OperationTitle "Desinstalando $packageName"
+                    Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress devolvió código {0}" -f $exitCode)
                     if ($exitCode -eq 0) {
                         [System.Windows.Forms.MessageBox]::Show(
                             "Desinstalación completada para $packageName.",
                             "Éxito",
                             [System.Windows.Forms.MessageBoxButtons]::OK,
                             [System.Windows.Forms.MessageBoxIcon]::Information
-                        )
+                        ) | Out-Null
                     } else {
-                        Write-DzDebug ("`t[DEBUG] Desinstalación de {0} finalizó con código {1}" -f $packageName, $exitCode)
                         [System.Windows.Forms.MessageBox]::Show(
                             "La desinstalación terminó con código $exitCode para $packageName.",
                             "Aviso",
                             [System.Windows.Forms.MessageBoxButtons]::OK,
                             [System.Windows.Forms.MessageBoxIcon]::Warning
-                        )
+                        ) | Out-Null
                     }
                 } catch {
-                    Write-DzDebug ("`t[DEBUG] Error en la desinstalación de {0}: {1}" -f $packageName, $_)
+                    Write-DzDebug ("`t[DEBUG] ERROR en handler 'Desinstalar seleccionado': {0}" -f $_) -Color DarkRed
+                    if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) {
+                        Write-DzDebug ("`t[DEBUG] Línea: {0}" -f $_.InvocationInfo.PositionMessage) -Color DarkYellow
+                    }
+                    if ($_.ScriptStackTrace) {
+                        Write-DzDebug ("`t[DEBUG] Stack: {0}" -f $_.ScriptStackTrace) -Color DarkGray
+                    }
                     [System.Windows.Forms.MessageBox]::Show(
-                        "Error al desinstalar el paquete seleccionado: $($_.Exception.Message)",
-                        "Error",
+                        "Ocurrió un error al iniciar la desinstalación: $($_.Exception.Message)",
+                        "Error en botón Desinstalar",
                         [System.Windows.Forms.MessageBoxButtons]::OK,
                         [System.Windows.Forms.MessageBoxIcon]::Error
-                    )
+                    ) | Out-Null
                 }
             })
         $btnForzarActualizacion.Add_Click({

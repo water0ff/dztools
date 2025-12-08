@@ -160,49 +160,113 @@ function Create-TextBox {
     return $textBox
 }
 function Show-ProgressBar {
-    # Crear formulario de progreso
-    $sizeProgress = New-Object System.Drawing.Size(400, 150)
+    $sizeProgress = New-Object System.Drawing.Size(450, 180)
     $formProgress = Create-Form `
-        -Title "Progreso" `
+        -Title "Progreso de Actualización" `
         -Size $sizeProgress `
         -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
         -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) `
         -TopMost $true `
-        -ControlBox $true
+        -ControlBox $false
+    # Hacer el formulario arrastrable
+    $formProgress.Add_MouseDown({
+            if ($_.Button -eq [System.Windows.Forms.MouseButtons]::Left) {
+                $script:isDragging = $true
+                $script:dragStartPoint = $_.Location
+            }
+        })
+    $formProgress.Add_MouseMove({
+            if ($script:isDragging) {
+                $currentPos = $formProgress.PointToScreen($_.Location)
+                $newLocation = New-Object System.Drawing.Point(
+                    ($currentPos.X - $script:dragStartPoint.X),
+                    ($currentPos.Y - $script:dragStartPoint.Y)
+                )
+                $formProgress.Location = $newLocation
+            }
+        })
+    $formProgress.Add_MouseUp({
+            $script:isDragging = $false
+        })
+    # Título/Header
+    $lblHeader = New-Object System.Windows.Forms.Label
+    $lblHeader.Location = New-Object System.Drawing.Point(10, 10)
+    $lblHeader.Size = New-Object System.Drawing.Size(420, 25)
+    $lblHeader.Text = "Actualizando Sistema"
+    $lblHeader.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
+    $lblHeader.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $lblHeader.ForeColor = [System.Drawing.Color]::FromArgb(0, 120, 215)
     # Barra de progreso
     $progressBar = New-Object System.Windows.Forms.ProgressBar
-    $progressBar.Size = New-Object System.Drawing.Size(360, 20)
-    $progressBar.Location = New-Object System.Drawing.Point(10, 50)
+    $progressBar.Size = New-Object System.Drawing.Size(420, 25)
+    $progressBar.Location = New-Object System.Drawing.Point(10, 45)
     $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
     $progressBar.Maximum = 100
     # Label de porcentaje
     $lblPercentage = New-Object System.Windows.Forms.Label
-    $lblPercentage.Location = New-Object System.Drawing.Point(10, 20)
-    $lblPercentage.Size = New-Object System.Drawing.Size(360, 20)
+    $lblPercentage.Location = New-Object System.Drawing.Point(10, 75)
+    $lblPercentage.Size = New-Object System.Drawing.Size(420, 20)
     $lblPercentage.Text = "0% Completado"
     $lblPercentage.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $lblPercentage.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    # Label de estado (con countdown)
+    $lblStatus = New-Object System.Windows.Forms.Label
+    $lblStatus.Location = New-Object System.Drawing.Point(10, 100)
+    $lblStatus.Size = New-Object System.Drawing.Size(420, 60)
+    $lblStatus.Text = "Iniciando proceso..."
+    $lblStatus.TextAlign = [System.Drawing.ContentAlignment]::TopCenter
+    $lblStatus.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Regular)
     # Agregar controles
-    $formProgress.Controls.Add($progressBar)
-    $formProgress.Controls.Add($lblPercentage)
-    # Exponer las propiedades para Update-ProgressBar
+    $formProgress.Controls.AddRange(@($lblHeader, $progressBar, $lblPercentage, $lblStatus))
+    # Exponer propiedades
     $formProgress | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $progressBar -Force
-    $formProgress | Add-Member -MemberType NoteProperty -Name Label       -Value $lblPercentage -Force
+    $formProgress | Add-Member -MemberType NoteProperty -Name Label -Value $lblPercentage -Force
+    $formProgress | Add-Member -MemberType NoteProperty -Name StatusLabel -Value $lblStatus -Force
+    $formProgress | Add-Member -MemberType NoteProperty -Name HeaderLabel -Value $lblHeader -Force
     $formProgress.Show()
+    $formProgress.Refresh()
+    [System.Windows.Forms.Application]::DoEvents()
     return $formProgress
 }
 function Update-ProgressBar {
-    param($ProgressForm, $CurrentStep, $TotalSteps)
-    $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)
-    if (-not $ProgressForm.IsDisposed) {
+    param(
+        $ProgressForm,
+        $CurrentStep,
+        $TotalSteps,
+        [string]$Status = ""
+    )
+    if ($null -eq $ProgressForm -or $ProgressForm.IsDisposed) {
+        return
+    }
+    try {
+        $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)
+        # Actualizar barra de progreso
         $ProgressForm.ProgressBar.Value = $percent
+        # Actualizar label de porcentaje
         $ProgressForm.Label.Text = "$percent% Completado"
-        [System.Windows.Forms.Application]::DoEvents() # Usar con precaución
+        # Actualizar status
+        if ($Status -ne "" -and $ProgressForm.PSObject.Properties.Name -contains 'StatusLabel') {
+            $ProgressForm.StatusLabel.Text = $Status
+        }
+        # Forzar actualización de UI
+        $ProgressForm.Refresh()
+        [System.Windows.Forms.Application]::DoEvents()
+    } catch {
+        Write-DzDebug "`t[DEBUG]Update-ProgressBar: Error: $($_.Exception.Message)" Red
     }
 }
-
 function Close-ProgressBar {
     param($ProgressForm)
-    $ProgressForm.Close()
+
+    if ($null -eq $ProgressForm -or $ProgressForm.IsDisposed) {
+        return
+    }
+    try {
+        $ProgressForm.Close()
+        $ProgressForm.Dispose()
+    } catch {
+        Write-Warning "Error cerrando barra de progreso: $($_.Exception.Message)"
+    }
 }
 function Show-SSMSInstallerDialog {
     $form = Create-Form -Title "Instalar SSMS" `

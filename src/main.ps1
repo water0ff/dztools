@@ -75,29 +75,82 @@ $global:defaultInstructions = @"
 function Register-GlobalErrorHandlers {
     try {
         Write-DzDebug "`t[DEBUG] Registrando manejadores globales de excepciones" -Color DarkGray
+
+        # Modo de captura de excepciones
         [System.Windows.Forms.Application]::SetUnhandledExceptionMode(
             [System.Windows.Forms.UnhandledExceptionMode]::CatchException
         )
+
+        # Manejador de excepciones del thread UI
         [System.Windows.Forms.Application]::add_ThreadException({
                 param($sender, $eventArgs)
-                Write-DzDebug (
-                    "`t[DEBUG] Excepción en hilo de UI: {0}" -f $eventArgs.Exception
-                ) -Color DarkRed
+
+                $ex = $eventArgs.Exception
+
+                Write-Host "`n===============================================" -ForegroundColor Red
+                Write-Host "EXCEPCIÓN DE THREAD UI CAPTURADA" -ForegroundColor Red
+                Write-Host "===============================================" -ForegroundColor Red
+                Write-Host "Tipo     : $($ex.GetType().FullName)" -ForegroundColor Yellow
+                Write-Host "Mensaje  : $($ex.Message)" -ForegroundColor Yellow
+
+                if ($ex.InnerException) {
+                    Write-Host "`nExcepción interna:" -ForegroundColor Cyan
+                    Write-Host "  Tipo    : $($ex.InnerException.GetType().FullName)" -ForegroundColor Yellow
+                    Write-Host "  Mensaje : $($ex.InnerException.Message)" -ForegroundColor Yellow
+                }
+
+                if ($ex.StackTrace) {
+                    Write-Host "`nStack Trace:" -ForegroundColor Cyan
+                    Write-Host $ex.StackTrace -ForegroundColor Gray
+                }
+
+                Write-Host "===============================================`n" -ForegroundColor Red
+
+                # Mostrar al usuario
                 [System.Windows.Forms.MessageBox]::Show(
-                    "Ocurrió un error inesperado en la interfaz: $($eventArgs.Exception.Message)",
+                    "Error en la interfaz:`n`n$($ex.Message)`n`nTipo: $($ex.GetType().Name)`n`nRevise la consola para más detalles.",
                     "Error no controlado",
                     [System.Windows.Forms.MessageBoxButtons]::OK,
                     [System.Windows.Forms.MessageBoxIcon]::Error
                 ) | Out-Null
             })
+
+        # Manejador de excepciones del dominio de aplicación
         [System.AppDomain]::CurrentDomain.add_UnhandledException({
                 param($sender, $eventArgs)
-                Write-DzDebug (
-                    "`t[DEBUG] Excepción no controlada: {0}" -f $eventArgs.ExceptionObject
-                ) -Color DarkRed
+
+                $ex = $eventArgs.ExceptionObject
+
+                Write-Host "`n===============================================" -ForegroundColor Red
+                Write-Host "EXCEPCIÓN NO CONTROLADA DEL DOMINIO" -ForegroundColor Red
+                Write-Host "===============================================" -ForegroundColor Red
+                Write-Host "Es terminante: $($eventArgs.IsTerminating)" -ForegroundColor Yellow
+
+                if ($ex -is [System.Exception]) {
+                    Write-Host "Tipo     : $($ex.GetType().FullName)" -ForegroundColor Yellow
+                    Write-Host "Mensaje  : $($ex.Message)" -ForegroundColor Yellow
+
+                    if ($ex.InnerException) {
+                        Write-Host "`nExcepción interna:" -ForegroundColor Cyan
+                        Write-Host "  Tipo    : $($ex.InnerException.GetType().FullName)" -ForegroundColor Yellow
+                        Write-Host "  Mensaje : $($ex.InnerException.Message)" -ForegroundColor Yellow
+                    }
+
+                    if ($ex.StackTrace) {
+                        Write-Host "`nStack Trace:" -ForegroundColor Cyan
+                        Write-Host $ex.StackTrace -ForegroundColor Gray
+                    }
+                } else {
+                    Write-Host "Objeto de excepción: $ex" -ForegroundColor Yellow
+                }
+
+                Write-Host "===============================================`n" -ForegroundColor Red
             })
+
+        Write-DzDebug "`t[DEBUG] Manejadores registrados correctamente" -Color Green
+
     } catch {
-        Write-DzDebug "`t[DEBUG] No se pudieron registrar los manejadores globales de excepciones" -Color DarkYellow
+        Write-DzDebug "`t[DEBUG] No se pudieron registrar los manejadores globales: $_" -Color DarkYellow
     }
 }
 function Initialize-Environment {
@@ -1139,9 +1192,13 @@ compila el proyecto y lo coloca en la carpeta de salida.
             })
         $btnInstallSelectedChoco.Add_Click({
                 try {
-                    Write-DzDebug "`t[DEBUG] Click en 'Instalar seleccionado' (handler completo)"
+                    Write-DzDebug "`n========== INICIO INSTALACIÓN =========="
+                    Write-DzDebug "`t[DEBUG] Click en 'Instalar seleccionado'"
+                    Write-DzDebug ("`t[DEBUG] Thread ID: {0}" -f [System.Threading.Thread]::CurrentThread.ManagedThreadId)
+                    Write-DzDebug ("`t[DEBUG] Items seleccionados: {0}" -f $script:lvChocoResults.SelectedItems.Count)
+
                     if ($script:lvChocoResults.SelectedItems.Count -eq 0) {
-                        Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado para instalar."
+                        Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado"
                         [System.Windows.Forms.MessageBox]::Show(
                             "Seleccione un paquete de la lista antes de instalar.",
                             "Instalación de paquete",
@@ -1150,33 +1207,51 @@ compila el proyecto y lo coloca en la carpeta de salida.
                         ) | Out-Null
                         return
                     }
+
                     $selectedItem = $script:lvChocoResults.SelectedItems[0]
                     $packageName = $selectedItem.Text
                     $packageVersion = if ($selectedItem.SubItems.Count -gt 1) { $selectedItem.SubItems[1].Text } else { "" }
-                    $packageDescription = if ($selectedItem.SubItems.Count -gt 2) { $selectedItem.SubItems[2].Text } else { "" }
-                    $confirmationText = "Vas a instalar el paquete: $packageName $packageVersion $packageDescription"
-                    Write-DzDebug ("`t[DEBUG] Confirmación de instalación: {0}" -f $confirmationText)
+
+                    Write-DzDebug ("`t[DEBUG] Paquete: {0}, Versión: {1}" -f $packageName, $packageVersion)
+
+                    $confirmationText = "Vas a instalar el paquete: $packageName"
+                    if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
+                        $confirmationText += " (versión $packageVersion)"
+                    }
+
                     $response = [System.Windows.Forms.MessageBox]::Show(
                         $confirmationText,
                         "Confirmar instalación",
                         [System.Windows.Forms.MessageBoxButtons]::YesNo,
                         [System.Windows.Forms.MessageBoxIcon]::Question
                     )
+
                     if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
-                        Write-DzDebug "`t[DEBUG] Instalación cancelada por el usuario en la confirmación."
+                        Write-DzDebug "`t[DEBUG] Instalación cancelada por usuario"
                         return
                     }
+
+                    Write-DzDebug "`t[DEBUG] Verificando Chocolatey..."
                     if (-not (Check-Chocolatey)) {
-                        Write-DzDebug "`t[DEBUG] Chocolatey no está instalado; se cancela la instalación."
+                        Write-DzDebug "`t[DEBUG] Check-Chocolatey retornó FALSE"
                         return
                     }
+
+                    Write-DzDebug "`t[DEBUG] Chocolatey OK, preparando instalación..."
+
                     $arguments = "install $packageName -y"
                     if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
-                        $arguments = "install $packageName --version=$packageVersion -y"
+                        $arguments += " --version=$packageVersion"
                     }
-                    Write-DzDebug ("`t[DEBUG] Ejecutando instalación con argumentos: {0}" -f $arguments)
+
+                    Write-DzDebug ("`t[DEBUG] Argumentos: {0}" -f $arguments)
+                    Write-DzDebug "`t[DEBUG] Llamando a Invoke-ChocoCommandWithProgress..."
+
                     $exitCode = Invoke-ChocoCommandWithProgress -Arguments $arguments -OperationTitle "Instalando $packageName"
-                    Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress devolvió código {0}" -f $exitCode)
+
+                    Write-DzDebug ("`t[DEBUG] Retornó código: {0}" -f $exitCode)
+                    Write-DzDebug "========== FIN INSTALACIÓN ==========`n"
+
                     if ($exitCode -eq 0) {
                         [System.Windows.Forms.MessageBox]::Show(
                             "Instalación completada para $packageName.",
@@ -1192,21 +1267,30 @@ compila el proyecto y lo coloca en la carpeta de salida.
                             [System.Windows.Forms.MessageBoxIcon]::Warning
                         ) | Out-Null
                     }
+
                 } catch {
-                    Write-DzDebug ("`t[DEBUG] ERROR en handler 'Instalar seleccionado': {0}" -f $_) -Color DarkRed
-                    if ($_.InvocationInfo -and $_.InvocationInfo.PositionMessage) {
-                        Write-DzDebug ("`t[DEBUG] Línea: {0}" -f $_.InvocationInfo.PositionMessage) -Color DarkYellow
+                    Write-DzDebug "`n========== ERROR EN INSTALACIÓN ==========" -Color Red
+                    Write-DzDebug ("`t[ERROR] Mensaje: {0}" -f $_.Exception.Message) -Color Red
+                    Write-DzDebug ("`t[ERROR] Tipo: {0}" -f $_.Exception.GetType().FullName) -Color Red
+
+                    if ($_.InvocationInfo) {
+                        Write-DzDebug ("`t[ERROR] En línea: {0}" -f $_.InvocationInfo.ScriptLineNumber) -Color DarkYellow
+                        Write-DzDebug ("`t[ERROR] Comando: {0}" -f $_.InvocationInfo.Line) -Color DarkYellow
                     }
+
                     if ($_.ScriptStackTrace) {
-                        Write-DzDebug ("`t[DEBUG] Stack: {0}" -f $_.ScriptStackTrace) -Color DarkGray
+                        Write-DzDebug "`t[ERROR] Stack trace:" -Color DarkGray
+                        Write-DzDebug $_.ScriptStackTrace -Color DarkGray
                     }
+
+                    Write-DzDebug "========== FIN ERROR ==========`n" -Color Red
+
                     [System.Windows.Forms.MessageBox]::Show(
-                        "Ocurrió un error al iniciar la instalación: $($_.Exception.Message)",
-                        "Error en botón Instalar",
+                        "Error al instalar:`n`n$($_.Exception.Message)`n`nRevise la consola para más detalles.",
+                        "Error en instalación",
                         [System.Windows.Forms.MessageBoxButtons]::OK,
                         [System.Windows.Forms.MessageBoxIcon]::Error
                     ) | Out-Null
-                    # MUY IMPORTANTE: NO se relanza la excepción -> no tumba la herramienta.
                 }
             })
         $btnUninstallSelectedChoco.Add_Click({
@@ -2983,12 +3067,36 @@ Password = $MegaPass
         return $formPrincipal
 
     } catch {
-        Write-Host "✗ Error creando formulario: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "  Detalle: $($_.InvocationInfo.PositionMessage)" -ForegroundColor Yellow
-        Write-Host "  Stack : $($_.ScriptStackTrace)" -ForegroundColor DarkYellow
-        throw    # <-- re-lanza para que también lo veas fuera
+        Write-Host "`n===============================================" -ForegroundColor Red
+        Write-Host "ERROR FATAL NO CAPTURADO" -ForegroundColor Red
+        Write-Host "===============================================" -ForegroundColor Red
+        Write-Host "Tipo     : $($_.Exception.GetType().FullName)" -ForegroundColor Yellow
+        Write-Host "Mensaje  : $($_.Exception.Message)" -ForegroundColor Yellow
+
+        if ($_.Exception.InnerException) {
+            Write-Host "`nExcepción interna:" -ForegroundColor Cyan
+            Write-Host "  $($_.Exception.InnerException.Message)" -ForegroundColor Yellow
+        }
+
+        if ($_.InvocationInfo) {
+            Write-Host "`nUbicación:" -ForegroundColor Cyan
+            Write-Host "  $($_.InvocationInfo.PositionMessage)" -ForegroundColor Yellow
+        }
+
+        if ($_.Exception.StackTrace) {
+            Write-Host "`nStack Trace:" -ForegroundColor Cyan
+            Write-Host $_.Exception.StackTrace -ForegroundColor Gray
+        }
+
+        Write-Host "===============================================`n" -ForegroundColor Red
+
+        Write-Host "`nPresione una tecla para salir..." -ForegroundColor Gray
+        pause
+        exit 1
+
+    } finally {
+        Write-Host "`nScript finalizado." -ForegroundColor Gray
     }
-}
 function Start-Application {
     Write-Host "Iniciando aplicación..." -ForegroundColor Cyan
 
@@ -2996,28 +3104,77 @@ function Start-Application {
         Write-Host "Error inicializando entorno. Saliendo..." -ForegroundColor Red
         return
     }
+
     Register-GlobalErrorHandlers
-    $mainForm = New-MainForm
-    if ($mainForm -eq $null) {
-        Write-Host "Error: No se pudo crear el formulario principal" -ForegroundColor Red
-        [System.Windows.Forms.MessageBox]::Show("No se pudo crear la interfaz gráfica. Verifique los logs.", "Error crítico")
-        return
-    }
+
+    $mainForm = $null
+
     try {
+        $mainForm = New-MainForm
+
+        if ($mainForm -eq $null) {
+            Write-Host "Error: No se pudo crear el formulario principal" -ForegroundColor Red
+            [System.Windows.Forms.MessageBox]::Show(
+                "No se pudo crear la interfaz gráfica. Verifique los logs.",
+                "Error crítico",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Error
+            )
+            return
+        }
+
         Write-Host "Mostrando formulario..." -ForegroundColor Yellow
-        $mainForm.ShowDialog()
-        Write-Host "Aplicación finalizada correctamente." -ForegroundColor Green
+        $result = $mainForm.ShowDialog()
+
+        Write-Host "`nAplicación cerrada normalmente." -ForegroundColor Green
+        Write-Host "Resultado del diálogo: $result" -ForegroundColor Gray
+
     } catch {
-        Write-Host "Error mostrando formulario: $_" -ForegroundColor Red
-        [System.Windows.Forms.MessageBox]::Show("Error: $_", "Error en la aplicación")
+        Write-Host "`n===============================================" -ForegroundColor Red
+        Write-Host "ERROR EN Start-Application" -ForegroundColor Red
+        Write-Host "===============================================" -ForegroundColor Red
+        Write-Host "Tipo     : $($_.Exception.GetType().FullName)" -ForegroundColor Yellow
+        Write-Host "Mensaje  : $($_.Exception.Message)" -ForegroundColor Yellow
+
+        if ($_.Exception.InnerException) {
+            Write-Host "`nExcepción interna:" -ForegroundColor Cyan
+            Write-Host "  Tipo    : $($_.Exception.InnerException.GetType().FullName)" -ForegroundColor Yellow
+            Write-Host "  Mensaje : $($_.Exception.InnerException.Message)" -ForegroundColor Yellow
+        }
+
+        if ($_.InvocationInfo) {
+            Write-Host "`nUbicación del error:" -ForegroundColor Cyan
+            Write-Host "  Archivo : $($_.InvocationInfo.ScriptName)" -ForegroundColor Yellow
+            Write-Host "  Línea   : $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor Yellow
+            Write-Host "  Comando : $($_.InvocationInfo.Line.Trim())" -ForegroundColor Yellow
+        }
+
+        if ($_.ScriptStackTrace) {
+            Write-Host "`nStack Trace completo:" -ForegroundColor Cyan
+            Write-Host $_.ScriptStackTrace -ForegroundColor Gray
+        }
+
+        Write-Host "===============================================`n" -ForegroundColor Red
+
+        [System.Windows.Forms.MessageBox]::Show(
+            "Error mostrando formulario:`n`n$($_.Exception.Message)`n`nRevise la consola para detalles completos.",
+            "Error en la aplicación",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        )
+
+    } finally {
+        Write-Host "`nLimpiando recursos..." -ForegroundColor Cyan
+
+        if ($mainForm -ne $null) {
+            try {
+                if (-not $mainForm.IsDisposed) {
+                    $mainForm.Dispose()
+                    Write-Host "  ✓ Formulario principal liberado" -ForegroundColor Green
+                }
+            } catch {
+                Write-Host "  ✗ Error liberando formulario: $_" -ForegroundColor Yellow
+            }
+        }
     }
-}
-try {
-    Start-Application
-    exit 0
-} catch {
-    Write-Host "Error fatal: $_" -ForegroundColor Red
-    Write-Host "Stack Trace: $($_.Exception.StackTrace)" -ForegroundColor Red
-    pause
-    exit 1
 }

@@ -520,21 +520,25 @@ WHERE
         $null = $script:lvChocoResults.Columns.Add("Paquete", 160)
         $null = $script:lvChocoResults.Columns.Add("Versión", 90)
         $null = $script:lvChocoResults.Columns.Add("Descripción", 190)
-        $btnInstallSQL2014 = Create-Button -Text "Install: SQL2014" -Location (New-Object System.Drawing.Point(10, 70)) `
-            -ToolTip "Instalación mediante choco de SQL Server 2014 Express." -Enabled $false
-        $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(240, 70)) `
-            -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
-        $btnInstallSQLManagement = Create-Button -Text "Install: SQL Server Management Studio" -Location (New-Object System.Drawing.Point(10, 110)) `
-            -ToolTip "Instalación mediante choco de SQL Server Management Studio."
+        $lblPresetSSMS = Create-Label -Text "SSMS" -Location (New-Object System.Drawing.Point(10, 70)) `
+            -ForeColor ([System.Drawing.Color]::Black) -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
+            -Size (New-Object System.Drawing.Size(70, 25)) -TextAlign MiddleCenter -BorderStyle FixedSingle
+        $lblPresetSSMS.Cursor = [System.Windows.Forms.Cursors]::Hand
+        $lblPresetHeidi = Create-Label -Text "Heidi" -Location (New-Object System.Drawing.Point(90, 70)) `
+            -ForeColor ([System.Drawing.Color]::Black) -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
+            -Size (New-Object System.Drawing.Size(70, 25)) -TextAlign MiddleCenter -BorderStyle FixedSingle
+        $lblPresetHeidi.Cursor = [System.Windows.Forms.Cursors]::Hand
+        $btnInstallSelectedChoco = Create-Button -Text "Instalar seleccionado" -Location (New-Object System.Drawing.Point(170, 68)) `
+            -Size (New-Object System.Drawing.Size(180, 30)) -ToolTip "Instala el paquete seleccionado de la lista."
         $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 340)) `
             -ToolTip "Salir del formulario de instaladores."
         # Agregar los botones al nuevo formulario
         $script:formInstaladoresChoco.Controls.Add($lblChocoSearch)
         $script:formInstaladoresChoco.Controls.Add($txtChocoSearch)
         $script:formInstaladoresChoco.Controls.Add($btnBuscarChoco)
-        $script:formInstaladoresChoco.Controls.Add($btnInstallSQL2014)
-        $script:formInstaladoresChoco.Controls.Add($btnInstallSQL2019)
-        $script:formInstaladoresChoco.Controls.Add($btnInstallSQLManagement)
+        $script:formInstaladoresChoco.Controls.Add($lblPresetSSMS)
+        $script:formInstaladoresChoco.Controls.Add($lblPresetHeidi)
+        $script:formInstaladoresChoco.Controls.Add($btnInstallSelectedChoco)
         $script:formInstaladoresChoco.Controls.Add($btnExitInstaladores)
         $script:formInstaladoresChoco.Controls.Add($lvChocoResults)
         $txt_InfoInstrucciones = Create-TextBox `
@@ -659,13 +663,30 @@ un nuevo registro y así evite el mensaje de error conocido:
 "@)
                 }
             })
-        $btnInstallSQLManagement.Add_MouseEnter({
+        $lblPresetSSMS.Add_MouseEnter({
                 if ($script:setInstructionText) {
                     $script:setInstructionText.Invoke(@"
-        Instalación de SQL Server Management Studio mediante Chocolatey.
-Al presionar, podrás elegir:
-  • Último disponible (paquete: sql-server-management-studio)
-  • SSMS 14 / 2014 (paquete: mssqlservermanagementstudio2014express)
+        Acceso rápido para buscar SSMS en Chocolatey.
+Al hacer clic llenará la búsqueda con 'SSMS'
+e iniciará la consulta automáticamente.
+"@)
+                }
+            })
+        $lblPresetHeidi.Add_MouseEnter({
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Acceso rápido para buscar HeidiSQL en Chocolatey.
+Al hacer clic llenará la búsqueda con 'Heidi'
+e iniciará la consulta automáticamente.
+"@)
+                }
+            })
+        $btnInstallSelectedChoco.Add_MouseEnter({
+                if ($script:setInstructionText) {
+                    $script:setInstructionText.Invoke(@"
+        Instala el paquete seleccionado de la lista de resultados.
+Solicitará confirmación mostrando el paquete,
+su versión y descripción.
 "@)
                 }
             })
@@ -981,29 +1002,66 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al buscar en Chocolatey. Intenta nuevamente.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                 }
             })
-        $btnInstallSQL2019.Add_Click({
-                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-                $response = [System.Windows.Forms.MessageBox]::Show(
-                    "¿Desea proceder con la instalación de SQL Server 2019 Express?",
-                    "Advertencia de instalación",
-                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
-                    [System.Windows.Forms.MessageBoxIcon]::Warning
-                )
-                if ($response -eq [System.Windows.Forms.DialogResult]::No) {
-                    Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
+        $lblPresetSSMS.Add_Click({
+                $preset = "ssms"
+                Write-DzDebug ("`t[DEBUG] Preset seleccionado: {0}" -f $preset)
+                $script:txtChocoSearch.Text = $preset
+                $btnBuscarChoco.PerformClick()
+            })
+        $lblPresetHeidi.Add_Click({
+                $preset = "heidi"
+                Write-DzDebug ("`t[DEBUG] Preset seleccionado: {0}" -f $preset)
+                $script:txtChocoSearch.Text = $preset
+                $btnBuscarChoco.PerformClick()
+            })
+        $btnInstallSelectedChoco.Add_Click({
+                Write-DzDebug "`t[DEBUG] Click en 'Instalar seleccionado'"
+                if ($script:lvChocoResults.SelectedItems.Count -eq 0) {
+                    Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado para instalar."
+                    [System.Windows.Forms.MessageBox]::Show("Seleccione un paquete de la lista antes de instalar.", "Instalación de paquete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
                     return
                 }
-                if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso
-                Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
+                $selectedItem = $script:lvChocoResults.SelectedItems[0]
+                $packageName = $selectedItem.Text
+                $packageVersion = if ($selectedItem.SubItems.Count -gt 1) { $selectedItem.SubItems[1].Text } else { "" }
+                $packageDescription = if ($selectedItem.SubItems.Count -gt 2) { $selectedItem.SubItems[2].Text } else { "" }
+                $confirmationText = "Vas a instalar el paquete: $packageName $packageVersion $packageDescription"
+                Write-DzDebug ("`t[DEBUG] Confirmación de instalación: {0}" -f $confirmationText)
+                $response = [System.Windows.Forms.MessageBox]::Show(
+                    $confirmationText,
+                    "Confirmar instalación",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Question
+                )
+                if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
+                    Write-DzDebug "`t[DEBUG] Instalación cancelada por el usuario en la confirmación."
+                    return
+                }
+                if (-not (Check-Chocolatey)) {
+                    Write-DzDebug "`t[DEBUG] Chocolatey no está instalado; se cancela la instalación."
+                    return
+                }
+                $arguments = "install $packageName -y"
+                if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
+                    $arguments = "install $packageName --version=$packageVersion -y"
+                }
                 try {
-                    Write-Host "`nInstalando SQL Server 2019 Express usando Chocolatey..." -ForegroundColor Cyan
-                    Start-Process choco -ArgumentList 'install sql-server-express -y --version=2019.20190106 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"' -NoNewWindow -Wait
-                    Write-Host "`nInstalación completa." -ForegroundColor Green
-                    Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
-                    sqlcmd -S SQL2019 -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
-                    [System.Windows.Forms.MessageBox]::Show("SQL Server 2019 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                    Write-DzDebug ("`t[DEBUG] Ejecutando instalación con argumentos: {0}" -f $arguments)
+                    Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Instalación completada para $packageName.",
+                        "Éxito",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Information
+                    )
                 } catch {
-                    [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2019 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                    Write-DzDebug ("`t[DEBUG] Error en la instalación de {0}: {1}" -f $packageName, $_)
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
+                        "Error",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    )
                 }
             })
         $btnForzarActualizacion.Add_Click({
@@ -1581,93 +1639,6 @@ compila el proyecto y lo coloca en la carpeta de salida.
                         [System.Windows.Forms.MessageBoxButtons]::OK,
                         [System.Windows.Forms.MessageBoxIcon]::Error
                     )
-                }
-            })
-        $btnInstallSQLManagement.Add_Click({
-                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-                if (!(Check-Chocolatey)) { return }
-                $choice = Show-SSMSInstallerDialog
-                if (-not $choice) {
-                    Write-Host "`nInstalación cancelada por el usuario." -ForegroundColor Yellow
-                    return
-                }
-                $texto = if ($choice -eq "latest") {
-                    "¿Desea instalar el SSMS 'Último disponible'?"
-                } else {
-                    "¿Desea instalar SSMS 14 (2014)?"
-                }
-                $response = [System.Windows.Forms.MessageBox]::Show(
-                    $texto, "Advertencia de instalación",
-                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
-                    [System.Windows.Forms.MessageBoxIcon]::Warning
-                )
-                if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
-                    Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
-                    return
-                }
-                try {
-                    Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
-                    choco config set cacheLocation C:\Choco\cache | Out-Null
-
-                    if ($choice -eq "latest") {
-                        Write-Host "`nInstalando 'Último disponible' (sql-server-management-studio)..." -ForegroundColor Cyan
-                        Start-Process choco -ArgumentList 'install sql-server-management-studio -y' -NoNewWindow -Wait
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "SSMS (último disponible) instalado correctamente.",
-                            "Éxito",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Information
-                        ) | Out-Null
-                    } elseif ($choice -eq "ssms14") {
-                        Write-Host "`nInstalando SSMS 14 (mssqlservermanagementstudio2014express)..." -ForegroundColor Cyan
-                        Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express -y' -NoNewWindow -Wait
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "SSMS 14 (2014) instalado correctamente.",
-                            "Éxito",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Information
-                        ) | Out-Null
-                    }
-                    Write-Host "`nInstalación completada." -ForegroundColor Green
-                } catch {
-                    Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
-                    [System.Windows.Forms.MessageBox]::Show(
-                        "Error al instalar SSMS: $($_.Exception.Message)",
-                        "Error",
-                        [System.Windows.Forms.MessageBoxButtons]::OK,
-                        [System.Windows.Forms.MessageBoxIcon]::Error
-                    ) | Out-Null
-                }
-            })
-        $btnInstallSQL2014.Add_Click({
-                Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-                $response = [System.Windows.Forms.MessageBox]::Show(
-                    "¿Desea proceder con la instalación de SQL Server 2014 Express?",
-                    "Advertencia de instalación",
-                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
-                    [System.Windows.Forms.MessageBoxIcon]::Warning
-                )
-                if ($response -eq [System.Windows.Forms.DialogResult]::No) {
-                    Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
-                    return
-                }
-                if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso
-                Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-                try {
-                    $instanceExists = Get-Service -Name "MSSQL`$NationalSoft" -ErrorAction SilentlyContinue
-                    if ($instanceExists) {
-                        Write-Host "`nLa instancia 'NationalSoft' ya existe. Cancelando la instalación." -ForegroundColor Red
-                        [System.Windows.Forms.MessageBox]::Show("La instancia 'NationalSoft' ya existe. Cancelando la instalación.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                        return
-                    }
-                    Write-Host "`nInstalando SQL Server 2014 Express usando Chocolatey..." -ForegroundColor Cyan
-                    Start-Process choco -ArgumentList 'install sql-server-express -y --version=2014.0.2000.8 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:NationalSoft /FEATURES:SQL"' -NoNewWindow -Wait
-                    Write-Host "`nInstalación completa." -ForegroundColor Green
-                    Start-Sleep -Seconds 30 # Espera a que la instalación se complete (opcional)
-                    sqlcmd -S NationalSoft -U sa -P National09 -Q "exec sp_defaultlanguage [sa], 'spanish'"
-                    [System.Windows.Forms.MessageBox]::Show("SQL Server 2014 Express instalado correctamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                } catch {
-                    [System.Windows.Forms.MessageBox]::Show("Error al instalar SQL Server 2014 Express: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                 }
             })
         $btnConfigurarIPs.Add_Click({

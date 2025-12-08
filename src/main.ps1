@@ -3097,6 +3097,7 @@ Password = $MegaPass
     } finally {
         Write-Host "`nScript finalizado." -ForegroundColor Gray
     }
+}
 function Start-Application {
     Write-Host "Iniciando aplicación..." -ForegroundColor Cyan
 

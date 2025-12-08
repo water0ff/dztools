@@ -167,14 +167,17 @@ function Get-AdminGroupName {
 function Invoke-DiskCleanup {
     [CmdletBinding()]
     param(
-        [switch]$Configure
+        [switch]$Configure,
+        [switch]$Wait,
+        [int]$TimeoutMinutes = 3,
+        $ProgressForm = $null
     )
 
     try {
         $cleanmgr = Join-Path $env:SystemRoot "System32\cleanmgr.exe"
         $profileId = 9999
 
-        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: INICIO Configure=$Configure, cleanmgr=$cleanmgr, profileId=$profileId"
+        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: INICIO Configure=$Configure, Wait=$Wait, TimeoutMinutes=$TimeoutMinutes"
 
         if ($Configure) {
             Write-Host "`n`tAbriendo configuración del Liberador de espacio..." -ForegroundColor Cyan
@@ -184,17 +187,118 @@ function Invoke-DiskCleanup {
         }
 
         Write-Host "`n`tEjecutando Liberador de espacio en disco..." -ForegroundColor Cyan
-        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzando /sagerun:$profileId (no bloqueante)"
 
-        $proc = Start-Process $cleanmgr `
-            -ArgumentList "/sagerun:$profileId" `
-            -WindowStyle Hidden `
-            -PassThru
+        if ($Wait) {
+            Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzando /sagerun:$profileId (BLOQUEANTE con timeout y UI interactiva)"
+            Write-Host "`n`tEsperando a que termine la limpieza de disco..." -ForegroundColor Yellow
+            Write-Host "`t(Timeout: $TimeoutMinutes minutos)" -ForegroundColor Yellow
 
-        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzado. PID=$($proc.Id)"
+            $proc = Start-Process $cleanmgr `
+                -ArgumentList "/sagerun:$profileId" `
+                -WindowStyle Hidden `
+                -PassThru
 
-        Start-Sleep -Seconds 2
-        Write-Host "`n`tLlamada al Liberador de espacio finalizada (no bloqueante)." -ForegroundColor Green
+            Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso iniciado. PID=$($proc.Id)"
+
+            # Configurar contador y timer para UI
+            $timeoutSeconds = $TimeoutMinutes * 60
+            $script:remainingSeconds = $timeoutSeconds
+            $script:cleanupCompleted = $false
+
+            # Crear timer para actualizar UI cada segundo
+            if ($ProgressForm -ne $null -and -not $ProgressForm.IsDisposed) {
+                $timer = New-Object System.Windows.Forms.Timer
+                $timer.Interval = 1000  # 1 segundo
+
+                $timer.Add_Tick({
+                        if ($script:remainingSeconds -gt 0) {
+                            $script:remainingSeconds--
+
+                            # Calcular minutos y segundos restantes
+                            $mins = [math]::Floor($script:remainingSeconds / 60)
+                            $secs = $script:remainingSeconds % 60
+
+                            # Actualizar label de estado con countdown
+                            if ($ProgressForm.PSObject.Properties.Name -contains 'StatusLabel') {
+                                $ProgressForm.StatusLabel.Text = "Liberando espacio en disco...`nTiempo restante: $mins min $secs seg"
+                            }
+
+                            # Forzar actualización de UI
+                            $ProgressForm.Refresh()
+                            [System.Windows.Forms.Application]::DoEvents()
+                        } else {
+                            # Timeout alcanzado
+                            $this.Stop()
+                        }
+                    })
+
+                $timer.Start()
+                Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Timer iniciado"
+            }
+
+            # Esperar a que termine el proceso o se alcance el timeout
+            $checkInterval = 500  # Verificar cada 0.5 segundos para UI más fluida
+            $elapsed = 0
+
+            while (-not $proc.HasExited -and $elapsed -lt ($timeoutSeconds * 1000)) {
+                Start-Sleep -Milliseconds $checkInterval
+                $elapsed += $checkInterval
+                [System.Windows.Forms.Application]::DoEvents()  # Mantener UI responsive
+            }
+
+            # Detener timer
+            if ($timer) {
+                $timer.Stop()
+                $timer.Dispose()
+            }
+
+            if ($proc.HasExited) {
+                Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso completado. PID=$($proc.Id) ExitCode=$($proc.ExitCode) Tiempo=$([math]::Round($elapsed/1000))s"
+                Write-Host "`n`tLiberador de espacio completado." -ForegroundColor Green
+
+                # Actualizar UI final
+                if ($ProgressForm -ne $null -and -not $ProgressForm.IsDisposed) {
+                    if ($ProgressForm.PSObject.Properties.Name -contains 'StatusLabel') {
+                        $ProgressForm.StatusLabel.Text = "Limpieza completada exitosamente"
+                    }
+                    $ProgressForm.Refresh()
+                }
+            } else {
+                # Timeout alcanzado
+                Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: TIMEOUT alcanzado ($TimeoutMinutes min). Terminando proceso..." Yellow
+                Write-Host "`n`tAdvertencia: El proceso excedió el tiempo límite ($TimeoutMinutes minutos)." -ForegroundColor Yellow
+                Write-Host "`tTerminando el proceso cleanmgr.exe..." -ForegroundColor Yellow
+
+                try {
+                    $proc.Kill()
+                    $proc.WaitForExit(5000)
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso terminado forzosamente"
+                    Write-Host "`tProceso terminado. La limpieza puede estar incompleta." -ForegroundColor Yellow
+
+                    # Actualizar UI
+                    if ($ProgressForm -ne $null -and -not $ProgressForm.IsDisposed) {
+                        if ($ProgressForm.PSObject.Properties.Name -contains 'StatusLabel') {
+                            $ProgressForm.StatusLabel.Text = "Limpieza finalizada por timeout"
+                        }
+                        $ProgressForm.Refresh()
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Error al terminar proceso: $($_.Exception.Message)" Red
+                    Write-Host "`tNo se pudo terminar el proceso automáticamente." -ForegroundColor Red
+                }
+            }
+        } else {
+            Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzando /sagerun:$profileId (NO bloqueante)"
+
+            $proc = Start-Process $cleanmgr `
+                -ArgumentList "/sagerun:$profileId" `
+                -WindowStyle Hidden `
+                -PassThru
+
+            Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzado. PID=$($proc.Id)"
+            Start-Sleep -Seconds 2
+            Write-Host "`n`tLlamada al Liberador de espacio iniciada (no bloqueante)." -ForegroundColor Green
+        }
 
         Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: FIN OK"
     } catch {
@@ -202,15 +306,38 @@ function Invoke-DiskCleanup {
         Write-Host "`n`tError en limpieza de disco: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
+function Stop-CleanmgrProcesses {
+    [CmdletBinding()]
+    param()
 
+    try {
+        $cleanmgrProcesses = Get-Process -Name "cleanmgr" -ErrorAction SilentlyContinue
 
+        if ($cleanmgrProcesses) {
+            Write-Host "`n`tEncontrando procesos cleanmgr activos..." -ForegroundColor Yellow
+            Write-DzDebug "`t[DEBUG]Stop-CleanmgrProcesses: Encontrados $($cleanmgrProcesses.Count) procesos"
+
+            foreach ($proc in $cleanmgrProcesses) {
+                Write-Host "`t  Terminando proceso cleanmgr (PID: $($proc.Id))..." -ForegroundColor Yellow
+                $proc.Kill()
+                Start-Sleep -Milliseconds 500
+            }
+
+            Write-Host "`tProcesos cleanmgr terminados." -ForegroundColor Green
+            Write-DzDebug "`t[DEBUG]Stop-CleanmgrProcesses: Procesos terminados"
+        } else {
+            Write-DzDebug "`t[DEBUG]Stop-CleanmgrProcesses: No hay procesos cleanmgr activos"
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG]Stop-CleanmgrProcesses: Error: $($_.Exception.Message)" Red
+        Write-Host "`tError al terminar procesos: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
 function Show-SystemComponents {
     param(
         [switch]$SkipOnError
     )
-
     Write-Host "`n=== Componentes del sistema detectados ===" -ForegroundColor Cyan
-
     # Versión de Windows (componente crítico)
     $os = $null
     $maxAttempts = 3  # Reducido porque ya verificamos WMI antes
@@ -524,43 +651,41 @@ function Get-NetworkAdapterStatus {
     return $adapterStatus
 }
 function Start-SystemUpdate {
+    param(
+        [int]$DiskCleanupTimeoutMinutes = 3
+    )
     $progressForm = $null
-    Write-DzDebug "`t[DEBUG]Start-SystemUpdate: INICIO"
-
+    Write-DzDebug "`t[DEBUG]Start-SystemUpdate: INICIO (DiskCleanupTimeout=$DiskCleanupTimeoutMinutes min)"
     try {
         $progressForm = Show-ProgressBar
-        $totalSteps = 5  # Reducido de 6 a 5 (eliminamos el paso de info del sistema)
+        $totalSteps = 5
         $currentStep = 0
-
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: ProgressForm creado. totalSteps=$totalSteps"
         Write-Host "`nIniciando proceso de actualización..." -ForegroundColor Cyan
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Iniciando proceso..."
-
         # PASO 1 - Detener servicio winmgmt
         Write-DzDebug "`t[DEBUG]Paso 1: Deteniendo servicio winmgmt..."
         Write-Host "`n[Paso 1/$totalSteps] Deteniendo servicio winmgmt..." -ForegroundColor Yellow
         $service = Get-Service -Name "winmgmt" -ErrorAction Stop
         Write-DzDebug "`t[DEBUG]Paso 1: Estado actual winmgmt=$($service.Status)"
-
         if ($service.Status -eq "Running") {
+            Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Deteniendo servicio WMI..."
             Stop-Service -Name "winmgmt" -Force -ErrorAction Stop
             Write-DzDebug "`t[DEBUG]Paso 1: winmgmt detenido OK"
             Write-Host "`n`tServicio detenido correctamente." -ForegroundColor Green
         } else {
             Write-DzDebug "`t[DEBUG]Paso 1: winmgmt NO estaba en Running (estado=$($service.Status))"
         }
-
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Servicio WMI detenido"
-
+        Start-Sleep -Milliseconds 500
         # PASO 2 - Renombrar Repository
         Write-DzDebug "`t[DEBUG]Paso 2: Renombrando carpeta Repository..."
         Write-Host "`n[Paso 2/$totalSteps] Renombrando carpeta Repository..." -ForegroundColor Yellow
-
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Renombrando Repository..."
         try {
             $repoPath = Join-Path $env:windir "System32\Wbem\Repository"
             Write-DzDebug "`t[DEBUG]Paso 2: repoPath=$repoPath, Exists=$(Test-Path $repoPath)"
-
             if (Test-Path $repoPath) {
                 $newName = "Repository_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
                 Rename-Item -Path $repoPath -NewName $newName -Force -ErrorAction Stop
@@ -573,55 +698,52 @@ function Start-SystemUpdate {
             Write-DzDebug "`t[DEBUG]Paso 2: EXCEPCIÓN renombrando Repository: $($_.Exception.Message)" Red
             Write-Host "`n`tAdvertencia: No se pudo renombrar la carpeta Repository. Continuando..." -ForegroundColor Yellow
         }
-
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Repository renovado"
-
+        Start-Sleep -Milliseconds 500
         # PASO 3 - Reiniciar winmgmt
         Write-DzDebug "`t[DEBUG]Paso 3: Reiniciando servicio winmgmt..."
         Write-Host "`n[Paso 3/$totalSteps] Reiniciando servicio winmgmt..." -ForegroundColor Yellow
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Reiniciando servicio WMI..."
         net start winmgmt *>&1 | Write-Host
         Write-DzDebug "`t[DEBUG]Paso 3: net start winmgmt ejecutado"
         Write-Host "`n`tServicio WMI reiniciado." -ForegroundColor Green
-
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Servicio WMI reiniciado"
-
+        Start-Sleep -Milliseconds 500
         # PASO 4 - Limpiar temporales
         Write-DzDebug "`t[DEBUG]Paso 4: Limpiando archivos temporales..."
         Write-Host "`n[Paso 4/$totalSteps] Limpiando archivos temporales..." -ForegroundColor Cyan
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Limpiando archivos temporales..."
         $cleanupResult = Clear-TemporaryFiles
         Write-DzDebug "`t[DEBUG]Paso 4: FilesDeleted=$($cleanupResult.FilesDeleted) SpaceFreedMB=$($cleanupResult.SpaceFreedMB)"
         Write-Host "`n`tTotal archivos eliminados: $($cleanupResult.FilesDeleted)" -ForegroundColor Green
         Write-Host "`n`tEspacio liberado: $($cleanupResult.SpaceFreedMB) MB" -ForegroundColor Green
-
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Archivos temporales limpiados"
-
-        # PASO 5 - Liberador de espacio
-        Write-DzDebug "`t[DEBUG]Paso 5: BEFORE Invoke-DiskCleanup"
+        Start-Sleep -Milliseconds 500
+        # PASO 5 - Liberador de espacio con countdown interactivo
+        Write-DzDebug "`t[DEBUG]Paso 5: BEFORE Invoke-DiskCleanup (timeout=$DiskCleanupTimeoutMinutes min)"
         Write-Host "`n[Paso 5/$totalSteps] Ejecutando Liberador de espacio..." -ForegroundColor Cyan
-        Invoke-DiskCleanup
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Preparando limpieza de disco..."
+        # IMPORTANTE: Pasar el ProgressForm para countdown interactivo
+        Invoke-DiskCleanup -Wait -TimeoutMinutes $DiskCleanupTimeoutMinutes -ProgressForm $progressForm
         Write-DzDebug "`t[DEBUG]Paso 5: AFTER Invoke-DiskCleanup"
-
         $currentStep++
-        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Proceso completado"
-
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Proceso completado exitosamente"
+        Start-Sleep -Seconds 1
         # Cerrar barra de progreso antes de mostrar el mensaje
         if ($progressForm -ne $null -and -not $progressForm.IsDisposed) {
             Close-ProgressBar $progressForm
             $progressForm = $null
         }
-
         # MENSAJE FINAL - Recomendar reinicio
         Write-Host "`n`n============================================" -ForegroundColor Green
         Write-Host "   Proceso de actualización completado" -ForegroundColor Green
         Write-Host "============================================" -ForegroundColor Green
         Write-Host "`nSe recomienda REINICIAR el equipo para completar" -ForegroundColor Yellow
         Write-Host "la actualización del sistema WMI." -ForegroundColor Yellow
-
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: Mostrando diálogo de reinicio"
-
         $result = [System.Windows.Forms.MessageBox]::Show(
             "El proceso de actualización se completó exitosamente.`n`n" +
             "Se recomienda REINICIAR el equipo para completar la actualización del sistema WMI.`n`n" +
@@ -635,17 +757,14 @@ function Start-SystemUpdate {
             Write-Host "`n`tReiniciando equipo en 10 segundos..." -ForegroundColor Yellow
             Write-Host "`tPresione Ctrl+C para cancelar" -ForegroundColor Yellow
             Write-DzDebug "`t[DEBUG]Start-SystemUpdate: Usuario eligió reiniciar"
-
             Start-Sleep -Seconds 3
             shutdown /r /t 10 /c "Reinicio para completar actualización de sistema WMI"
         } else {
             Write-Host "`n`tRecuerde reiniciar el equipo más tarde para completar la actualización." -ForegroundColor Yellow
             Write-DzDebug "`t[DEBUG]Start-SystemUpdate: Usuario canceló reinicio"
         }
-
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: FIN OK"
         return $true
-
     } catch {
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: EXCEPCIÓN: $($_.Exception.Message)" Red
         Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
@@ -658,9 +777,7 @@ function Start-SystemUpdate {
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         ) | Out-Null
-
         return $false
-
     } finally {
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: FINALLY (cerrando progressForm si existe)"
         if ($progressForm -ne $null -and -not $progressForm.IsDisposed) {
@@ -687,4 +804,5 @@ Check-Permissions,
 DownloadAndRun,
 Refresh-AdapterStatus,
 Get-NetworkAdapterStatus,
-Start-SystemUpdate
+Start-SystemUpdate,
+Stop-CleanmgrProcesses

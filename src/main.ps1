@@ -1142,21 +1142,31 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 }
                 try {
                     Write-DzDebug ("`t[DEBUG] Ejecutando instalación con argumentos: {0}" -f $arguments)
-                    Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
-                    [System.Windows.Forms.MessageBox]::Show(
-                        "Instalación completada para $packageName.",
-                        "Éxito",
-                        [System.Windows.Forms.MessageBoxButtons]::OK,
-                        [System.Windows.Forms.MessageBoxIcon]::Information
-                    )
+                    $exitCode = Invoke-ChocoCommandWithProgress -Arguments $arguments -OperationTitle "Instalando $packageName"
+                    if ($exitCode -eq 0) {
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "Instalación completada para $packageName.",
+                            "Éxito",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Information
+                        )
+                    } else {
+                        Write-DzDebug ("`t[DEBUG] Instalación de {0} finalizó con código {1}" -f $packageName, $exitCode)
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "La instalación terminó con código $exitCode para $packageName.",
+                            "Aviso",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Warning
+                        )
+                    }
                 } catch {
                     Write-DzDebug ("`t[DEBUG] Error en la instalación de {0}: {1}" -f $packageName, $_)
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
-                            "Error",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Error
-                        )
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
+                        "Error",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    )
                 }
             })
         $btnUninstallSelectedChoco.Add_Click({
@@ -1191,13 +1201,23 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 }
                 try {
                     Write-DzDebug ("`t[DEBUG] Ejecutando desinstalación con argumentos: {0}" -f $arguments)
-                    Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
-                    [System.Windows.Forms.MessageBox]::Show(
-                        "Desinstalación completada para $packageName.",
-                        "Éxito",
-                        [System.Windows.Forms.MessageBoxButtons]::OK,
-                        [System.Windows.Forms.MessageBoxIcon]::Information
-                    )
+                    $exitCode = Invoke-ChocoCommandWithProgress -Arguments $arguments -OperationTitle "Desinstalando $packageName"
+                    if ($exitCode -eq 0) {
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "Desinstalación completada para $packageName.",
+                            "Éxito",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Information
+                        )
+                    } else {
+                        Write-DzDebug ("`t[DEBUG] Desinstalación de {0} finalizó con código {1}" -f $packageName, $exitCode)
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "La desinstalación terminó con código $exitCode para $packageName.",
+                            "Aviso",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Warning
+                        )
+                    }
                 } catch {
                     Write-DzDebug ("`t[DEBUG] Error en la desinstalación de {0}: {1}" -f $packageName, $_)
                     [System.Windows.Forms.MessageBox]::Show(

@@ -51,6 +51,69 @@ function Check-Chocolatey {
         return $true # Retorna verdadero si Chocolatey ya está instalado
     }
 }
+function Invoke-ChocoCommandWithProgress {
+    param(
+        [Parameter(Mandatory = $true)][string]$Arguments,
+        [Parameter(Mandatory = $true)][string]$OperationTitle
+    )
+    Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress: argumentos='{0}'" -f $Arguments)
+    $progressForm = Show-ProgressBar
+    if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+        $progressForm.HeaderLabel.Text = $OperationTitle
+    }
+    $currentPercent = 0
+    Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentPercent -TotalSteps 100 -Status "Preparando comando de Chocolatey..."
+    $queue = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = 'choco'
+    $psi.Arguments = "$Arguments --verbose"
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $psi
+    $outputHandler = {
+        param($sender, $eventArgs)
+        if (-not [string]::IsNullOrWhiteSpace($eventArgs.Data)) {
+            $queue.Enqueue($eventArgs.Data)
+        }
+    }
+    $process.add_OutputDataReceived($outputHandler)
+    $process.add_ErrorDataReceived($outputHandler)
+    try {
+        $null = $process.Start()
+        $process.BeginOutputReadLine()
+        $process.BeginErrorReadLine()
+        $line = $null
+        while (-not $process.HasExited) {
+            while ($queue.TryDequeue([ref]$line)) {
+                $currentPercent = [math]::Min(95, $currentPercent + 1)
+                Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentPercent -TotalSteps 100 -Status $line
+                Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
+            }
+            Start-Sleep -Milliseconds 150
+        }
+        $process.WaitForExit()
+        while ($queue.TryDequeue([ref]$line)) {
+            $currentPercent = [math]::Min(95, $currentPercent + 1)
+            Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentPercent -TotalSteps 100 -Status $line
+            Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
+        }
+        $exitCode = $process.ExitCode
+        $finalStatus = "Chocolatey finalizó con código $exitCode"
+        Update-ProgressBar -ProgressForm $progressForm -CurrentStep 100 -TotalSteps 100 -Status $finalStatus
+        Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress: código de salida {0}" -f $exitCode)
+        return $exitCode
+    } catch {
+        Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress - Error: {0}" -f $_)
+        return -1
+    } finally {
+        if ($null -ne $progressForm) {
+            Close-ProgressBar -ProgressForm $progressForm
+        }
+    }
+}
 function Install-Software {
     [CmdletBinding()]
     param(

@@ -206,7 +206,15 @@ function Invoke-ChocoCommandWithProgress {
 
     } finally {
         Write-DzDebug "`t[DEBUG] === Entrando a bloque finally ==="
-
+        # Asegurar que el proceso principal no herede códigos de salida de Chocolatey
+        try {
+            if ($global:LASTEXITCODE -ne 0) {
+                Write-DzDebug ("`t[DEBUG] Restableciendo LASTEXITCODE de {0} a 0" -f $global:LASTEXITCODE)
+                $global:LASTEXITCODE = 0
+            }
+        } catch {
+            Write-DzDebug ("`t[WARN] No se pudo restablecer LASTEXITCODE: {0}" -f $_) -Color DarkYellow
+        }
         # Limpiar proceso
         if ($null -ne $process) {
             try {

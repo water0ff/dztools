@@ -51,13 +51,13 @@ function Check-Chocolatey {
         return $true # Retorna verdadero si Chocolatey ya está instalado
     }
 }
-
 function Invoke-ChocoCommandWithProgress {
     param(
         [Parameter(Mandatory = $true)][string]$Arguments,
         [Parameter(Mandatory = $true)][string]$OperationTitle
     )
     $progressForm = $null
+    $process = $null
     try {
         Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress: argumentos='{0}'" -f $Arguments)
         $progressForm = Show-ProgressBar
@@ -111,10 +111,20 @@ function Invoke-ChocoCommandWithProgress {
         return $exitCode
     } catch {
         Write-DzDebug ("`t[DEBUG] Invoke-ChocoCommandWithProgress - Error: {0}" -f $_)
+        [System.Windows.Forms.MessageBox]::Show(
+            "Ocurrió un error al ejecutar Chocolatey: $($_.Exception.Message)",
+            "Error en instalación/desinstalación",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        ) | Out-Null
         return -1
     } finally {
-        if ($null -ne $progressForm) {
-            Close-ProgressBar -ProgressForm $progressForm
+        if ($null -ne $process) {
+            try {
+                $process.Dispose()
+            } catch {
+                Write-DzDebug "`t[DEBUG] No se pudo liberar el proceso de Chocolatey" -Color DarkYellow
+            }
         }
     }
 }
@@ -128,13 +138,11 @@ function Install-Software {
         [Parameter(Mandatory = $false)]
         [switch]$Force
     )
-
     # Verificar Chocolatey
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
         Write-Error "Chocolatey no está instalado. Use Install-Chocolatey primero."
         return $false
     }
-
     switch ($Software) {
         'SQL2014' {
             Write-Host "Instalando SQL Server 2014 Express..." -ForegroundColor Cyan
@@ -171,7 +179,6 @@ function Install-Software {
             $arguments = @('install', 'megatools', '-y')
         }
     }
-
     try {
         Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
 

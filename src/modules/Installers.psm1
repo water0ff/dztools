@@ -77,55 +77,47 @@ function Invoke-ChocoCommandWithProgress {
             # Update-ProgressBar(ProgressForm, CurrentStep, TotalSteps, Status)
             Update-ProgressBar $progressForm $currentPercent 100 "Preparando comando de Chocolatey..."
         }
-        $queue = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName = 'choco'
         $psi.Arguments = "$Arguments --verbose"
         $psi.UseShellExecute = $false
         $psi.RedirectStandardOutput = $true
         $psi.RedirectStandardError = $true
+        $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+        $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
         $psi.CreateNoWindow = $true
         $process = New-Object System.Diagnostics.Process
         $process.StartInfo = $psi
-        $outputHandler = {
-            param($sender, $eventArgs)
-            try {
-                if ($eventArgs -and -not [string]::IsNullOrWhiteSpace($eventArgs.Data)) {
-                    $queue.Enqueue($eventArgs.Data)
-                }
-            } catch {
-                Write-DzDebug "[ERROR handler] $($_.Exception.Message)" -Color Red
-            }
-        }
         if ($process -eq $null) {
             throw "El objeto Process es NULL antes de iniciar Chocolatey."
         }
-        $process.add_OutputDataReceived($outputHandler)
-        $process.add_ErrorDataReceived($outputHandler)
         if (-not $process.Start()) {
             throw "No se pudo iniciar el proceso de Chocolatey."
         }
-        $process.BeginOutputReadLine()
-        $process.BeginErrorReadLine()
-        $line = $null
-        while (-not $process.HasExited) {
-            while ($queue.TryDequeue([ref]$line)) {
-                $currentPercent = [math]::Min(95, $currentPercent + 1)
-                if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
-                    Update-ProgressBar $progressForm $currentPercent 100 $line
+        $stdOut = $process.StandardOutput
+        $stdErr = $process.StandardError
+        while (-not $process.HasExited -or -not $stdOut.EndOfStream -or -not $stdErr.EndOfStream) {
+            if (-not $stdOut.EndOfStream) {
+                $line = $stdOut.ReadLine()
+                if (-not [string]::IsNullOrWhiteSpace($line)) {
+                    $currentPercent = [math]::Min(95, $currentPercent + 1)
+                    if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+                        Update-ProgressBar $progressForm $currentPercent 100 $line
+                    }
+                    Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
                 }
-                Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
             }
-            Start-Sleep -Milliseconds 150
-        }
-        $process.WaitForExit()
-        # Drenar lo que quede en la cola
-        while ($queue.TryDequeue([ref]$line)) {
-            $currentPercent = [math]::Min(95, $currentPercent + 1)
-            if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
-                Update-ProgressBar $progressForm $currentPercent 100 $line
+            if (-not $stdErr.EndOfStream) {
+                $errLine = $stdErr.ReadLine()
+                if (-not [string]::IsNullOrWhiteSpace($errLine)) {
+                    $currentPercent = [math]::Min(95, $currentPercent + 1)
+                    if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
+                        Update-ProgressBar $progressForm $currentPercent 100 $errLine
+                    }
+                    Write-DzDebug ("`t[DEBUG] choco! {0}" -f $errLine)
+                }
             }
-            Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
+            Start-Sleep -Milliseconds 100
         }
         $exitCode = $process.ExitCode
         $finalStatus = "Chocolatey finalizó con código $exitCode"

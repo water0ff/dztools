@@ -496,7 +496,7 @@ WHERE
         $global:txt_AdapterStatus = $txt_AdapterStatus
         $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
         # Crear el nuevo formulario para los instaladores de Chocolatey
-        $script:formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 380)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+        $script:formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(520, 420)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
             -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 80, 80, 85))
         Write-DzDebug "`t[DEBUG] formInstaladoresChoco creado en sección principal."
         Write-DzDebug ("`t[DEBUG]   Es nulo?          : {0}" -f ($null -eq $script:formInstaladoresChoco))
@@ -505,22 +505,22 @@ WHERE
         }
         $lblChocoSearch = Create-Label -Text "Buscar en Chocolatey:" -Location (New-Object System.Drawing.Point(10, 10)) `
             -ForeColor ([System.Drawing.Color]::White) -BackColor ([System.Drawing.Color]::Transparent) -Size (New-Object System.Drawing.Size(300, 20))
-        $script:txtChocoSearch = Create-TextBox -Location (New-Object System.Drawing.Point(10, 30)) -Size (New-Object System.Drawing.Size(320, 25))
-        $btnBuscarChoco = Create-Button -Text "Buscar" -Location (New-Object System.Drawing.Point(340, 28)) -Size (New-Object System.Drawing.Size(130, 30)) `
+        $script:txtChocoSearch = Create-TextBox -Location (New-Object System.Drawing.Point(10, 30)) -Size (New-Object System.Drawing.Size(360, 30))
+        $btnBuscarChoco = Create-Button -Text "Buscar" -Location (New-Object System.Drawing.Point(380, 28)) -Size (New-Object System.Drawing.Size(120, 32)) `
             -BackColor ([System.Drawing.Color]::FromArgb(76, 175, 80)) -ForeColor ([System.Drawing.Color]::White) -ToolTip "Buscar paquetes disponibles en Chocolatey."
         $script:btnBuscarChoco = $btnBuscarChoco
         $script:lvChocoResults = New-Object System.Windows.Forms.ListView
         $script:lvChocoResults.Location = New-Object System.Drawing.Point(10, 150)
-        $script:lvChocoResults.Size = New-Object System.Drawing.Size(460, 180)
+        $script:lvChocoResults.Size = New-Object System.Drawing.Size(490, 200)
         $script:lvChocoResults.View = [System.Windows.Forms.View]::Details
         $script:lvChocoResults.FullRowSelect = $true
         $script:lvChocoResults.GridLines = $true
         $script:lvChocoResults.HideSelection = $false
         $script:lvChocoResults.BackColor = [System.Drawing.Color]::White
         $script:lvChocoResults.ForeColor = [System.Drawing.Color]::Black
-        $null = $script:lvChocoResults.Columns.Add("Paquete", 160)
-        $null = $script:lvChocoResults.Columns.Add("Versión", 90)
-        $null = $script:lvChocoResults.Columns.Add("Descripción", 190)
+        $null = $script:lvChocoResults.Columns.Add("Paquete", 170)
+        $null = $script:lvChocoResults.Columns.Add("Versión", 100)
+        $null = $script:lvChocoResults.Columns.Add("Descripción", 200)
         $script:lblPresetSSMS = Create-Label -Text "SSMS" -Location (New-Object System.Drawing.Point(10, 70)) `
             -ForeColor ([System.Drawing.Color]::Black) -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
             -Size (New-Object System.Drawing.Size(70, 25)) -TextAlign MiddleCenter -BorderStyle FixedSingle
@@ -529,10 +529,17 @@ WHERE
             -ForeColor ([System.Drawing.Color]::Black) -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
             -Size (New-Object System.Drawing.Size(70, 25)) -TextAlign MiddleCenter -BorderStyle FixedSingle
         $script:lblPresetHeidi.Cursor = [System.Windows.Forms.Cursors]::Hand
-        $btnInstallSelectedChoco = Create-Button -Text "Instalar seleccionado" -Location (New-Object System.Drawing.Point(170, 68)) `
-            -Size (New-Object System.Drawing.Size(180, 30)) -ToolTip "Instala el paquete seleccionado de la lista."
-        $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 340)) `
+        $btnInstallSelectedChoco = Create-Button -Text "Instalar seleccionado" -Location (New-Object System.Drawing.Point(170, 100)) `
+            -Size (New-Object System.Drawing.Size(170, 32)) -ToolTip "Instala el paquete seleccionado de la lista."
+        $btnShowInstalledChoco = Create-Button -Text "Mostrar instalados" -Location (New-Object System.Drawing.Point(10, 100)) `
+            -Size (New-Object System.Drawing.Size(150, 32)) -ToolTip "Muestra los paquetes instalados con Chocolatey."
+        $btnUninstallSelectedChoco = Create-Button -Text "Desinstalar seleccionado" -Location (New-Object System.Drawing.Point(350, 100)) `
+            -Size (New-Object System.Drawing.Size(150, 32)) -ToolTip "Desinstala el paquete seleccionado de la lista."
+        $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 365)) `
             -ToolTip "Salir del formulario de instaladores."
+        $script:btnInstallSelectedChoco = $btnInstallSelectedChoco
+        $script:btnShowInstalledChoco = $btnShowInstalledChoco
+        $script:btnUninstallSelectedChoco = $btnUninstallSelectedChoco
         # Agregar los botones al nuevo formulario
         $script:formInstaladoresChoco.Controls.Add($lblChocoSearch)
         $script:formInstaladoresChoco.Controls.Add($txtChocoSearch)
@@ -540,8 +547,48 @@ WHERE
         $script:formInstaladoresChoco.Controls.Add($lblPresetSSMS)
         $script:formInstaladoresChoco.Controls.Add($lblPresetHeidi)
         $script:formInstaladoresChoco.Controls.Add($btnInstallSelectedChoco)
+        $script:formInstaladoresChoco.Controls.Add($btnShowInstalledChoco)
+        $script:formInstaladoresChoco.Controls.Add($btnUninstallSelectedChoco)
         $script:formInstaladoresChoco.Controls.Add($btnExitInstaladores)
         $script:formInstaladoresChoco.Controls.Add($lvChocoResults)
+        $script:chocoPackagePattern = '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+(?<version>[0-9][A-Za-z0-9\.\-]*)\s+(?<description>.+)$'
+        $script:addChocoResult = {
+            param($line)
+            if ([string]::IsNullOrWhiteSpace($line)) { return }
+            if ($line -match '^Chocolatey') { return }
+            if ($line -match 'packages?\s+found' -or $line -match 'page size') { return }
+            if ($line -match $script:chocoPackagePattern) {
+                $name = $Matches['name']
+                $version = $Matches['version']
+                $description = $Matches['description'].Trim()
+                $item = New-Object System.Windows.Forms.ListViewItem($name)
+                $null = $item.SubItems.Add($version)
+                $null = $item.SubItems.Add($description)
+                $null = $script:lvChocoResults.Items.Add($item)
+            } elseif ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\|(?<version>[0-9][A-Za-z0-9\.\-]*)$') {
+                $name = $Matches['name']
+                $version = $Matches['version']
+                $item = New-Object System.Windows.Forms.ListViewItem($name)
+                $null = $item.SubItems.Add($version)
+                $null = $item.SubItems.Add("Paquete instalado")
+                $null = $script:lvChocoResults.Items.Add($item)
+            }
+        }
+        $script:updateChocoActionButtons = {
+            $hasValidSelection = $false
+            if ($script:lvChocoResults.SelectedItems.Count -gt 0) {
+                $selectedItem = $script:lvChocoResults.SelectedItems[0]
+                $packageName = $selectedItem.Text
+                $packageVersion = if ($selectedItem.SubItems.Count -gt 1) { $selectedItem.SubItems[1].Text } else { "" }
+                if (-not [string]::IsNullOrWhiteSpace($packageName) -and $packageVersion -match '^[0-9]') {
+                    $hasValidSelection = $true
+                }
+            }
+            $script:btnInstallSelectedChoco.Enabled = $hasValidSelection
+            $script:btnUninstallSelectedChoco.Enabled = $hasValidSelection
+        }
+        $script:btnInstallSelectedChoco.Enabled = $false
+        $script:btnUninstallSelectedChoco.Enabled = $false
         $txt_InfoInstrucciones = Create-TextBox `
             -Location (New-Object System.Drawing.Point(730, 50)) `
             -Size     (New-Object System.Drawing.Size(220, 500)) `
@@ -948,8 +995,12 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 }
                 $script:formInstaladoresChoco.ShowDialog()
             })
+        $script:lvChocoResults.Add_SelectedIndexChanged({
+                $script:updateChocoActionButtons.Invoke()
+            })
         $btnBuscarChoco.Add_Click({
                 $script:lvChocoResults.Items.Clear()
+                $script:updateChocoActionButtons.Invoke()
                 $query = $script:txtChocoSearch.Text.Trim()
                 if ([string]::IsNullOrWhiteSpace($query)) {
                     [System.Windows.Forms.MessageBox]::Show("Ingresa un término para buscar paquetes en Chocolatey.", "Búsqueda de paquetes", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -958,6 +1009,11 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 if (-not (Check-Chocolatey)) {
                     return
                 }
+                $script:btnBuscarChoco.Enabled = $false
+                $progressForm = Show-ProgressBar
+                $totalSteps = 3
+                $currentStep = 1
+                Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Ejecutando búsqueda..."
                 Write-Host ("`tBuscando paquetes para '{0}'..." -f $query) -ForegroundColor Cyan
                 Write-DzDebug ("`t[DEBUG] Búsqueda de Chocolatey: término='{0}'" -f $query)
                 $searchExitCode = $null
@@ -974,18 +1030,10 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     } else {
                         Write-DzDebug "`t[DEBUG] choco search no devolvió salida."
                     }
+                    $currentStep++
+                    Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Procesando resultados..."
                     foreach ($line in $searchOutput) {
-                        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-                        if ($line -match '^Chocolatey') { continue }
-                        if ($line -match '^(?<name>\S+)\s+(?<version>\S+)\s+(?<description>.+)$') {
-                            $name = $Matches['name']
-                            $version = $Matches['version']
-                            $description = $Matches['description'].Trim()
-                            $item = New-Object System.Windows.Forms.ListViewItem($name)
-                            $null = $item.SubItems.Add($version)
-                            $null = $item.SubItems.Add($description)
-                            $null = $script:lvChocoResults.Items.Add($item)
-                        }
+                        $script:addChocoResult.Invoke($line)
                     }
                     if ($script:lvChocoResults.Items.Count -eq 0) {
                         [System.Windows.Forms.MessageBox]::Show("No se encontraron paquetes para la búsqueda realizada.", "Sin resultados", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -993,6 +1041,8 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     } else {
                         Write-DzDebug ("`t[DEBUG] Resultados agregados: {0}" -f $script:lvChocoResults.Items.Count)
                     }
+                    $currentStep = $totalSteps
+                    Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Búsqueda finalizada"
                 } catch {
                     Write-Error "Error al consultar paquetes de Chocolatey: $_"
                     Write-DzDebug ("`t[DEBUG] Excepción en búsqueda de Chocolatey: {0}" -f $_)
@@ -1001,6 +1051,12 @@ compila el proyecto y lo coloca en la carpeta de salida.
                         Write-DzDebug ("`t[DEBUG] choco search finalizó con código {0}" -f $searchExitCode)
                     }
                     [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al buscar en Chocolatey. Intenta nuevamente.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                } finally {
+                    if ($null -ne $progressForm) {
+                        Close-ProgressBar $progressForm
+                    }
+                    $script:btnBuscarChoco.Enabled = $true
+                    $script:updateChocoActionButtons.Invoke()
                 }
             })
         $lblPresetSSMS.Add_Click({
@@ -1014,6 +1070,44 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 Write-DzDebug ("`t[DEBUG] Preset seleccionado: {0}" -f $preset)
                 $script:txtChocoSearch.Text = $preset
                 $script:btnBuscarChoco.PerformClick()
+            })
+        $btnShowInstalledChoco.Add_Click({
+                $script:lvChocoResults.Items.Clear()
+                $script:updateChocoActionButtons.Invoke()
+                if (-not (Check-Chocolatey)) {
+                    return
+                }
+                $script:btnShowInstalledChoco.Enabled = $false
+                $progressForm = Show-ProgressBar
+                $totalSteps = 2
+                $currentStep = 1
+                Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Recuperando instalados..."
+                try {
+                    Write-DzDebug "`t[DEBUG] Ejecutando: choco list --local-only --limit-output"
+                    $installedOutput = & choco list --local-only --limit-output 2>&1
+                    $listExitCode = $LASTEXITCODE
+                    Write-DzDebug ("`t[DEBUG] choco list exit code: {0}" -f $listExitCode)
+                    foreach ($line in $installedOutput) {
+                        Write-DzDebug ("`t       > {0}" -f $line)
+                    }
+                    $currentStep++
+                    Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Procesando resultados..."
+                    foreach ($line in $installedOutput) {
+                        $script:addChocoResult.Invoke($line)
+                    }
+                    if ($script:lvChocoResults.Items.Count -eq 0) {
+                        [System.Windows.Forms.MessageBox]::Show("No se encontraron paquetes instalados con Chocolatey.", "Sin resultados", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                    }
+                } catch {
+                    Write-Error "Error al consultar paquetes instalados de Chocolatey: $_"
+                    [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al consultar paquetes instalados.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                } finally {
+                    if ($null -ne $progressForm) {
+                        Close-ProgressBar $progressForm
+                    }
+                    $script:btnShowInstalledChoco.Enabled = $true
+                    $script:updateChocoActionButtons.Invoke()
+                }
             })
         $btnInstallSelectedChoco.Add_Click({
                 Write-DzDebug "`t[DEBUG] Click en 'Instalar seleccionado'"
@@ -1057,8 +1151,57 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     )
                 } catch {
                     Write-DzDebug ("`t[DEBUG] Error en la instalación de {0}: {1}" -f $packageName, $_)
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
+                            "Error",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Error
+                        )
+                }
+            })
+        $btnUninstallSelectedChoco.Add_Click({
+                Write-DzDebug "`t[DEBUG] Click en 'Desinstalar seleccionado'"
+                if ($script:lvChocoResults.SelectedItems.Count -eq 0) {
+                    Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado para desinstalar."
+                    [System.Windows.Forms.MessageBox]::Show("Seleccione un paquete de la lista antes de desinstalar.", "Desinstalación de paquete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                    return
+                }
+                $selectedItem = $script:lvChocoResults.SelectedItems[0]
+                $packageName = $selectedItem.Text
+                $packageVersion = if ($selectedItem.SubItems.Count -gt 1) { $selectedItem.SubItems[1].Text } else { "" }
+                $packageDescription = if ($selectedItem.SubItems.Count -gt 2) { $selectedItem.SubItems[2].Text } else { "" }
+                $confirmationText = "¿Deseas desinstalar el paquete: $packageName $packageVersion $packageDescription?"
+                $response = [System.Windows.Forms.MessageBox]::Show(
+                    $confirmationText,
+                    "Confirmar desinstalación",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Question
+                )
+                if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
+                    Write-DzDebug "`t[DEBUG] Desinstalación cancelada por el usuario."
+                    return
+                }
+                if (-not (Check-Chocolatey)) {
+                    Write-DzDebug "`t[DEBUG] Chocolatey no está instalado; se cancela la desinstalación."
+                    return
+                }
+                $arguments = "uninstall $packageName -y"
+                if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
+                    $arguments = "uninstall $packageName --version=$packageVersion -y"
+                }
+                try {
+                    Write-DzDebug ("`t[DEBUG] Ejecutando desinstalación con argumentos: {0}" -f $arguments)
+                    Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
                     [System.Windows.Forms.MessageBox]::Show(
-                        "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
+                        "Desinstalación completada para $packageName.",
+                        "Éxito",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Information
+                    )
+                } catch {
+                    Write-DzDebug ("`t[DEBUG] Error en la desinstalación de {0}: {1}" -f $packageName, $_)
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Error al desinstalar el paquete seleccionado: $($_.Exception.Message)",
                         "Error",
                         [System.Windows.Forms.MessageBoxButtons]::OK,
                         [System.Windows.Forms.MessageBoxIcon]::Error

@@ -239,16 +239,17 @@ function Update-ProgressBar {
         return
     }
     try {
+        if (-not $TotalSteps -or $TotalSteps -eq 0) {
+            Write-DzDebug "`t[DEBUG]Update-ProgressBar: TotalSteps no puede ser 0 o nulo" Red
+            return
+        }
         $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)
-        # Actualizar barra de progreso
+        $percent = [math]::Max(0, [math]::Min(100, $percent))
         $ProgressForm.ProgressBar.Value = $percent
-        # Actualizar label de porcentaje
         $ProgressForm.Label.Text = "$percent% Completado"
-        # Actualizar status
         if ($Status -ne "" -and $ProgressForm.PSObject.Properties.Name -contains 'StatusLabel') {
             $ProgressForm.StatusLabel.Text = $Status
         }
-        # Forzar actualización de UI
         $ProgressForm.Refresh()
         [System.Windows.Forms.Application]::DoEvents()
     } catch {

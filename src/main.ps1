@@ -3179,3 +3179,14 @@ function Start-Application {
         }
     }
 }
+try {
+    Start-Application
+} catch {
+    Write-Host "Error inesperado al iniciar la aplicación: $($_.Exception.Message)" -ForegroundColor Red
+
+    if ($_.InvocationInfo) {
+        Write-Host "Ubicación: $($_.InvocationInfo.ScriptName):$($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor Yellow
+    }
+
+    throw
+}

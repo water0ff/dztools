@@ -497,7 +497,7 @@ WHERE
         $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
         # Crear el nuevo formulario para los instaladores de Chocolatey
         $script:formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 380)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-            -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))
+            -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 80, 80, 85))
         Write-DzDebug "`t[DEBUG] formInstaladoresChoco creado en sección principal."
         Write-DzDebug ("`t[DEBUG]   Es nulo?          : {0}" -f ($null -eq $script:formInstaladoresChoco))
         if ($null -ne $script:formInstaladoresChoco) {
@@ -508,6 +508,7 @@ WHERE
         $script:txtChocoSearch = Create-TextBox -Location (New-Object System.Drawing.Point(10, 30)) -Size (New-Object System.Drawing.Size(320, 25))
         $btnBuscarChoco = Create-Button -Text "Buscar" -Location (New-Object System.Drawing.Point(340, 28)) -Size (New-Object System.Drawing.Size(130, 30)) `
             -BackColor ([System.Drawing.Color]::FromArgb(76, 175, 80)) -ForeColor ([System.Drawing.Color]::White) -ToolTip "Buscar paquetes disponibles en Chocolatey."
+        $script:btnBuscarChoco = $btnBuscarChoco
         $script:lvChocoResults = New-Object System.Windows.Forms.ListView
         $script:lvChocoResults.Location = New-Object System.Drawing.Point(10, 150)
         $script:lvChocoResults.Size = New-Object System.Drawing.Size(460, 180)
@@ -520,14 +521,14 @@ WHERE
         $null = $script:lvChocoResults.Columns.Add("Paquete", 160)
         $null = $script:lvChocoResults.Columns.Add("Versión", 90)
         $null = $script:lvChocoResults.Columns.Add("Descripción", 190)
-        $lblPresetSSMS = Create-Label -Text "SSMS" -Location (New-Object System.Drawing.Point(10, 70)) `
+        $script:lblPresetSSMS = Create-Label -Text "SSMS" -Location (New-Object System.Drawing.Point(10, 70)) `
             -ForeColor ([System.Drawing.Color]::Black) -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
             -Size (New-Object System.Drawing.Size(70, 25)) -TextAlign MiddleCenter -BorderStyle FixedSingle
-        $lblPresetSSMS.Cursor = [System.Windows.Forms.Cursors]::Hand
-        $lblPresetHeidi = Create-Label -Text "Heidi" -Location (New-Object System.Drawing.Point(90, 70)) `
+        $script:lblPresetSSMS.Cursor = [System.Windows.Forms.Cursors]::Hand
+        $script:lblPresetHeidi = Create-Label -Text "Heidi" -Location (New-Object System.Drawing.Point(90, 70)) `
             -ForeColor ([System.Drawing.Color]::Black) -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
             -Size (New-Object System.Drawing.Size(70, 25)) -TextAlign MiddleCenter -BorderStyle FixedSingle
-        $lblPresetHeidi.Cursor = [System.Windows.Forms.Cursors]::Hand
+        $script:lblPresetHeidi.Cursor = [System.Windows.Forms.Cursors]::Hand
         $btnInstallSelectedChoco = Create-Button -Text "Instalar seleccionado" -Location (New-Object System.Drawing.Point(170, 68)) `
             -Size (New-Object System.Drawing.Size(180, 30)) -ToolTip "Instala el paquete seleccionado de la lista."
         $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 340)) `
@@ -986,7 +987,7 @@ compila el proyecto y lo coloca en la carpeta de salida.
                             $null = $script:lvChocoResults.Items.Add($item)
                         }
                     }
-                    if ($lvChocoResults.Items.Count -eq 0) {
+                    if ($script:lvChocoResults.Items.Count -eq 0) {
                         [System.Windows.Forms.MessageBox]::Show("No se encontraron paquetes para la búsqueda realizada.", "Sin resultados", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
                         Write-DzDebug "`t[DEBUG] Búsqueda sin resultados."
                     } else {
@@ -1006,13 +1007,13 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 $preset = "ssms"
                 Write-DzDebug ("`t[DEBUG] Preset seleccionado: {0}" -f $preset)
                 $script:txtChocoSearch.Text = $preset
-                $btnBuscarChoco.PerformClick()
+                $script:btnBuscarChoco.PerformClick()
             })
         $lblPresetHeidi.Add_Click({
                 $preset = "heidi"
                 Write-DzDebug ("`t[DEBUG] Preset seleccionado: {0}" -f $preset)
                 $script:txtChocoSearch.Text = $preset
-                $btnBuscarChoco.PerformClick()
+                $script:btnBuscarChoco.PerformClick()
             })
         $btnInstallSelectedChoco.Add_Click({
                 Write-DzDebug "`t[DEBUG] Click en 'Instalar seleccionado'"

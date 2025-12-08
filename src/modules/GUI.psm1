@@ -238,20 +238,37 @@ function Update-ProgressBar {
     if ($null -eq $ProgressForm -or $ProgressForm.IsDisposed) {
         return
     }
-    try {
+
+    $updateAction = {
+        param($form, $percentValue, $statusText)
+
+        if ($null -eq $form -or $form.IsDisposed) { return }
+
         if (-not $TotalSteps -or $TotalSteps -eq 0) {
             Write-DzDebug "`t[DEBUG]Update-ProgressBar: TotalSteps no puede ser 0 o nulo" Red
             return
         }
-        $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)
+
+        $percent = [math]::Round(($percentValue / $TotalSteps) * 100)
         $percent = [math]::Max(0, [math]::Min(100, $percent))
-        $ProgressForm.ProgressBar.Value = $percent
-        $ProgressForm.Label.Text = "$percent% Completado"
-        if ($Status -ne "" -and $ProgressForm.PSObject.Properties.Name -contains 'StatusLabel') {
-            $ProgressForm.StatusLabel.Text = $Status
+
+        $form.ProgressBar.Value = $percent
+        $form.Label.Text = "$percent% Completado"
+
+        if ($statusText -ne "" -and $form.PSObject.Properties.Name -contains 'StatusLabel') {
+            $form.StatusLabel.Text = $statusText
         }
-        $ProgressForm.Refresh()
+
+        $form.Refresh()
         [System.Windows.Forms.Application]::DoEvents()
+    }
+
+    try {
+        if ($ProgressForm.InvokeRequired) {
+            $ProgressForm.Invoke($updateAction, @($ProgressForm, $CurrentStep, $Status)) | Out-Null
+        } else {
+            & $updateAction $ProgressForm $CurrentStep $Status
+        }
     } catch {
         Write-DzDebug "`t[DEBUG]Update-ProgressBar: Error: $($_.Exception.Message)" Red
     }
@@ -262,11 +279,23 @@ function Close-ProgressBar {
     if ($null -eq $ProgressForm -or $ProgressForm.IsDisposed) {
         return
     }
+
+    $closeAction = {
+        param($form)
+        if ($null -eq $form -or $form.IsDisposed) { return }
+
+        $form.Close()
+        $form.Dispose()
+    }
+
     try {
-        $ProgressForm.Close()
-        $ProgressForm.Dispose()
+        if ($ProgressForm.InvokeRequired) {
+            $ProgressForm.Invoke($closeAction, @($ProgressForm)) | Out-Null
+        } else {
+            & $closeAction $ProgressForm
+        }
     } catch {
-        Write-Warning "Error cerrando barra de progreso: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG]Close-ProgressBar: Error cerrando barra de progreso: $($_.Exception.Message)" Red
     }
 }
 function Show-SSMSInstallerDialog {

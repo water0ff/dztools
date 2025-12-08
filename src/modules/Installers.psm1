@@ -54,6 +54,7 @@ function Invoke-ChocoCommandWithProgress {
     $progressForm = $null
     $process = $null
     $exitCode = -1
+    $statusMessage = "Procesando (revise la consola)..."
 
     try {
         # Verificar Chocolatey
@@ -66,6 +67,12 @@ function Invoke-ChocoCommandWithProgress {
         }
 
         Write-DzDebug ("`t[DEBUG] Chocolatey encontrado en: {0}" -f $chocoCmd.Source)
+
+        if ($OperationTitle -match 'Desinstalando') {
+            $statusMessage = "Desinstalando (revise la consola)..."
+        } elseif ($OperationTitle -match 'Instalando') {
+            $statusMessage = "Instalando (revise la consola)..."
+        }
 
         # Crear barra de progreso CON MANEJO DE ERRORES
         Write-DzDebug "`t[DEBUG] Creando barra de progreso..."
@@ -94,7 +101,7 @@ function Invoke-ChocoCommandWithProgress {
         $currentPercent = 0
         if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
             # Update-ProgressBar(ProgressForm, CurrentStep, TotalSteps, Status)
-            Update-ProgressBar $progressForm $currentPercent 100 "Preparando comando de Chocolatey..."
+            Update-ProgressBar $progressForm $currentPercent 100 $statusMessage
         }
         $queue = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
         $psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -137,7 +144,7 @@ function Invoke-ChocoCommandWithProgress {
             while ($queue.TryDequeue([ref]$line)) {
                 $currentPercent = [math]::Min(95, $currentPercent + 1)
                 if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
-                    Update-ProgressBar $progressForm $currentPercent 100 $line
+                    Update-ProgressBar $progressForm $currentPercent 100 $statusMessage
                 }
                 Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
             }
@@ -148,7 +155,7 @@ function Invoke-ChocoCommandWithProgress {
         while ($queue.TryDequeue([ref]$line)) {
             $currentPercent = [math]::Min(95, $currentPercent + 1)
             if ($null -ne $progressForm -and -not $progressForm.IsDisposed) {
-                Update-ProgressBar $progressForm $currentPercent 100 $line
+                Update-ProgressBar $progressForm $currentPercent 100 $statusMessage
             }
             Write-DzDebug ("`t[DEBUG] choco> {0}" -f $line)
         }

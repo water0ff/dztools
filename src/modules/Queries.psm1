@@ -189,13 +189,15 @@ function Initialize-PredefinedQueries {
     }
 
     $ComboQueries.Add_SelectedIndexChanged({
-            $queryMap = $ComboQueries.Tag
+            param($sender, $eventArgs)
+
+            $queryMap = $sender.Tag
 
             if (-not $queryMap) {
                 return
             }
 
-            $selectedKey = $ComboQueries.SelectedItem
+            $selectedKey = $sender.SelectedItem
 
             if ($null -eq $selectedKey) {
                 return

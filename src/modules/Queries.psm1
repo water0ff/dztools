@@ -1,8 +1,8 @@
-#requires -Version 5.0
+﻿#requires -Version 5.0
 
 function Get-PredefinedQueries {
     return @{
-        "Monitor de Servicios | Ventas a subir"           = @"
+        "Monitor de Servicios | Ventas a subir"                    = @"
 SELECT DISTINCT TOP (10)
     nofacturable,
     tablaventa.IDEMPRESA,
@@ -67,14 +67,14 @@ WHERE
 ORDER BY
     numcheque;
 "@
-        "BackOffice Actualizar contraseña  administrador" = @"
+        "BackOffice Actualizar contraseña  administrador"          = @"
     -- Actualiza la contraseña del primer UserName con rol administrador y retorna el UserName actualizado
 UPDATE users
     SET Password = '08/Vqq0='
     OUTPUT inserted.UserName
     WHERE UserName = (SELECT TOP 1 UserName FROM users WHERE IsSuperAdmin = 1 and IsEnabled = 1);
 "@
-        "BackOffice Estaciones"                           = @"
+        "BackOffice Estaciones"                                    = @"
 SELECT
     t.Name,
     t.Ip,
@@ -90,14 +90,14 @@ LEFT JOIN Users u ON t.LastUserLogin = u.Id
 --WHERE t.IsEnabled = 1.0000
 ORDER BY t.IsEnabled DESC, t.Name;
 "@
-        "SR | Actualizar contraseña de administrador"     = @"
+        "SR | Actualizar contraseña de administrador"              = @"
     -- Actualiza la contraseña del primer usuario con rol administrador y retorna el usuario actualizado
     UPDATE usuarios
     SET contraseña = 'A9AE4E13D2A47998AC34'
     OUTPUT inserted.usuario
     WHERE usuario = (SELECT TOP 1 usuario FROM usuarios WHERE administrador = 1);
 "@
-        "SR | Revisar Pivot Table"                        = @"
+        "SR | Revisar Pivot Table"                                 = @"
     SELECT app_id, field, COUNT(*)
     FROM app_settings
     GROUP BY app_id, field
@@ -116,7 +116,7 @@ ORDER BY t.IsEnabled DESC, t.Name;
                                                     COMMIT TRANSACTION;
 */
 "@
-        "SR | Fecha Revisiones"                           = @"
+        "SR | Fecha Revisiones"                                    = @"
     WITH CTE AS (
         SELECT
             b.estacion,
@@ -134,23 +134,23 @@ ORDER BY t.IsEnabled DESC, t.Name;
     WHERE c.rn = 1
     ORDER BY c.UltimoUso DESC;
 "@
-        "OTM | Eliminar Server en OTM"                    = @"
+        "OTM | Eliminar Server en OTM"                             = @"
     SELECT serie, ipserver, nombreservidor
     FROM configuracion;
     -- UPDATE configuracion
     --   SET serie='', ipserver='', nombreservidor=''
 "@
-        "NSH | Eliminar Server en Hoteles"                = @"
+        "NSH | Eliminar Server en Hoteles"                         = @"
     SELECT serievalida, numserie, ipserver, nombreservidor, llave
     FROM configuracion;
     -- UPDATE configuracion
     --   SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''
 "@
-        "Restcard | Eliminar Server en Rest Card"         = @"
+        "Restcard | Eliminar Server en Rest Card"                  = @"
     -- update tabvariables
     --   SET estacion='', ipservidor='';
 "@
-        "sql | Listar usuarios e idiomas"                 = @"
+        "sql | Listar usuarios e idiomas"                          = @"
     -- Lista los usuarios del sistema y su idioma configurado
 SELECT
     p.name AS Usuario,
@@ -161,6 +161,36 @@ LEFT JOIN
     sys.sql_logins l ON p.principal_id = l.principal_id
 WHERE
     p.type IN ('S', 'U') -- Usuarios SQL y Windows
+"@
+        "NSPlatformControl | Limpieza básica de NSPlatformControl" = @"
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    -- 1. Copiar datos de impuestos a una tabla temporal
+    SELECT WorkspaceId, EntityType, OperationType, 0 AS IsSync, 0 AS Attempts, CreateDate
+    INTO #tempcontroltaxes
+    FROM nsplatformcontrol
+    WHERE EntityType = 1;
+
+    -- 2. Vaciar la tabla original
+    TRUNCATE TABLE nsplatformcontrol;
+
+    -- 3. Insertar los datos de impuestos de nuevo
+    INSERT INTO nsplatformcontrol (WorkspaceId, EntityType, OperationType, IsSync, Attempts, CreateDate)
+    SELECT WorkspaceId, EntityType, OperationType, IsSync, Attempts, CreateDate
+    FROM #tempcontroltaxes;
+
+    -- 4. Eliminar la tabla temporal
+    DROP TABLE #tempcontroltaxes;
+
+    -- Confirmar los cambios
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF @@TRANCOUNT > 0
+        ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;
 "@
     }
 }

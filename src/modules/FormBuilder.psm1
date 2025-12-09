@@ -1,14 +1,15 @@
-#requires -Version 5.0
+﻿#requires -Version 5.0
 
 class UiState {
     [hashtable]$Resources
     [hashtable]$Controls
 
     UiState([hashtable]$resources) {
-        if (-not $resources) {
-            $resources = @{}
+        if ($resources) {
+            $this.Resources = $resources
+        } else {
+            $this.Resources = @{}
         }
-        $this.Resources = $resources
         $this.Controls = @{}
     }
 

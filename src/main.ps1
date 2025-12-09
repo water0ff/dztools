@@ -112,70 +112,29 @@ function New-MainForm {
         Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
         Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
         Write-Host "O crea un issue en GitHub. https://github.com/water0ff/dztools/issues/new" -ForegroundColor Cyan
-        $toolTip = New-Object System.Windows.Forms.ToolTip
         $global:lastReportedPct = -1  # Añadir al inicio del script
-        $tabControl = New-Object System.Windows.Forms.TabControl
-        $tabControl.Size = New-Object System.Drawing.Size(990, 515)    # Original: 710x315
-        $tabControl.Location = New-Object System.Drawing.Point(5, 5)   # Pequeño margen
-        $tabAplicaciones = New-Object System.Windows.Forms.TabPage
-        $tabAplicaciones.Text = "Aplicaciones"
-        $tabProSql = New-Object System.Windows.Forms.TabPage
-        $tabProSql.Text = "Base de datos"
-        $tabProSql.AutoScroll = $true  # Habilitar scrollbar si el contenido excede el área
-        $tabControl.TabPages.Add($tabAplicaciones)
-        $tabControl.TabPages.Add($tabProSql)
-        $lblServer = Create-Label -Text "Instancia SQL:" `
-            -Location (New-Object System.Drawing.Point(10, 10)) `
-            -Size (New-Object System.Drawing.Size(100, 10))
-        $txtServer = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) `
-            -Size (New-Object System.Drawing.Size(180, 20)) -DropDownStyle "DropDown"
-        $txtServer.Text = ".\NationalSoft"
-        Load-IniConnectionsToComboBox -Combo $txtServer
-        $lblUser = Create-Label -Text "Usuario:" `
-            -Location (New-Object System.Drawing.Point(10, 50)) `
-            -Size (New-Object System.Drawing.Size(100, 10))
-        $txtUser = Create-TextBox -Location (New-Object System.Drawing.Point(10, 60)) `
-            -Size (New-Object System.Drawing.Size(180, 20))
-        $lblPassword = Create-Label -Text "Contraseña:" `
-            -Location (New-Object System.Drawing.Point(10, 90)) `
-            -Size (New-Object System.Drawing.Size(100, 10))
-        $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(10, 100)) `
-            -Size (New-Object System.Drawing.Size(180, 20)) -UseSystemPasswordChar $true
-        $txtUser.Text = "sa"
-        $lblbdd_cmb = Create-Label -Text "Base de datos" `
-            -Location (New-Object System.Drawing.Point(10, 130)) `
-            -Size (New-Object System.Drawing.Size(100, 10))
-        $cmbDatabases = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 140)) `
-            -Size (New-Object System.Drawing.Size(180, 20)) `
-            -DropDownStyle DropDownList
-        $cmbDatabases.Enabled = $false
-        $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" `
-            -Location (New-Object System.Drawing.Point(10, 400)) `
-            -Size (New-Object System.Drawing.Size(180, 80))
-        $btnExecute = Create-Button -Text "Ejecutar" -Location (New-Object System.Drawing.Point(220, 20))
-        $btnExecute.Size = New-Object System.Drawing.Size(100, 30)
-        $btnExecute.Enabled = $false
-        $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 220)) `
-            -Size (New-Object System.Drawing.Size(180, 30)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
-        $btnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(10, 260)) `
-            -Size (New-Object System.Drawing.Size(180, 30)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) `
-            -Enabled $false
-        $btnBackup = Create-Button -Text "Backup BDD" -Location (New-Object System.Drawing.Point(10, 300)) `
-            -Size (New-Object System.Drawing.Size(180, 30)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(0, 192, 0)) `
-            -ToolTip "Realizar backup de la base de datos seleccionada"
-        $cmbQueries = New-Object System.Windows.Forms.ComboBox
-        $cmbQueries.Location = New-Object System.Drawing.Point(330, 25)
-        $cmbQueries.Size = New-Object System.Drawing.Size(350, 20)
-        $cmbQueries.Enabled = $false
-        $rtbQuery = New-Object System.Windows.Forms.RichTextBox
-        $rtbQuery.Location = New-Object System.Drawing.Point(220, 60)
-        $rtbQuery.Size = New-Object System.Drawing.Size(740, 140)     # Mayor ancho
-        $rtbQuery.Multiline = $true
-        $rtbQuery.ScrollBars = 'Vertical'
-        $rtbQuery.WordWrap = $true
+        $uiState = New-FormState
+        $layout = Build-MainTabs -State $uiState
+        $toolTip = $layout.ToolTip
+        $tabControl = $layout.TabControl
+        $tabAplicaciones = $layout.Tabs.Aplicaciones
+        $tabProSql = $layout.Tabs.BaseDatos
+
+        $txtServer = $uiState.GetControl('ComboServer')
+        $txtUser = $uiState.GetControl('TxtUser')
+        $txtPassword = $uiState.GetControl('TxtPassword')
+        $cmbDatabases = $uiState.GetControl('ComboDatabases')
+        $btnConnectDb = $uiState.GetControl('BtnConnectDb')
+        $btnDisconnectDb = $uiState.GetControl('BtnDisconnectDb')
+        $btnExecute = $uiState.GetControl('BtnExecute')
+        $btnBackup = $uiState.GetControl('BtnBackup')
+        $cmbQueries = $uiState.GetControl('ComboQueries')
+        $rtbQuery = $uiState.GetControl('RichTextQuery')
+        $lblConnectionStatus = $uiState.GetControl('LblConnectionStatus')
+        $dgvResults = $uiState.GetControl('DataGridResults')
+        $contextMenu = $uiState.GetControl('ContextMenu')
+        $copyMenu = $uiState.GetControl('CopyMenuItem')
+
         $global:txtServer = $txtServer
         $global:txtUser = $txtUser
         $global:txtPassword = $txtPassword
@@ -187,6 +146,10 @@ function New-MainForm {
         $global:cmbQueries = $cmbQueries
         $global:rtbQuery = $rtbQuery
         $global:lblConnectionStatus = $lblConnectionStatus
+        $script:dgvResults = $dgvResults
+        $script:originalForeColor = $dgvResults.DefaultCellStyle.ForeColor
+        $script:originalHeaderBackColor = $dgvResults.ColumnHeadersDefaultCellStyle.BackColor
+        $script:originalAutoSizeMode = $dgvResults.AutoSizeColumnsMode
         $script:SqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
         $script:SqlKeywordRegex = [System.Text.RegularExpressions.Regex]::new(
             "\b($script:SqlKeywords)\b",
@@ -221,62 +184,6 @@ function New-MainForm {
                 $rtbQuery.Select($pos, 0)
                 $rtbQuery.ResumeLayout()
             })
-        $dgvResults = New-Object System.Windows.Forms.DataGridView
-        $dgvResults.Location = New-Object System.Drawing.Point(220, 205)
-        $dgvResults.Size = New-Object System.Drawing.Size(740, 280)
-        $dgvResults.ReadOnly = $true
-        $dgvResults.AllowUserToAddRows = $false
-        $dgvResults.AllowUserToDeleteRows = $false
-        $dgvResults.EditMode = [System.Windows.Forms.DataGridViewEditMode]::EditProgrammatically
-        $dgvResults.SelectionMode = [System.Windows.Forms.DataGridViewSelectionMode]::CellSelect
-        $dgvResults.MultiSelect = $true
-        $dgvResults.ClipboardCopyMode = [System.Windows.Forms.DataGridViewClipboardCopyMode]::EnableAlwaysIncludeHeaderText
-        $dgvResults.DefaultCellStyle.SelectionBackColor = [System.Drawing.Color]::LightBlue
-        $dgvResults.DefaultCellStyle.SelectionForeColor = [System.Drawing.Color]::Black
-        $script:dgvResults = $dgvResults
-        $script:originalForeColor = $dgvResults.DefaultCellStyle.ForeColor
-        $script:originalHeaderBackColor = $dgvResults.ColumnHeadersDefaultCellStyle.BackColor
-        $script:originalAutoSizeMode = $dgvResults.AutoSizeColumnsMode
-        $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
-        $copyMenu = New-Object System.Windows.Forms.ToolStripMenuItem
-        $copyMenu.Text = "Copiar selección"
-        $contextMenu.Items.Add($copyMenu) | Out-Null
-        $dgvResults.ContextMenuStrip = $contextMenu
-        $panelGrid = New-Object System.Windows.Forms.Panel
-        $panelGrid.Location = $dgvResults.Location
-        $panelGrid.Size = $dgvResults.Size
-        $panelGrid.AutoScroll = $true
-        $dgvResults.Dock = [System.Windows.Forms.DockStyle]::Fill
-        $panelGrid.Controls.Add($dgvResults)
-        $btnConnectDb.Enabled = $True
-        $btnBackup.Enabled = $false
-        $btnDisconnectDb.Enabled = $false
-        $btnExecute.Enabled = $false
-        $rtbQuery.Enabled = $false
-        $txtServer.Enabled = $true
-        $txtUser.Enabled = $true
-        $txtPassword.Enabled = $true
-        $btnExecute.Enabled = $false
-        $cmbQueries.Enabled = $false
-        #Todavía no lo migramos                $btnReloadConnections,  # <-- Agregar este
-        $tabProSql.Controls.AddRange(@(
-                $btnConnectDb,
-                $btnDisconnectDb,
-                $cmbDatabases,
-                $lblConnectionStatus,
-                $btnExecute,
-                $cmbQueries,
-                $rtbQuery,
-                $lblServer,
-                $txtServer,
-                $lblUser,
-                $txtUser,
-                $lblPassword,
-                $txtPassword,
-                $lblbdd_cmb,
-                $panelGrid,
-                $btnBackup
-            ))
         # COLUMNA 1 | INSTALADORES EJECUTABLES | X:10
         $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
             -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."

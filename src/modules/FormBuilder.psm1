@@ -242,26 +242,9 @@ function Build-ApplicationsTab {
 
     $controls = @{}
 
-    $controls.LblAppsHeader = Create-Label -Text "Aplicaciones disponibles" `
-        -Location (New-Object System.Drawing.Point(10, 10)) `
-        -Size (New-Object System.Drawing.Size(300, 25))
-
-    # Agregar controles al State
-    foreach ($name in $controls.Keys) {
-        $State.AddControl($name, $controls[$name])
-    }
-
-    # Agregar controles al TabPage
-    $controlsToAdd = @()
-    foreach ($ctrl in $controls.Values) {
-        if ($ctrl -is [System.Windows.Forms.Control]) {
-            $controlsToAdd += $ctrl
-        }
-    }
-
-    if ($controlsToAdd.Count -gt 0) {
-        $TabPage.Controls.AddRange($controlsToAdd)
-    }
+    # NOTA: Los controles se crearán en main.ps1 y se pasarán aquí
+    # Esta función solo sirve como placeholder para mantener la estructura
+    # Los controles reales de aplicaciones se agregan directamente en main.ps1
 
     return $State
 }

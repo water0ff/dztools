@@ -115,10 +115,13 @@ function New-MainForm {
         $global:lastReportedPct = -1  # Añadir al inicio del script
         $uiState = New-FormState
         $layout = Build-MainTabs -State $uiState
+        # IMPORTANTE: Usar el State actualizado que devuelve Build-MainTabs
+        $uiState = $layout.State
         $toolTip = $layout.ToolTip
         $tabControl = $layout.TabControl
         $tabAplicaciones = $layout.Tabs.Aplicaciones
         $tabProSql = $layout.Tabs.BaseDatos
+        # Ahora obtener los controles del State ACTUALIZADO
         $txtServer = $uiState.GetControl('ComboServer')
         $txtUser = $uiState.GetControl('TxtUser')
         $txtPassword = $uiState.GetControl('TxtPassword')
@@ -133,7 +136,9 @@ function New-MainForm {
         $dgvResults = $uiState.GetControl('DataGridResults')
         $contextMenu = $uiState.GetControl('ContextMenu')
         $copyMenu = $uiState.GetControl('CopyMenuItem')
-
+        if (-not $txtServer -or -not $txtUser -or -not $rtbQuery) {
+            throw "Error: No se pudieron obtener los controles de la pestaña Base de Datos"
+        }
         $global:txtServer = $txtServer
         $global:txtUser = $txtUser
         $global:txtPassword = $txtPassword

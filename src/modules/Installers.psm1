@@ -80,9 +80,11 @@ function Invoke-ChocoCommandWithProgress {
         # Opción 1: Usar Invoke si hay formulario principal
         if ($null -ne $global:formMain -and -not $global:formMain.IsDisposed) {
             try {
-                $progressForm = $global:formMain.Invoke({
-                        Show-ProgressBar
-                    })
+                $createProgressBar = [System.Func[System.Windows.Forms.Form]] {
+                    Show-ProgressBar
+                }
+
+                $progressForm = $global:formMain.Invoke($createProgressBar)
                 Write-DzDebug "`t[DEBUG] Barra de progreso creada vía Invoke"
             } catch {
                 Write-DzDebug ("`t[WARN] Error usando Invoke: {0}" -f $_) -Color DarkYellow
@@ -107,7 +109,7 @@ function Invoke-ChocoCommandWithProgress {
 
         # Establecer título de la barra
         if ($progressForm.PSObject.Properties.Name -contains 'HeaderLabel') {
-            $setTitleAction = {
+            $setTitleAction = [System.Action[System.Windows.Forms.Form, string]] {
                 param($form, $title)
                 if ($null -ne $form -and -not $form.IsDisposed) {
                     $form.HeaderLabel.Text = $title
@@ -117,7 +119,7 @@ function Invoke-ChocoCommandWithProgress {
             if ($null -ne $global:formMain -and -not $global:formMain.IsDisposed) {
                 $global:formMain.Invoke($setTitleAction, @($progressForm, $OperationTitle)) | Out-Null
             } else {
-                & $setTitleAction $progressForm $OperationTitle
+                $setTitleAction.Invoke($progressForm, $OperationTitle)
             }
         }
         # ========== FIN DE CORRECCIÓN ==========
@@ -232,7 +234,7 @@ function Invoke-ChocoCommandWithProgress {
 
         # Mostrar error al usuario de manera SEGURA
         try {
-            $showErrorAction = {
+            $showErrorAction = [System.Action[string, string]] {
                 param($msg, $type)
                 [System.Windows.Forms.MessageBox]::Show(
                     "Error ejecutando Chocolatey:`n`n$msg`n`nTipo: $type",
@@ -245,7 +247,7 @@ function Invoke-ChocoCommandWithProgress {
             if ($null -ne $global:formMain -and -not $global:formMain.IsDisposed) {
                 $global:formMain.Invoke($showErrorAction, @($errorMsg, $errorType))
             } else {
-                & $showErrorAction $errorMsg $errorType
+                $showErrorAction.Invoke($errorMsg, $errorType)
             }
         } catch {
             Write-DzDebug ("`t[ERROR] No se pudo mostrar MessageBox: {0}" -f $_) -Color Red
@@ -288,7 +290,7 @@ function Invoke-ChocoCommandWithProgress {
             try {
                 Write-DzDebug "`t[DEBUG] Cerrando barra de progreso..."
 
-                $closeAction = {
+                $closeAction = [System.Action[System.Windows.Forms.Form]] {
                     param($form)
                     try {
                         if ($null -ne $form -and -not $form.IsDisposed) {
@@ -303,7 +305,7 @@ function Invoke-ChocoCommandWithProgress {
                 if ($null -ne $global:formMain -and -not $global:formMain.IsDisposed) {
                     $global:formMain.Invoke($closeAction, @($progressForm)) | Out-Null
                 } else {
-                    & $closeAction $progressForm
+                    $closeAction.Invoke($progressForm)
                 }
 
                 Write-DzDebug "`t[DEBUG] Barra de progreso cerrada"

@@ -178,6 +178,10 @@ function Initialize-PredefinedQueries {
         $Queries = Get-PredefinedQueries
     }
 
+    # Save the queries map on the ComboBox to ensure it remains available when the
+    # selection changed event is fired.
+    $ComboQueries.Tag = $Queries
+
     $sortedKeys = $Queries.Keys | Sort-Object
     $ComboQueries.Items.Clear()
     foreach ($key in $sortedKeys) {
@@ -185,6 +189,18 @@ function Initialize-PredefinedQueries {
     }
 
     $ComboQueries.Add_SelectedIndexChanged({
-            $RichTextBox.Text = $Queries[$ComboQueries.SelectedItem]
+            $queryMap = $ComboQueries.Tag
+
+            if (-not $queryMap) {
+                return
+            }
+
+            $selectedKey = $ComboQueries.SelectedItem
+
+            if ($null -eq $selectedKey) {
+                return
+            }
+
+            $RichTextBox.Text = $queryMap[$selectedKey]
         })
 }

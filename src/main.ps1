@@ -112,15 +112,21 @@ function New-MainForm {
         Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
         Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
         Write-Host "O crea un issue en GitHub. https://github.com/water0ff/dztools/issues/new" -ForegroundColor Cyan
-        $global:lastReportedPct = -1  # Añadir al inicio del script
+        $global:lastReportedPct = -1
         $uiState = New-FormState
         $layout = Build-MainTabs -State $uiState
-        # IMPORTANTE: Usar el State actualizado que devuelve Build-MainTabs
         $uiState = $layout.State
         $toolTip = $layout.ToolTip
         $tabControl = $layout.TabControl
         $tabAplicaciones = $layout.Tabs.Aplicaciones
         $tabProSql = $layout.Tabs.BaseDatos
+        Make-AllControlsVisible -TabPage $tabProSql
+        Add-ApplicationControls -Form $formPrincipal -TabPage $tabAplicaciones -State $uiState
+        Write-DzDebug "`t[DEBUG] Controles en uiState:"
+        foreach ($key in $uiState.Controls.Keys) {
+            $ctrl = $uiState.GetControl($key)
+            Write-DzDebug "`t  - $key : $($ctrl.GetType().Name) - Visible: $($ctrl.Visible)"
+        }
         # Ahora obtener los controles del State ACTUALIZADO
         $txtServer = $uiState.GetControl('ComboServer')
         $txtUser = $uiState.GetControl('TxtUser')
@@ -136,9 +142,18 @@ function New-MainForm {
         $dgvResults = $uiState.GetControl('DataGridResults')
         $contextMenu = $uiState.GetControl('ContextMenu')
         $copyMenu = $uiState.GetControl('CopyMenuItem')
+
+        # === AGREGAR MÁS DEBUGGING ===
+        Write-DzDebug "`t[DEBUG] Comprobar controles obtenidos:"
+        Write-DzDebug "`t  - ComboServer: $($txtServer -ne $null)"
+        Write-DzDebug "`t  - TxtUser: $($txtUser -ne $null)"
+        Write-DzDebug "`t  - RichTextQuery: $($rtbQuery -ne $null)"
+
         if (-not $txtServer -or -not $txtUser -or -not $rtbQuery) {
             throw "Error: No se pudieron obtener los controles de la pestaña Base de Datos"
         }
+
+        # Asignar a variables globales
         $global:txtServer = $txtServer
         $global:txtUser = $txtUser
         $global:txtPassword = $txtPassword
@@ -188,58 +203,6 @@ function New-MainForm {
                 $rtbQuery.Select($pos, 0)
                 $rtbQuery.ResumeLayout()
             })
-        # COLUMNA 1 | INSTALADORES EJECUTABLES | X:10
-        $lblHostname = Create-Label -Text ([System.Net.Dns]::GetHostName()) -Location (New-Object System.Drawing.Point(10, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Hostname al portapapeles."
-        $btnInstalarHerramientas = Create-Button -Text "Instalar Herramientas" -Location (New-Object System.Drawing.Point(10, 50)) `
-            -ToolTip "Abrir el menú de instaladores de Chocolatey."
-        $btnProfiler = Create-Button -Text "Ejecutar ExpressProfiler" -Location (New-Object System.Drawing.Point(10, 90)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
-        $btnDatabase = Create-Button -Text "Ejecutar Database4" -Location (New-Object System.Drawing.Point(10, 130)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Ejecuta o Descarga la herramienta desde el servidor oficial."
-        $btnSQLManager = Create-Button -Text "Ejecutar Manager" -Location (New-Object System.Drawing.Point(10, 170)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "De momento solo si es SQL 2014."
-        $btnSQLManagement = Create-Button -Text "Ejecutar Management" -Location (New-Object System.Drawing.Point(10, 210)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Busca SQL Management en tu equipo y te confirma la versión previo a ejecutarlo."
-        $btnPrinterTool = Create-Button -Text "Printer Tools" -Location (New-Object System.Drawing.Point(10, 250)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(224, 224, 224)) -ToolTip "Herramienta de Star con funciones multiples para impresoras POS."
-        $btnLectorDPicacls = Create-Button -Text "Lector DP - Permisos" -Location (New-Object System.Drawing.Point(10, 290)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Modifica los permisos de la carpeta C:\Windows\System32\en-us."
-        $LZMAbtnBuscarCarpeta = Create-Button -Text "Buscar Instalador LZMA" -Location (New-Object System.Drawing.Point(10, 330)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Para el error de instalación, renombra en REGEDIT la carpeta del instalador."
-        $btnConfigurarIPs = Create-Button -Text "Agregar IPs" -Location (New-Object System.Drawing.Point(10, 370)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Agregar IPS para configurar impresoras en red en segmento diferente."
-        $btnAddUser = Create-Button -Text "Agregar usuario de Windows" -Location (New-Object System.Drawing.Point(10, 410)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Crear nuevo usuario local en Windows"
-        $btnForzarActualizacion = Create-Button -Text "Actualizar datos del sistema" -Location (New-Object System.Drawing.Point(10, 450)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255)) -ToolTip "Actualiza información de hardware del sistema"
-        #COLUMNA 2 | FUNCIONES Y SERVICIOS DE WINDOWS | X: 250
-        $lblPort = Create-Label -Text "Puerto: No disponible" -Location (New-Object System.Drawing.Point(250, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) -BorderStyle FixedSingle -TextAlign MiddleCenter -ToolTipText "Haz clic para copiar el Puerto al portapapeles."
-        $btnClearAnyDesk = Create-Button -Text "Clear AnyDesk" -Location (New-Object System.Drawing.Point(250, 50)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(255, 76, 76)) -ToolTip "Detiene el programa y elimina los archivos para crear nuevos IDS."
-        $btnShowPrinters = Create-Button -Text "Mostrar Impresoras" -Location (New-Object System.Drawing.Point(250, 90)) `
-            -BackColor ([System.Drawing.Color]::White) -ToolTip "Muestra en consola: Impresora, Puerto y Driver instaladas en Windows."
-        $btnClearPrintJobs = Create-Button -Text "Limpia y Reinicia Cola de Impresión" -Location (New-Object System.Drawing.Point(250, 130)) `
-            -BackColor ([System.Drawing.Color]::White) -ToolTip "Limpia las impresiones pendientes y reinicia la cola de impresión."
-        #COLUMNA 3 | FUNCIONES NATIONAL SOFT | X: 490
-        $txt_IpAdress = Create-TextBox -Location (New-Object System.Drawing.Point(490, 1)) -Size (New-Object System.Drawing.Size(220, 40)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
-            -ScrollBars 'Vertical' -Multiline $true -ReadOnly $true
-        $btnAplicacionesNS = Create-Button -Text "Aplicaciones National Soft" -Location (New-Object System.Drawing.Point(490, 50)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Busca los INIS en el equipo y brinda información de conexión a sus BDDs."
-        $btnCambiarOTM = Create-Button -Text "Cambiar OTM a SQL/DBF" -Location (New-Object System.Drawing.Point(490, 90)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Cambiar la configuración entre SQL y DBF para On The Minute."
-        $btnCheckPermissions = Create-Button -Text "Permisos C:\NationalSoft" -Location (New-Object System.Drawing.Point(490, 130)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Revisa los permisos de los usuarios en la carpeta C:\NationalSoft."
-        $btnCreateAPK = Create-Button -Text "Creación de SRM APK" -Location (New-Object System.Drawing.Point(490, 170)) `
-            -BackColor ([System.Drawing.Color]::FromArgb(255, 200, 150)) -ToolTip "Generar archivo APK para Comandero Móvil"
-        # Columna 4: | FIXES Y NOVEDADES |  X:730
-        $txt_AdapterStatus = Create-TextBox -Location (New-Object System.Drawing.Point(730, 1)) -Size(New-Object System.Drawing.Size(220, 40)) `
-            -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
-            -ScrollBars 'Vertical' -Multiline $true -ReadOnly  $true
-        $global:txt_AdapterStatus = $txt_AdapterStatus
-        $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
         # Crear el nuevo formulario para los instaladores de Chocolatey
         $script:formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(520, 420)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
             -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 80, 80, 85))
@@ -896,12 +859,12 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     )
                 } catch {
                     Write-DzDebug ("`t[DEBUG] Error en la instalación de {0}: {1}" -f $packageName, $_)
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
-                            "Error",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Error
-                        )
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
+                        "Error",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    )
                 }
             })
         $btnUninstallSelectedChoco.Add_Click({

@@ -144,6 +144,10 @@ function Build-DatabaseTab {
     if ($controlsToAdd.Count -gt 0) {
         $TabPage.Controls.AddRange($controlsToAdd)
     }
+    foreach ($control in $TabPage.Controls) {
+        $control.Visible = $true
+        Write-DzDebug "`t[DEBUG] Haciendo visible control: $($control.GetType().Name) - '$($control.Text)'"
+    }
     return $State
 }
 

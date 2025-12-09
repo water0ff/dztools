@@ -120,7 +120,6 @@ function New-MainForm {
         $tabControl = $layout.TabControl
         $tabAplicaciones = $layout.Tabs.Aplicaciones
         $tabProSql = $layout.Tabs.BaseDatos
-        Make-AllControlsVisible -TabPage $tabProSql
         Add-ApplicationControls -Form $formPrincipal -TabPage $tabAplicaciones -State $uiState
         Write-DzDebug "`t[DEBUG] Obteniendo controles de aplicaciones del estado..."
         $lblHostname = $uiState.GetControl('LblHostname')
@@ -138,11 +137,9 @@ function New-MainForm {
         Write-DzDebug "`t  - lblPort: $($lblPort -ne $null)"
         Write-DzDebug "`t  - txt_IpAdress: $($txt_IpAdress -ne $null)"
         Write-DzDebug "`t  - txt_AdapterStatus: $($txt_AdapterStatus -ne $null)"
-
         if (-not $txt_IpAdress) {
             throw "Error: No se pudo obtener el control TxtIpAddress del estado"
         }
-        # Ahora obtener los controles del State ACTUALIZADO
         $txtServer = $uiState.GetControl('ComboServer')
         $txtUser = $uiState.GetControl('TxtUser')
         $txtPassword = $uiState.GetControl('TxtPassword')
@@ -157,16 +154,22 @@ function New-MainForm {
         $dgvResults = $uiState.GetControl('DataGridResults')
         $contextMenu = $uiState.GetControl('ContextMenu')
         $copyMenu = $uiState.GetControl('CopyMenuItem')
-        # === AGREGAR MÁS DEBUGGING ===
-        Write-DzDebug "`t[DEBUG] Comprobar controles obtenidos:"
-        Write-DzDebug "`t  - ComboServer: $($txtServer -ne $null)"
-        Write-DzDebug "`t  - TxtUser: $($txtUser -ne $null)"
+        Write-DzDebug "`t[DEBUG] Controles de Base de Datos obtenidos:"
+        Write-DzDebug "`t  - ComboServer: $($txtServer -ne $null) - Text: '$($txtServer.Text)'"
+        Write-DzDebug "`t  - TxtUser: $($txtUser -ne $null) - Text: '$($txtUser.Text)'"
+        Write-DzDebug "`t  - TxtPassword: $($txtPassword -ne $null) - Text length: $($txtPassword.Text.Length)"
+        Write-DzDebug "`t  - ComboDatabases: $($cmbDatabases -ne $null)"
         Write-DzDebug "`t  - RichTextQuery: $($rtbQuery -ne $null)"
-
         if (-not $txtServer -or -not $txtUser -or -not $rtbQuery) {
             throw "Error: No se pudieron obtener los controles de la pestaña Base de Datos"
         }
-        # Asignar a variables globales
+        Write-DzDebug "`t[DEBUG] Controles en la pestaña BaseDatos:"
+        $controlCount = 0
+        foreach ($control in $tabProSql.Controls) {
+            $controlCount++
+            Write-DzDebug "`t  [$controlCount] $($control.GetType().Name) - '$($control.Text)' - Visible: $($control.Visible) - Location: $($control.Location)"
+        }
+        Write-DzDebug "`t[DEBUG] Total controles en pestaña BaseDatos: $controlCount"
         $global:txtServer = $txtServer
         $global:txtUser = $txtUser
         $global:txtPassword = $txtPassword

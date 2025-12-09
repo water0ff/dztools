@@ -5,14 +5,19 @@ class UiState {
     [hashtable]$Controls
 
     UiState([hashtable]$initialResources = $null) {
-        if ($null -eq $initialResources) {
-            $this.Resources = @{}
-        } elseif (-not ($initialResources -is [hashtable])) {
-            throw [System.ArgumentException]::new("initialResources debe ser un hashtable.", "initialResources")
-        } else {
-            $this.Resources = $initialResources
+        $this.Resources = [hashtable]::new()
+
+        if ($null -ne $initialResources) {
+            if (-not ($initialResources -is [hashtable])) {
+                throw [System.ArgumentException]::new("initialResources debe ser un hashtable.", "initialResources")
+            }
+
+            foreach ($key in $initialResources.Keys) {
+                $this.Resources[$key] = $initialResources[$key]
+            }
         }
-        $this.Controls = @{}
+
+        $this.Controls = [hashtable]::new()
     }
 
     [void]AddControl([string]$name, [object]$control) {

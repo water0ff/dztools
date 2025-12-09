@@ -6,9 +6,10 @@ class UiState {
 
     UiState([hashtable]$initialResources) {
         if (-not $initialResources) {
-            $initialResources = @{}
+            $this.Resources = @{}
+        } else {
+            $this.Resources = $initialResources
         }
-        $this.Resources = $initialResources
         $this.Controls = @{}
     }
 

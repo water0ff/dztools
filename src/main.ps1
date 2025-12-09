@@ -36,6 +36,7 @@ $modules = @(
     "GUI.psm1",
     "Database.psm1",
     "Utilities.psm1",
+    "Queries.psm1",
     "Installers.psm1"
 )
 foreach ($module in $modules) {
@@ -190,176 +191,8 @@ function New-MainForm {
             "\b($script:SqlKeywords)\b",
             [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
         )
-        $script:predefinedQueries = @{
-            "Monitor de Servicios | Ventas a subir"           = @"
-SELECT DISTINCT TOP (10)
-    nofacturable,
-    tablaventa.IDEMPRESA,
-    codigo_unico_af AS ticket_cu,
-    e.CLAVEUNICAEMPRESA AS empresa_id,
-    numcheque AS ticket_folio,
-    seriefolio AS ticket_serie,
-    tablaventa.FOLIO AS ticket_folioSR,
-    CONVERT(nvarchar(30), FECHA, 120) AS ticket_fecha,
-    subtotal AS ticket_subtotal,
-    total AS ticket_total,
-    descuento AS ticket_descuento,
-    totalconpropina AS ticket_totalconpropina,
-    totalsindescuento AS ticket_totalsindescuento,
-    (totalimpuestod1 + totalimpuestod2 + totalimpuestod3) AS ticket_totalimpuesto,
-    totalotros AS ticket_totalotros,
-    descuentoimporte AS ticket_totaldescuento,
-    0 AS ticket_totaldescuento2,
-    0 AS ticket_totaldescuento3,
-    0 AS ticket_totaldescuento4,
-    tablaventa.PROPINA AS ticket_propina,
-    cancelado,
-    CAST(numcheque AS VARCHAR) AS ticket_numcheque,
-    numerotarjeta,
-    puntosmonederogenerados,
-    titulartarjetamonederodescuento AS titulartarjetamonedero,
-    tarjetadescuento,
-    descuentomonedero,
-    e.idregimen_sat,
-    tipopago.idformapago_SAT,
-    tablaventa.idturno,
-    nopersonas,
-    tipodeservicio,
-    idmesero,
-    totalarticulos,
-    LTRIM(RTRIM(estacion)) AS ticket_estacion,
-    usuariodescuento,
-    comentariodescuento,
-    tablaventa.idtipodescuento,
-    totalimpuestod2 AS TicketTotalIEPS,
-    0 AS TicketTotalOtrosImpuestos,
-    LEFT(CONVERT(VARCHAR, fecha + 15, 120), 10) + ' 23:59:59' AS ticket_fechavence,
-    CONVERT(nvarchar(30), tablaventa.cierre, 120) AS ticket_fecha_cierre
-FROM
-    CHEQUES AS tablaventa
-    INNER JOIN empresas AS e ON tablaventa.IDEMPRESA = e.IDEMPRESA
-    LEFT JOIN chequespagos AS tablapago ON tablapago.folio = tablaventa.folio
-    LEFT JOIN formasdepago AS tipopago ON tablapago.idformadepago = tipopago.idformadepago
-WHERE
-    fecha > (SELECT fecha_inicio_envio FROM configuracion_ws)
-    AND (intentoEnvioAF < 20)
-    AND (
-        (enviado = 0) OR (enviado IS NULL)
-    )
-    AND (
-        (pagado = 1 AND nofacturable = 0)
-        OR cancelado = 1
-    )
-    AND codigo_unico_af IS NOT NULL
-    AND codigo_unico_af <> ''
-    AND tablaventa.IDEMPRESA = (SELECT TOP 1 idempresa FROM empresas)
-ORDER BY
-    numcheque;
-"@
-            "BackOffice Actualizar contraseña  administrador" = @"
-    -- Actualiza la contraseña del primer UserName con rol administrador y retorna el UserName actualizado
-UPDATE users
-    SET Password = '08/Vqq0='
-    OUTPUT inserted.UserName
-    WHERE UserName = (SELECT TOP 1 UserName FROM users WHERE IsSuperAdmin = 1 and IsEnabled = 1);
-"@
-            "BackOffice Estaciones"                           = @"
-SELECT
-    t.Name,
-    t.Ip,
-    t.LastOnline,
-    t.IsEnabled,
-    u.UserName AS UltimoUsuario,
-    t.AppVersion,
-    t.IsMaximized,
-    t.ForceAppUpdate,
-    t.SkipDoPing
-FROM Terminals t
-LEFT JOIN Users u ON t.LastUserLogin = u.Id
---WHERE t.IsEnabled = 1.0000
-ORDER BY t.IsEnabled DESC, t.Name;
-"@
-            "SR | Actualizar contraseña de administrador"     = @"
-    -- Actualiza la contraseña del primer usuario con rol administrador y retorna el usuario actualizado
-    UPDATE usuarios
-    SET contraseña = 'A9AE4E13D2A47998AC34'
-    OUTPUT inserted.usuario
-    WHERE usuario = (SELECT TOP 1 usuario FROM usuarios WHERE administrador = 1);
-"@
-            "SR | Revisar Pivot Table"                        = @"
-    SELECT app_id, field, COUNT(*)
-    FROM app_settings
-    GROUP BY app_id, field
-    HAVING COUNT(*) > 1
-/* Consulta SQL para eliminar duplicados
-        BEGIN TRANSACTION;
-                                                    WITH CTE AS (
-                                                        SELECT id, app_id, field,
-                                                               ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
-                                                        FROM app_settings
-                                                    )
-                                                    DELETE FROM app_settings
-                                                    WHERE id IN (
-                                                        SELECT id FROM CTE WHERE rn > 1
-                                                    );
-                                                    COMMIT TRANSACTION;
-*/
-"@
-            "SR | Fecha Revisiones"                           = @"
-    WITH CTE AS (
-        SELECT
-            b.estacion,
-            b.fecha       AS UltimoUso,
-            ROW_NUMBER() OVER (PARTITION BY b.estacion ORDER BY b.fecha DESC) AS rn
-        FROM bitacorasistema b
-    )
-    SELECT
-        e.FECHAREV,
-        c.estacion,
-        c.UltimoUso
-    FROM CTE c
-    JOIN estaciones e
-        ON c.estacion = e.idestacion
-    WHERE c.rn = 1
-    ORDER BY c.UltimoUso DESC;
-"@
-            "OTM | Eliminar Server en OTM"                    = @"
-    SELECT serie, ipserver, nombreservidor
-    FROM configuracion;
-    -- UPDATE configuracion
-    --   SET serie='', ipserver='', nombreservidor=''
-"@
-            "NSH | Eliminar Server en Hoteles"                = @"
-    SELECT serievalida, numserie, ipserver, nombreservidor, llave
-    FROM configuracion;
-    -- UPDATE configuracion
-    --   SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''
-"@
-            "Restcard | Eliminar Server en Rest Card"         = @"
-    -- update tabvariables
-    --   SET estacion='', ipservidor='';
-"@
-            "sql | Listar usuarios e idiomas"                 = @"
-    -- Lista los usuarios del sistema y su idioma configurado
-SELECT
-    p.name AS Usuario,
-    l.default_language_name AS Idioma
-FROM
-    sys.server_principals p
-LEFT JOIN
-    sys.sql_logins l ON p.principal_id = l.principal_id
-WHERE
-    p.type IN ('S', 'U') -- Usuarios SQL y Windows
-"@
-        }
-        $sortedKeys = $script:predefinedQueries.Keys | Sort-Object
-        $cmbQueries.Items.Clear()
-        foreach ($key in $sortedKeys) {
-            $cmbQueries.Items.Add($key) | Out-Null
-        }
-        $cmbQueries.Add_SelectedIndexChanged({
-                $rtbQuery.Text = $script:predefinedQueries[$cmbQueries.SelectedItem]
-            })
+        $script:predefinedQueries = Get-PredefinedQueries
+        Initialize-PredefinedQueries -ComboQueries $cmbQueries -RichTextBox $rtbQuery -Queries $script:predefinedQueries
         $rtbQuery.Add_TextChanged({
                 $pos = $rtbQuery.SelectionStart
                 $rtbQuery.SuspendLayout()
@@ -496,7 +329,7 @@ WHERE
         $global:txt_AdapterStatus = $txt_AdapterStatus
         $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
         # Crear el nuevo formulario para los instaladores de Chocolatey
-        $script:formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 380)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+        $script:formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(520, 420)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
             -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 80, 80, 85))
         Write-DzDebug "`t[DEBUG] formInstaladoresChoco creado en sección principal."
         Write-DzDebug ("`t[DEBUG]   Es nulo?          : {0}" -f ($null -eq $script:formInstaladoresChoco))
@@ -505,22 +338,22 @@ WHERE
         }
         $lblChocoSearch = Create-Label -Text "Buscar en Chocolatey:" -Location (New-Object System.Drawing.Point(10, 10)) `
             -ForeColor ([System.Drawing.Color]::White) -BackColor ([System.Drawing.Color]::Transparent) -Size (New-Object System.Drawing.Size(300, 20))
-        $script:txtChocoSearch = Create-TextBox -Location (New-Object System.Drawing.Point(10, 30)) -Size (New-Object System.Drawing.Size(320, 25))
-        $btnBuscarChoco = Create-Button -Text "Buscar" -Location (New-Object System.Drawing.Point(340, 28)) -Size (New-Object System.Drawing.Size(130, 30)) `
+        $script:txtChocoSearch = Create-TextBox -Location (New-Object System.Drawing.Point(10, 30)) -Size (New-Object System.Drawing.Size(360, 30))
+        $btnBuscarChoco = Create-Button -Text "Buscar" -Location (New-Object System.Drawing.Point(380, 28)) -Size (New-Object System.Drawing.Size(120, 32)) `
             -BackColor ([System.Drawing.Color]::FromArgb(76, 175, 80)) -ForeColor ([System.Drawing.Color]::White) -ToolTip "Buscar paquetes disponibles en Chocolatey."
         $script:btnBuscarChoco = $btnBuscarChoco
         $script:lvChocoResults = New-Object System.Windows.Forms.ListView
         $script:lvChocoResults.Location = New-Object System.Drawing.Point(10, 150)
-        $script:lvChocoResults.Size = New-Object System.Drawing.Size(460, 180)
+        $script:lvChocoResults.Size = New-Object System.Drawing.Size(490, 200)
         $script:lvChocoResults.View = [System.Windows.Forms.View]::Details
         $script:lvChocoResults.FullRowSelect = $true
         $script:lvChocoResults.GridLines = $true
         $script:lvChocoResults.HideSelection = $false
         $script:lvChocoResults.BackColor = [System.Drawing.Color]::White
         $script:lvChocoResults.ForeColor = [System.Drawing.Color]::Black
-        $null = $script:lvChocoResults.Columns.Add("Paquete", 160)
-        $null = $script:lvChocoResults.Columns.Add("Versión", 90)
-        $null = $script:lvChocoResults.Columns.Add("Descripción", 190)
+        $null = $script:lvChocoResults.Columns.Add("Paquete", 170)
+        $null = $script:lvChocoResults.Columns.Add("Versión", 100)
+        $null = $script:lvChocoResults.Columns.Add("Descripción", 200)
         $script:lblPresetSSMS = Create-Label -Text "SSMS" -Location (New-Object System.Drawing.Point(10, 70)) `
             -ForeColor ([System.Drawing.Color]::Black) -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
             -Size (New-Object System.Drawing.Size(70, 25)) -TextAlign MiddleCenter -BorderStyle FixedSingle
@@ -529,10 +362,17 @@ WHERE
             -ForeColor ([System.Drawing.Color]::Black) -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
             -Size (New-Object System.Drawing.Size(70, 25)) -TextAlign MiddleCenter -BorderStyle FixedSingle
         $script:lblPresetHeidi.Cursor = [System.Windows.Forms.Cursors]::Hand
-        $btnInstallSelectedChoco = Create-Button -Text "Instalar seleccionado" -Location (New-Object System.Drawing.Point(170, 68)) `
-            -Size (New-Object System.Drawing.Size(180, 30)) -ToolTip "Instala el paquete seleccionado de la lista."
-        $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 340)) `
+        $btnInstallSelectedChoco = Create-Button -Text "Instalar seleccionado" -Location (New-Object System.Drawing.Point(170, 100)) `
+            -Size (New-Object System.Drawing.Size(170, 32)) -ToolTip "Instala el paquete seleccionado de la lista."
+        $btnShowInstalledChoco = Create-Button -Text "Mostrar instalados" -Location (New-Object System.Drawing.Point(10, 100)) `
+            -Size (New-Object System.Drawing.Size(150, 32)) -ToolTip "Muestra los paquetes instalados con Chocolatey."
+        $btnUninstallSelectedChoco = Create-Button -Text "Desinstalar seleccionado" -Location (New-Object System.Drawing.Point(350, 100)) `
+            -Size (New-Object System.Drawing.Size(150, 32)) -ToolTip "Desinstala el paquete seleccionado de la lista."
+        $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 365)) `
             -ToolTip "Salir del formulario de instaladores."
+        $script:btnInstallSelectedChoco = $btnInstallSelectedChoco
+        $script:btnShowInstalledChoco = $btnShowInstalledChoco
+        $script:btnUninstallSelectedChoco = $btnUninstallSelectedChoco
         # Agregar los botones al nuevo formulario
         $script:formInstaladoresChoco.Controls.Add($lblChocoSearch)
         $script:formInstaladoresChoco.Controls.Add($txtChocoSearch)
@@ -540,8 +380,48 @@ WHERE
         $script:formInstaladoresChoco.Controls.Add($lblPresetSSMS)
         $script:formInstaladoresChoco.Controls.Add($lblPresetHeidi)
         $script:formInstaladoresChoco.Controls.Add($btnInstallSelectedChoco)
+        $script:formInstaladoresChoco.Controls.Add($btnShowInstalledChoco)
+        $script:formInstaladoresChoco.Controls.Add($btnUninstallSelectedChoco)
         $script:formInstaladoresChoco.Controls.Add($btnExitInstaladores)
         $script:formInstaladoresChoco.Controls.Add($lvChocoResults)
+        $script:chocoPackagePattern = '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+(?<version>[0-9][A-Za-z0-9\.\-]*)\s+(?<description>.+)$'
+        $script:addChocoResult = {
+            param($line)
+            if ([string]::IsNullOrWhiteSpace($line)) { return }
+            if ($line -match '^Chocolatey') { return }
+            if ($line -match 'packages?\s+found' -or $line -match 'page size') { return }
+            if ($line -match $script:chocoPackagePattern) {
+                $name = $Matches['name']
+                $version = $Matches['version']
+                $description = $Matches['description'].Trim()
+                $item = New-Object System.Windows.Forms.ListViewItem($name)
+                $null = $item.SubItems.Add($version)
+                $null = $item.SubItems.Add($description)
+                $null = $script:lvChocoResults.Items.Add($item)
+            } elseif ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\|(?<version>[0-9][A-Za-z0-9\.\-]*)$') {
+                $name = $Matches['name']
+                $version = $Matches['version']
+                $item = New-Object System.Windows.Forms.ListViewItem($name)
+                $null = $item.SubItems.Add($version)
+                $null = $item.SubItems.Add("Paquete instalado")
+                $null = $script:lvChocoResults.Items.Add($item)
+            }
+        }
+        $script:updateChocoActionButtons = {
+            $hasValidSelection = $false
+            if ($script:lvChocoResults.SelectedItems.Count -gt 0) {
+                $selectedItem = $script:lvChocoResults.SelectedItems[0]
+                $packageName = $selectedItem.Text
+                $packageVersion = if ($selectedItem.SubItems.Count -gt 1) { $selectedItem.SubItems[1].Text } else { "" }
+                if (-not [string]::IsNullOrWhiteSpace($packageName) -and $packageVersion -match '^[0-9]') {
+                    $hasValidSelection = $true
+                }
+            }
+            $script:btnInstallSelectedChoco.Enabled = $hasValidSelection
+            $script:btnUninstallSelectedChoco.Enabled = $hasValidSelection
+        }
+        $script:btnInstallSelectedChoco.Enabled = $false
+        $script:btnUninstallSelectedChoco.Enabled = $false
         $txt_InfoInstrucciones = Create-TextBox `
             -Location (New-Object System.Drawing.Point(730, 50)) `
             -Size     (New-Object System.Drawing.Size(220, 500)) `
@@ -948,8 +828,12 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 }
                 $script:formInstaladoresChoco.ShowDialog()
             })
+        $script:lvChocoResults.Add_SelectedIndexChanged({
+                $script:updateChocoActionButtons.Invoke()
+            })
         $btnBuscarChoco.Add_Click({
                 $script:lvChocoResults.Items.Clear()
+                $script:updateChocoActionButtons.Invoke()
                 $query = $script:txtChocoSearch.Text.Trim()
                 if ([string]::IsNullOrWhiteSpace($query)) {
                     [System.Windows.Forms.MessageBox]::Show("Ingresa un término para buscar paquetes en Chocolatey.", "Búsqueda de paquetes", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -958,6 +842,11 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 if (-not (Check-Chocolatey)) {
                     return
                 }
+                $script:btnBuscarChoco.Enabled = $false
+                $progressForm = Show-ProgressBar
+                $totalSteps = 3
+                $currentStep = 1
+                Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Ejecutando búsqueda..."
                 Write-Host ("`tBuscando paquetes para '{0}'..." -f $query) -ForegroundColor Cyan
                 Write-DzDebug ("`t[DEBUG] Búsqueda de Chocolatey: término='{0}'" -f $query)
                 $searchExitCode = $null
@@ -974,18 +863,10 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     } else {
                         Write-DzDebug "`t[DEBUG] choco search no devolvió salida."
                     }
+                    $currentStep++
+                    Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Procesando resultados..."
                     foreach ($line in $searchOutput) {
-                        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-                        if ($line -match '^Chocolatey') { continue }
-                        if ($line -match '^(?<name>\S+)\s+(?<version>\S+)\s+(?<description>.+)$') {
-                            $name = $Matches['name']
-                            $version = $Matches['version']
-                            $description = $Matches['description'].Trim()
-                            $item = New-Object System.Windows.Forms.ListViewItem($name)
-                            $null = $item.SubItems.Add($version)
-                            $null = $item.SubItems.Add($description)
-                            $null = $script:lvChocoResults.Items.Add($item)
-                        }
+                        $script:addChocoResult.Invoke($line)
                     }
                     if ($script:lvChocoResults.Items.Count -eq 0) {
                         [System.Windows.Forms.MessageBox]::Show("No se encontraron paquetes para la búsqueda realizada.", "Sin resultados", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -993,6 +874,8 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     } else {
                         Write-DzDebug ("`t[DEBUG] Resultados agregados: {0}" -f $script:lvChocoResults.Items.Count)
                     }
+                    $currentStep = $totalSteps
+                    Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Búsqueda finalizada"
                 } catch {
                     Write-Error "Error al consultar paquetes de Chocolatey: $_"
                     Write-DzDebug ("`t[DEBUG] Excepción en búsqueda de Chocolatey: {0}" -f $_)
@@ -1001,6 +884,12 @@ compila el proyecto y lo coloca en la carpeta de salida.
                         Write-DzDebug ("`t[DEBUG] choco search finalizó con código {0}" -f $searchExitCode)
                     }
                     [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al buscar en Chocolatey. Intenta nuevamente.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                } finally {
+                    if ($null -ne $progressForm) {
+                        Close-ProgressBar $progressForm
+                    }
+                    $script:btnBuscarChoco.Enabled = $true
+                    $script:updateChocoActionButtons.Invoke()
                 }
             })
         $lblPresetSSMS.Add_Click({
@@ -1014,6 +903,44 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 Write-DzDebug ("`t[DEBUG] Preset seleccionado: {0}" -f $preset)
                 $script:txtChocoSearch.Text = $preset
                 $script:btnBuscarChoco.PerformClick()
+            })
+        $btnShowInstalledChoco.Add_Click({
+                $script:lvChocoResults.Items.Clear()
+                $script:updateChocoActionButtons.Invoke()
+                if (-not (Check-Chocolatey)) {
+                    return
+                }
+                $script:btnShowInstalledChoco.Enabled = $false
+                $progressForm = Show-ProgressBar
+                $totalSteps = 2
+                $currentStep = 1
+                Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Recuperando instalados..."
+                try {
+                    Write-DzDebug "`t[DEBUG] Ejecutando: choco list --local-only --limit-output"
+                    $installedOutput = & choco list --local-only --limit-output 2>&1
+                    $listExitCode = $LASTEXITCODE
+                    Write-DzDebug ("`t[DEBUG] choco list exit code: {0}" -f $listExitCode)
+                    foreach ($line in $installedOutput) {
+                        Write-DzDebug ("`t       > {0}" -f $line)
+                    }
+                    $currentStep++
+                    Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps -Status "Procesando resultados..."
+                    foreach ($line in $installedOutput) {
+                        $script:addChocoResult.Invoke($line)
+                    }
+                    if ($script:lvChocoResults.Items.Count -eq 0) {
+                        [System.Windows.Forms.MessageBox]::Show("No se encontraron paquetes instalados con Chocolatey.", "Sin resultados", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                    }
+                } catch {
+                    Write-Error "Error al consultar paquetes instalados de Chocolatey: $_"
+                    [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al consultar paquetes instalados.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                } finally {
+                    if ($null -ne $progressForm) {
+                        Close-ProgressBar $progressForm
+                    }
+                    $script:btnShowInstalledChoco.Enabled = $true
+                    $script:updateChocoActionButtons.Invoke()
+                }
             })
         $btnInstallSelectedChoco.Add_Click({
                 Write-DzDebug "`t[DEBUG] Click en 'Instalar seleccionado'"
@@ -1057,8 +984,57 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     )
                 } catch {
                     Write-DzDebug ("`t[DEBUG] Error en la instalación de {0}: {1}" -f $packageName, $_)
+                        [System.Windows.Forms.MessageBox]::Show(
+                            "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
+                            "Error",
+                            [System.Windows.Forms.MessageBoxButtons]::OK,
+                            [System.Windows.Forms.MessageBoxIcon]::Error
+                        )
+                }
+            })
+        $btnUninstallSelectedChoco.Add_Click({
+                Write-DzDebug "`t[DEBUG] Click en 'Desinstalar seleccionado'"
+                if ($script:lvChocoResults.SelectedItems.Count -eq 0) {
+                    Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado para desinstalar."
+                    [System.Windows.Forms.MessageBox]::Show("Seleccione un paquete de la lista antes de desinstalar.", "Desinstalación de paquete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                    return
+                }
+                $selectedItem = $script:lvChocoResults.SelectedItems[0]
+                $packageName = $selectedItem.Text
+                $packageVersion = if ($selectedItem.SubItems.Count -gt 1) { $selectedItem.SubItems[1].Text } else { "" }
+                $packageDescription = if ($selectedItem.SubItems.Count -gt 2) { $selectedItem.SubItems[2].Text } else { "" }
+                $confirmationText = "¿Deseas desinstalar el paquete: $packageName $packageVersion $packageDescription?"
+                $response = [System.Windows.Forms.MessageBox]::Show(
+                    $confirmationText,
+                    "Confirmar desinstalación",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Question
+                )
+                if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
+                    Write-DzDebug "`t[DEBUG] Desinstalación cancelada por el usuario."
+                    return
+                }
+                if (-not (Check-Chocolatey)) {
+                    Write-DzDebug "`t[DEBUG] Chocolatey no está instalado; se cancela la desinstalación."
+                    return
+                }
+                $arguments = "uninstall $packageName -y"
+                if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
+                    $arguments = "uninstall $packageName --version=$packageVersion -y"
+                }
+                try {
+                    Write-DzDebug ("`t[DEBUG] Ejecutando desinstalación con argumentos: {0}" -f $arguments)
+                    Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
                     [System.Windows.Forms.MessageBox]::Show(
-                        "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
+                        "Desinstalación completada para $packageName.",
+                        "Éxito",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Information
+                    )
+                } catch {
+                    Write-DzDebug ("`t[DEBUG] Error en la desinstalación de {0}: {1}" -f $packageName, $_)
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Error al desinstalar el paquete seleccionado: $($_.Exception.Message)",
                         "Error",
                         [System.Windows.Forms.MessageBoxButtons]::OK,
                         [System.Windows.Forms.MessageBoxIcon]::Error

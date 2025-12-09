@@ -119,7 +119,6 @@ function New-MainForm {
         $tabControl = $layout.TabControl
         $tabAplicaciones = $layout.Tabs.Aplicaciones
         $tabProSql = $layout.Tabs.BaseDatos
-
         $txtServer = $uiState.GetControl('ComboServer')
         $txtUser = $uiState.GetControl('TxtUser')
         $txtPassword = $uiState.GetControl('TxtPassword')

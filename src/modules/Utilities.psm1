@@ -1,9 +1,13 @@
 ﻿#requires -Version 5.0
 
 $script:DzToolsConfigPath = "C:\Temp\dztools.ini"
+$script:DzLogPath = "C:\Temp\dztools.log"
 $script:DzDebugEnabled = $null
 function Get-DzToolsConfigPath {
     return $script:DzToolsConfigPath
+}
+function Get-DzLogPath {
+    return $script:DzLogPath
 }
 function Get-DzDebugPreference {
     $configPath = Get-DzToolsConfigPath
@@ -41,11 +45,32 @@ function Initialize-DzToolsConfig {
     $script:DzDebugEnabled = Get-DzDebugPreference
     return $script:DzDebugEnabled
 }
+function Write-DzLog {
+    param(
+        [Parameter(Mandatory = $true)][string]$Message
+    )
+
+    try {
+        $logPath = Get-DzLogPath
+        $logDir = Split-Path -Path $logPath -Parent
+        if (-not (Test-Path -LiteralPath $logDir)) {
+            New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+        }
+
+        $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss.fff")
+        $formatted = "[$timestamp] $Message"
+        Add-Content -LiteralPath $logPath -Value $formatted -Encoding UTF8
+    } catch {
+        # Evitar que fallos en el log apaguen la aplicación.
+    }
+}
 function Write-DzDebug {
     param(
         [Parameter(Mandatory = $true)][string]$Message,
         [Parameter()][System.ConsoleColor]$Color = [System.ConsoleColor]::Gray
     )
+
+    Write-DzLog $Message
 
     if ($null -eq $script:DzDebugEnabled) {
         $script:DzDebugEnabled = Get-DzDebugPreference
@@ -787,8 +812,10 @@ function Start-SystemUpdate {
 }
 Export-ModuleMember -Function Get-DzToolsConfigPath,
 Get-DzDebugPreference,
+Get-DzLogPath,
 Initialize-DzToolsConfig,
 Write-DzDebug,
+Write-DzLog,
 Test-Administrator,
 Get-SystemInfo,
 Clear-TemporaryFiles,

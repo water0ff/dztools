@@ -4,9 +4,11 @@ class UiState {
     [hashtable]$Resources
     [hashtable]$Controls
 
-    UiState([hashtable]$initialResources) {
-        if (-not $initialResources) {
+    UiState([hashtable]$initialResources = $null) {
+        if ($null -eq $initialResources) {
             $this.Resources = @{}
+        } elseif (-not ($initialResources -is [hashtable])) {
+            throw [System.ArgumentException]::new("initialResources debe ser un hashtable.", "initialResources")
         } else {
             $this.Resources = $initialResources
         }

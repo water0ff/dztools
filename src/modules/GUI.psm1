@@ -160,6 +160,9 @@ function Create-TextBox {
     return $textBox
 }
 function Show-ProgressBar {
+    param(
+        [System.Windows.Forms.Form]$OwnerForm = $null
+    )
     $sizeProgress = New-Object System.Drawing.Size(450, 180)
     $formProgress = Create-Form `
         -Title "Progreso de Actualización" `
@@ -168,7 +171,12 @@ function Show-ProgressBar {
         -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) `
         -TopMost $true `
         -ControlBox $false
-    # Hacer el formulario arrastrable
+    if ($null -ne $OwnerForm -and -not $OwnerForm.IsDisposed) {
+        $formProgress.Add_Shown({
+                $this.Owner = $OwnerForm
+            })
+    }
+        # Hacer el formulario arrastrable
     $formProgress.Add_MouseDown({
             if ($_.Button -eq [System.Windows.Forms.MouseButtons]::Left) {
                 $script:isDragging = $true

@@ -152,7 +152,7 @@ function Register-GlobalErrorHandlers {
                     }
                 } else {
                     Write-Host "Objeto de excepción: $ex" -ForegroundColor Yellow
-                    Write-DzLog "[UnhandledException] Objeto no System.Exception" 
+                    Write-DzLog "[UnhandledException] Objeto no System.Exception"
                 }
 
                 Write-Host "===============================================`n" -ForegroundColor Red
@@ -3111,19 +3111,14 @@ Password = $MegaPass
 }
 function Start-Application {
     Write-Host "Iniciando aplicación..." -ForegroundColor Cyan
-
     if (-not (Initialize-Environment)) {
         Write-Host "Error inicializando entorno. Saliendo..." -ForegroundColor Red
         return
     }
-
     Register-GlobalErrorHandlers
-
     $mainForm = $null
-
     try {
         $mainForm = New-MainForm
-
         if ($mainForm -eq $null) {
             Write-Host "Error: No se pudo crear el formulario principal" -ForegroundColor Red
             [System.Windows.Forms.MessageBox]::Show(
@@ -3134,10 +3129,9 @@ function Start-Application {
             )
             return
         }
-
+        $global:formMain = $mainForm
         Write-Host "Mostrando formulario..." -ForegroundColor Yellow
         $result = $mainForm.ShowDialog()
-
         Write-Host "`nAplicación cerrada normalmente." -ForegroundColor Green
         Write-Host "Resultado del diálogo: $result" -ForegroundColor Gray
 

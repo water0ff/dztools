@@ -4,13 +4,11 @@ class UiState {
     [hashtable]$Resources
     [hashtable]$Controls
 
-    UiState([hashtable]$resources) {
-        if (-not $resources) {
-            $this.Resources = @{}
+    UiState([hashtable]$initialResources) {
+        if (-not $initialResources) {
+            $initialResources = @{}
         }
-        else {
-            $this.Resources = $resources
-        }
+        $this.Resources = $initialResources
         $this.Controls = @{}
     }
 

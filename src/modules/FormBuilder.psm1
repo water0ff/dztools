@@ -119,6 +119,10 @@ function Build-DatabaseTab {
         -DropDownStyle DropDownList
     $controls.ComboDatabases.Enabled = $false
 
+    $controls.ComboQueries = Create-ComboBox -Location (New-Object System.Drawing.Point(220, 20)) `
+        -Size (New-Object System.Drawing.Size(320, 25)) -DropDownStyle DropDownList `
+        -DefaultText "Selecciona una consulta predefinida"
+
     # Textboxes
     $controls.TxtUser = Create-TextBox -Location (New-Object System.Drawing.Point(10, 60)) `
         -Size (New-Object System.Drawing.Size(180, 20))
@@ -139,11 +143,37 @@ function Build-DatabaseTab {
         -Size (New-Object System.Drawing.Size(180, 30)) `
         -BackColor ([System.Drawing.Color]::FromArgb(255, 180, 180))
 
+    # Query browser controls
+    $controls.LblQueries = Create-Label -Text "Consultas SQL" `
+        -Location (New-Object System.Drawing.Point(220, 0)) `
+        -Size (New-Object System.Drawing.Size(200, 20))
+
+    $controls.RichTextQuery = New-Object System.Windows.Forms.RichTextBox
+    $controls.RichTextQuery.Location = New-Object System.Drawing.Point(220, 50)
+    $controls.RichTextQuery.Size = New-Object System.Drawing.Size(740, 200)
+    $controls.RichTextQuery.Font = $defaultFont
+    $controls.RichTextQuery.WordWrap = $false
+
+    $controls.DataGridResults = New-Object System.Windows.Forms.DataGridView
+    $controls.DataGridResults.Location = New-Object System.Drawing.Point(220, 260)
+    $controls.DataGridResults.Size = New-Object System.Drawing.Size(740, 220)
+    $controls.DataGridResults.ReadOnly = $true
+    $controls.DataGridResults.AllowUserToAddRows = $false
+    $controls.DataGridResults.AllowUserToDeleteRows = $false
+    $controls.DataGridResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::AllCells
+
+    $controls.ContextMenu = New-Object System.Windows.Forms.ContextMenuStrip
+    $controls.CopyMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $controls.CopyMenuItem.Text = "Copiar celda"
+    $controls.ContextMenu.Items.Add($controls.CopyMenuItem) | Out-Null
+    $controls.DataGridResults.ContextMenuStrip = $controls.ContextMenu
+
     foreach ($name in $controls.Keys) {
         $State.AddControl($name, $controls[$name])
     }
 
-    $TabPage.Controls.AddRange($controls.Values)
+    $controlsToAdd = $controls.Values | Where-Object { $_ -is [System.Windows.Forms.Control] }
+    $TabPage.Controls.AddRange($controlsToAdd)
 
     return $State
 }

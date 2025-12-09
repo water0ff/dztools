@@ -47,6 +47,40 @@ function New-FormState {
     return $state
 }
 
+function Build-MainTabs {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [UiState]$State
+    )
+
+    # Crear el control de pestañas
+    $tabControl = New-Object System.Windows.Forms.TabControl
+    $tabControl.Size = New-Object System.Drawing.Size(990, 515)
+    $tabControl.Location = New-Object System.Drawing.Point(5, 5)
+
+    # Crear las pestañas
+    $tabAplicaciones = New-Object System.Windows.Forms.TabPage
+    $tabAplicaciones.Text = "Aplicaciones"
+
+    $tabProSql = New-Object System.Windows.Forms.TabPage
+    $tabProSql.Text = "Base de datos"
+    $tabProSql.AutoScroll = $true
+
+    # Construir el contenido de cada pestaña usando las funciones existentes
+    $State = Build-ApplicationsTab -State $State -TabPage $tabAplicaciones
+    $State = Build-DatabaseTab -State $State -TabPage $tabProSql
+
+    # Agregar las pestañas al control
+    $tabControl.TabPages.Add($tabAplicaciones)
+    $tabControl.TabPages.Add($tabProSql)
+
+    # Devolver un objeto con el control y el estado actualizado
+    return @{
+        TabControl = $tabControl
+        State      = $State
+    }
+}
 function Build-DatabaseTab {
     [CmdletBinding()]
     param(
@@ -191,4 +225,4 @@ function Initialize-BasicEvents {
     return $State
 }
 
-Export-ModuleMember -Function New-FormState, Build-DatabaseTab, Build-ApplicationsTab, Initialize-FormControls, Initialize-BasicEvents
+Export-ModuleMember -Function New-FormState, Build-DatabaseTab, Build-ApplicationsTab, Initialize-FormControls, Initialize-BasicEvents, Build-MainTabs

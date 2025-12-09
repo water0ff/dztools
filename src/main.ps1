@@ -122,10 +122,25 @@ function New-MainForm {
         $tabProSql = $layout.Tabs.BaseDatos
         Make-AllControlsVisible -TabPage $tabProSql
         Add-ApplicationControls -Form $formPrincipal -TabPage $tabAplicaciones -State $uiState
-        Write-DzDebug "`t[DEBUG] Controles en uiState:"
-        foreach ($key in $uiState.Controls.Keys) {
-            $ctrl = $uiState.GetControl($key)
-            Write-DzDebug "`t  - $key : $($ctrl.GetType().Name) - Visible: $($ctrl.Visible)"
+        Write-DzDebug "`t[DEBUG] Obteniendo controles de aplicaciones del estado..."
+        $lblHostname = $uiState.GetControl('LblHostname')
+        $lblPort = $uiState.GetControl('LblPort')
+        $txt_IpAdress = $uiState.GetControl('TxtIpAddress')
+        $txt_AdapterStatus = $uiState.GetControl('TxtAdapterStatus')
+        # Verificar que los controles se obtuvieron
+        if (-not $txt_IpAdress) {
+            throw "Error: No se pudo obtener el control TxtIpAddress del estado"
+        }
+        $global:txt_AdapterStatus = $txt_AdapterStatus
+        # Verificar que los controles se obtuvieron correctamente
+        Write-DzDebug "`t[DEBUG] Controles obtenidos:"
+        Write-DzDebug "`t  - lblHostname: $($lblHostname -ne $null)"
+        Write-DzDebug "`t  - lblPort: $($lblPort -ne $null)"
+        Write-DzDebug "`t  - txt_IpAdress: $($txt_IpAdress -ne $null)"
+        Write-DzDebug "`t  - txt_AdapterStatus: $($txt_AdapterStatus -ne $null)"
+
+        if (-not $txt_IpAdress) {
+            throw "Error: No se pudo obtener el control TxtIpAddress del estado"
         }
         # Ahora obtener los controles del State ACTUALIZADO
         $txtServer = $uiState.GetControl('ComboServer')
@@ -142,7 +157,6 @@ function New-MainForm {
         $dgvResults = $uiState.GetControl('DataGridResults')
         $contextMenu = $uiState.GetControl('ContextMenu')
         $copyMenu = $uiState.GetControl('CopyMenuItem')
-
         # === AGREGAR MÁS DEBUGGING ===
         Write-DzDebug "`t[DEBUG] Comprobar controles obtenidos:"
         Write-DzDebug "`t  - ComboServer: $($txtServer -ne $null)"
@@ -152,7 +166,6 @@ function New-MainForm {
         if (-not $txtServer -or -not $txtUser -or -not $rtbQuery) {
             throw "Error: No se pudieron obtener los controles de la pestaña Base de Datos"
         }
-
         # Asignar a variables globales
         $global:txtServer = $txtServer
         $global:txtUser = $txtUser
@@ -394,6 +407,25 @@ function New-MainForm {
         }
         $lblHostname.Add_MouseEnter($changeColorOnHover)
         $lblHostname.Add_MouseLeave($restoreColorOnLeave)
+        $LZMAbtnBuscarCarpeta = $uiState.GetControl('LZMAbtnBuscarCarpeta')
+        $btnInstalarHerramientas = $uiState.GetControl('BtnInstalarHerramientas')
+        $btnProfiler = $uiState.GetControl('BtnProfiler')
+        $btnDatabase = $uiState.GetControl('BtnDatabase')
+        $btnSQLManager = $uiState.GetControl('BtnSQLManager')
+        $btnSQLManagement = $uiState.GetControl('BtnSQLManagement')
+        $btnPrinterTool = $uiState.GetControl('BtnPrinterTool')
+        $btnLectorDPicacls = $uiState.GetControl('BtnLectorDPicacls')
+        $btnConfigurarIPs = $uiState.GetControl('BtnConfigurarIPs')
+        $btnAddUser = $uiState.GetControl('BtnAddUser')
+        $btnForzarActualizacion = $uiState.GetControl('BtnForzarActualizacion')
+        $btnClearAnyDesk = $uiState.GetControl('BtnClearAnyDesk')
+        $btnShowPrinters = $uiState.GetControl('BtnShowPrinters')
+        $btnClearPrintJobs = $uiState.GetControl('BtnClearPrintJobs')
+        $btnAplicacionesNS = $uiState.GetControl('BtnAplicacionesNS')
+        $btnCheckPermissions = $uiState.GetControl('BtnCheckPermissions')
+        $btnCambiarOTM = $uiState.GetControl('BtnCambiarOTM')
+        $btnCreateAPK = $uiState.GetControl('BtnCreateAPK')
+
         $buttonsToUpdate = @(
             $LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler,
             $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool,

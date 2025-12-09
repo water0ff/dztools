@@ -87,6 +87,8 @@ function Register-GlobalErrorHandlers {
 
                 $ex = $eventArgs.Exception
 
+                Write-DzLog ("[ThreadException] Tipo={0} Mensaje={1}" -f $ex.GetType().FullName, $ex.Message)
+
                 Write-Host "`n===============================================" -ForegroundColor Red
                 Write-Host "EXCEPCIÓN DE THREAD UI CAPTURADA" -ForegroundColor Red
                 Write-Host "===============================================" -ForegroundColor Red
@@ -102,6 +104,8 @@ function Register-GlobalErrorHandlers {
                 if ($ex.StackTrace) {
                     Write-Host "`nStack Trace:" -ForegroundColor Cyan
                     Write-Host $ex.StackTrace -ForegroundColor Gray
+                    Write-DzLog "[ThreadException] Stack:"
+                    Write-DzLog $ex.StackTrace
                 }
 
                 Write-Host "===============================================`n" -ForegroundColor Red
@@ -121,6 +125,8 @@ function Register-GlobalErrorHandlers {
 
                 $ex = $eventArgs.ExceptionObject
 
+                Write-DzLog ("[UnhandledException] IsTerminating={0}" -f $eventArgs.IsTerminating)
+
                 Write-Host "`n===============================================" -ForegroundColor Red
                 Write-Host "EXCEPCIÓN NO CONTROLADA DEL DOMINIO" -ForegroundColor Red
                 Write-Host "===============================================" -ForegroundColor Red
@@ -129,19 +135,24 @@ function Register-GlobalErrorHandlers {
                 if ($ex -is [System.Exception]) {
                     Write-Host "Tipo     : $($ex.GetType().FullName)" -ForegroundColor Yellow
                     Write-Host "Mensaje  : $($ex.Message)" -ForegroundColor Yellow
+                    Write-DzLog ("[UnhandledException] Tipo={0} Mensaje={1}" -f $ex.GetType().FullName, $ex.Message)
 
                     if ($ex.InnerException) {
                         Write-Host "`nExcepción interna:" -ForegroundColor Cyan
                         Write-Host "  Tipo    : $($ex.InnerException.GetType().FullName)" -ForegroundColor Yellow
                         Write-Host "  Mensaje : $($ex.InnerException.Message)" -ForegroundColor Yellow
+                        Write-DzLog ("[UnhandledException] Inner Tipo={0} Mensaje={1}" -f $ex.InnerException.GetType().FullName, $ex.InnerException.Message)
                     }
 
                     if ($ex.StackTrace) {
                         Write-Host "`nStack Trace:" -ForegroundColor Cyan
                         Write-Host $ex.StackTrace -ForegroundColor Gray
+                        Write-DzLog "[UnhandledException] Stack:"
+                        Write-DzLog $ex.StackTrace
                     }
                 } else {
                     Write-Host "Objeto de excepción: $ex" -ForegroundColor Yellow
+                    Write-DzLog "[UnhandledException] Objeto no System.Exception" 
                 }
 
                 Write-Host "===============================================`n" -ForegroundColor Red
@@ -3137,10 +3148,13 @@ function Start-Application {
         Write-Host "Tipo     : $($_.Exception.GetType().FullName)" -ForegroundColor Yellow
         Write-Host "Mensaje  : $($_.Exception.Message)" -ForegroundColor Yellow
 
+        Write-DzLog ("[Start-Application] Tipo={0} Mensaje={1}" -f $_.Exception.GetType().FullName, $_.Exception.Message)
+
         if ($_.Exception.InnerException) {
             Write-Host "`nExcepción interna:" -ForegroundColor Cyan
             Write-Host "  Tipo    : $($_.Exception.InnerException.GetType().FullName)" -ForegroundColor Yellow
             Write-Host "  Mensaje : $($_.Exception.InnerException.Message)" -ForegroundColor Yellow
+            Write-DzLog ("[Start-Application] Inner Tipo={0} Mensaje={1}" -f $_.Exception.InnerException.GetType().FullName, $_.Exception.InnerException.Message)
         }
 
         if ($_.InvocationInfo) {
@@ -3148,11 +3162,14 @@ function Start-Application {
             Write-Host "  Archivo : $($_.InvocationInfo.ScriptName)" -ForegroundColor Yellow
             Write-Host "  Línea   : $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor Yellow
             Write-Host "  Comando : $($_.InvocationInfo.Line.Trim())" -ForegroundColor Yellow
+            Write-DzLog ("[Start-Application] Archivo={0} Línea={1} Comando={2}" -f $_.InvocationInfo.ScriptName, $_.InvocationInfo.ScriptLineNumber, $_.InvocationInfo.Line.Trim())
         }
 
         if ($_.ScriptStackTrace) {
             Write-Host "`nStack Trace completo:" -ForegroundColor Cyan
             Write-Host $_.ScriptStackTrace -ForegroundColor Gray
+            Write-DzLog "[Start-Application] Stack:"
+            Write-DzLog $_.ScriptStackTrace
         }
 
         Write-Host "===============================================`n" -ForegroundColor Red

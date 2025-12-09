@@ -13,14 +13,14 @@ class UiState {
         $this.Controls = @{}
     }
 
-    [void]AddControl([string]$name, [System.Windows.Forms.Control]$control) {
+    [void]AddControl([string]$name, [object]$control) {
         if ([string]::IsNullOrWhiteSpace($name)) {
             throw [System.ArgumentException]::new("El nombre del control no puede estar vacío.", "name")
         }
         $this.Controls[$name] = $control
     }
 
-    [System.Windows.Forms.Control]GetControl([string]$name) {
+    [object]GetControl([string]$name) {
         if ($this.Controls.ContainsKey($name)) {
             return $this.Controls[$name]
         }

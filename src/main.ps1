@@ -33,6 +33,7 @@ if (Get-Command Set-ExecutionPolicy -ErrorAction SilentlyContinue) {
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
 $modules = @(
+    "FormBuilder.psm1",
     "GUI.psm1",
     "Database.psm1",
     "Utilities.psm1",

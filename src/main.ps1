@@ -120,6 +120,7 @@ function New-MainForm {
         $tabControl = $layout.TabControl
         $tabAplicaciones = $layout.Tabs.Aplicaciones
         $tabProSql = $layout.Tabs.BaseDatos
+        $tabControl.Visible = $true
         Add-ApplicationControls -Form $formPrincipal -TabPage $tabAplicaciones -State $uiState
         Write-DzDebug "`t[DEBUG] Obteniendo controles de aplicaciones del estado..."
         $lblHostname = $uiState.GetControl('LblHostname')
@@ -2651,7 +2652,15 @@ Password = $MegaPass
                     $form.Close()
                 }
             })
-        #Load-IniConnectionsToComboBox
+        $formPrincipal.Add_Load({
+                # Forzar visibilidad al cargar
+                $tabControl.Visible = $true
+                $tabProSql.Visible = $true
+                foreach ($control in $tabProSql.Controls) {
+                    $control.Visible = $true
+                }
+                $formPrincipal.Refresh()
+            })
         return $formPrincipal
 
     } catch {

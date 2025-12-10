@@ -91,27 +91,36 @@ function Build-DatabaseTab {
     )
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $controls = @{}
+
+    # Crear todos los controles
     $controls.LblServer = Create-Label -Text "Instancia SQL:" -Location (New-Object System.Drawing.Point(10, 10))
     $controls.LblUser = Create-Label -Text "Usuario:" -Location (New-Object System.Drawing.Point(10, 50))
     $controls.LblPassword = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(10, 90))
     $controls.LblDatabase = Create-Label -Text "Base de datos" -Location (New-Object System.Drawing.Point(10, 130))
     $controls.LblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" -Location (New-Object System.Drawing.Point(10, 400)) -Size (New-Object System.Drawing.Size(180, 80)) -ForeColor ([System.Drawing.Color]::Red)
     $controls.LblQueries = Create-Label -Text "Consultas SQL" -Location (New-Object System.Drawing.Point(220, 0)) -Size (New-Object System.Drawing.Size(200, 20))
+
     $controls.ComboServer = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(180, 20)) -DropDownStyle "DropDown"
     $controls.ComboServer.Text = ".\NationalSoft"
+
     $controls.ComboDatabases = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 140)) -Size (New-Object System.Drawing.Size(180, 20)) -DropDownStyle DropDownList
     $controls.ComboDatabases.Enabled = $false
+
     $controls.ComboQueries = Create-ComboBox -Location (New-Object System.Drawing.Point(220, 20)) -Size (New-Object System.Drawing.Size(320, 25)) -DropDownStyle DropDownList -DefaultText "Selecciona una consulta predefinida"
     $controls.ComboQueries.Enabled = $false
+
     $controls.TxtUser = Create-TextBox -Location (New-Object System.Drawing.Point(10, 60)) -Size (New-Object System.Drawing.Size(180, 20))
     $controls.TxtUser.Text = "sa"
+
     $controls.TxtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(10, 100)) -Size (New-Object System.Drawing.Size(180, 20)) -UseSystemPasswordChar $true
+
     $controls.RichTextQuery = New-Object System.Windows.Forms.RichTextBox
     $controls.RichTextQuery.Location = New-Object System.Drawing.Point(220, 50)
     $controls.RichTextQuery.Size = New-Object System.Drawing.Size(740, 200)
     $controls.RichTextQuery.Font = $defaultFont
     $controls.RichTextQuery.WordWrap = $false
     $controls.RichTextQuery.Enabled = $false
+
     $controls.DataGridResults = New-Object System.Windows.Forms.DataGridView
     $controls.DataGridResults.Location = New-Object System.Drawing.Point(220, 260)
     $controls.DataGridResults.Size = New-Object System.Drawing.Size(740, 220)
@@ -120,34 +129,46 @@ function Build-DatabaseTab {
     $controls.DataGridResults.AllowUserToDeleteRows = $false
     $controls.DataGridResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::AllCells
     $controls.DataGridResults.Enabled = $false
+    $controls.ContextMenu = $contextMenu
+    $controls.CopyMenuItem = $copyMenuItem
     $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
     $copyMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
     $copyMenuItem.Text = "Copiar celda"
     $contextMenu.Items.Add($copyMenuItem) | Out-Null
     $controls.DataGridResults.ContextMenuStrip = $contextMenu
-    $State.AddControl('ContextMenu', $contextMenu)
-    $State.AddControl('CopyMenuItem', $copyMenuItem)
+
     $controls.BtnExecute = Create-Button -Text "Ejecutar" -Location (New-Object System.Drawing.Point(340, 20)) -Size (New-Object System.Drawing.Size(100, 30))
     $controls.BtnExecute.Enabled = $false
+
     $controls.BtnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 220)) -Size (New-Object System.Drawing.Size(180, 30)) -BackColor ([System.Drawing.Color]::FromArgb(150, 200, 255))
+
     $controls.BtnDisconnectDb = Create-Button -Text "Desconectar de BDD" -Location (New-Object System.Drawing.Point(10, 260)) -Size (New-Object System.Drawing.Size(180, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 180, 180))
     $controls.BtnDisconnectDb.Enabled = $false
+
     $controls.BtnBackup = Create-Button -Text "Backup de BDD" -Location (New-Object System.Drawing.Point(10, 300)) -Size (New-Object System.Drawing.Size(180, 30)) -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 200))
     $controls.BtnBackup.Enabled = $false
+
+    # Agregar controles al State
     foreach ($name in $controls.Keys) {
         $State.AddControl($name, $controls[$name])
     }
+
+    # Agregar controles al TabPage
     $controlsToAdd = $controls.Values | Where-Object {
         $_ -is [System.Windows.Forms.Control] -and
         $_.GetType() -ne [System.Windows.Forms.ContextMenuStrip]
     }
+
     if ($controlsToAdd.Count -gt 0) {
         $TabPage.Controls.AddRange($controlsToAdd)
     }
+
+    # Hacer todos los controles VISIBLES
     foreach ($control in $TabPage.Controls) {
         $control.Visible = $true
         Write-DzDebug "`t[DEBUG] Haciendo visible control: $($control.GetType().Name) - '$($control.Text)'"
     }
+
     return $State
 }
 

@@ -1,5 +1,4 @@
 #requires -Version 5.0
-
 function Get-PredefinedQueries {
     return @{
         "Monitor de Servicios | Ventas a subir"           = @"
@@ -134,6 +133,42 @@ ORDER BY t.IsEnabled DESC, t.Name;
     WHERE c.rn = 1
     ORDER BY c.UltimoUso DESC;
 "@
+        "SR SYNC | nsplatformcontrol"                     = @"
+        	"BEGIN TRY
+    BEGIN TRANSACTION;
+    -- 1. Copiar datos de impuestos a una tabla temporal
+    SELECT WorkspaceId, EntityType, OperationType, 0 AS IsSync, 0 AS Attempts, CreateDate
+    INTO #tempcontroltaxes
+    FROM nsplatformcontrol
+    WHERE EntityType = 1;
+    -- 2. Vaciar la tabla original
+    TRUNCATE TABLE nsplatformcontrol;
+    -- 3. Insertar los datos de impuestos de nuevo
+    INSERT INTO nsplatformcontrol (WorkspaceId, EntityType, OperationType, IsSync, Attempts, CreateDate)
+    SELECT WorkspaceId, EntityType, OperationType, IsSync, Attempts, CreateDate
+    FROM #tempcontroltaxes;
+    -- 4. Eliminar la tabla temporal
+    DROP TABLE #tempcontroltaxes;
+    -- Confirmar los cambios
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF @@TRANCOUNT > 0
+        ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;"
+"@
+        "SR | Memoria Insuficiente"                       = @"
+        update empresas
+        set nombre='', razonsocial='',direccion='',sucursal='',
+        rfc='',curp='', telefono='',giro='',contacto='',fax='',
+        email='',idhardware='',web='',ciudad='',estado='',pais='',
+        ciudadsucursal='',estadosucursal='',codigopostal='',a86ed5f9d02ec5b3='',
+        codigopostalsucursal='',uid=newid();
+GO
+DELETE FROM registro_licencias;
+"@
+
         "OTM | Eliminar Server en OTM"                    = @"
     SELECT serie, ipserver, nombreservidor
     FROM configuracion;
@@ -164,7 +199,6 @@ WHERE
 "@
     }
 }
-
 function Initialize-PredefinedQueries {
     param(
         [Parameter(Mandatory = $true)]
@@ -173,46 +207,33 @@ function Initialize-PredefinedQueries {
         [System.Windows.Forms.RichTextBox]$RichTextBox,
         [hashtable]$Queries = $null
     )
-
     if (-not $Queries) {
         $Queries = Get-PredefinedQueries
     }
-
-    # Save the queries map and the target RichTextBox on the ComboBox to ensure
-    # they remain available when the selection changed event is fired.
     $ComboQueries.Tag = [PSCustomObject]@{
         Queries     = $Queries
         RichTextBox = $RichTextBox
     }
-
     $sortedKeys = $Queries.Keys | Sort-Object
     $ComboQueries.Items.Clear()
     foreach ($key in $sortedKeys) {
         $ComboQueries.Items.Add($key) | Out-Null
     }
-
     $ComboQueries.Add_SelectedIndexChanged({
             param($sender, $eventArgs)
-
             $state = $sender.Tag
-
             if (-not $state) {
                 return
             }
-
             $queryMap = $state.Queries
             $targetRichTextBox = $state.RichTextBox
-
             if (-not ($queryMap -and $targetRichTextBox)) {
                 return
             }
-
             $selectedKey = $sender.SelectedItem
-
             if ($null -eq $selectedKey) {
                 return
             }
-
             $targetRichTextBox.Text = $queryMap[$selectedKey]
         })
 }

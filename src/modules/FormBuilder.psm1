@@ -129,13 +129,13 @@ function Build-DatabaseTab {
     $controls.DataGridResults.AllowUserToDeleteRows = $false
     $controls.DataGridResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::AllCells
     $controls.DataGridResults.Enabled = $false
-    $controls.ContextMenu = $contextMenu
-    $controls.CopyMenuItem = $copyMenuItem
     $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
     $copyMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
     $copyMenuItem.Text = "Copiar celda"
     $contextMenu.Items.Add($copyMenuItem) | Out-Null
     $controls.DataGridResults.ContextMenuStrip = $contextMenu
+    $controls.ContextMenu = $contextMenu
+    $controls.CopyMenuItem = $copyMenuItem
 
     $controls.BtnExecute = Create-Button -Text "Ejecutar" -Location (New-Object System.Drawing.Point(340, 20)) -Size (New-Object System.Drawing.Size(100, 30))
     $controls.BtnExecute.Enabled = $false

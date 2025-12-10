@@ -2657,7 +2657,9 @@ Password = $MegaPass
                 $tabControl.Visible = $true
                 $tabProSql.Visible = $true
                 foreach ($control in $tabProSql.Controls) {
-                    $control.Visible = $true
+                    if ($control -is [System.Windows.Forms.Control]) {
+                        $control.Visible = $true
+                    }
                 }
                 $formPrincipal.Refresh()
             })

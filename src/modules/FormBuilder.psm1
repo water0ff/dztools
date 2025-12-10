@@ -165,8 +165,12 @@ function Build-DatabaseTab {
 
     # Hacer todos los controles VISIBLES
     foreach ($control in $TabPage.Controls) {
-        $control.Visible = $true
-        Write-DzDebug "`t[DEBUG] Haciendo visible control: $($control.GetType().Name) - '$($control.Text)'"
+        if ($control -is [System.Windows.Forms.Control]) {
+            $control.Visible = $true
+            Write-DzDebug "`t[DEBUG] Haciendo visible control: $($control.GetType().Name) - '$($control.Text)'"
+        } else {
+            Write-DzDebug "`t[DEBUG] Control ignorado al hacer visible (tipo: $($control.GetType().FullName))"
+        }
     }
 
     return $State
@@ -233,12 +237,18 @@ function Make-AllControlsVisible {
         [System.Windows.Forms.TabPage]$TabPage
     )
     foreach ($control in $TabPage.Controls) {
-        $control.Visible = $true
-        Write-DzDebug "`t[DEBUG] Haciendo visible: $($control.GetType().Name) - Text: $($control.Text)"
-        if ($control.HasChildren) {
-            foreach ($child in $control.Controls) {
-                $child.Visible = $true
+        if ($control -is [System.Windows.Forms.Control]) {
+            $control.Visible = $true
+            Write-DzDebug "`t[DEBUG] Haciendo visible: $($control.GetType().Name) - Text: $($control.Text)"
+            if ($control.HasChildren) {
+                foreach ($child in $control.Controls) {
+                    if ($child -is [System.Windows.Forms.Control]) {
+                        $child.Visible = $true
+                    }
+                }
             }
+        } else {
+            Write-DzDebug "`t[DEBUG] Elemento sin propiedad Visible ignorado: $($control.GetType().FullName)"
         }
     }
     $TabPage.Visible = $true

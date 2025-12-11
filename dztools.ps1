@@ -1,11 +1,33 @@
 param(
     [string]$Branch = "release"   # solo informativo ahora
 )
+# ===================== ADVERTENCIA DE VERSIÓN BETA =====================
+Write-Host "`n==============================================" -ForegroundColor Red
+Write-Host "           ADVERTENCIA DE VERSIÓN BETA " -ForegroundColor Red
+Write-Host "==============================================" -ForegroundColor Red
+Write-Host "Esta aplicación se encuentra en fase de desarrollo ALFA.`n" -ForegroundColor Yellow
+Write-Host "Algunas funciones pueden realizar cambios irreversibles en: `n"
+Write-Host " - Su equipo" -ForegroundColor Red
+Write-Host " - Bases de datos" -ForegroundColor Red
+Write-Host " - Configuraciones del sistema`n" -ForegroundColor Red
+Write-Host "¿Acepta ejecutar esta aplicación bajo su propia responsabilidad? (Y/N)" -ForegroundColor Yellow
+# Leer una tecla (Y/N) sin hacer eco en pantalla
+$response = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+$answer = $response.Character.ToString().ToUpper()
+while ($answer -notin 'Y', 'N') {
+    $response = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    $answer = $response.Character.ToString().ToUpper()
+}
+if ($answer -ne 'Y') {
+    Write-Host "`nEjecución cancelada por el usuario.`n" -ForegroundColor Red
+    return   # Usamos return para no cerrar toda la consola del usuario
+}
+# ======================================================================
+Clear-Host
 $baseRuntimePath = "C:\temp\dztools"
 $releasePath = Join-Path $baseRuntimePath "release"
 $Owner = "water0ff"
 $Repo = "dztools"
-Clear-Host
 function Show-ProgressBar {
     param(
         [int]$Percent,
@@ -30,7 +52,6 @@ if (-not (Test-Path $baseRuntimePath)) {
 Show-ProgressBar -Percent 5 -Message "Preparando entorno..."
 $zipPath = Join-Path $baseRuntimePath "dztools.zip"
 Show-ProgressBar -Percent 10 -Message "Limpiando versión anterior..."
-
 try {
     if (Test-Path $zipPath) {
         Remove-Item $zipPath -Force -ErrorAction SilentlyContinue

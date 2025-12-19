@@ -71,7 +71,7 @@ function Create-Button {
         [System.Drawing.Color]$ForeColor = [System.Drawing.Color]::Black,
         [string]$ToolTipText = $null,
         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(220, 35)),
-        [System.Drawing.Font]$Font = $defaultFont, # Agregar parámetro Font con valor predeterminado
+        [System.Drawing.Font]$Font = $defaultFont,
         [bool]$Enabled = $true
     )
     $buttonStyle = @{
@@ -79,22 +79,22 @@ function Create-Button {
         Font      = $defaultFont
     }
     $button_MouseEnter = {
-        $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)  # Cambia el color al pasar el mouse
+        $this.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 255)
         $this.Font = $boldFont
     }
     $button_MouseLeave = {
-        $this.BackColor = $this.Tag  # Restaura el color original almacenado en Tag
+        $this.BackColor = $this.Tag
         $this.Font = $defaultFont
     }
     $button = New-Object System.Windows.Forms.Button
     $button.Text = $Text
-    $button.Size = $Size  # Usar el tamaño personalizado
+    $button.Size = $Size
     $button.Location = $Location
     $button.BackColor = $BackColor
     $button.ForeColor = $ForeColor
-    $button.Font = $Font # Usar el parámetro Font
+    $button.Font = $Font
     $button.FlatStyle = $buttonStyle.FlatStyle
-    $button.Tag = $BackColor  # Almacena el color original en Tag
+    $button.Tag = $BackColor
     $button.Add_MouseEnter($button_MouseEnter)
     $button.Add_MouseLeave($button_MouseLeave)
     $button.Enabled = $Enabled
@@ -168,7 +168,6 @@ function Show-ProgressBar {
         -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) `
         -TopMost $true `
         -ControlBox $false
-    # Hacer el formulario arrastrable
     $formProgress.Add_MouseDown({
             if ($_.Button -eq [System.Windows.Forms.MouseButtons]::Left) {
                 $script:isDragging = $true
@@ -188,7 +187,6 @@ function Show-ProgressBar {
     $formProgress.Add_MouseUp({
             $script:isDragging = $false
         })
-    # Título/Header
     $lblHeader = New-Object System.Windows.Forms.Label
     $lblHeader.Location = New-Object System.Drawing.Point(10, 10)
     $lblHeader.Size = New-Object System.Drawing.Size(420, 25)
@@ -196,29 +194,24 @@ function Show-ProgressBar {
     $lblHeader.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
     $lblHeader.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     $lblHeader.ForeColor = [System.Drawing.Color]::FromArgb(0, 120, 215)
-    # Barra de progreso
     $progressBar = New-Object System.Windows.Forms.ProgressBar
     $progressBar.Size = New-Object System.Drawing.Size(420, 25)
     $progressBar.Location = New-Object System.Drawing.Point(10, 45)
     $progressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
     $progressBar.Maximum = 100
-    # Label de porcentaje
     $lblPercentage = New-Object System.Windows.Forms.Label
     $lblPercentage.Location = New-Object System.Drawing.Point(10, 75)
     $lblPercentage.Size = New-Object System.Drawing.Size(420, 20)
     $lblPercentage.Text = "0% Completado"
     $lblPercentage.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     $lblPercentage.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-    # Label de estado (con countdown)
     $lblStatus = New-Object System.Windows.Forms.Label
     $lblStatus.Location = New-Object System.Drawing.Point(10, 100)
     $lblStatus.Size = New-Object System.Drawing.Size(420, 60)
     $lblStatus.Text = "Iniciando proceso..."
     $lblStatus.TextAlign = [System.Drawing.ContentAlignment]::TopCenter
     $lblStatus.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Regular)
-    # Agregar controles
     $formProgress.Controls.AddRange(@($lblHeader, $progressBar, $lblPercentage, $lblStatus))
-    # Exponer propiedades
     $formProgress | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $progressBar -Force
     $formProgress | Add-Member -MemberType NoteProperty -Name Label -Value $lblPercentage -Force
     $formProgress | Add-Member -MemberType NoteProperty -Name StatusLabel -Value $lblStatus -Force
@@ -240,15 +233,11 @@ function Update-ProgressBar {
     }
     try {
         $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)
-        # Actualizar barra de progreso
         $ProgressForm.ProgressBar.Value = $percent
-        # Actualizar label de porcentaje
         $ProgressForm.Label.Text = "$percent% Completado"
-        # Actualizar status
         if ($Status -ne "" -and $ProgressForm.PSObject.Properties.Name -contains 'StatusLabel') {
             $ProgressForm.StatusLabel.Text = $Status
         }
-        # Forzar actualización de UI
         $ProgressForm.Refresh()
         [System.Windows.Forms.Application]::DoEvents()
     } catch {
@@ -257,7 +246,6 @@ function Update-ProgressBar {
 }
 function Close-ProgressBar {
     param($ProgressForm)
-
     if ($null -eq $ProgressForm -or $ProgressForm.IsDisposed) {
         return
     }
@@ -286,10 +274,8 @@ function Show-SSMSInstallerDialog {
     $form.AcceptButton = $btnOK
     $form.CancelButton = $btnCancel
     $form.Controls.AddRange(@($lbl, $cmb, $btnOK, $btnCancel))
-
     $result = $form.ShowDialog()
     if ($result -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
-
     switch ($cmb.SelectedIndex) {
         0 { return "latest" }
         1 { return "ssms14" }
@@ -550,7 +536,6 @@ function New-TextBox {
     $textBox.Multiline = $Multiline
     $textBox.ScrollBars = $ScrollBars
     $textBox.ReadOnly = $ReadOnly
-
     if ($UseSystemPasswordChar) {
         $textBox.UseSystemPasswordChar = $true
     }
@@ -574,7 +559,6 @@ function New-ComboBox {
         [Parameter()]
         [string]$DefaultText = $null
     )
-
     if (-not $Font) {
         $Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     }
@@ -583,7 +567,6 @@ function New-ComboBox {
     $comboBox.Size = $Size
     $comboBox.DropDownStyle = $DropDownStyle
     $comboBox.Font = $Font
-
     if ($Items.Count -gt 0) {
         $comboBox.Items.AddRange($Items)
         $comboBox.SelectedIndex = $SelectedIndex
@@ -598,10 +581,8 @@ function Show-ProgressDialog {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Title,
-
         [Parameter()]
         [string]$Message = "Procesando...",
-
         [Parameter()]
         [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(400, 150))
     )
@@ -623,12 +604,10 @@ function Set-ControlEnabled {
         [bool]$Enabled,
         [string]$Name
     )
-
     if ($null -eq $Control) {
         Write-DzDebug "`t[DEBUG][Set-ControlEnabled] $Name es NULL"
         return
     }
-
     if ($Control -is [System.Windows.Forms.Control]) {
         $Control.Enabled = $Enabled
         Write-DzDebug "`t[DEBUG][Set-ControlEnabled] $Name ($($Control.GetType().Name)) Enabled=$Enabled"
@@ -636,8 +615,6 @@ function Set-ControlEnabled {
         Write-DzDebug "`t[DEBUG][Set-ControlEnabled] $Name tipo inesperado: $($Control.GetType().FullName)"
     }
 }
-
-
 Export-ModuleMember -Function New-FormBuilder, New-Button, New-Label, New-TextBox, New-ComboBox,
 Show-ProgressDialog, Create-Form, Create-Button, Create-Label, Create-TextBox, Create-ComboBox,
 Show-ProgressBar, Update-ProgressBar, Close-ProgressBar, Show-SSMSInstallerDialog, Show-NewIpForm, Set-ControlEnabled

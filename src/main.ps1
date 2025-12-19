@@ -34,6 +34,8 @@ Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
 $modules = @(
     "GUI.psm1",
+    "Services.psm1",
+    "ViewModels.psm1",
     "Database.psm1",
     "Utilities.psm1",
     "Queries.psm1",
@@ -442,6 +444,13 @@ function New-MainForm {
                 $txt_InfoInstrucciones.Text = $Message
             }
         }.GetNewClosure()
+        $script:clipboardService = [ClipboardService]::new()
+        $script:messageService = [MessageBoxService]::new()
+        $script:networkProfileService = [NetworkProfileService]::new()
+        $script:systemInfoViewModel = [SystemInfoViewModel]::new(
+            $script:clipboardService,
+            $script:networkProfileService
+        )
         $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(350, 525)) `
             -Size (New-Object System.Drawing.Size(500, 30)) `
             -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
@@ -715,51 +724,45 @@ compila el proyecto y lo coloca en la carpeta de salida.
                 param($sender, $e)
                 $text = $sender.Text
                 Write-DzDebug "`t[DEBUG] lblPort.Text al hacer clic: '$text'"
-                $port = [regex]::Match($text, '\d+').Value
-                if ([string]::IsNullOrWhiteSpace($port)) {
-                    Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
+                $result = $script:systemInfoViewModel.CopyPortFromLabelText($text)
+                if (-not $result.Success) {
+                    Write-Host $result.Message -ForegroundColor Red
                     return
                 }
-                [System.Windows.Forms.Clipboard]::SetText($port)
-                Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
+                Write-Host $result.Message -ForegroundColor Green
             })
         $lblPort.Add_MouseEnter($changeColorOnHover)
         $lblPort.Add_MouseLeave($restoreColorOnLeave)
         $lblHostname.Add_Click({
                 param($sender, $e)
                 $hostnameText = $sender.Text  # <- usamos el control que disparó el evento
-                if ([string]::IsNullOrWhiteSpace($hostnameText)) {
-                    Write-Host "`n[AVISO] El hostname está vacío o nulo, no se copió nada." -ForegroundColor Yellow
-                    [System.Windows.Forms.MessageBox]::Show(
-                        "El nombre de equipo está vacío, no hay nada que copiar.",
-                        "Daniel Tools",
-                        [System.Windows.Forms.MessageBoxButtons]::OK,
-                        [System.Windows.Forms.MessageBoxIcon]::Information
-                    ) | Out-Null
+                $result = $script:systemInfoViewModel.CopyHostname($hostnameText)
+                if (-not $result.Success) {
+                    Write-Host "`n[AVISO] $($result.Message)" -ForegroundColor Yellow
+                    $script:messageService.ShowWarning($result.Message, "Daniel Tools")
                     return
                 }
-                [System.Windows.Forms.Clipboard]::SetText($hostnameText)
-                Write-Host "`nNombre del equipo copiado al portapapeles: $hostnameText" -ForegroundColor Green
+                Write-Host "`n$($result.Message)" -ForegroundColor Green
             })
         $txt_IpAdress.Add_Click({
                 param($sender, $e)
                 $ipsText = $sender.Text  # <- usamos el Text del textbox que hizo click
-                if ([string]::IsNullOrWhiteSpace($ipsText)) {
-                    Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow
+                $result = $script:systemInfoViewModel.CopyIpAddresses($ipsText)
+                if (-not $result.Success) {
+                    Write-Host "`n[AVISO] $($result.Message)" -ForegroundColor Yellow
                     return
                 }
-                [System.Windows.Forms.Clipboard]::SetText($ipsText)
-                Write-Host "`nIP's copiadas al portapapeles: $ipsText" -ForegroundColor Green
+                Write-Host "`n$($result.Message)" -ForegroundColor Green
             })
         $txt_IpAdress.Add_MouseEnter($changeColorOnHover)
         $txt_IpAdress.Add_MouseLeave($restoreColorOnLeave)
         $txt_AdapterStatus.Add_Click({
-                Get-NetConnectionProfile |
-                Where-Object { $_.NetworkCategory -ne 'Private' } |
-                ForEach-Object {
-                    Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private
+                $result = $script:systemInfoViewModel.SetNetworksPrivate()
+                if (-not $result.Success) {
+                    Write-Host $result.Message -ForegroundColor Red
+                    return
                 }
-                Write-Host "Todas las redes se han establecido como Privadas."
+                Write-Host $result.Message
                 Refresh-AdapterStatus
             })
         $txt_AdapterStatus.Add_MouseEnter($changeColorOnHover)

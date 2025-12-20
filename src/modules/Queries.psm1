@@ -173,43 +173,67 @@ WHERE
     }
 }
 
+# En Queries.psm1, reemplaza la función Initialize-PredefinedQueries:
+
 function Initialize-PredefinedQueries {
     param(
         [Parameter(Mandatory = $true)]
         $ComboQueries,
         [Parameter(Mandatory = $true)]
-        $TextBox,
-        [hashtable]$Queries = $null
+        $RichTextBox,
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Queries
     )
-    if (-not $Queries) {
-        $Queries = Get-PredefinedQueries
+
+    # Detectar si es WPF o WinForms
+    $isWPF = $RichTextBox.GetType().FullName -like "*System.Windows.Controls*"
+
+    if ($isWPF) {
+        Write-DzDebug "`t[DEBUG] RichTextBox detectado: WPF"
+    } else {
+        Write-DzDebug "`t[DEBUG] RichTextBox detectado: Windows Forms"
     }
-    $ComboQueries.Tag = [PSCustomObject]@{
-        Queries = $Queries
-        TextBox = $TextBox
-    }
-    $sortedKeys = $Queries.Keys | Sort-Object
-    $ComboQueries.Items.Clear()
-    foreach ($key in $sortedKeys) {
+
+    # Agregar queries al ComboBox
+    $ComboQueries.Items.Add("Selecciona una consulta predefinida") | Out-Null
+    foreach ($key in ($Queries.Keys | Sort-Object)) {
         $ComboQueries.Items.Add($key) | Out-Null
     }
-    $ComboQueries.Add_SelectionChanged({
-            param($sender, $eventArgs)
-            $state = $sender.Tag
-            if (-not $state) {
-                return
-            }
-            $queryMap = $state.Queries
-            $targetTextBox = $state.TextBox
-            if (-not ($queryMap -and $targetTextBox)) {
-                return
-            }
-            $selectedKey = $sender.SelectedItem
-            if ($null -eq $selectedKey) {
-                return
-            }
-            $targetTextBox.Text = $queryMap[$selectedKey]
-        })
+    $ComboQueries.SelectedIndex = 0
+
+    # Evento de selección
+    if ($isWPF) {
+        # WPF: SelectionChanged
+        $ComboQueries.Add_SelectionChanged({
+                $selectedQuery = $ComboQueries.SelectedItem
+                if ($selectedQuery -and $selectedQuery -ne "Selecciona una consulta predefinida") {
+                    if ($Queries.ContainsKey($selectedQuery)) {
+                        $queryText = $Queries[$selectedQuery]
+
+                        # Limpiar y establecer texto en WPF RichTextBox
+                        $RichTextBox.Document.Blocks.Clear()
+                        $paragraph = New-Object System.Windows.Documents.Paragraph
+                        $run = New-Object System.Windows.Documents.Run($queryText)
+                        $paragraph.Inlines.Add($run)
+                        $RichTextBox.Document.Blocks.Add($paragraph)
+                    }
+                }
+            })
+    } else {
+        # Windows Forms: SelectedIndexChanged
+        $ComboQueries.Add_SelectedIndexChanged({
+                $selectedQuery = $ComboQueries.SelectedItem
+                if ($selectedQuery -and $selectedQuery -ne "Selecciona una consulta predefinida") {
+                    if ($Queries.ContainsKey($selectedQuery)) {
+                        $RichTextBox.Text = $Queries[$selectedQuery]
+                    }
+                }
+            })
+    }
 }
 
-Export-ModuleMember -Function Get-PredefinedQueries, Initialize-PredefinedQueries
+Export-ModuleMember -Function @(
+    'Get-PredefinedQueries',
+    'Initialize-PredefinedQueries',
+    'Remove-SqlComments'
+)

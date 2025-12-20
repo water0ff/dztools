@@ -984,12 +984,12 @@ compila el proyecto y lo coloca en la carpeta de salida.
                     )
                 } catch {
                     Write-DzDebug ("`t[DEBUG] Error en la instalación de {0}: {1}" -f $packageName, $_)
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
-                            "Error",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Error
-                        )
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Error al instalar el paquete seleccionado: $($_.Exception.Message)",
+                        "Error",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    )
                 }
             })
         $btnUninstallSelectedChoco.Add_Click({

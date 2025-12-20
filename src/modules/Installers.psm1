@@ -1,16 +1,36 @@
 ﻿#requires -Version 5.0
+
+# ============================================
+# Installers.psm1 - Versión WPF
+# Módulo de instalación de software
+# ============================================
+
+# ============================================
+# FUNCIÓN: Check-Chocolatey
+# ============================================
 function Check-Chocolatey {
+    <#
+    .SYNOPSIS
+    Verifica si Chocolatey está instalado y ofrece instalarlo
+
+    .DESCRIPTION
+    Comprueba la existencia de Chocolatey y solicita instalación si no existe
+
+    .OUTPUTS
+    Boolean - True si está instalado o instalación exitosa, False en caso contrario
+    #>
+
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-        $response = [System.Windows.Forms.MessageBox]::Show(
+        $result = [System.Windows.MessageBox]::Show(
             "Chocolatey no está instalado. ¿Desea instalarlo ahora?",
             "Chocolatey no encontrado",
-            [System.Windows.Forms.MessageBoxButtons]::YesNo,
-            [System.Windows.Forms.MessageBoxIcon]::Question
+            [System.Windows.MessageBoxButton]::YesNo,
+            [System.Windows.MessageBoxImage]::Question
         )
 
-        if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+        if ($result -eq [System.Windows.MessageBoxResult]::No) {
             Write-Host "`nEl usuario canceló la instalación de Chocolatey." -ForegroundColor Red
-            return $false  # Retorna falso si el usuario cancela
+            return $false
         }
 
         Write-Host "`nInstalando Chocolatey..." -ForegroundColor Cyan
@@ -25,33 +45,66 @@ function Check-Chocolatey {
             Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
             choco config set cacheLocation C:\Choco\cache
 
-            [System.Windows.Forms.MessageBox]::Show(
+            [System.Windows.MessageBox]::Show(
                 "Chocolatey se instaló correctamente y ha sido configurado. Por favor, reinicie PowerShell antes de continuar.",
                 "Reinicio requerido",
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Information
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Information
             )
 
             # Cerrar el programa automáticamente
             Write-Host "`nCerrando la aplicación para permitir reinicio de PowerShell..." -ForegroundColor Red
             Stop-Process -Id $PID -Force
-            return $false # Retorna falso para indicar que se debe reiniciar
+            return $false
         } catch {
             Write-Host "`nError al instalar Chocolatey: $_" -ForegroundColor Red
-            [System.Windows.Forms.MessageBox]::Show(
+            [System.Windows.MessageBox]::Show(
                 "Error al instalar Chocolatey. Por favor, inténtelo manualmente.",
                 "Error de instalación",
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Error
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Error
             )
-            return $false # Retorna falso en caso de error
+            return $false
         }
     } else {
         Write-Host "`tChocolatey ya está instalado." -ForegroundColor Green
-        return $true # Retorna verdadero si Chocolatey ya está instalado
+        return $true
     }
 }
+
+# ============================================
+# FUNCIÓN: Test-ChocolateyInstalled
+# ============================================
+function Test-ChocolateyInstalled {
+    <#
+    .SYNOPSIS
+    Verifica si Chocolatey está instalado sin solicitar instalación
+
+    .OUTPUTS
+    Boolean - True si está instalado, False en caso contrario
+    #>
+
+    return $null -ne (Get-Command choco -ErrorAction SilentlyContinue)
+}
+
+# ============================================
+# FUNCIÓN: Install-Software
+# ============================================
 function Install-Software {
+    <#
+    .SYNOPSIS
+    Instala software mediante Chocolatey
+
+    .PARAMETER Software
+    Nombre del software a instalar (SQL2014, SQL2019, SSMS, 7Zip, MegaTools)
+
+    .PARAMETER Force
+    Forzar reinstalación si ya existe
+
+    .OUTPUTS
+    Boolean - True si la instalación fue exitosa, False en caso contrario
+    #>
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -64,7 +117,7 @@ function Install-Software {
 
     # Verificar Chocolatey
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-        Write-Error "Chocolatey no está instalado. Use Install-Chocolatey primero."
+        Write-Error "Chocolatey no está instalado. Use Check-Chocolatey primero."
         return $false
     }
 
@@ -116,7 +169,27 @@ function Install-Software {
     }
 }
 
+# ============================================
+# FUNCIÓN: Download-File
+# ============================================
 function Download-File {
+    <#
+    .SYNOPSIS
+    Descarga un archivo desde una URL
+
+    .PARAMETER Url
+    URL del archivo a descargar
+
+    .PARAMETER OutputPath
+    Ruta de destino del archivo
+
+    .PARAMETER ShowProgress
+    Mostrar barra de progreso durante la descarga
+
+    .OUTPUTS
+    Boolean - True si la descarga fue exitosa, False en caso contrario
+    #>
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -164,7 +237,27 @@ function Download-File {
     }
 }
 
+# ============================================
+# FUNCIÓN: Expand-ArchiveFile
+# ============================================
 function Expand-ArchiveFile {
+    <#
+    .SYNOPSIS
+    Extrae un archivo comprimido
+
+    .PARAMETER ArchivePath
+    Ruta del archivo comprimido
+
+    .PARAMETER DestinationPath
+    Ruta de destino para extraer
+
+    .PARAMETER Force
+    Forzar extracción sobrescribiendo archivos existentes
+
+    .OUTPUTS
+    Boolean - True si la extracción fue exitosa, False en caso contrario
+    #>
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -196,34 +289,380 @@ function Expand-ArchiveFile {
         return $false
     }
 }
+
+# ============================================
+# FUNCIÓN: Show-SSMSInstallerDialog (WPF)
+# ============================================
 function Show-SSMSInstallerDialog {
-    $form = Create-Form -Title "Instalar SSMS" `
-        -Size (New-Object System.Drawing.Size(360, 180)) `
-        -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-        -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) `
-        -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
+    <#
+    .SYNOPSIS
+    Muestra diálogo para seleccionar versión de SSMS a instalar
 
-    $lbl = Create-Label -Text "Elige la versión a instalar:" -Location (New-Object System.Drawing.Point(10, 15)) -Size (New-Object System.Drawing.Size(320, 20))
-    $cmb = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 40)) -Size (New-Object System.Drawing.Size(320, 22)) -DropDownStyle DropDownList
-    $null = $cmb.Items.Add("Último disponible.")
-    $null = $cmb.Items.Add("SSMS 14 (2014)")
-    $cmb.SelectedIndex = 0
+    .OUTPUTS
+    String - "latest" o "ssms14", $null si se cancela
+    #>
 
-    $btnOK = Create-Button -Text "Instalar" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(140, 30))
-    $btnOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
-    $btnCancel = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(190, 80)) -Size (New-Object System.Drawing.Size(140, 30))
-    $btnCancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Instalar SSMS"
+        Height="200" Width="380"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#F5F5F5">
 
-    $form.AcceptButton = $btnOK
-    $form.CancelButton = $btnCancel
-    $form.Controls.AddRange(@($lbl, $cmb, $btnOK, $btnCancel))
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#2196F3"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1976D2"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
 
-    $result = $form.ShowDialog()
-    if ($result -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-    switch ($cmb.SelectedIndex) {
-        0 { return "latest" }
-        1 { return "ssms14" }
+        <!-- Título -->
+        <TextBlock Grid.Row="0"
+                  Text="Elige la versión a instalar:"
+                  FontSize="13"
+                  FontWeight="Bold"
+                  Margin="0,0,0,15"/>
+
+        <!-- ComboBox -->
+        <ComboBox Grid.Row="1"
+                 Name="cmbVersion"
+                 FontSize="12"
+                 Padding="8"
+                 Margin="0,0,0,20">
+            <ComboBoxItem Content="Último disponible" IsSelected="True"/>
+            <ComboBoxItem Content="SSMS 14 (2014)"/>
+        </ComboBox>
+
+        <!-- Espacio -->
+        <Grid Grid.Row="2"/>
+
+        <!-- Botones -->
+        <StackPanel Grid.Row="3"
+                   Orientation="Horizontal"
+                   HorizontalAlignment="Right">
+            <Button Name="btnOK"
+                   Content="Instalar"
+                   Width="140"
+                   Margin="0,0,10,0"/>
+            <Button Name="btnCancel"
+                   Content="Cancelar"
+                   Width="140"
+                   Background="#E0E0E0"
+                   Foreground="#424242"/>
+        </StackPanel>
+    </Grid>
+</Window>
+"@
+
+    try {
+        $reader = New-Object System.Xml.XmlNodeReader $xaml
+        $window = [Windows.Markup.XamlReader]::Load($reader)
+
+        # Obtener controles
+        $cmbVersion = $window.FindName("cmbVersion")
+        $btnOK = $window.FindName("btnOK")
+        $btnCancel = $window.FindName("btnCancel")
+
+        # Variable para almacenar resultado
+        $script:selectedVersion = $null
+
+        # Eventos
+        $btnOK.Add_Click({
+            $selectedIndex = $cmbVersion.SelectedIndex
+            $script:selectedVersion = switch ($selectedIndex) {
+                0 { "latest" }
+                1 { "ssms14" }
+                default { "latest" }
+            }
+            $window.DialogResult = $true
+            $window.Close()
+        })
+
+        $btnCancel.Add_Click({
+            $script:selectedVersion = $null
+            $window.DialogResult = $false
+            $window.Close()
+        })
+
+        # Mostrar diálogo
+        $result = $window.ShowDialog()
+
+        if ($result) {
+            return $script:selectedVersion
+        }
+
+        return $null
+
+    } catch {
+        Write-Error "Error mostrando diálogo de SSMS: $_"
+        return $null
     }
 }
-Export-ModuleMember -Function Install-Software, Download-File, Expand-ArchiveFile, Check-Chocolatey, Show-SSMSInstallerDialog
+
+# ============================================
+# FUNCIÓN: Test-7ZipInstalled
+# ============================================
+function Test-7ZipInstalled {
+    <#
+    .SYNOPSIS
+    Verifica si 7-Zip está instalado
+
+    .OUTPUTS
+    Boolean - True si está instalado, False en caso contrario
+    #>
+
+    $paths = @(
+        "C:\Program Files\7-Zip\7z.exe",
+        "C:\Program Files (x86)\7-Zip\7z.exe"
+    )
+
+    foreach ($path in $paths) {
+        if (Test-Path $path) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+# ============================================
+# FUNCIÓN: Test-MegaToolsInstalled
+# ============================================
+function Test-MegaToolsInstalled {
+    <#
+    .SYNOPSIS
+    Verifica si MegaTools está instalado
+
+    .OUTPUTS
+    Boolean - True si está instalado, False en caso contrario
+    #>
+
+    return $null -ne (Get-Command megatools -ErrorAction SilentlyContinue)
+}
+
+# ============================================
+# FUNCIÓN: Get-InstalledChocoPackages
+# ============================================
+function Get-InstalledChocoPackages {
+    <#
+    .SYNOPSIS
+    Obtiene lista de paquetes instalados con Chocolatey
+
+    .OUTPUTS
+    Array de objetos con Name y Version
+    #>
+
+    if (-not (Test-ChocolateyInstalled)) {
+        Write-Warning "Chocolatey no está instalado"
+        return @()
+    }
+
+    try {
+        $output = choco list --local-only --limit-output
+
+        $packages = @()
+        foreach ($line in $output) {
+            if ($line -match '^(?<name>[^\|]+)\|(?<version>.+)$') {
+                $packages += [PSCustomObject]@{
+                    Name = $Matches['name']
+                    Version = $Matches['version']
+                }
+            }
+        }
+
+        return $packages
+    } catch {
+        Write-Error "Error obteniendo paquetes instalados: $_"
+        return @()
+    }
+}
+
+# ============================================
+# FUNCIÓN: Search-ChocoPackages
+# ============================================
+function Search-ChocoPackages {
+    <#
+    .SYNOPSIS
+    Busca paquetes en el repositorio de Chocolatey
+
+    .PARAMETER Query
+    Término de búsqueda
+
+    .OUTPUTS
+    Array de objetos con Name, Version y Description
+    #>
+
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Query
+    )
+
+    if (-not (Test-ChocolateyInstalled)) {
+        Write-Warning "Chocolatey no está instalado"
+        return @()
+    }
+
+    try {
+        $output = choco search $Query --page-size=20
+
+        $packages = @()
+        $pattern = '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+(?<version>[0-9][A-Za-z0-9\.\-]*)\s+(?<description>.+)$'
+
+        foreach ($line in $output) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            if ($line -match '^Chocolatey') { continue }
+            if ($line -match 'packages?\s+found' -or $line -match 'page size') { continue }
+
+            if ($line -match $pattern) {
+                $packages += [PSCustomObject]@{
+                    Name = $Matches['name']
+                    Version = $Matches['version']
+                    Description = $Matches['description'].Trim()
+                }
+            }
+        }
+
+        return $packages
+    } catch {
+        Write-Error "Error buscando paquetes: $_"
+        return @()
+    }
+}
+
+# ============================================
+# FUNCIÓN: Install-ChocoPackage
+# ============================================
+function Install-ChocoPackage {
+    <#
+    .SYNOPSIS
+    Instala un paquete de Chocolatey
+
+    .PARAMETER PackageName
+    Nombre del paquete a instalar
+
+    .PARAMETER Version
+    Versión específica (opcional)
+
+    .OUTPUTS
+    Boolean - True si la instalación fue exitosa, False en caso contrario
+    #>
+
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PackageName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Version = $null
+    )
+
+    if (-not (Test-ChocolateyInstalled)) {
+        Write-Error "Chocolatey no está instalado"
+        return $false
+    }
+
+    try {
+        $arguments = "install $PackageName -y"
+
+        if (-not [string]::IsNullOrWhiteSpace($Version)) {
+            $arguments = "install $PackageName --version=$Version -y"
+        }
+
+        Write-Host "Instalando $PackageName..." -ForegroundColor Cyan
+        Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
+
+        Write-Host "$PackageName instalado correctamente" -ForegroundColor Green
+        return $true
+    } catch {
+        Write-Error "Error instalando $PackageName : $_"
+        return $false
+    }
+}
+
+# ============================================
+# FUNCIÓN: Uninstall-ChocoPackage
+# ============================================
+function Uninstall-ChocoPackage {
+    <#
+    .SYNOPSIS
+    Desinstala un paquete de Chocolatey
+
+    .PARAMETER PackageName
+    Nombre del paquete a desinstalar
+
+    .OUTPUTS
+    Boolean - True si la desinstalación fue exitosa, False en caso contrario
+    #>
+
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PackageName
+    )
+
+    if (-not (Test-ChocolateyInstalled)) {
+        Write-Error "Chocolatey no está instalado"
+        return $false
+    }
+
+    try {
+        $arguments = "uninstall $PackageName -y"
+
+        Write-Host "Desinstalando $PackageName..." -ForegroundColor Yellow
+        Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
+
+        Write-Host "$PackageName desinstalado correctamente" -ForegroundColor Green
+        return $true
+    } catch {
+        Write-Error "Error desinstalando $PackageName : $_"
+        return $false
+    }
+}
+
+# ============================================
+# EXPORTAR FUNCIONES
+# ============================================
+Export-ModuleMember -Function `
+    Check-Chocolatey,
+    Test-ChocolateyInstalled,
+    Install-Software,
+    Download-File,
+    Expand-ArchiveFile,
+    Show-SSMSInstallerDialog,
+    Test-7ZipInstalled,
+    Test-MegaToolsInstalled,
+    Get-InstalledChocoPackages,
+    Search-ChocoPackages,
+    Install-ChocoPackage,
+    Uninstall-ChocoPackage

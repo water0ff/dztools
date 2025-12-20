@@ -1,4 +1,5 @@
 #requires -Version 5.0
+
 function Get-PredefinedQueries {
     return @{
         "Monitor de Servicios | Ventas a subir"           = @"
@@ -67,7 +68,6 @@ ORDER BY
     numcheque;
 "@
         "BackOffice Actualizar contraseña  administrador" = @"
-    -- Actualiza la contraseña del primer UserName con rol administrador y retorna el UserName actualizado
 UPDATE users
     SET Password = '08/Vqq0='
     OUTPUT inserted.UserName
@@ -86,37 +86,22 @@ SELECT
     t.SkipDoPing
 FROM Terminals t
 LEFT JOIN Users u ON t.LastUserLogin = u.Id
---WHERE t.IsEnabled = 1.0000
 ORDER BY t.IsEnabled DESC, t.Name;
 "@
         "SR | Actualizar contraseña de administrador"     = @"
-    -- Actualiza la contraseña del primer usuario con rol administrador y retorna el usuario actualizado
-    UPDATE usuarios
+UPDATE usuarios
     SET contraseña = 'A9AE4E13D2A47998AC34'
     OUTPUT inserted.usuario
     WHERE usuario = (SELECT TOP 1 usuario FROM usuarios WHERE administrador = 1);
 "@
         "SR | Revisar Pivot Table"                        = @"
-    SELECT app_id, field, COUNT(*)
+SELECT app_id, field, COUNT(*)
     FROM app_settings
     GROUP BY app_id, field
     HAVING COUNT(*) > 1
-/* Consulta SQL para eliminar duplicados
-        BEGIN TRANSACTION;
-                                                    WITH CTE AS (
-                                                        SELECT id, app_id, field,
-                                                               ROW_NUMBER() OVER (PARTITION BY app_id, field ORDER BY id DESC) AS rn
-                                                        FROM app_settings
-                                                    )
-                                                    DELETE FROM app_settings
-                                                    WHERE id IN (
-                                                        SELECT id FROM CTE WHERE rn > 1
-                                                    );
-                                                    COMMIT TRANSACTION;
-*/
 "@
         "SR | Fecha Revisiones"                           = @"
-    WITH CTE AS (
+WITH CTE AS (
         SELECT
             b.estacion,
             b.fecha       AS UltimoUso,
@@ -134,33 +119,28 @@ ORDER BY t.IsEnabled DESC, t.Name;
     ORDER BY c.UltimoUso DESC;
 "@
         "SR SYNC | nsplatformcontrol"                     = @"
-        	"BEGIN TRY
+BEGIN TRY
     BEGIN TRANSACTION;
-    -- 1. Copiar datos de impuestos a una tabla temporal
     SELECT WorkspaceId, EntityType, OperationType, 0 AS IsSync, 0 AS Attempts, CreateDate
     INTO #tempcontroltaxes
     FROM nsplatformcontrol
     WHERE EntityType = 1;
-    -- 2. Vaciar la tabla original
     TRUNCATE TABLE nsplatformcontrol;
-    -- 3. Insertar los datos de impuestos de nuevo
     INSERT INTO nsplatformcontrol (WorkspaceId, EntityType, OperationType, IsSync, Attempts, CreateDate)
     SELECT WorkspaceId, EntityType, OperationType, IsSync, Attempts, CreateDate
     FROM #tempcontroltaxes;
-    -- 4. Eliminar la tabla temporal
     DROP TABLE #tempcontroltaxes;
-    -- Confirmar los cambios
     COMMIT TRANSACTION;
 END TRY
 BEGIN CATCH
     IF @@TRANCOUNT > 0
         ROLLBACK TRANSACTION;
     THROW;
-END CATCH;"
+END CATCH;
 "@
         "SR | Memoria Insuficiente"                       = @"
-        update empresas
-        set nombre='', razonsocial='',direccion='',sucursal='',
+UPDATE empresas
+        SET nombre='', razonsocial='',direccion='',sucursal='',
         rfc='',curp='', telefono='',giro='',contacto='',fax='',
         email='',idhardware='',web='',ciudad='',estado='',pais='',
         ciudadsucursal='',estadosucursal='',codigopostal='',a86ed5f9d02ec5b3='',
@@ -168,25 +148,18 @@ END CATCH;"
 GO
 DELETE FROM registro_licencias;
 "@
-
         "OTM | Eliminar Server en OTM"                    = @"
-    SELECT serie, ipserver, nombreservidor
+SELECT serie, ipserver, nombreservidor
     FROM configuracion;
-    -- UPDATE configuracion
-    --   SET serie='', ipserver='', nombreservidor=''
 "@
         "NSH | Eliminar Server en Hoteles"                = @"
-    SELECT serievalida, numserie, ipserver, nombreservidor, llave
+SELECT serievalida, numserie, ipserver, nombreservidor, llave
     FROM configuracion;
-    -- UPDATE configuracion
-    --   SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''
 "@
         "Restcard | Eliminar Server en Rest Card"         = @"
-    -- update tabvariables
-    --   SET estacion='', ipservidor='';
+SELECT estacion, ipservidor FROM tabvariables;
 "@
         "sql | Listar usuarios e idiomas"                 = @"
-    -- Lista los usuarios del sistema y su idioma configurado
 SELECT
     p.name AS Usuario,
     l.default_language_name AS Idioma
@@ -195,45 +168,48 @@ FROM
 LEFT JOIN
     sys.sql_logins l ON p.principal_id = l.principal_id
 WHERE
-    p.type IN ('S', 'U') -- Usuarios SQL y Windows
+    p.type IN ('S', 'U')
 "@
     }
 }
+
 function Initialize-PredefinedQueries {
     param(
         [Parameter(Mandatory = $true)]
-        [System.Windows.Forms.ComboBox]$ComboQueries,
+        $ComboQueries,
         [Parameter(Mandatory = $true)]
-        [System.Windows.Forms.RichTextBox]$RichTextBox,
+        $TextBox,
         [hashtable]$Queries = $null
     )
     if (-not $Queries) {
         $Queries = Get-PredefinedQueries
     }
     $ComboQueries.Tag = [PSCustomObject]@{
-        Queries     = $Queries
-        RichTextBox = $RichTextBox
+        Queries = $Queries
+        TextBox = $TextBox
     }
     $sortedKeys = $Queries.Keys | Sort-Object
     $ComboQueries.Items.Clear()
     foreach ($key in $sortedKeys) {
         $ComboQueries.Items.Add($key) | Out-Null
     }
-    $ComboQueries.Add_SelectedIndexChanged({
+    $ComboQueries.Add_SelectionChanged({
             param($sender, $eventArgs)
             $state = $sender.Tag
             if (-not $state) {
                 return
             }
             $queryMap = $state.Queries
-            $targetRichTextBox = $state.RichTextBox
-            if (-not ($queryMap -and $targetRichTextBox)) {
+            $targetTextBox = $state.TextBox
+            if (-not ($queryMap -and $targetTextBox)) {
                 return
             }
             $selectedKey = $sender.SelectedItem
             if ($null -eq $selectedKey) {
                 return
             }
-            $targetRichTextBox.Text = $queryMap[$selectedKey]
+            $targetTextBox.Text = $queryMap[$selectedKey]
         })
 }
+
+Export-ModuleMember -Function Get-PredefinedQueries, Initialize-PredefinedQueries

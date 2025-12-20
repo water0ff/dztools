@@ -1,4 +1,5 @@
 ﻿#requires -Version 5.0
+
 function Invoke-SqlQuery {
     [CmdletBinding()]
     param(
@@ -77,17 +78,19 @@ function Invoke-SqlQuery {
         Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] FIN"
     }
 }
+
 function Remove-SqlComments {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [string]$Query
     )
-    $query = $Query -replace '(?s)/\*.*?\*/', ''             # /* ... */
-    $query = $query -replace '(?m)^\s*--.*\n?', ''           # -- al inicio de línea
-    $query = $query -replace '(?<!\w)--.*$', ''              # -- inline
+    $query = $Query -replace '(?s)/\*.*?\*/', ''
+    $query = $query -replace '(?m)^\s*--.*\n?', ''
+    $query = $query -replace '(?<!\w)--.*$', ''
     return $query.Trim()
 }
+
 function Get-SqlDatabases {
     [CmdletBinding()]
     param(
@@ -113,6 +116,7 @@ ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name
     }
     return $databases
 }
+
 function Backup-Database {
     [CmdletBinding()]
     param(
@@ -146,6 +150,7 @@ function Backup-Database {
         }
     }
 }
+
 function Execute-SqlQuery {
     param (
         [string]$server,
@@ -163,11 +168,8 @@ function Execute-SqlQuery {
         $connection.Open()
         $command = $connection.CreateCommand()
         $command.CommandText = $query
-        # 🔹 NUEVO: misma lógica que en Invoke-SqlQuery
         $returnsResultSet = $query -match "(?si)^\s*(SELECT|WITH)" -or $query -match "(?si)\bOUTPUT\b"
-
         if ($returnsResultSet) {
-            # 🔹 Aquí ya cubres SELECT, WITH y cualquier cosa con OUTPUT
             $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
             $dataTable = New-Object System.Data.DataTable
             $adapter.Fill($dataTable) | Out-Null
@@ -183,7 +185,6 @@ function Execute-SqlQuery {
             }
         }
     } catch {
-        #Write-Host "Error en consulta: $($_.Exception.Message)" -ForegroundColor Red
         throw $_
     } finally {
         if ($null -ne $connection) {
@@ -195,13 +196,13 @@ function Execute-SqlQuery {
         }
     }
 }
+
 function Show-ResultsConsole {
     param (
         [string]$query
     )
     try {
         $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
-
         if ($results.GetType().Name -eq 'Hashtable') {
             $consoleData = $results.ConsoleData
             if ($consoleData.Count -gt 0) {
@@ -217,7 +218,6 @@ function Show-ResultsConsole {
                 }
                 Write-Host $header
                 Write-Host ("-" * $header.Length)
-
                 foreach ($row in $consoleData) {
                     $rowText = ""
                     foreach ($col in $columns) {
@@ -235,6 +235,7 @@ function Show-ResultsConsole {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
+
 function Get-IniConnections {
     $connections = @()
     $pathsToCheck = @(
@@ -275,13 +276,13 @@ function Get-IniConnections {
             }
         }
     }
-
     return $connections | Sort-Object
 }
+
 function Load-IniConnectionsToComboBox {
     param(
         [Parameter(Mandatory = $true)]
-        [System.Windows.Forms.ComboBox]$Combo
+        $Combo
     )
     $connections = Get-IniConnections
     $Combo.Items.Clear()
@@ -292,8 +293,13 @@ function Load-IniConnectionsToComboBox {
     } else {
         Write-Host "`tNo se encontraron conexiones en archivos INI" -ForegroundColor Yellow
     }
-    $Combo.Text = ".\NationalSoft"
+    if ($Combo -is [System.Windows.Controls.ComboBox]) {
+        $Combo.Text = ".\NationalSoft"
+    } else {
+        $Combo.Text = ".\NationalSoft"
+    }
 }
+
 function ConvertTo-DataTable {
     param($InputObject)
     $dt = New-Object System.Data.DataTable
@@ -311,5 +317,5 @@ function ConvertTo-DataTable {
     }
     return $dt
 }
-Export-ModuleMember -Function Invoke-SqlQuery, Remove-SqlComments, Get-SqlDatabases, Backup-Database, Execute-SqlQuery, Show-ResultsConsole,
-Get-IniConnections, Load-IniConnectionsToComboBox, ConvertTo-DataTable
+
+Export-ModuleMember -Function Invoke-SqlQuery, Remove-SqlComments, Get-SqlDatabases, Backup-Database, Execute-SqlQuery, Show-ResultsConsole, Get-IniConnections, Load-IniConnectionsToComboBox, ConvertTo-DataTable

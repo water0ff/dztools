@@ -326,18 +326,17 @@ function New-MainForm {
                 }
             })
     }
-
     $lblHostname.Add_MouseLeftButtonDown({
-            $hostnameText = $lblHostname.Content
+            $hostnameText = $lblHostname.Content.ToString()
             if ([string]::IsNullOrWhiteSpace($hostnameText)) {
                 Write-Host "`n[AVISO] El hostname está vacío o nulo, no se copió nada." -ForegroundColor Yellow
-                [System.Windows.MessageBox]::Show("El nombre de equipo está vacío, no hay nada que copiar.", "Daniel Tools", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+                [System.Windows.MessageBox]::Show("El nombre de equipo está vacío, no hay nada que copiar.", "Daniel Tools",
+                    [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
                 return
             }
             [System.Windows.Clipboard]::SetText($hostnameText)
             Write-Host "`nNombre del equipo copiado al portapapeles: $hostnameText" -ForegroundColor Green
         })
-
     $lblPort.Add_MouseLeftButtonDown({
             $text = $lblPort.Content
             Write-DzDebug "`t[DEBUG] lblPort.Content al hacer clic: '$text'"
@@ -349,8 +348,8 @@ function New-MainForm {
             [System.Windows.Clipboard]::SetText($port)
             Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
         })
-
-    $txt_IpAdress.Add_MouseLeftButtonDown({
+    $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
+            param($sender, $e)
             $ipsText = $txt_IpAdress.Text
             if ([string]::IsNullOrWhiteSpace($ipsText)) {
                 Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow
@@ -358,9 +357,10 @@ function New-MainForm {
             }
             [System.Windows.Clipboard]::SetText($ipsText)
             Write-Host "`nIP's copiadas al portapapeles: $ipsText" -ForegroundColor Green
+            $e.Handled = $true
         })
-
-    $txt_AdapterStatus.Add_MouseLeftButtonDown({
+    $txt_AdapterStatus.Add_PreviewMouseLeftButtonDown({
+            param($sender, $e)
             Get-NetConnectionProfile |
             Where-Object { $_.NetworkCategory -ne 'Private' } |
             ForEach-Object {
@@ -368,8 +368,8 @@ function New-MainForm {
             }
             Write-Host "Todas las redes se han establecido como Privadas."
             Refresh-AdapterStatus
+            $e.Handled = $true
         })
-
     $btnInstalarHerramientas.Add_Click({
             Write-Host ""
             Write-DzDebug ("`t[DEBUG] Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss"))
@@ -1085,7 +1085,10 @@ Base de datos: ((
             Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem
         })
 
-    $btnExit.Add_Click({ $window.Close() })
+    $btnExit.Add_Click({
+            $window.Close()
+            [System.Windows.Application]::Current.Shutdown()
+        })
 
     Write-Host "✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     return $window

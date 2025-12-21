@@ -640,26 +640,42 @@ function DownloadAndRun {
     }
 }
 function Refresh-AdapterStatus {
-    <#
-    .SYNOPSIS
-    Actualiza el estado de los adaptadores de red en el control UI
-    #>
-    param(
-        [Parameter(Mandatory = $false)]
-        $TextControl = $null
-    )
-    if ($null -eq $TextControl) {
-        Write-Warning "El control de estado de adaptadores no está disponible."
-        return
-    }
-    $statuses = Get-NetworkAdapterStatus
-    if ($statuses.Count -gt 0) {
-        $lines = $statuses | ForEach-Object {
-            "- $($_.AdapterName) - $($_.NetworkCategory)"
+    try {
+        if ($null -eq $global:txt_AdapterStatus) {
+            Write-Host "ADVERTENCIA: El control de estado de adaptadores no está disponible." -ForegroundColor Yellow
+            return
         }
-        $TextControl.Text = $lines -join "`r`n"
-    } else {
-        $TextControl.Text = "No se encontraron adaptadores activos."
+
+        $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+        $adapterInfo = @()
+
+        foreach ($adapter in $adapters) {
+            $profile = Get-NetConnectionProfile -InterfaceAlias $adapter.Name -ErrorAction SilentlyContinue
+            $networkType = if ($profile) {
+                switch ($profile.NetworkCategory) {
+                    'Private' { "Privada" }
+                    'Public' { "Pública" }
+                    'DomainAuthenticated' { "Dominio" }
+                    default { "Desconocida" }
+                }
+            } else {
+                "Sin perfil"
+            }
+
+            $adapterInfo += "$($adapter.Name): $networkType"
+        }
+
+        if ($adapterInfo.Count -gt 0) {
+            $global:txt_AdapterStatus.Dispatcher.Invoke([action] {
+                    $global:txt_AdapterStatus.Text = $adapterInfo -join "`n"
+                })
+        } else {
+            $global:txt_AdapterStatus.Dispatcher.Invoke([action] {
+                    $global:txt_AdapterStatus.Text = "Sin adaptadores activos"
+                })
+        }
+    } catch {
+        Write-Host "Error al actualizar estado de adaptadores: $_" -ForegroundColor Red
     }
 }
 function Get-NetworkAdapterStatus {
@@ -803,25 +819,26 @@ function Start-SystemUpdate {
         }
     }
 }
-Export-ModuleMember -Function `
-    Get-DzToolsConfigPath,
-    Get-DzDebugPreference,
-    Initialize-DzToolsConfig,
-    Write-DzDebug,
-    Test-Administrator,
-    Get-SystemInfo,
-    Clear-TemporaryFiles,
-    Test-ChocolateyInstalled,
-    Install-Chocolatey,
-    Get-AdminGroupName,
-    Invoke-DiskCleanup,
-    Stop-CleanmgrProcesses,
-    Show-SystemComponents,
-    Test-SameHost,
-    Test-7ZipInstalled,
-    Test-MegaToolsInstalled,
-    Check-Permissions,
-    DownloadAndRun,
-    Refresh-AdapterStatus,
-    Get-NetworkAdapterStatus,
-    Start-SystemUpdate
+Export-ModuleMember -Function @(
+    'Get-DzToolsConfigPath',
+    'Get-DzDebugPreference',
+    'Initialize-DzToolsConfig',
+    'Write-DzDebug',
+    'Test-Administrator',
+    'Get-SystemInfo',
+    'Clear-TemporaryFiles',
+    'Test-ChocolateyInstalled',
+    'Install-Chocolatey',
+    'Get-AdminGroupName',
+    'Invoke-DiskCleanup',
+    'Stop-CleanmgrProcesses',
+    'Show-SystemComponents',
+    'Test-SameHost',
+    'Test-7ZipInstalled',
+    'Test-MegaToolsInstalled',
+    'Check-Permissions',
+    'DownloadAndRun',
+    'Refresh-AdapterStatus',
+    'Get-NetworkAdapterStatus',
+    'Start-SystemUpdate'
+)

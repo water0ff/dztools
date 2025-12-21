@@ -365,7 +365,6 @@ function Show-NewIpForm {
     }
     return $null
 }
-
 function Show-ProgressBar {
     return Show-WpfProgressBar -Title "Progreso de Actualización" -Message "Iniciando proceso..."
 }
@@ -528,23 +527,23 @@ function Show-AddUserDialog {
 function Show-IPConfigDialog {
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="Asignación de IPs" Height="250" Width="400"
+        Title="Asignación de IPs" Height="250" Width="420"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
     <Grid Margin="10">
         <Label Content="Seleccione el adaptador de red:" HorizontalAlignment="Left"
                VerticalAlignment="Top" Margin="0,0,0,0"/>
         <ComboBox Name="cmbAdapters" HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Width="360" Height="25" Margin="0,30,0,0"/>
+                  Width="380" Height="25" Margin="0,30,0,0"/>
 
         <Label Name="lblIps" Content="IPs asignadas:" HorizontalAlignment="Left"
                VerticalAlignment="Top" Margin="0,70,0,0"/>
 
-        <Button Content="Asignar Nueva IP" Name="btnAssignIP" Width="140" Height="30"
+        <Button Content="Asignar Nueva IP" Name="btnAssignIP" Width="120" Height="30"
                 HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,110,0,0" IsEnabled="False"/>
-        <Button Content="Cambiar a DHCP" Name="btnChangeToDhcp" Width="140" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="150,110,0,0" IsEnabled="False"/>
-        <Button Content="Cerrar" Name="btnClose" Width="140" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,150,0,0"/>
+        <Button Content="Cambiar a DHCP" Name="btnChangeToDhcp" Width="120" Height="30"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="130,110,0,0" IsEnabled="False"/>
+        <Button Content="Cerrar" Name="btnClose" Width="120" Height="30"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="260,110,0,0"/>
     </Grid>
 </Window>
 "@
@@ -558,6 +557,62 @@ function Show-IPConfigDialog {
     $btnChangeToDhcp = $window.FindName("btnChangeToDhcp")
     $btnClose = $window.FindName("btnClose")
 
+    # Función auxiliar para mostrar formulario de nueva IP
+    function Show-NewIpForm {
+        [xml]$xamlIP = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Nueva dirección IP" Height="150" Width="300"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+    <Grid Margin="10">
+        <Label Content="Ingrese la nueva dirección IP:" HorizontalAlignment="Left"
+               VerticalAlignment="Top" Margin="0,0,0,0"/>
+        <TextBox Name="txtNewIP" HorizontalAlignment="Left" VerticalAlignment="Top"
+                 Width="260" Height="25" Margin="0,30,0,0"/>
+
+        <Button Content="Aceptar" Name="btnOK" Width="120" Height="30"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,70,0,0"/>
+        <Button Content="Cancelar" Name="btnCancel" Width="120" Height="30"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="130,70,0,0"/>
+    </Grid>
+</Window>
+"@
+        $readerIP = New-Object System.Xml.XmlNodeReader $xamlIP
+        $windowIP = [Windows.Markup.XamlReader]::Load($readerIP)
+
+        $txtNewIP = $windowIP.FindName("txtNewIP")
+        $btnOK = $windowIP.FindName("btnOK")
+        $btnCancel = $windowIP.FindName("btnCancel")
+
+        $script:newIPResult = $null
+
+        $btnOK.Add_Click({
+                $ip = $txtNewIP.Text.Trim()
+                if ([string]::IsNullOrWhiteSpace($ip)) {
+                    [System.Windows.MessageBox]::Show("Debe ingresar una dirección IP válida.", "Error",
+                        [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+                    return
+                }
+                # Validación básica de formato IP
+                if ($ip -match '^(\d{1,3}\.){3}\d{1,3}$') {
+                    $script:newIPResult = $ip
+                    $windowIP.DialogResult = $true
+                    $windowIP.Close()
+                } else {
+                    [System.Windows.MessageBox]::Show("Formato de IP inválido. Use el formato: 192.168.1.100", "Error",
+                        [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+                }
+            })
+
+        $btnCancel.Add_Click({
+                $script:newIPResult = $null
+                $windowIP.Close()
+            })
+
+        $windowIP.ShowDialog() | Out-Null
+        return $script:newIPResult
+    }
+
+    # Cargar adaptadores
     $cmbAdapters.Items.Add("Selecciona 1 adaptador de red") | Out-Null
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
     foreach ($adapter in $adapters) {
@@ -565,16 +620,25 @@ function Show-IPConfigDialog {
     }
     $cmbAdapters.SelectedIndex = 0
 
+    # Actualizar IPs al cambiar selección
     $cmbAdapters.Add_SelectionChanged({
-            if ($cmbAdapters.SelectedIndex -gt 0) {
+            $selectedAdapterName = $cmbAdapters.SelectedItem
+
+            if ($selectedAdapterName -and $selectedAdapterName -ne "Selecciona 1 adaptador de red") {
                 $btnAssignIP.IsEnabled = $true
                 $btnChangeToDhcp.IsEnabled = $true
 
-                $selectedAdapter = Get-NetAdapter -Name $cmbAdapters.SelectedItem
-                $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
-                if ($currentIPs) {
-                    $ips = ($currentIPs.IPAddress) -join ", "
-                    $lblIps.Content = "IPs asignadas: $ips"
+                try {
+                    $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
+                    $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
+                    if ($currentIPs) {
+                        $ips = ($currentIPs.IPAddress) -join ", "
+                        $lblIps.Content = "IPs asignadas: $ips"
+                    } else {
+                        $lblIps.Content = "IPs asignadas: Ninguna"
+                    }
+                } catch {
+                    $lblIps.Content = "IPs asignadas: Error al obtener"
                 }
             } else {
                 $btnAssignIP.IsEnabled = $false
@@ -583,33 +647,179 @@ function Show-IPConfigDialog {
             }
         })
 
+    # Asignar nueva IP
     $btnAssignIP.Add_Click({
-            [System.Windows.MessageBox]::Show("Funcionalidad de asignar IP en desarrollo", "Info",
-                [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        })
-
-    $btnChangeToDhcp.Add_Click({
             $selectedAdapterName = $cmbAdapters.SelectedItem
             if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
+                [System.Windows.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error",
+                    [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
                 return
             }
 
-            $result = [System.Windows.MessageBox]::Show("¿Está seguro de cambiar a DHCP?", "Confirmación",
-                [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
+            $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
+            $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
 
-            if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
-                try {
-                    $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
-                    Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Enabled
-                    Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ResetServerAddresses
-                    Write-Host "`nSe cambió a DHCP en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
-                    [System.Windows.MessageBox]::Show("Se cambió a DHCP correctamente.", "Éxito",
-                        [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-                } catch {
-                    Write-Host "`nError al cambiar a DHCP: $_" -ForegroundColor Red
-                    [System.Windows.MessageBox]::Show("Error: $_", "Error",
-                        [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            if ($currentConfig) {
+                $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
+                $currentIPAddress = $currentConfig.IPAddress
+                $currentPrefixLength = $currentConfig.PrefixLength
+                $currentGateway = (Get-NetIPConfiguration -InterfaceAlias $selectedAdapter.Name).IPv4DefaultGateway | Select-Object -ExpandProperty NextHop
+
+                if (-not $isDhcp) {
+                    # Adaptador con IP fija - agregar IP adicional
+                    $result = [System.Windows.MessageBox]::Show("El adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?",
+                        "Confirmación", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
+
+                    if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+                        $newIp = Show-NewIpForm
+                        if ($newIp) {
+                            $existingIp = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 |
+                            Where-Object { $_.IPAddress -eq $newIp }
+
+                            if ($existingIp) {
+                                [System.Windows.MessageBox]::Show("La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name).",
+                                    "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                            } else {
+                                try {
+                                    New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
+                                    Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                    [System.Windows.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).",
+                                        "Éxito", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+
+                                    # Actualizar IPs
+                                    $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                                    $ips = ($currentIPs.IPAddress) -join ", "
+                                    $lblIps.Content = "IPs asignadas: $ips"
+                                } catch {
+                                    Write-Host "`nError al agregar la dirección IP adicional: $_" -ForegroundColor Red
+                                    [System.Windows.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)",
+                                        "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    # Adaptador DHCP - cambiar a IP fija
+                    $result = [System.Windows.MessageBox]::Show("¿Desea cambiar a IP fija usando la IP actual ($currentIPAddress)?",
+                        "Confirmación", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
+
+                    if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+                        try {
+                            Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Disabled
+                            New-NetIPAddress -IPAddress $currentIPAddress -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
+
+                            if ($currentGateway) {
+                                Remove-NetRoute -InterfaceAlias $selectedAdapter.Name -NextHop $currentGateway -Confirm:$false -ErrorAction SilentlyContinue
+                                New-NetRoute -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -NextHop $currentGateway -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue
+                            }
+
+                            $dnsServers = @("8.8.8.8", "8.8.4.4")
+                            Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ServerAddresses $dnsServers
+
+                            Write-Host "`nSe cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                            [System.Windows.MessageBox]::Show("Se cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name).",
+                                "Éxito", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+
+                            # Actualizar IPs
+                            $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                            $ips = ($currentIPs.IPAddress) -join ", "
+                            $lblIps.Content = "IPs asignadas: $ips"
+
+                            # Preguntar si desea agregar IP adicional
+                            $resultAdditional = [System.Windows.MessageBox]::Show("¿Desea agregar una dirección IP adicional?",
+                                "IP Adicional", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
+
+                            if ($resultAdditional -eq [System.Windows.MessageBoxResult]::Yes) {
+                                $newIp = Show-NewIpForm
+                                if ($newIp) {
+                                    $existingIp = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 |
+                                    Where-Object { $_.IPAddress -eq $newIp }
+
+                                    if ($existingIp) {
+                                        [System.Windows.MessageBox]::Show("La dirección IP $newIp ya está asignada al adaptador $($selectedAdapter.Name).",
+                                            "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                                    } else {
+                                        try {
+                                            New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
+                                            Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                                            [System.Windows.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).",
+                                                "Éxito", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+
+                                            # Actualizar IPs
+                                            $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
+                                            $ips = ($currentIPs.IPAddress) -join ", "
+                                            $lblIps.Content = "IPs asignadas: $ips"
+                                        } catch {
+                                            Write-Host "`nError al agregar la dirección IP adicional: $_" -ForegroundColor Red
+                                            [System.Windows.MessageBox]::Show("Error al agregar la dirección IP adicional: $($_.Exception.Message)",
+                                                "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                                        }
+                                    }
+                                }
+                            }
+                        } catch {
+                            Write-Host "`nError al cambiar a IP fija: $_" -ForegroundColor Red
+                            [System.Windows.MessageBox]::Show("Error al cambiar a IP fija: $($_.Exception.Message)",
+                                "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                        }
+                    }
                 }
+            } else {
+                [System.Windows.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error",
+                    [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            }
+        })
+
+    # Cambiar a DHCP
+    $btnChangeToDhcp.Add_Click({
+            $selectedAdapterName = $cmbAdapters.SelectedItem
+            if ($selectedAdapterName -eq "Selecciona 1 adaptador de red") {
+                [System.Windows.MessageBox]::Show("Por favor, selecciona un adaptador de red.", "Error",
+                    [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+                return
+            }
+
+            $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
+            $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
+
+            if ($currentConfig) {
+                $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
+
+                if ($isDhcp) {
+                    [System.Windows.MessageBox]::Show("El adaptador ya está en DHCP.", "Información",
+                        [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+                } else {
+                    $result = [System.Windows.MessageBox]::Show("¿Está seguro de que desea cambiar a DHCP?",
+                        "Confirmación", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
+
+                    if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+                        try {
+                            # Eliminar IPs manuales
+                            $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 |
+                            Where-Object { $_.PrefixOrigin -eq "Manual" }
+
+                            foreach ($ip in $currentIPs) {
+                                Remove-NetIPAddress -IPAddress $ip.IPAddress -PrefixLength $ip.PrefixLength -Confirm:$false -ErrorAction SilentlyContinue
+                            }
+
+                            Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Enabled
+                            Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ResetServerAddresses
+
+                            Write-Host "`nSe cambió a DHCP en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
+                            [System.Windows.MessageBox]::Show("Se cambió a DHCP en el adaptador $($selectedAdapter.Name).",
+                                "Éxito", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+
+                            $lblIps.Content = "Generando IP por DHCP. Seleccione de nuevo."
+                        } catch {
+                            Write-Host "`nError al cambiar a DHCP: $_" -ForegroundColor Red
+                            [System.Windows.MessageBox]::Show("Error al cambiar a DHCP: $($_.Exception.Message)",
+                                "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                        }
+                    }
+                }
+            } else {
+                [System.Windows.MessageBox]::Show("No se pudo obtener la configuración actual del adaptador.", "Error",
+                    [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
         })
 
@@ -617,7 +827,6 @@ function Show-IPConfigDialog {
 
     $window.ShowDialog() | Out-Null
 }
-
 function Show-SSMSSelectionDialog {
     param(
         [array]$Managers,
@@ -827,7 +1036,334 @@ function Show-LZMADialog {
 
     $window.ShowDialog() | Out-Null
 }
+function Show-ChocolateyInstallerMenu {
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Instaladores Choco" Height="420" Width="520"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+    <Grid Margin="10" Background="#505055">
+        <Label Content="Buscar en Chocolatey:" HorizontalAlignment="Left" VerticalAlignment="Top"
+               Margin="0,0,0,0" Foreground="White"/>
+        <TextBox Name="txtChocoSearch" HorizontalAlignment="Left" VerticalAlignment="Top"
+                 Width="360" Height="25" Margin="0,25,0,0"/>
+        <Button Content="Buscar" Name="btnBuscarChoco" Width="120" Height="32"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="370,23,0,0"
+                Background="#4CAF50" Foreground="White"/>
 
+        <Label Content="SSMS" Name="lblPresetSSMS" Width="70" Height="25"
+               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,65,0,0"
+               Background="#C8E6FF" HorizontalContentAlignment="Center"
+               VerticalContentAlignment="Center" BorderBrush="Black" BorderThickness="1" Cursor="Hand"/>
+        <Label Content="Heidi" Name="lblPresetHeidi" Width="70" Height="25"
+               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="80,65,0,0"
+               Background="#C8E6FF" HorizontalContentAlignment="Center"
+               VerticalContentAlignment="Center" BorderBrush="Black" BorderThickness="1" Cursor="Hand"/>
+
+        <Button Content="Mostrar instalados" Name="btnShowInstalledChoco" Width="150" Height="32"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,100,0,0"/>
+        <Button Content="Instalar seleccionado" Name="btnInstallSelectedChoco" Width="170" Height="32"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="160,100,0,0" IsEnabled="False"/>
+        <Button Content="Desinstalar seleccionado" Name="btnUninstallSelectedChoco" Width="150" Height="32"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="340,100,0,0" IsEnabled="False"/>
+
+        <DataGrid Name="dgvChocoResults" HorizontalAlignment="Left" VerticalAlignment="Top"
+                  Width="490" Height="200" Margin="0,145,0,0" IsReadOnly="True"
+                  AutoGenerateColumns="False" SelectionMode="Single" CanUserAddRows="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Paquete" Binding="{Binding Name}" Width="170"/>
+                <DataGridTextColumn Header="Versión" Binding="{Binding Version}" Width="100"/>
+                <DataGridTextColumn Header="Descripción" Binding="{Binding Description}" Width="200"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Button Content="Salir" Name="btnExitInstaladores" Width="490" Height="30"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,355,0,0"/>
+    </Grid>
+</Window>
+"@
+
+    $reader = New-Object System.Xml.XmlNodeReader $xaml
+    $window = [Windows.Markup.XamlReader]::Load($reader)
+
+    $txtChocoSearch = $window.FindName("txtChocoSearch")
+    $btnBuscarChoco = $window.FindName("btnBuscarChoco")
+    $lblPresetSSMS = $window.FindName("lblPresetSSMS")
+    $lblPresetHeidi = $window.FindName("lblPresetHeidi")
+    $btnShowInstalledChoco = $window.FindName("btnShowInstalledChoco")
+    $btnInstallSelectedChoco = $window.FindName("btnInstallSelectedChoco")
+    $btnUninstallSelectedChoco = $window.FindName("btnUninstallSelectedChoco")
+    $dgvChocoResults = $window.FindName("dgvChocoResults")
+    $btnExitInstaladores = $window.FindName("btnExitInstaladores")
+    # Colección observable para los resultados
+    $script:chocoResultsCollection = New-Object System.Collections.ObjectModel.ObservableCollection[PSObject]
+    $dgvChocoResults.ItemsSource = $script:chocoResultsCollection
+    # Regex para parsear resultados
+    $script:chocoPackagePattern = '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+(?<version>[0-9][A-Za-z0-9\.\-]*)\s+(?<description>.+)$'
+    # Función para agregar resultados
+    $script:addChocoResult = {
+        param($line)
+        if ([string]::IsNullOrWhiteSpace($line)) { return }
+        if ($line -match '^Chocolatey') { return }
+        if ($line -match 'packages?\s+found' -or $line -match 'page size') { return }
+
+        if ($line -match $script:chocoPackagePattern) {
+            $name = $Matches['name']
+            $version = $Matches['version']
+            $description = $Matches['description'].Trim()
+
+            $window.Dispatcher.Invoke([action] {
+                    $script:chocoResultsCollection.Add([PSCustomObject]@{
+                            Name        = $name
+                            Version     = $version
+                            Description = $description
+                        })
+                })
+        } elseif ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\|(?<version>[0-9][A-Za-z0-9\.\-]*)$') {
+            $name = $Matches['name']
+            $version = $Matches['version']
+
+            $window.Dispatcher.Invoke([action] {
+                    $script:chocoResultsCollection.Add([PSCustomObject]@{
+                            Name        = $name
+                            Version     = $version
+                            Description = "Paquete instalado"
+                        })
+                })
+        }
+    }
+
+    # Función para actualizar botones
+    $script:updateChocoActionButtons = {
+        $hasValidSelection = $false
+        if ($dgvChocoResults.SelectedItem) {
+            $selectedItem = $dgvChocoResults.SelectedItem
+            if ($selectedItem.Name -and $selectedItem.Version -match '^[0-9]') {
+                $hasValidSelection = $true
+            }
+        }
+        $btnInstallSelectedChoco.IsEnabled = $hasValidSelection
+        $btnUninstallSelectedChoco.IsEnabled = $hasValidSelection
+    }
+
+    # Evento de selección
+    $dgvChocoResults.Add_SelectionChanged({
+            $script:updateChocoActionButtons.Invoke()
+        })
+
+    # Botón Buscar
+    $btnBuscarChoco.Add_Click({
+            $script:chocoResultsCollection.Clear()
+            $script:updateChocoActionButtons.Invoke()
+
+            $query = $txtChocoSearch.Text.Trim()
+            if ([string]::IsNullOrWhiteSpace($query)) {
+                [System.Windows.MessageBox]::Show("Ingresa un término para buscar paquetes en Chocolatey.",
+                    "Búsqueda de paquetes", [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Information)
+                return
+            }
+
+            if (-not (Check-Chocolatey)) {
+                return
+            }
+
+            $btnBuscarChoco.IsEnabled = $false
+            $progressForm = Show-WpfProgressBar -Title "Buscando paquetes" -Message "Ejecutando búsqueda..."
+
+            Write-Host ("`tBuscando paquetes para '{0}'..." -f $query) -ForegroundColor Cyan
+            Write-DzDebug ("`t[DEBUG] Búsqueda de Chocolatey: término='{0}'" -f $query)
+
+            try {
+                $searchOutput = & choco search $query --page-size=20 2>&1
+                $searchExitCode = $LASTEXITCODE
+                Write-DzDebug ("`t[DEBUG] choco search exit code: {0}" -f $searchExitCode)
+
+                Update-WpfProgressBar -ProgressWindow $progressForm -Status "Procesando resultados..."
+
+                foreach ($line in $searchOutput) {
+                    $script:addChocoResult.Invoke($line)
+                }
+
+                if ($script:chocoResultsCollection.Count -eq 0) {
+                    [System.Windows.MessageBox]::Show("No se encontraron paquetes para la búsqueda realizada.",
+                        "Sin resultados", [System.Windows.MessageBoxButton]::OK,
+                        [System.Windows.MessageBoxImage]::Information)
+                    Write-DzDebug "`t[DEBUG] Búsqueda sin resultados."
+                } else {
+                    Write-DzDebug ("`t[DEBUG] Resultados agregados: {0}" -f $script:chocoResultsCollection.Count)
+                }
+            } catch {
+                Write-Error "Error al consultar paquetes de Chocolatey: $_"
+                Write-DzDebug ("`t[DEBUG] Excepción en búsqueda de Chocolatey: {0}" -f $_)
+                [System.Windows.MessageBox]::Show("Ocurrió un error al buscar en Chocolatey. Intenta nuevamente.",
+                    "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            } finally {
+                if ($null -ne $progressForm) {
+                    Close-WpfProgressBar $progressForm
+                }
+                $btnBuscarChoco.IsEnabled = $true
+                $script:updateChocoActionButtons.Invoke()
+            }
+        })
+
+    # Presets
+    $lblPresetSSMS.Add_MouseLeftButtonDown({
+            $txtChocoSearch.Text = "ssms"
+            $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+        })
+
+    $lblPresetHeidi.Add_MouseLeftButtonDown({
+            $txtChocoSearch.Text = "heidi"
+            $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+        })
+
+    # Mostrar instalados
+    $btnShowInstalledChoco.Add_Click({
+            $script:chocoResultsCollection.Clear()
+            $script:updateChocoActionButtons.Invoke()
+
+            if (-not (Check-Chocolatey)) {
+                return
+            }
+
+            $btnShowInstalledChoco.IsEnabled = $false
+            $progressForm = Show-WpfProgressBar -Title "Listando instalados" -Message "Recuperando paquetes instalados..."
+
+            try {
+                Write-DzDebug "`t[DEBUG] Ejecutando: choco list --local-only --limit-output"
+                $installedOutput = & choco list --local-only --limit-output 2>&1
+                $listExitCode = $LASTEXITCODE
+                Write-DzDebug ("`t[DEBUG] choco list exit code: {0}" -f $listExitCode)
+
+                Update-WpfProgressBar -ProgressWindow $progressForm -Status "Procesando resultados..."
+
+                foreach ($line in $installedOutput) {
+                    $script:addChocoResult.Invoke($line)
+                }
+
+                if ($script:chocoResultsCollection.Count -eq 0) {
+                    [System.Windows.MessageBox]::Show("No se encontraron paquetes instalados con Chocolatey.",
+                        "Sin resultados", [System.Windows.MessageBoxButton]::OK,
+                        [System.Windows.MessageBoxImage]::Information)
+                }
+            } catch {
+                Write-Error "Error al consultar paquetes instalados de Chocolatey: $_"
+                [System.Windows.MessageBox]::Show("Ocurrió un error al consultar paquetes instalados.",
+                    "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            } finally {
+                if ($null -ne $progressForm) {
+                    Close-WpfProgressBar $progressForm
+                }
+                $btnShowInstalledChoco.IsEnabled = $true
+                $script:updateChocoActionButtons.Invoke()
+            }
+        })
+
+    # Instalar seleccionado
+    $btnInstallSelectedChoco.Add_Click({
+            Write-DzDebug "`t[DEBUG] Click en 'Instalar seleccionado'"
+
+            if (-not $dgvChocoResults.SelectedItem) {
+                Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado para instalar."
+                [System.Windows.MessageBox]::Show("Seleccione un paquete de la lista antes de instalar.",
+                    "Instalación de paquete", [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Warning)
+                return
+            }
+
+            $selectedItem = $dgvChocoResults.SelectedItem
+            $packageName = $selectedItem.Name
+            $packageVersion = $selectedItem.Version
+            $packageDescription = $selectedItem.Description
+
+            $confirmationText = "Vas a instalar el paquete: $packageName $packageVersion`n$packageDescription"
+            Write-DzDebug ("`t[DEBUG] Confirmación de instalación: {0}" -f $confirmationText)
+
+            $response = [System.Windows.MessageBox]::Show($confirmationText, "Confirmar instalación",
+                [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
+
+            if ($response -ne [System.Windows.MessageBoxResult]::Yes) {
+                Write-DzDebug "`t[DEBUG] Instalación cancelada por el usuario en la confirmación."
+                return
+            }
+
+            if (-not (Check-Chocolatey)) {
+                Write-DzDebug "`t[DEBUG] Chocolatey no está instalado; se cancela la instalación."
+                return
+            }
+
+            $arguments = "install $packageName -y"
+            if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
+                $arguments = "install $packageName --version=$packageVersion -y"
+            }
+
+            try {
+                Write-DzDebug ("`t[DEBUG] Ejecutando instalación con argumentos: {0}" -f $arguments)
+                Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
+                [System.Windows.MessageBox]::Show("Instalación completada para $packageName.", "Éxito",
+                    [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            } catch {
+                Write-DzDebug ("`t[DEBUG] Error en la instalación de {0}: {1}" -f $packageName, $_)
+                [System.Windows.MessageBox]::Show("Error al instalar el paquete seleccionado: $($_.Exception.Message)",
+                    "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            }
+        })
+
+    # Desinstalar seleccionado
+    $btnUninstallSelectedChoco.Add_Click({
+            Write-DzDebug "`t[DEBUG] Click en 'Desinstalar seleccionado'"
+
+            if (-not $dgvChocoResults.SelectedItem) {
+                Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado para desinstalar."
+                [System.Windows.MessageBox]::Show("Seleccione un paquete de la lista antes de desinstalar.",
+                    "Desinstalación de paquete", [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Warning)
+                return
+            }
+
+            $selectedItem = $dgvChocoResults.SelectedItem
+            $packageName = $selectedItem.Name
+            $packageVersion = $selectedItem.Version
+            $packageDescription = $selectedItem.Description
+
+            $confirmationText = "¿Deseas desinstalar el paquete: $packageName $packageVersion`n$packageDescription?"
+            $response = [System.Windows.MessageBox]::Show($confirmationText, "Confirmar desinstalación",
+                [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
+
+            if ($response -ne [System.Windows.MessageBoxResult]::Yes) {
+                Write-DzDebug "`t[DEBUG] Desinstalación cancelada por el usuario."
+                return
+            }
+
+            if (-not (Check-Chocolatey)) {
+                Write-DzDebug "`t[DEBUG] Chocolatey no está instalado; se cancela la desinstalación."
+                return
+            }
+
+            $arguments = "uninstall $packageName -y"
+            if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
+                $arguments = "uninstall $packageName --version=$packageVersion -y"
+            }
+
+            try {
+                Write-DzDebug ("`t[DEBUG] Ejecutando desinstalación con argumentos: {0}" -f $arguments)
+                Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
+                [System.Windows.MessageBox]::Show("Desinstalación completada para $packageName.", "Éxito",
+                    [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            } catch {
+                Write-DzDebug ("`t[DEBUG] Error en la desinstalación de {0}: {1}" -f $packageName, $_)
+                [System.Windows.MessageBox]::Show("Error al desinstalar el paquete seleccionado: $($_.Exception.Message)",
+                    "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            }
+        })
+
+    # Salir
+    $btnExitInstaladores.Add_Click({
+            $window.Close()
+        })
+
+    $window.ShowDialog() | Out-Null
+}
 Export-ModuleMember -Function @(
     'New-WpfWindow',
     'Show-WpfMessageBox',
@@ -853,5 +1389,15 @@ Export-ModuleMember -Function @(
     'Show-AddUserDialog',
     'Show-IPConfigDialog',
     'Show-SSMSSelectionDialog',
-    'Show-LZMADialog'
+    'Show-LZMADialog',
+    'Create-WpfWindow',
+    'Show-WpfMessageBox',
+    'Show-WpfProgressBar',
+    'Update-WpfProgressBar',
+    'Close-WpfProgressBar',
+    'Show-AddUserDialog',
+    'Show-IPConfigDialog',
+    'Show-SSMSSelectionDialog',
+    'Show-LZMADialog',
+    'Show-ChocolateyInstallerMenu'
 )

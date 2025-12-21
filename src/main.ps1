@@ -270,10 +270,14 @@ function New-MainForm {
     if ($ipsWithAdapters.Count -gt 0) {
         $ipsTextForLabel = $ipsWithAdapters | ForEach-Object { "- $($_.AdapterName) - IP: $($_.IPAddress)" } | Out-String
         $txt_IpAdress.Text = $ipsTextForLabel
+
+        # DEBUG: Verificar que se llenó
+        Write-DzDebug "`t[DEBUG] txt_IpAdress poblado con: '$($txt_IpAdress.Text)'" -Color Green
+        Write-DzDebug "`t[DEBUG] txt_IpAdress.Text.Length: $($txt_IpAdress.Text.Length)" -Color Green
     } else {
         $txt_IpAdress.Text = "No se encontraron direcciones IP"
+        Write-DzDebug "`t[DEBUG] No se encontraron IPs" -Color Yellow
     }
-
     $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
     $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
     if ($tcpPort -and $tcpPort.TcpPort) {
@@ -316,15 +320,23 @@ function New-MainForm {
             })
     }
     $lblHostname.Add_MouseLeftButtonDown({
-            $hostnameText = $lblHostname.Content.ToString()
-            if ([string]::IsNullOrWhiteSpace($hostnameText)) {
-                Write-Host "`n[AVISO] El hostname está vacío o nulo, no se copió nada." -ForegroundColor Yellow
-                [System.Windows.MessageBox]::Show("El nombre de equipo está vacío, no hay nada que copiar.", "Daniel Tools",
-                    [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-                return
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
+            try {
+                $hostname = [System.Net.Dns]::GetHostName()
+
+                if ([string]::IsNullOrWhiteSpace($hostname)) {
+                    Write-Host "`n[AVISO] No se pudo obtener el hostname." -ForegroundColor Yellow
+                    return
+                }
+
+                [System.Windows.Clipboard]::SetText($hostname)
+                Write-Host "`nNombre del equipo copiado: $hostname" -ForegroundColor Green
+
+            } catch {
+                Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
-            [System.Windows.Clipboard]::SetText($hostnameText)
-            Write-Host "`nNombre del equipo copiado al portapapeles: $hostnameText" -ForegroundColor Green
         })
     $lblPort.Add_MouseLeftButtonDown({
             $text = $lblPort.Content
@@ -339,15 +351,28 @@ function New-MainForm {
         })
     $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
-            $ipsText = $txt_IpAdress.Text
-            if ([string]::IsNullOrWhiteSpace($ipsText)) {
-                Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow
-                return
+            Write-DzDebug "`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
+            try {
+                # Usar $sender.Text en lugar de $txt_IpAdress.Text por si hay problema de scope
+                $ipsText = $sender.Text
+
+                Write-DzDebug "`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Contenido (variable): '$($txt_IpAdress.Text)'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
+
+                if ([string]::IsNullOrWhiteSpace($ipsText)) {
+                    Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow
+                    return
+                }
+
+                [System.Windows.Clipboard]::SetText($ipsText)
+                Write-Host "`nIP's copiadas al portapapeles:`n$ipsText" -ForegroundColor Green
+
+            } catch {
+                Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
-            [System.Windows.Clipboard]::SetText($ipsText)
-            Write-Host "`nIP's copiadas al portapapeles: $ipsText" -ForegroundColor Green
-            $e.Handled = $true
-        })
+        }.GetNewClosure())
     $txt_AdapterStatus.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Get-NetConnectionProfile |

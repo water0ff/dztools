@@ -75,7 +75,6 @@ function Initialize-Environment {
 
 function New-MainForm {
     Write-Host "Creando formulario principal WPF..." -ForegroundColor Yellow
-
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -185,7 +184,6 @@ function New-MainForm {
 
     $reader = New-Object System.Xml.XmlNodeReader $xaml
     $window = [Windows.Markup.XamlReader]::Load($reader)
-
     $lblHostname = $window.FindName("lblHostname")
     $lblPort = $window.FindName("lblPort")
     $txt_IpAdress = $window.FindName("txt_IpAdress")
@@ -222,7 +220,6 @@ function New-MainForm {
     $rtbQuery = $window.FindName("rtbQuery")
     $dgvResults = $window.FindName("dgvResults")
     $btnExit = $window.FindName("btnExit")
-
     $global:txtServer = $txtServer
     $global:txtUser = $txtUser
     $global:txtPassword = $txtPassword
@@ -236,10 +233,8 @@ function New-MainForm {
     $global:lblConnectionStatus = $lblConnectionStatus
     $global:dgvResults = $dgvResults
     $global:txt_AdapterStatus = $txt_AdapterStatus
-
     $lblHostname.Content = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
-
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
     Write-Host "              Versión: $($global:version)               " -ForegroundColor Green
@@ -247,10 +242,8 @@ function New-MainForm {
     Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
     Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
     Write-Host "O crea un issue en GitHub. https://github.com/water0ff/dztools/issues/new" -ForegroundColor Cyan
-
     $script:predefinedQueries = Get-PredefinedQueries
     Initialize-PredefinedQueries -ComboQueries $cmbQueries -RichTextBox $rtbQuery -Queries $script:predefinedQueries
-
     $script:setInstructionText = {
         param([string]$Message)
         if ($null -ne $txt_InfoInstrucciones) {
@@ -288,11 +281,8 @@ function New-MainForm {
     } else {
         $lblPort.Content = "No se encontró puerto o instancia."
     }
-
     Refresh-AdapterStatus
-
     Load-IniConnectionsToComboBox -Combo $txtServer
-
     $changeColorOnHover = {
         param($sender, $e)
         $sender.Background = [System.Windows.Media.Brushes]::Orange
@@ -310,7 +300,6 @@ function New-MainForm {
     $txt_IpAdress.Add_MouseLeave($restoreColorOnLeave)
     $txt_AdapterStatus.Add_MouseEnter($changeColorOnHover)
     $txt_AdapterStatus.Add_MouseLeave($restoreColorOnLeave)
-
     $buttonsToUpdate = @(
         $LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler,
         $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool,
@@ -434,7 +423,6 @@ function New-MainForm {
             }
             Show-SSMSSelectionDialog -Managers $managers
         })
-
     $btnSQLManagement.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             function Get-SSMSVersions {
@@ -460,7 +448,6 @@ function New-MainForm {
             }
             Show-SSMSSelectionDialog -SSMSVersions $ssmsVersions
         })
-
     $btnForzarActualizacion.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             Show-SystemComponents
@@ -514,7 +501,6 @@ function New-MainForm {
                 Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red
             }
         })
-
     $btnShowPrinters.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             try {
@@ -542,7 +528,6 @@ function New-MainForm {
                 Write-Host "`nError al obtener impresoras: $_"
             }
         })
-
     $btnClearPrintJobs.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             try {
@@ -585,7 +570,6 @@ function New-MainForm {
                 [System.Windows.MessageBox]::Show("Ocurrió un error al intentar limpiar las impresoras o reiniciar el servicio:`r`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
         })
-
     $btnCheckPermissions.Add_Click({
             Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
             if (-not (Test-Administrator)) {
@@ -594,7 +578,6 @@ function New-MainForm {
             }
             Check-Permissions
         })
-
     $btnAplicacionesNS.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             $resultados = @()
@@ -719,7 +702,6 @@ function New-MainForm {
                 }
             }
         })
-
     $btnCambiarOTM.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             $syscfgPath = "C:\Windows\SysWOW64\Syscfg45_2.0.dll"
@@ -793,7 +775,6 @@ function New-MainForm {
                 Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
             }
         })
-
     $btnLectorDPicacls.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             try {
@@ -853,7 +834,6 @@ function New-MainForm {
                 Write-Host "Error: $_" -ForegroundColor Red
             }
         })
-
     $LZMAbtnBuscarCarpeta.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
@@ -892,17 +872,14 @@ function New-MainForm {
                 [System.Windows.MessageBox]::Show("Error accediendo al registro:`n$_", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
         })
-
     $btnConfigurarIPs.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             Show-IPConfigDialog
         })
-
     $btnAddUser.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             Show-AddUserDialog
         })
-
     $btnCreateAPK.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             $dllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll"
@@ -1084,42 +1061,72 @@ Base de datos: ((
             Write-Host "`n`t- - - Comenzando el proceso de Backup - - -" -ForegroundColor Gray
             Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem
         })
+    # Crear el scriptblock con GetNewClosure() para capturar el contexto
+    $closeWindowScript = {
+        Write-Host "Cerrando aplicación..." -ForegroundColor Yellow
+        Write-DzDebug "`t[DEBUG] Botón Salir presionado" -Color DarkGray
 
-    $btnExit.Add_Click({
-            $window.Close()
-            [System.Windows.Application]::Current.Shutdown()
-        })
+        try {
+            # Método 1: Buscar la ventana desde el sender
+            $btn = $args[0]  # El botón que disparó el evento
+            $win = [System.Windows.Window]::GetWindow($btn)
 
+            if ($null -ne $win) {
+                $win.Close()
+                Write-DzDebug "`t[DEBUG] Ventana cerrada (método 1)" -Color DarkGray
+            } else {
+                # Método 2: Usar la ventana capturada
+                $window.Close()
+                Write-DzDebug "`t[DEBUG] Ventana cerrada (método 2)" -Color DarkGray
+            }
+        } catch {
+            Write-Host "Error al cerrar: $_" -ForegroundColor Yellow
+            Write-DzDebug "`t[DEBUG] Error: $_" -Color Red
+        }
+    }.GetNewClosure()
+
+    $btnExit.Add_Click($closeWindowScript)
     Write-Host "✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     return $window
 }
+
 function Start-Application {
     Write-Host "Iniciando aplicación..." -ForegroundColor Cyan
     if (-not (Initialize-Environment)) {
         Write-Host "Error inicializando entorno. Saliendo..." -ForegroundColor Red
         return
     }
+
     $mainForm = New-MainForm
     if ($mainForm -eq $null) {
         Write-Host "Error: No se pudo crear el formulario principal" -ForegroundColor Red
         [System.Windows.MessageBox]::Show("No se pudo crear la interfaz gráfica. Verifique los logs.", "Error crítico")
         return
     }
+
     try {
         Write-Host "Mostrando formulario WPF..." -ForegroundColor Yellow
-        $mainForm.ShowDialog() | Out-Null
+        Write-DzDebug "`t[DEBUG] Mostrando ventana principal" -Color DarkGray
+
+        # ShowDialog() bloquea hasta que se cierre la ventana
+        $null = $mainForm.ShowDialog()
+
         Write-Host "Aplicación finalizada correctamente." -ForegroundColor Green
+        Write-DzDebug "`t[DEBUG] Aplicación finalizada" -Color DarkGray
+
     } catch {
-        Write-Host "Error mostrando formulario: $" -ForegroundColor Red
-        [System.Windows.MessageBox]::Show("Error: $", "Error en la aplicación")
+        Write-Host "Error mostrando formulario: $_" -ForegroundColor Red
+        Write-DzDebug "`t[DEBUG] Error mostrando formulario: $_" -Color Red
+        Write-DzDebug "`t[DEBUG] Stack trace: $($_.ScriptStackTrace)" -Color Red
+        [System.Windows.MessageBox]::Show("Error: $_", "Error en la aplicación")
     }
+    # NO HAY FINALLY - Dejar que PowerShell maneje el cierre naturalmente
 }
 try {
     Start-Application
 } catch {
     Write-Host "Error fatal: $_" -ForegroundColor Red
-    Write-Host "Stack Trace: ((
-(_.Exception.StackTrace)" -ForegroundColor Red
+    Write-Host "Stack Trace: $($_.Exception.StackTrace)" -ForegroundColor Red
     pause
     exit 1
 }

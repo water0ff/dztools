@@ -46,10 +46,15 @@ $global:defaultInstructions = @"
 ----- CAMBIOS -----
 - Se agregó una mejor busqueda para SQL Server Management Studio.
 - Migración completa a WPF
-- Carga de INIS en la conexión a BDD
-- Se cambió la instalación de SSMS14 a SSMS21
-- Restructura del proceso de Backups (choco)
+- Carga de INIS en la conexión a BDD.
+- Se cambió la instalación de SSMS14 a SSMS21.
+- Se deshabilitó la subida a mega.
+- Restructura del proceso de Backups (choco).
+- Se agregó subida a megaupload.
 - Se agregó compresión con contraseña de respaldos
+- Se agregó compresión con contraseña de respaldos
+- Se agregó consola de cambios y tool tip para botones
+- Reorganización de botones
 - Query Browser para SQL en pestaña: Base de datos
 - - Ahora se pueden agregar comentarios con "-" y entre "/* */"
 - - Tabla en consola
@@ -136,7 +141,7 @@ function New-MainForm {
                     <Button Content="Creación de SRM APK" Name="btnCreateAPK" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,170,0,0" Background="#FFC896"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="220" Height="500" Margin="730,50,0,0" Background="#012456" Foreground="White"
+                             Width="220" Height="450" Margin="730,50,0,0" Background="#012456" Foreground="White"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                              FontFamily="Courier New" FontSize="10"/>
                 </Grid>
@@ -752,8 +757,9 @@ function New-MainForm {
             $dialog.Title = "Seleccionar versión de SSMS"
             $dialog.Width = 500
             $dialog.Height = 300
-            $dialog.WindowStartupLocation = "CenterScreen"
+            $dialog.WindowStartupLocation = "CenterOwner"
             $dialog.ResizeMode = "NoResize"
+            $dialog.Owner = $window  # ¡IMPORTANTE! Establecer el owner para que sea modal
 
             $stackPanel = New-Object System.Windows.Controls.StackPanel
             $stackPanel.Margin = New-Object System.Windows.Thickness(10)
@@ -773,9 +779,9 @@ function New-MainForm {
                 try {
                     $versionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($version)
                     $displayText = "$($versionInfo.ProductName) - $($versionInfo.FileVersion)"
-                    $listBox.Items.Add(@{Path = $version; Display = $displayText }) | Out-Null
+                    $listBox.Items.Add([PSCustomObject]@{Path = $version; Display = $displayText }) | Out-Null
                 } catch {
-                    $listBox.Items.Add(@{Path = $version; Display = $version }) | Out-Null
+                    $listBox.Items.Add([PSCustomObject]@{Path = $version; Display = $version }) | Out-Null
                 }
             }
 
@@ -795,6 +801,7 @@ function New-MainForm {
             $cancelButton.Width = 80
             $cancelButton.Margin = New-Object System.Windows.Thickness(0, 0, 10, 0)
             $cancelButton.Add_Click({
+                    $dialog.DialogResult = $false
                     $dialog.Close()
                 })
 
@@ -807,6 +814,7 @@ function New-MainForm {
                         try {
                             Write-Host "`tEjecutando: $($listBox.SelectedValue)" -ForegroundColor Green
                             Start-Process -FilePath $listBox.SelectedValue
+                            $dialog.DialogResult = $true
                             $dialog.Close()
                         } catch {
                             [System.Windows.MessageBox]::Show("Error al ejecutar SSMS: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
@@ -819,7 +827,11 @@ function New-MainForm {
             $stackPanel.Children.Add($buttonPanel) | Out-Null
 
             $dialog.Content = $stackPanel
+
+            # Mostrar el diálogo de forma modal
+            Write-DzDebug "`t[DEBUG] Mostrando diálogo de selección de SSMS" -Color DarkGray
             $dialog.ShowDialog() | Out-Null
+            Write-DzDebug "`t[DEBUG] Diálogo de SSMS cerrado" -Color DarkGray
         })
     $btnForzarActualizacion.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray

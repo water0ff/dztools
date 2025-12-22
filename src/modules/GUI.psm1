@@ -100,7 +100,6 @@ function New-WpfInputDialog {
     }
     return $null
 }
-
 function Show-WpfProgressBar {
     param(
         [string]$Title = "Procesando",
@@ -133,19 +132,26 @@ function Show-WpfProgressBar {
     </Border>
 </Window>
 "@
-    $result = New-WpfWindow -Xaml $xaml -PassThru
-    $window = $result.Window
-    $window | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $result.Controls['progressBar']
-    $window | Add-Member -MemberType NoteProperty -Name MessageLabel -Value $result.Controls['lblMessage']
-    $window | Add-Member -MemberType NoteProperty -Name PercentLabel -Value $result.Controls['lblPercent']
-    $window.Show()
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke(
-        [System.Windows.Threading.DispatcherPriority]::Background,
-        [action] {}
-    )
-    return $window
-}
 
+    try {
+        $result = New-WpfWindow -Xaml $xaml -PassThru
+        $window = $result.Window
+        $window | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $result.Controls['progressBar']
+        $window | Add-Member -MemberType NoteProperty -Name MessageLabel -Value $result.Controls['lblMessage']
+        $window | Add-Member -MemberType NoteProperty -Name PercentLabel -Value $result.Controls['lblPercent']
+
+        # Mostrar la ventana de forma no modal
+        $window.Show()
+
+        # Forzar la actualización de la UI - CORRECCIÓN: Usar Dispatcher en lugar de DoEvents
+        $window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Render, [action] {})
+
+        return $window
+    } catch {
+        Write-Debug "Error al crear la barra de progreso: $_"
+        return $null
+    }
+}
 function Update-WpfProgressBar {
     param(
         [Parameter(Mandatory = $true)]
@@ -154,30 +160,45 @@ function Update-WpfProgressBar {
         [int]$Percent,
         [string]$Message = $null
     )
+
     if ($null -eq $Window -or -not $Window.IsVisible) {
+        Write-Debug "Ventana de progreso no disponible para actualizar."
         return
     }
-    $Window.ProgressBar.Value = [Math]::Min($Percent, 100)
-    $Window.PercentLabel.Text = "$Percent%"
-    if ($Message) {
-        $Window.MessageLabel.Text = $Message
-    }
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke(
-        [System.Windows.Threading.DispatcherPriority]::Background,
-        [action] {}
-    )
-}
 
+    try {
+        $Window.Dispatcher.Invoke([action] {
+                $Window.ProgressBar.Value = [Math]::Min($Percent, 100)
+                $Window.PercentLabel.Text = "$Percent%"
+                if ($Message) {
+                    $Window.MessageLabel.Text = $Message
+                }
+            })
+    } catch {
+        Write-Debug "Error actualizando barra de progreso: $_"
+    }
+}
 function Close-WpfProgressBar {
     param(
         [Parameter(Mandatory = $true)]
         $Window
     )
-    if ($Window -and $Window.IsVisible) {
-        $Window.Close()
+
+    if ($null -eq $Window) {
+        Write-Debug "La ventana de progreso ya es nula, no se puede cerrar."
+        return
+    }
+
+    try {
+        $Window.Dispatcher.Invoke([action] {
+                if ($Window.IsVisible) {
+                    $Window.Close()
+                }
+            })
+    } catch {
+        Write-Debug "Error en Close-WpfProgressBar: $_"
     }
 }
-
 function Set-WpfControlEnabled {
     param(
         [Parameter(Mandatory = $true)]
@@ -1084,12 +1105,11 @@ function Show-ChocolateyInstallerMenu {
 
     try {
         Write-DzDebug "`t[DEBUG] Creando ventana de Chocolatey Installer"
-        $reader = New-Object System.Xml.XmlNodeReader $xaml
-        $window = [Windows.Markup.XamlReader]::Load($reader)
+        $result = New-WpfWindow -Xaml $xaml -PassThru
+        $window = $result.Window
         Write-DzDebug "`t[DEBUG] Ventana creada exitosamente"
     } catch {
         Write-Host "`tError crítico al crear ventana: $_" -ForegroundColor Red
-        Write-DzDebug "`t[DEBUG] Error en XAML: $($_.Exception.Message)"
         return
     }
 
@@ -1108,42 +1128,41 @@ function Show-ChocolateyInstallerMenu {
         Write-DzDebug "`t[DEBUG] Controles obtenidos exitosamente"
     } catch {
         Write-Host "`tError obteniendo controles: $_" -ForegroundColor Red
-        Write-DzDebug "`t[DEBUG] Error en FindName: $($_.Exception.Message)"
         return
     }
 
     # Colección observable para los resultados
-    $script:chocoResultsCollection = New-Object System.Collections.ObjectModel.ObservableCollection[PSObject]
-    $dgvChocoResults.ItemsSource = $script:chocoResultsCollection
+    $chocoResultsCollection = New-Object System.Collections.ObjectModel.ObservableCollection[PSObject]
+    $dgvChocoResults.ItemsSource = $chocoResultsCollection
 
-    # Regex para parsear resultados
-    $script:chocoPackagePattern = '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+(?<version>[0-9][A-Za-z0-9\.\-]*)\s+(?<description>.+)$'
-
-    # Función para agregar resultados
-    $script:addChocoResult = {
+    # Función auxiliar para agregar resultados de forma segura
+    $addChocoResult = {
         param($line)
         if ([string]::IsNullOrWhiteSpace($line)) { return }
         if ($line -match '^Chocolatey') { return }
         if ($line -match 'packages?\s+found' -or $line -match 'page size') { return }
 
-        if ($line -match $script:chocoPackagePattern) {
+        # Patrón para búsquedas regulares
+        if ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+(?<version>[0-9][A-Za-z0-9\.\-]*)\s+(?<description>.+)$') {
             $name = $Matches['name']
             $version = $Matches['version']
             $description = $Matches['description'].Trim()
 
             $window.Dispatcher.Invoke([action] {
-                    $script:chocoResultsCollection.Add([PSCustomObject]@{
+                    $chocoResultsCollection.Add([PSCustomObject]@{
                             Name        = $name
                             Version     = $version
                             Description = $description
                         })
                 })
-        } elseif ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\|(?<version>[0-9][A-Za-z0-9\.\-]*)$') {
+        }
+        # Patrón para listado de instalados (formato: nombre|versión)
+        elseif ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\|(?<version>[0-9][A-Za-z0-9\.\-]*)$') {
             $name = $Matches['name']
             $version = $Matches['version']
 
             $window.Dispatcher.Invoke([action] {
-                    $script:chocoResultsCollection.Add([PSCustomObject]@{
+                    $chocoResultsCollection.Add([PSCustomObject]@{
                             Name        = $name
                             Version     = $version
                             Description = "Paquete instalado"
@@ -1152,8 +1171,8 @@ function Show-ChocolateyInstallerMenu {
         }
     }
 
-    # Función para actualizar botones
-    $updateChocoActionButtons = {
+    # Función para actualizar botones de acción
+    $updateActionButtons = {
         $hasValidSelection = $false
         if ($dgvChocoResults.SelectedItem) {
             $selectedItem = $dgvChocoResults.SelectedItem
@@ -1163,125 +1182,99 @@ function Show-ChocolateyInstallerMenu {
         }
         $btnInstallSelectedChoco.IsEnabled = $hasValidSelection
         $btnUninstallSelectedChoco.IsEnabled = $hasValidSelection
-    }.GetNewClosure()
+    }
 
-    # Evento de selección
     $dgvChocoResults.Add_SelectionChanged({
-            $updateChocoActionButtons.Invoke()
+            & $updateActionButtons
         })
-
-    # Función auxiliar para realizar búsqueda
-    $script:ejecutarBusqueda = {
-        param([string]$searchTerm = $null)
-
-        Write-DzDebug "`t[DEBUG] === INICIO BÚSQUEDA ==="
-
-        $script:chocoResultsCollection.Clear()
-        $script:updateChocoActionButtons.Invoke()
-
-        $query = if ($searchTerm) { $searchTerm } else { $txtChocoSearch.Text.Trim() }
-
-        Write-DzDebug "`t[DEBUG] Término de búsqueda: '$query'"
-
-        if ([string]::IsNullOrWhiteSpace($query)) {
-            Write-DzDebug "`t[DEBUG] Búsqueda cancelada: término vacío"
-            [System.Windows.MessageBox]::Show("Ingresa un término para buscar paquetes en Chocolatey.",
-                "Búsqueda de paquetes", [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Information)
-            return
-        }
-
-        if (-not (Check-Chocolatey)) {
-            Write-DzDebug "`t[DEBUG] Chocolatey no está disponible"
-            return
-        }
-
-        $btnBuscarChoco.IsEnabled = $false
-        Write-DzDebug "`t[DEBUG] Mostrando barra de progreso..."
-
-        $progressForm = $null
-        try {
-            $progressForm = Show-WpfProgressBar -Title "Buscando paquetes" -Message "Ejecutando búsqueda..."
-            Write-DzDebug "`t[DEBUG] Barra de progreso mostrada"
-        } catch {
-            Write-DzDebug "`t[DEBUG] Error creando barra de progreso: $_"
-        }
-
-        Write-Host ("`tBuscando paquetes para '{0}'..." -f $query) -ForegroundColor Cyan
-
-        try {
-            Write-DzDebug "`t[DEBUG] Ejecutando: choco search $query --page-size=20"
-            $searchOutput = & choco search $query --page-size=20 2>&1
-            $searchExitCode = $LASTEXITCODE
-            Write-DzDebug ("`t[DEBUG] choco search exit code: {0}" -f $searchExitCode)
-
-            if ($progressForm) {
-                Update-WpfProgressBar -Window $progressForm -Percent 50 -Message "Procesando resultados..."
-            }
-
-            Write-DzDebug "`t[DEBUG] Procesando líneas de salida..."
-            $lineCount = 0
-            foreach ($line in $searchOutput) {
-                $lineCount++
-                $script:addChocoResult.Invoke($line)
-            }
-            Write-DzDebug "`t[DEBUG] Líneas procesadas: $lineCount"
-            Write-DzDebug ("`t[DEBUG] Resultados agregados a la colección: {0}" -f $script:chocoResultsCollection.Count)
-
-            if ($script:chocoResultsCollection.Count -eq 0) {
-                Write-DzDebug "`t[DEBUG] No se encontraron resultados"
-                [System.Windows.MessageBox]::Show("No se encontraron paquetes para la búsqueda realizada.",
-                    "Sin resultados", [System.Windows.MessageBoxButton]::OK,
-                    [System.Windows.MessageBoxImage]::Information)
-            } else {
-                Write-DzDebug ("`t[DEBUG] Búsqueda exitosa: {0} paquetes encontrados" -f $script:chocoResultsCollection.Count)
-            }
-        } catch {
-            Write-Error "Error al consultar paquetes de Chocolatey: $_"
-            Write-DzDebug ("`t[DEBUG] EXCEPCIÓN: {0}" -f $_.Exception.Message)
-            Write-DzDebug ("`t[DEBUG] StackTrace: {0}" -f $_.ScriptStackTrace)
-            [System.Windows.MessageBox]::Show("Ocurrió un error al buscar en Chocolatey.`n`nError: $($_.Exception.Message)",
-                "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-        } finally {
-            if ($null -ne $progressForm) {
-                Write-DzDebug "`t[DEBUG] Cerrando barra de progreso..."
-                try {
-                    Close-WpfProgressBar $progressForm
-                } catch {
-                    Write-DzDebug "`t[DEBUG] Error cerrando barra: $_"
-                }
-            }
-            $btnBuscarChoco.IsEnabled = $true
-            $script:updateChocoActionButtons.Invoke()
-            Write-DzDebug "`t[DEBUG] === FIN BÚSQUEDA ==="
-        }
-    }.GetNewClosure()
-
-    # Botón Buscar
+    # Botón Buscar - CORREGIDO
     $btnBuscarChoco.Add_Click({
             Write-DzDebug "`t[DEBUG] Click en botón Buscar"
-            $script:ejecutarBusqueda.Invoke($null)
-        })
+            Write-DzDebug "`t[DEBUG] === INICIO BÚSQUEDA ==="
 
+            $chocoResultsCollection.Clear()
+            & $updateActionButtons
+
+            $query = $txtChocoSearch.Text.Trim()
+            Write-DzDebug "`t[DEBUG] Término de búsqueda: '$query'"
+
+            if ([string]::IsNullOrWhiteSpace($query)) {
+                [System.Windows.MessageBox]::Show("Ingresa un término para buscar paquetes en Chocolatey.",
+                    "Búsqueda de paquetes", [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Information)
+                return
+            }
+
+            if (-not (Check-Chocolatey)) {
+                Write-DzDebug "`t[DEBUG] Chocolatey no está disponible"
+                return
+            }
+
+            $btnBuscarChoco.IsEnabled = $false
+
+            # Crear y mostrar barra de progreso
+            $progressForm = Show-WpfProgressBar -Title "Buscando paquetes" -Message "Ejecutando búsqueda..."
+
+            Write-Host ("`tBuscando paquetes para '{0}'..." -f $query) -ForegroundColor Cyan
+
+            try {
+                Write-DzDebug "`t[DEBUG] Ejecutando: choco search $query --page-size=20"
+                $searchOutput = & choco search $query --page-size=20 2>&1
+                $searchExitCode = $LASTEXITCODE
+                Write-DzDebug ("`t[DEBUG] choco search exit code: {0}" -f $searchExitCode)
+
+                # Actualizar al 70% durante el procesamiento
+                Update-WpfProgressBar -Window $progressForm -Percent 70 -Message "Procesando resultados..."
+
+                $lineCount = 0
+                foreach ($line in $searchOutput) {
+                    $lineCount++
+                    & $addChocoResult $line
+                }
+
+                Write-DzDebug "`t[DEBUG] Líneas procesadas: $lineCount"
+                Write-DzDebug ("`t[DEBUG] Resultados encontrados: {0}" -f $chocoResultsCollection.Count)
+
+                if ($chocoResultsCollection.Count -eq 0) {
+                    [System.Windows.MessageBox]::Show("No se encontraron paquetes para la búsqueda realizada.",
+                        "Sin resultados", [System.Windows.MessageBoxButton]::OK,
+                        [System.Windows.MessageBoxImage]::Information)
+                }
+            } catch {
+                Write-Error "Error al consultar paquetes de Chocolatey: $_"
+                [System.Windows.MessageBox]::Show("Ocurrió un error al buscar en Chocolatey.`n`nError: $($_.Exception.Message)",
+                    "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            } finally {
+                # IMPORTANTE: Actualizar al 100% antes de cerrar
+                if ($null -ne $progressForm) {
+                    Update-WpfProgressBar -Window $progressForm -Percent 100 -Message "Completado"
+                    # Pequeña pausa para que se vea el 100%
+                    Start-Sleep -Milliseconds 200
+                    Close-WpfProgressBar $progressForm
+                }
+
+                $btnBuscarChoco.IsEnabled = $true
+                & $updateActionButtons
+                Write-DzDebug "`t[DEBUG] === FIN BÚSQUEDA ==="
+            }
+        })
     # Presets
     $lblPresetSSMS.Add_MouseLeftButtonDown({
             Write-DzDebug "`t[DEBUG] Click en preset SSMS"
             $txtChocoSearch.Text = "ssms"
-            $script:ejecutarBusqueda.Invoke("ssms")
+            $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs ([System.Windows.Controls.Button]::ClickEvent)))
         })
 
     $lblPresetHeidi.Add_MouseLeftButtonDown({
             Write-DzDebug "`t[DEBUG] Click en preset Heidi"
             $txtChocoSearch.Text = "heidi"
-            $script:ejecutarBusqueda.Invoke("heidi")
+            $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs ([System.Windows.Controls.Button]::ClickEvent)))
         })
-
-    # Mostrar instalados
     $btnShowInstalledChoco.Add_Click({
             Write-DzDebug "`t[DEBUG] === INICIO MOSTRAR INSTALADOS ==="
 
-            $script:chocoResultsCollection.Clear()
-            $script:updateChocoActionButtons.Invoke()
+            $chocoResultsCollection.Clear()
+            & $updateActionButtons
 
             if (-not (Check-Chocolatey)) {
                 Write-DzDebug "`t[DEBUG] Chocolatey no disponible"
@@ -1290,12 +1283,8 @@ function Show-ChocolateyInstallerMenu {
 
             $btnShowInstalledChoco.IsEnabled = $false
 
-            $progressForm = $null
-            try {
-                $progressForm = Show-WpfProgressBar -Title "Listando instalados" -Message "Recuperando paquetes instalados..."
-            } catch {
-                Write-DzDebug "`t[DEBUG] Error creando barra de progreso: $_"
-            }
+            # Crear y mostrar barra de progreso
+            $progressForm = Show-WpfProgressBar -Title "Listando instalados" -Message "Recuperando paquetes instalados..."
 
             try {
                 Write-DzDebug "`t[DEBUG] Ejecutando: choco list --local-only --limit-output"
@@ -1303,46 +1292,39 @@ function Show-ChocolateyInstallerMenu {
                 $listExitCode = $LASTEXITCODE
                 Write-DzDebug ("`t[DEBUG] choco list exit code: {0}" -f $listExitCode)
 
-                if ($progressForm) {
-                    Update-WpfProgressBar -Window $progressForm -Percent 70 -Message "Procesando resultados..."
-                }
+                Update-WpfProgressBar -Window $progressForm -Percent 70 -Message "Procesando resultados..."
 
                 foreach ($line in $installedOutput) {
-                    $script:addChocoResult.Invoke($line)
+                    & $addChocoResult $line
                 }
 
-                Write-DzDebug ("`t[DEBUG] Paquetes instalados encontrados: {0}" -f $script:chocoResultsCollection.Count)
+                Write-DzDebug ("`t[DEBUG] Paquetes instalados encontrados: {0}" -f $chocoResultsCollection.Count)
 
-                if ($script:chocoResultsCollection.Count -eq 0) {
+                if ($chocoResultsCollection.Count -eq 0) {
                     [System.Windows.MessageBox]::Show("No se encontraron paquetes instalados con Chocolatey.",
                         "Sin resultados", [System.Windows.MessageBoxButton]::OK,
                         [System.Windows.MessageBoxImage]::Information)
                 }
             } catch {
                 Write-Error "Error al consultar paquetes instalados de Chocolatey: $_"
-                Write-DzDebug ("`t[DEBUG] EXCEPCIÓN: {0}" -f $_.Exception.Message)
                 [System.Windows.MessageBox]::Show("Ocurrió un error al consultar paquetes instalados.",
                     "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             } finally {
+                # Actualizar al 100% antes de cerrar
                 if ($null -ne $progressForm) {
-                    try {
-                        Close-WpfProgressBar $progressForm
-                    } catch {
-                        Write-DzDebug "`t[DEBUG] Error cerrando barra: $_"
-                    }
+                    Update-WpfProgressBar -Window $progressForm -Percent 100 -Message "Completado"
+                    Start-Sleep -Milliseconds 200
+                    Close-WpfProgressBar $progressForm
                 }
+
                 $btnShowInstalledChoco.IsEnabled = $true
-                $script:updateChocoActionButtons.Invoke()
                 Write-DzDebug "`t[DEBUG] === FIN MOSTRAR INSTALADOS ==="
             }
         })
-
-    # Instalar seleccionado
     $btnInstallSelectedChoco.Add_Click({
             Write-DzDebug "`t[DEBUG] Click en 'Instalar seleccionado'"
 
             if (-not $dgvChocoResults.SelectedItem) {
-                Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado"
                 [System.Windows.MessageBox]::Show("Seleccione un paquete de la lista antes de instalar.",
                     "Instalación de paquete", [System.Windows.MessageBoxButton]::OK,
                     [System.Windows.MessageBoxImage]::Warning)
@@ -1351,38 +1333,33 @@ function Show-ChocolateyInstallerMenu {
 
             $selectedItem = $dgvChocoResults.SelectedItem
             $packageName = $selectedItem.Name
-            $packageVersion = $selectedItem.Version
-            $packageDescription = $selectedItem.Description
 
-            Write-DzDebug ("`t[DEBUG] Paquete seleccionado: {0} v{1}" -f $packageName, $packageVersion)
-
-            $confirmationText = "Vas a instalar el paquete: $packageName $packageVersion`n$packageDescription"
+            $confirmationText = "Vas a instalar el paquete: $packageName"
             $response = [System.Windows.MessageBox]::Show($confirmationText, "Confirmar instalación",
                 [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
 
             if ($response -ne [System.Windows.MessageBoxResult]::Yes) {
-                Write-DzDebug "`t[DEBUG] Instalación cancelada por el usuario"
                 return
             }
 
             if (-not (Check-Chocolatey)) {
-                Write-DzDebug "`t[DEBUG] Chocolatey no disponible"
                 return
             }
 
-            $arguments = "install $packageName -y"
-            if (-not [string]::IsNullOrWhiteSpace($packageVersion)) {
-                $arguments = "install $packageName --version=$packageVersion -y"
-            }
-
             try {
-                Write-DzDebug ("`t[DEBUG] Ejecutando: choco {0}" -f $arguments)
+                $progressForm = Show-WpfProgressBar -Title "Instalando" -Message "Instalando $packageName..."
+
+                $arguments = "install $packageName -y"
                 Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
-                Write-DzDebug "`t[DEBUG] Instalación completada"
+
+                Close-WpfProgressBar $progressForm
+
                 [System.Windows.MessageBox]::Show("Instalación completada para $packageName.", "Éxito",
                     [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
             } catch {
-                Write-DzDebug ("`t[DEBUG] Error en instalación: {0}" -f $_.Exception.Message)
+                if ($null -ne $progressForm) {
+                    Close-WpfProgressBar $progressForm
+                }
                 [System.Windows.MessageBox]::Show("Error al instalar el paquete: $($_.Exception.Message)",
                     "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
@@ -1393,7 +1370,6 @@ function Show-ChocolateyInstallerMenu {
             Write-DzDebug "`t[DEBUG] Click en 'Desinstalar seleccionado'"
 
             if (-not $dgvChocoResults.SelectedItem) {
-                Write-DzDebug "`t[DEBUG] Ningún paquete seleccionado"
                 [System.Windows.MessageBox]::Show("Seleccione un paquete de la lista antes de desinstalar.",
                     "Desinstalación de paquete", [System.Windows.MessageBoxButton]::OK,
                     [System.Windows.MessageBoxImage]::Warning)
@@ -1402,35 +1378,33 @@ function Show-ChocolateyInstallerMenu {
 
             $selectedItem = $dgvChocoResults.SelectedItem
             $packageName = $selectedItem.Name
-            $packageVersion = $selectedItem.Version
-            $packageDescription = $selectedItem.Description
 
-            Write-DzDebug ("`t[DEBUG] Paquete seleccionado: {0} v{1}" -f $packageName, $packageVersion)
-
-            $confirmationText = "¿Deseas desinstalar: $packageName $packageVersion`n$packageDescription?"
+            $confirmationText = "¿Deseas desinstalar: $packageName?"
             $response = [System.Windows.MessageBox]::Show($confirmationText, "Confirmar desinstalación",
                 [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
 
             if ($response -ne [System.Windows.MessageBoxResult]::Yes) {
-                Write-DzDebug "`t[DEBUG] Desinstalación cancelada por el usuario"
                 return
             }
 
             if (-not (Check-Chocolatey)) {
-                Write-DzDebug "`t[DEBUG] Chocolatey no disponible"
                 return
             }
 
-            $arguments = "uninstall $packageName -y"
-
             try {
-                Write-DzDebug ("`t[DEBUG] Ejecutando: choco {0}" -f $arguments)
+                $progressForm = Show-WpfProgressBar -Title "Desinstalando" -Message "Desinstalando $packageName..."
+
+                $arguments = "uninstall $packageName -y"
                 Start-Process choco -ArgumentList $arguments -NoNewWindow -Wait
-                Write-DzDebug "`t[DEBUG] Desinstalación completada"
+
+                Close-WpfProgressBar $progressForm
+
                 [System.Windows.MessageBox]::Show("Desinstalación completada para $packageName.", "Éxito",
                     [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
             } catch {
-                Write-DzDebug ("`t[DEBUG] Error en desinstalación: {0}" -f $_.Exception.Message)
+                if ($null -ne $progressForm) {
+                    Close-WpfProgressBar $progressForm
+                }
                 [System.Windows.MessageBox]::Show("Error al desinstalar: $($_.Exception.Message)",
                     "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
@@ -1449,8 +1423,6 @@ function Show-ChocolateyInstallerMenu {
         Write-DzDebug "`t[DEBUG] Diálogo de Chocolatey Installer cerrado"
     } catch {
         Write-Host "`tError mostrando diálogo: $_" -ForegroundColor Red
-        Write-DzDebug "`t[DEBUG] Error en ShowDialog: $($_.Exception.Message)"
-        Write-DzDebug "`t[DEBUG] StackTrace: $($_.ScriptStackTrace)"
     }
 }
 Export-ModuleMember -Function @(

@@ -80,7 +80,7 @@ function Initialize-Environment {
 }
 
 function New-MainForm {
-    Write-Host "Creando formulario principal WPF..." -ForegroundColor Yellow
+    Write-Host "`tCreando formulario principal WPF..." -ForegroundColor Yellow
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -141,7 +141,7 @@ function New-MainForm {
                     <Button Content="Creación de SRM APK" Name="btnCreateAPK" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,170,0,0" Background="#FFC896"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="220" Height="450" Margin="730,50,0,0" Background="#012456" Foreground="White"
+                             Width="220" Height="400" Margin="730,50,0,0" Background="#012456" Foreground="White"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                              FontFamily="Courier New" FontSize="10"/>
                 </Grid>
@@ -294,21 +294,6 @@ function New-MainForm {
         param($sender, $e)
         $sender.Background = [System.Windows.Media.Brushes]::Black
     }
-    $sqlPorts = Get-SqlPortWithDebug
-
-    if ($sqlPorts.Count -gt 0) {
-        if ($sqlPorts.Count -eq 1) {
-            $lblPort.Content = "Puerto SQL \$($sqlPorts[0].Instance): $($sqlPorts[0].Port)"
-            $lblPort.Tag = $sqlPorts[0].Port
-        } else {
-            $portsText = ($sqlPorts | ForEach-Object { "$($_.Instance): $($_.Port)" }) -join " | "
-            $lblPort.Content = $portsText
-            $lblPort.Tag = ($sqlPorts | ForEach-Object { $_.Port }) -join ","
-        }
-    } else {
-        $lblPort.Content = "No se encontraron puertos SQL"
-        $lblPort.Tag = $null
-    }
     $lblHostname.Add_MouseEnter($changeColorOnHover)
     $lblHostname.Add_MouseLeave($restoreColorOnLeave)
     $lblPort.Add_MouseEnter($changeColorOnHover)
@@ -324,7 +309,6 @@ function New-MainForm {
         $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
         $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK
     )
-
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({
                 if ($script:setInstructionText) {
@@ -332,6 +316,95 @@ function New-MainForm {
                 }
             })
     }
+    # Obtener puertos UNA VEZ y almacenar en variable estructurada
+    $global:sqlPortsData = @{
+        Ports        = Get-SqlPortWithDebug
+        Summary      = $null
+        DetailedText = $null
+    }
+
+    # Generar textos formateados
+    if ($global:sqlPortsData.Ports.Count -gt 0) {
+        # Texto resumido para el label
+        $portsTextForLabel = ($global:sqlPortsData.Ports | ForEach-Object {
+                "$($_.Instance): $($_.Port)"
+            }) -join " | "
+
+        # Texto detallado para copiar (EXACTAMENTE como lo quieres)
+        $global:sqlPortsData.DetailedText = $global:sqlPortsData.Ports | ForEach-Object {
+            "- Instancia: $($_.Instance) | Puerto: $($_.Port) | Tipo: $($_.Type)"
+        } | Out-String
+
+        $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($global:sqlPortsData.Ports.Count)"
+
+        # Configurar el label
+        if ($global:sqlPortsData.Ports.Count -eq 1) {
+            $lblPort.Content = "Puerto SQL \$($global:sqlPortsData.Ports[0].Instance): $($global:sqlPortsData.Ports[0].Port)"
+        } else {
+            $lblPort.Content = "Múltiples puertos: $portsTextForLabel"
+        }
+
+        $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
+        $lblPort.ToolTip = if ($global:sqlPortsData.Ports.Count -eq 1) {
+            "Haz clic para mostrar en consola y copiar al portapapeles"
+        } else {
+            "$($global:sqlPortsData.Ports.Count) instancias encontradas. Haz clic para detalles"
+        }
+
+        # Mostrar resumen en consola (opcional, solo para debug)
+        Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
+        Write-Host $global:sqlPortsData.Summary -ForegroundColor White
+        Write-Host ($global:sqlPortsData.DetailedText.Trim()) -ForegroundColor Green
+        Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
+
+    } else {
+        $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
+        $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
+
+        $lblPort.Content = "No se encontraron puertos SQL"
+        $lblPort.Tag = $global:sqlPortsData.DetailedText
+        $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
+    }
+    $lblPort.Add_MouseLeftButtonDown({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
+
+            try {
+                # Usar la variable global ya preparada
+                $textToCopy = $global:sqlPortsData.DetailedText.Trim()
+
+                Write-DzDebug "`t[DEBUG] Contenido a copiar: '$textToCopy'" -Color DarkGray
+
+                # Mostrar en consola
+                Write-Host "`n=== INFORMACIÓN DE PUERTOS SQL ===" -ForegroundColor Cyan
+                if ($global:sqlPortsData.Ports.Count -gt 0) {
+                    Write-Host $global:sqlPortsData.Summary -ForegroundColor White
+                    Write-Host ""
+                    $textToCopy -split "`n" | ForEach-Object {
+                        Write-Host $_ -ForegroundColor Green
+                    }
+                } else {
+                    Write-Host $textToCopy -ForegroundColor Red
+                }
+                Write-Host "=====================================" -ForegroundColor Cyan
+
+                # Copiar al portapapeles (SIEMPRE el texto detallado formateado)
+                [System.Windows.Clipboard]::SetText($textToCopy)
+
+                if ($global:sqlPortsData.Ports.Count -gt 0) {
+                    Write-Host "`n[ÉXITO] Información de puertos SQL copiada al portapapeles:" -ForegroundColor Green
+                    $textToCopy -split "`n" | ForEach-Object {
+                        Write-Host "  $_" -ForegroundColor Gray
+                    }
+                } else {
+                    Write-Host "`n[INFORMACIÓN] $textToCopy (copiado al portapapeles)" -ForegroundColor Yellow
+                }
+
+            } catch {
+                Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            }
+        })
     $lblHostname.Add_MouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
@@ -352,39 +425,7 @@ function New-MainForm {
             }
         })
 
-    $lblPort.Add_MouseLeftButtonDown({
-            param($sender, $e)
-            Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
 
-            try {
-                $text = $lblPort.Content
-                $savedPorts = $lblPort.Tag
-
-                Write-DzDebug "`t[DEBUG] lblPort.Content: '$text'" -Color DarkGray
-                Write-DzDebug "`t[DEBUG] lblPort.Tag: '$savedPorts'" -Color DarkGray
-
-                # Si tenemos puertos guardados en Tag, usar esos
-                if ($savedPorts) {
-                    [System.Windows.Clipboard]::SetText($savedPorts)
-                    Write-Host "`nPuerto(s) copiado(s) al portapapeles: $savedPorts" -ForegroundColor Green
-                } else {
-                    # Fallback: extraer números del texto
-                    $port = [regex]::Match($text, '\d+').Value
-
-                    if ([string]::IsNullOrWhiteSpace($port)) {
-                        Write-Host "`n[AVISO] No hay puerto válido para copiar." -ForegroundColor Yellow
-                        return
-                    }
-
-                    [System.Windows.Clipboard]::SetText($port)
-                    Write-Host "`nPuerto copiado al portapapeles: $port" -ForegroundColor Green
-                }
-
-            } catch {
-                Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-            }
-        })
     $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray

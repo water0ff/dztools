@@ -94,10 +94,10 @@ function New-MainForm {
                            Width="220" Height="40" Margin="10,1,0,0" Background="Black" Foreground="White"
                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                            BorderBrush="Gray" BorderThickness="1" Cursor="Hand"/>
-                    <Label Content="Puerto: No disponible" Name="lblPort" HorizontalAlignment="Left" VerticalAlignment="Top"
-                           Width="220" Height="40" Margin="250,1,0,0" Background="Black" Foreground="White"
-                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                           BorderBrush="Gray" BorderThickness="1" Cursor="Hand"/>
+                    <TextBox Name="lblPort" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Width="220" Height="40" Margin="250,1,0,0" Background="Black" Foreground="White"
+                            Text="Puerto: No disponible"
+                            IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Cursor="Hand"/>
                     <TextBox Name="txt_IpAdress" HorizontalAlignment="Left" VerticalAlignment="Top"
                              Width="220" Height="40" Margin="490,1,0,0" Background="Black" Foreground="White"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Cursor="Hand"/>
@@ -317,62 +317,82 @@ function New-MainForm {
             })
     }
     # Obtener puertos UNA VEZ y almacenar en variable estructurada
+    $portsResult = Get-SqlPortWithDebug
+
+    # Asegurarnos de que $portsResult sea un array (incluso si solo hay un elemento)
+    $portsArray = @($portsResult)
+
     $global:sqlPortsData = @{
-        Ports        = Get-SqlPortWithDebug
+        Ports        = $portsArray
         Summary      = $null
         DetailedText = $null
+        DisplayText  = $null
     }
 
     # Generar textos formateados
-    if ($global:sqlPortsData.Ports.Count -gt 0) {
-        # Texto resumido para el label
-        $portsTextForLabel = ($global:sqlPortsData.Ports | ForEach-Object {
-                "$($_.Instance): $($_.Port)"
-            }) -join " | "
+    if ($portsArray.Count -gt 0) {
+        # Ordenar por instancia
+        $sortedPorts = $portsArray | Sort-Object -Property Instance
 
-        # Texto detallado para copiar (EXACTAMENTE como lo quieres)
-        $global:sqlPortsData.DetailedText = $global:sqlPortsData.Ports | ForEach-Object {
-            "- Instancia: $($_.Instance) | Puerto: $($_.Port) | Tipo: $($_.Type)"
+        # Formatear para mostrar en un solo renglón
+        $displayParts = @()
+        foreach ($port in $sortedPorts) {
+            $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
+            $displayParts += "$instanceName : $($port.Port)"
+        }
+
+        # Unir todo en una sola línea con separador
+        $global:sqlPortsData.DisplayText = $displayParts -join " | "
+
+        # Texto detallado para copiar (formato original)
+        $global:sqlPortsData.DetailedText = $sortedPorts | ForEach-Object {
+            $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
+            "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
         } | Out-String
 
-        $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($global:sqlPortsData.Ports.Count)"
+        $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
 
-        # Configurar el label
-        if ($global:sqlPortsData.Ports.Count -eq 1) {
-            $lblPort.Content = "Puerto SQL \$($global:sqlPortsData.Ports[0].Instance): $($global:sqlPortsData.Ports[0].Port)"
-        } else {
-            $lblPort.Content = "Múltiples puertos: $portsTextForLabel"
-        }
-
+        # Configurar el TextBlock
+        $lblPort.Text = $global:sqlPortsData.DisplayText
         $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
-        $lblPort.ToolTip = if ($global:sqlPortsData.Ports.Count -eq 1) {
+        $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) {
             "Haz clic para mostrar en consola y copiar al portapapeles"
         } else {
-            "$($global:sqlPortsData.Ports.Count) instancias encontradas. Haz clic para detalles"
+            "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles"
         }
 
-        # Mostrar resumen en consola (opcional, solo para debug)
+        # Mostrar resumen en consola CON COLORES
         Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
         Write-Host $global:sqlPortsData.Summary -ForegroundColor White
-        Write-Host ($global:sqlPortsData.DetailedText.Trim()) -ForegroundColor Green
+        Write-Host "Puertos: " -ForegroundColor White -NoNewline
+
+        foreach ($port in $sortedPorts) {
+            $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
+            Write-Host "$instanceName : " -ForegroundColor White -NoNewline
+            Write-Host "$($port.Port) " -ForegroundColor Magenta -NoNewline
+
+            if ($port -ne $sortedPorts[-1]) {
+                Write-Host "| " -ForegroundColor Gray -NoNewline
+            }
+        }
+        Write-Host ""  # Nueva línea
         Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
 
     } else {
         $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
         $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
+        $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
 
-        $lblPort.Content = "No se encontraron puertos SQL"
+        $lblPort.Text = "No se encontraron puertos SQL"
         $lblPort.Tag = $global:sqlPortsData.DetailedText
         $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
     }
-    $lblPort.Add_MouseLeftButtonDown({
+    $lblPort.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
 
             try {
-                # Usar la variable global ya preparada
                 $textToCopy = $global:sqlPortsData.DetailedText.Trim()
-
                 Write-DzDebug "`t[DEBUG] Contenido a copiar: '$textToCopy'" -Color DarkGray
 
                 # Mostrar en consola
@@ -388,16 +408,34 @@ function New-MainForm {
                 }
                 Write-Host "=====================================" -ForegroundColor Cyan
 
-                # Copiar al portapapeles (SIEMPRE el texto detallado formateado)
-                [System.Windows.Clipboard]::SetText($textToCopy)
-
-                if ($global:sqlPortsData.Ports.Count -gt 0) {
-                    Write-Host "`n[ÉXITO] Información de puertos SQL copiada al portapapeles:" -ForegroundColor Green
-                    $textToCopy -split "`n" | ForEach-Object {
-                        Write-Host "  $_" -ForegroundColor Gray
+                # Intentar copiar al portapapeles con reintentos
+                $retryCount = 0
+                $maxRetries = 3
+                $copied = $false
+                while (-not $copied -and $retryCount -lt $maxRetries) {
+                    try {
+                        [System.Windows.Clipboard]::SetText($textToCopy)
+                        $copied = $true
+                    } catch {
+                        $retryCount++
+                        if ($retryCount -ge $maxRetries) {
+                            Write-Host "`n[ERROR] No se pudo copiar al portapapeles: $($_.Exception.Message)" -ForegroundColor Red
+                            [System.Windows.MessageBox]::Show("Error al copiar al portapapeles: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                        } else {
+                            Start-Sleep -Milliseconds 100
+                        }
                     }
-                } else {
-                    Write-Host "`n[INFORMACIÓN] $textToCopy (copiado al portapapeles)" -ForegroundColor Yellow
+                }
+
+                if ($copied) {
+                    if ($global:sqlPortsData.Ports.Count -gt 0) {
+                        Write-Host "`n[ÉXITO] Información de puertos SQL copiada al portapapeles:" -ForegroundColor Green
+                        $textToCopy -split "`n" | ForEach-Object {
+                            Write-Host "  $_" -ForegroundColor Gray
+                        }
+                    } else {
+                        Write-Host "`n[INFORMACIÓN] $textToCopy (copiado al portapapeles)" -ForegroundColor Yellow
+                    }
                 }
 
             } catch {

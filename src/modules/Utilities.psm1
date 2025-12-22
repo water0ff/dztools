@@ -1088,9 +1088,28 @@ function Get-SqlPortWithDebug {
         Write-DzDebug "[DEBUG] 3. Verifica si el servicio SQL Server está ejecutándose"
         Write-DzDebug "[DEBUG] 4. Consulta el log de errores de SQL Server"
     }
-
     Write-DzDebug "[DEBUG] === FIN DE BÚSQUEDA ===`n"
-
+    if ($ports.Count -gt 0) {
+        # Ordenar por instancia
+        $ports = $ports | Sort-Object -Property Instance
+        # Formatear cada puerto con una línea por instancia
+        $formattedPorts = @()
+        foreach ($port in $ports) {
+            # Formatear nombre de instancia
+            $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
+            # Crear un nuevo objeto con todas las propiedades necesarias
+            $formattedPort = [PSCustomObject]@{
+                Instance       = $port.Instance
+                Port           = $port.Port
+                Path           = $port.Path
+                Type           = $port.Type
+                FormattedText  = "$instanceName`: $($port.Port)"
+                SingleLineText = "$instanceName`: $($port.Port) - $($port.Type)"
+            }
+            $formattedPorts += $formattedPort
+        }
+        $ports = $formattedPorts
+    }
     return $ports
 }
 function Show-SqlPortsInfo {

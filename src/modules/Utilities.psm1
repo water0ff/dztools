@@ -819,6 +819,211 @@ function Start-SystemUpdate {
         }
     }
 }
+    function Get-SqlPortWithDebug {
+        Write-Host "`n[DEBUG] === INICIANDO BÚSQUEDA DE PUERTOS SQL ===" -ForegroundColor Cyan
+        Write-Host "[DEBUG] Fecha/Hora: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
+
+        $ports = @()
+
+        # 1. Buscar por todas las instancias instaladas
+        Write-Host "[DEBUG] 1. Buscando instancias SQL instaladas..." -ForegroundColor Yellow
+
+        $installedInstancesPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server"
+
+        try {
+            # Verificar si existe la clave principal
+            Write-Host "[DEBUG]   Ruta base: $installedInstancesPath" -ForegroundColor Gray
+            if (-not (Test-Path $installedInstancesPath)) {
+                Write-Host "[DEBUG]   ✗ La ruta base del registro no existe" -ForegroundColor Red
+                return $ports
+            }
+
+            # Método 1: Obtener de InstalledInstances
+            Write-Host "[DEBUG]   Método 1: Buscando en 'InstalledInstances'..." -ForegroundColor Gray
+            $installedInstances = Get-ItemProperty -Path $installedInstancesPath -Name "InstalledInstances" -ErrorAction SilentlyContinue
+
+            if ($installedInstances -and $installedInstances.InstalledInstances) {
+                Write-Host "[DEBUG]   ✓ Instancias encontradas: $($installedInstances.InstalledInstances -join ', ')" -ForegroundColor Green
+
+                foreach ($instance in $installedInstances.InstalledInstances) {
+                    Write-Host "[DEBUG]     Procesando instancia: '$instance'" -ForegroundColor Gray
+
+                    # Construir rutas posibles para esta instancia
+                    $possiblePaths = @(
+                        "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$instance\MSSQLServer\SuperSocketNetLib\Tcp",
+                        "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$instance\MSSQLServer\SuperSocketNetLib\Tcp\IPAll",
+                        "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQLServer\$instance\SuperSocketNetLib\Tcp"
+                    )
+
+                    foreach ($tcpPath in $possiblePaths) {
+                        Write-Host "[DEBUG]       Probando ruta: $tcpPath" -ForegroundColor DarkGray
+
+                        if (Test-Path $tcpPath) {
+                            Write-Host "[DEBUG]       ✓ Ruta existe" -ForegroundColor Green
+
+                            # Buscar puerto TCP
+                            $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
+                            $tcpDynamicPorts = Get-ItemProperty -Path $tcpPath -Name "TcpDynamicPorts" -ErrorAction SilentlyContinue
+
+                            if ($tcpPort -and $tcpPort.TcpPort) {
+                                $portInfo = [PSCustomObject]@{
+                                    Instance = $instance
+                                    Port     = $tcpPort.TcpPort
+                                    Path     = $tcpPath
+                                    Type     = "Static"
+                                }
+                                $ports += $portInfo
+                                Write-Host "[DEBUG]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)" -ForegroundColor Green
+                                break
+                            } elseif ($tcpDynamicPorts -and $tcpDynamicPorts.TcpDynamicPorts) {
+                                $portInfo = [PSCustomObject]@{
+                                    Instance = $instance
+                                    Port     = $tcpDynamicPorts.TcpDynamicPorts
+                                    Path     = $tcpPath
+                                    Type     = "Dynamic"
+                                }
+                                $ports += $portInfo
+                                Write-Host "[DEBUG]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)" -ForegroundColor Green
+                                break
+                            } else {
+                                Write-Host "[DEBUG]       ✗ No se encontró puerto en esta ruta" -ForegroundColor Yellow
+                            }
+                        } else {
+                            Write-Host "[DEBUG]       ✗ Ruta no existe" -ForegroundColor DarkGray
+                        }
+                    }
+                }
+            } else {
+                Write-Host "[DEBUG]   ✗ No se encontró la clave 'InstalledInstances'" -ForegroundColor Yellow
+            }
+
+            # Método 2: Explorar todas las carpetas bajo SQL Server
+            Write-Host "[DEBUG]   Método 2: Explorando todas las carpetas..." -ForegroundColor Gray
+
+            $allSqlEntries = Get-ChildItem -Path $installedInstancesPath -ErrorAction SilentlyContinue |
+            Where-Object { $_.PSIsContainer } |
+            Select-Object -ExpandProperty PSChildName
+
+            Write-Host "[DEBUG]   Carpetas encontradas: $($allSqlEntries -join ', ')" -ForegroundColor Gray
+
+            foreach ($entry in $allSqlEntries) {
+                # Filtrar nombres que parecen instancias (evitar carpetas como "Client", "Tools", etc.)
+                if ($entry -match "^MSSQL\d+" -or $entry -match "^SQL") {
+                    Write-Host "[DEBUG]     Analizando posible instancia: '$entry'" -ForegroundColor Gray
+
+                    $tcpPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$entry\MSSQLServer\SuperSocketNetLib\Tcp"
+
+                    if (Test-Path $tcpPath) {
+                        Write-Host "[DEBUG]       ✓ Ruta TCP encontrada: $tcpPath" -ForegroundColor Green
+
+                        $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
+
+                        if ($tcpPort -and $tcpPort.TcpPort) {
+                            # Verificar si ya existe
+                            $exists = $ports | Where-Object { $_.Instance -eq $entry }
+                            if (-not $exists) {
+                                $portInfo = [PSCustomObject]@{
+                                    Instance = $entry
+                                    Port     = $tcpPort.TcpPort
+                                    Path     = $tcpPath
+                                    Type     = "Static"
+                                }
+                                $ports += $portInfo
+                                Write-Host "[DEBUG]       ✓ Puerto encontrado: $($tcpPort.TcpPort)" -ForegroundColor Green
+                            }
+                        }
+                    }
+                }
+            }
+
+            # Método 3: Buscar por servicios SQL Server
+            Write-Host "[DEBUG]   Método 3: Buscando servicios SQL Server..." -ForegroundColor Gray
+
+            $sqlServices = Get-Service -Name "*SQL*" -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like "*SQL Server (*" }
+
+            foreach ($service in $sqlServices) {
+                Write-Host "[DEBUG]     Servicio: $($service.DisplayName)" -ForegroundColor Gray
+
+                # Extraer nombre de instancia del servicio
+                if ($service.DisplayName -match "SQL Server \((.+)\)") {
+                    $instanceName = $matches[1]
+                    Write-Host "[DEBUG]       Posible instancia: '$instanceName'" -ForegroundColor Gray
+
+                    # Buscar en registro con este nombre
+                    $tcpPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQLServer\$instanceName\SuperSocketNetLib\Tcp"
+
+                    if (Test-Path $tcpPath) {
+                        $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
+
+                        if ($tcpPort -and $tcpPort.TcpPort) {
+                            $exists = $ports | Where-Object { $_.Instance -eq $instanceName }
+                            if (-not $exists) {
+                                $portInfo = [PSCustomObject]@{
+                                    Instance = $instanceName
+                                    Port     = $tcpPort.TcpPort
+                                    Path     = $tcpPath
+                                    Type     = "Static"
+                                }
+                                $ports += $portInfo
+                                Write-Host "[DEBUG]       ✓ Puerto encontrado: $($tcpPort.TcpPort)" -ForegroundColor Green
+                            }
+                        }
+                    }
+                }
+            }
+
+            # Método 4: Buscar puertos en uso por SQL Server
+            Write-Host "[DEBUG]   Método 4: Buscando puertos en uso por sqlservr.exe..." -ForegroundColor Gray
+
+            $sqlProcesses = Get-Process -Name "sqlservr" -ErrorAction SilentlyContinue
+            if ($sqlProcesses) {
+                foreach ($process in $sqlProcesses) {
+                    Write-Host "[DEBUG]     Proceso sqlservr.exe encontrado (PID: $($process.Id))" -ForegroundColor Gray
+
+                    # Obtener puertos usando netstat
+                    $netstatOutput = netstat -ano | Select-String ":$($process.Id)\s"
+
+                    foreach ($line in $netstatOutput) {
+                        if ($line -match ":(\d+)\s.*$($process.Id)$") {
+                            $port = $matches[1]
+                            Write-Host "[DEBUG]       Puerto en uso: $port" -ForegroundColor Cyan
+                        }
+                    }
+                }
+            } else {
+                Write-Host "[DEBUG]     ✗ No se encontraron procesos sqlservr.exe" -ForegroundColor Yellow
+            }
+
+        } catch {
+            Write-Host "[DEBUG]   ERROR en búsqueda: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "[DEBUG]   StackTrace: $($_.ScriptStackTrace)" -ForegroundColor DarkRed
+        }
+
+        # Resumen final
+        Write-Host "[DEBUG] `n=== RESUMEN DE BÚSQUEDA ===" -ForegroundColor Cyan
+        Write-Host "[DEBUG] Total de instancias con puerto encontradas: $($ports.Count)" -ForegroundColor $(if ($ports.Count -gt 0) { "Green" } else { "Red" })
+
+        if ($ports.Count -gt 0) {
+            foreach ($port in $ports) {
+                Write-Host "[DEBUG]   - Instancia: $($port.Instance) | Puerto: $($port.Port) | Tipo: $($port.Type)" -ForegroundColor Green
+                Write-Host "[DEBUG]     Ruta: $($port.Path)" -ForegroundColor DarkGray
+            }
+        } else {
+            Write-Host "[DEBUG]   ✗ No se encontraron puertos SQL configurados" -ForegroundColor Red
+
+            # Sugerencias para debugging
+            Write-Host "[DEBUG] `n=== SUGERENCIAS ===" -ForegroundColor Yellow
+            Write-Host "[DEBUG] 1. Verifica si SQL Server está instalado" -ForegroundColor Yellow
+            Write-Host "[DEBUG] 2. Revisa el Configuration Manager de SQL Server" -ForegroundColor Yellow
+            Write-Host "[DEBUG] 3. Verifica si el servicio SQL Server está ejecutándose" -ForegroundColor Yellow
+            Write-Host "[DEBUG] 4. Consulta el log de errores de SQL Server" -ForegroundColor Yellow
+        }
+
+        Write-Host "[DEBUG] === FIN DE BÚSQUEDA ===`n" -ForegroundColor Cyan
+
+        return $ports
+    }
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
@@ -840,5 +1045,6 @@ Export-ModuleMember -Function @(
     'DownloadAndRun',
     'Refresh-AdapterStatus',
     'Get-NetworkAdapterStatus',
-    'Start-SystemUpdate'
+    'Start-SystemUpdate',
+    'Get-SqlPortWithDebug'
 )

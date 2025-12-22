@@ -294,7 +294,21 @@ function New-MainForm {
         param($sender, $e)
         $sender.Background = [System.Windows.Media.Brushes]::Black
     }
+    $sqlPorts = Get-SqlPortWithDebug
 
+    if ($sqlPorts.Count -gt 0) {
+        if ($sqlPorts.Count -eq 1) {
+            $lblPort.Content = "Puerto SQL \$($sqlPorts[0].Instance): $($sqlPorts[0].Port)"
+            $lblPort.Tag = $sqlPorts[0].Port
+        } else {
+            $portsText = ($sqlPorts | ForEach-Object { "$($_.Instance): $($_.Port)" }) -join " | "
+            $lblPort.Content = $portsText
+            $lblPort.Tag = ($sqlPorts | ForEach-Object { $_.Port }) -join ","
+        }
+    } else {
+        $lblPort.Content = "No se encontraron puertos SQL"
+        $lblPort.Tag = $null
+    }
     $lblHostname.Add_MouseEnter($changeColorOnHover)
     $lblHostname.Add_MouseLeave($restoreColorOnLeave)
     $lblPort.Add_MouseEnter($changeColorOnHover)
@@ -337,121 +351,7 @@ function New-MainForm {
                 [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
         })
-    # Función para obtener todos los puertos SQL
-    function Get-AllSqlPorts {
-        Write-DzDebug "`t[DEBUG] Iniciando búsqueda de puertos SQL en el registro" -Color DarkGray
-        $ports = @()
 
-        # Ruta base donde están todas las instancias
-        $sqlServerBasePath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server"
-
-        try {
-            # Obtener todas las instancias instaladas
-            $instanceNames = Get-ItemProperty -Path "$sqlServerBasePath" -Name "InstalledInstances" -ErrorAction SilentlyContinue
-
-            if ($instanceNames -and $instanceNames.InstalledInstances) {
-                Write-DzDebug "`t[DEBUG] Instancias encontradas: $($instanceNames.InstalledInstances -join ', ')" -Color Cyan
-
-                foreach ($instance in $instanceNames.InstalledInstances) {
-                    Write-DzDebug "`t[DEBUG] Procesando instancia: $instance" -Color DarkGray
-
-                    # Construir la ruta al puerto TCP de esta instancia
-                    $tcpPath = "$sqlServerBasePath\$instance\MSSQLServer\SuperSocketNetLib\Tcp"
-
-                    Write-DzDebug "`t[DEBUG] Buscando en: $tcpPath" -Color DarkGray
-
-                    if (Test-Path $tcpPath) {
-                        $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
-
-                        if ($tcpPort -and $tcpPort.TcpPort) {
-                            $ports += [PSCustomObject]@{
-                                Instance = $instance
-                                Port     = $tcpPort.TcpPort
-                                Path     = $tcpPath
-                            }
-                            Write-DzDebug "`t[DEBUG] ✓ Puerto encontrado: $($tcpPort.TcpPort) para instancia $instance" -Color Green
-                        } else {
-                            Write-DzDebug "`t[DEBUG] ✗ No se encontró puerto para $instance" -Color Yellow
-                        }
-                    } else {
-                        Write-DzDebug "`t[DEBUG] ✗ Ruta no existe: $tcpPath" -Color Yellow
-                    }
-                }
-            } else {
-                Write-DzDebug "`t[DEBUG] No se encontró la clave 'InstalledInstances'" -Color Yellow
-            }
-
-            # Búsqueda alternativa: Enumerar todas las carpetas en Microsoft SQL Server
-            Write-DzDebug "`t[DEBUG] Iniciando búsqueda alternativa..." -Color DarkGray
-
-            $allInstances = Get-ChildItem -Path $sqlServerBasePath -ErrorAction SilentlyContinue |
-            Where-Object { $_.PSIsContainer }
-
-            foreach ($instance in $allInstances) {
-                $instanceName = $instance.PSChildName
-
-                # Saltar carpetas que no son instancias
-                if ($instanceName -match "^(Client|Tools|Instance Names|MSSQLServer)$") {
-                    continue
-                }
-
-                $tcpPath = "$sqlServerBasePath\$instanceName\MSSQLServer\SuperSocketNetLib\Tcp"
-
-                if (Test-Path $tcpPath) {
-                    $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
-
-                    if ($tcpPort -and $tcpPort.TcpPort) {
-                        # Verificar si ya existe (evitar duplicados)
-                        $exists = $ports | Where-Object { $_.Instance -eq $instanceName -and $_.Port -eq $tcpPort.TcpPort }
-
-                        if (-not $exists) {
-                            $ports += [PSCustomObject]@{
-                                Instance = $instanceName
-                                Port     = $tcpPort.TcpPort
-                                Path     = $tcpPath
-                            }
-                            Write-DzDebug "`t[DEBUG] ✓ Puerto adicional encontrado: $($tcpPort.TcpPort) para $instanceName" -Color Green
-                        }
-                    }
-                }
-            }
-
-        } catch {
-            Write-DzDebug "`t[DEBUG] Error en búsqueda: $($_.Exception.Message)" -Color Red
-            Write-Host "`t[ERROR] Error buscando puertos SQL: $($_.Exception.Message)" -ForegroundColor Red
-        }
-
-        Write-DzDebug "`t[DEBUG] Total de puertos encontrados: $($ports.Count)" -Color $(if ($ports.Count -gt 0) { "Green" } else { "Red" })
-
-        return $ports
-    }
-
-    # En tu código principal, reemplaza la sección del puerto:
-    $sqlPorts = Get-AllSqlPorts
-
-    if ($sqlPorts.Count -gt 0) {
-        if ($sqlPorts.Count -eq 1) {
-            # Una sola instancia
-            $lblPort.Content = "Puerto SQL \$($sqlPorts[0].Instance): $($sqlPorts[0].Port)"
-            $lblPort.Tag = $sqlPorts[0].Port  # Guardar el puerto en el Tag para facilitar la copia
-        } else {
-            # Múltiples instancias - mostrar todas
-            $portsText = ($sqlPorts | ForEach-Object { "$($_.Instance): $($_.Port)" }) -join " | "
-            $lblPort.Content = $portsText
-            $lblPort.Tag = ($sqlPorts | ForEach-Object { $_.Port }) -join ","  # Guardar todos los puertos
-        }
-
-        Write-Host "`n✓ Puertos SQL encontrados:" -ForegroundColor Green
-        $sqlPorts | ForEach-Object {
-            Write-Host "  - Instancia: $($_.Instance) | Puerto: $($_.Port)" -ForegroundColor Cyan
-        }
-    } else {
-        $lblPort.Content = "No se encontraron puertos SQL"
-        $lblPort.Tag = $null
-        Write-Host "`n✗ No se encontraron puertos SQL configurados" -ForegroundColor Yellow
-    }
-
-    # Evento de clic mejorado
     $lblPort.Add_MouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray

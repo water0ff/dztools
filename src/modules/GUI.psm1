@@ -1153,7 +1153,7 @@ function Show-ChocolateyInstallerMenu {
     }
 
     # Función para actualizar botones
-    $script:updateChocoActionButtons = {
+    $updateChocoActionButtons = {
         $hasValidSelection = $false
         if ($dgvChocoResults.SelectedItem) {
             $selectedItem = $dgvChocoResults.SelectedItem
@@ -1163,11 +1163,11 @@ function Show-ChocolateyInstallerMenu {
         }
         $btnInstallSelectedChoco.IsEnabled = $hasValidSelection
         $btnUninstallSelectedChoco.IsEnabled = $hasValidSelection
-    }
+    }.GetNewClosure()
 
     # Evento de selección
     $dgvChocoResults.Add_SelectionChanged({
-            $script:updateChocoActionButtons.Invoke()
+            $updateChocoActionButtons.Invoke()
         })
 
     # Función auxiliar para realizar búsqueda

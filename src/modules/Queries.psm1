@@ -172,9 +172,82 @@ WHERE
 "@
     }
 }
+function Get-TextPointerFromOffset {
+    param(
+        [Parameter(Mandatory = $true)]
+        $RichTextBox,
+        [Parameter(Mandatory = $true)]
+        [int]$Offset
+    )
 
-# En Queries.psm1, reemplaza la función Initialize-PredefinedQueries:
+    $pointer = $RichTextBox.Document.ContentStart
+    $count = 0
+    while ($null -ne $pointer) {
+        if ($pointer.GetPointerContext([System.Windows.Documents.LogicalDirection]::Forward) -eq [System.Windows.Documents.TextPointerContext]::Text) {
+            $textRun = $pointer.GetTextInRun([System.Windows.Documents.LogicalDirection]::Forward)
+            if ($count + $textRun.Length -ge $Offset) {
+                return $pointer.GetPositionAtOffset($Offset - $count)
+            }
+            $count += $textRun.Length
+        }
+        $pointer = $pointer.GetNextContextPosition([System.Windows.Documents.LogicalDirection]::Forward)
+    }
 
+    return $RichTextBox.Document.ContentEnd
+}
+
+function Set-WpfSqlHighlighting {
+    param(
+        [Parameter(Mandatory = $true)]
+        $RichTextBox,
+        [Parameter(Mandatory = $true)]
+        [string]$Keywords
+    )
+
+    if ($null -eq $RichTextBox -or $null -eq $RichTextBox.Document) {
+        return
+    }
+
+    $script:isHighlightingQuery = $true
+    $textRange = New-Object System.Windows.Documents.TextRange($RichTextBox.Document.ContentStart, $RichTextBox.Document.ContentEnd)
+    $textRange.ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, [System.Windows.Media.Brushes]::Black)
+    $text = $textRange.Text
+
+    $commentRanges = @()
+    foreach ($c in [regex]::Matches($text, '--.*', 'Multiline')) {
+        $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $c.Index
+        $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($c.Index + $c.Length)
+        (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
+            [System.Windows.Documents.TextElement]::ForegroundProperty,
+            [System.Windows.Media.Brushes]::Green
+        )
+        $commentRanges += [PSCustomObject]@{ Start = $c.Index; End = $c.Index + $c.Length }
+    }
+
+    foreach ($b in [regex]::Matches($text, '/\*[\s\S]*?\*/', 'Multiline')) {
+        $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $b.Index
+        $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($b.Index + $b.Length)
+        (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
+            [System.Windows.Documents.TextElement]::ForegroundProperty,
+            [System.Windows.Media.Brushes]::Green
+        )
+        $commentRanges += [PSCustomObject]@{ Start = $b.Index; End = $b.Index + $b.Length }
+    }
+
+    foreach ($m in [regex]::Matches($text, "\b($Keywords)\b", 'IgnoreCase')) {
+        $inComment = $commentRanges | Where-Object { $m.Index -ge $_.Start -and $m.Index -lt $_.End }
+        if (-not $inComment) {
+            $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $m.Index
+            $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($m.Index + $m.Length)
+            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
+                [System.Windows.Documents.TextElement]::ForegroundProperty,
+                [System.Windows.Media.Brushes]::Blue
+            )
+        }
+    }
+
+    $script:isHighlightingQuery = $false
+}
 function Initialize-PredefinedQueries {
     param(
         [Parameter(Mandatory = $true)]
@@ -182,7 +255,9 @@ function Initialize-PredefinedQueries {
         [Parameter(Mandatory = $true)]
         $RichTextBox,
         [Parameter(Mandatory = $true)]
-        [hashtable]$Queries
+        [hashtable]$Queries,
+        [Parameter(Mandatory = $false)]
+        $Window
     )
 
     # Detectar si es WPF o WinForms
@@ -190,50 +265,210 @@ function Initialize-PredefinedQueries {
 
     if ($isWPF) {
         Write-DzDebug "`t[DEBUG] RichTextBox detectado: WPF"
+        Write-DzDebug "`t[DEBUG] RichTextBox es null: $($null -eq $RichTextBox)"
     } else {
         Write-DzDebug "`t[DEBUG] RichTextBox detectado: Windows Forms"
     }
 
     # Agregar queries al ComboBox
+    $ComboQueries.Items.Clear()
     $ComboQueries.Items.Add("Selecciona una consulta predefinida") | Out-Null
     foreach ($key in ($Queries.Keys | Sort-Object)) {
         $ComboQueries.Items.Add($key) | Out-Null
     }
     $ComboQueries.SelectedIndex = 0
 
-    # Evento de selección
-    if ($isWPF) {
-        # WPF: SelectionChanged
-        $ComboQueries.Add_SelectionChanged({
-                $selectedQuery = $ComboQueries.SelectedItem
-                if ($selectedQuery -and $selectedQuery -ne "Selecciona una consulta predefinida") {
-                    if ($Queries.ContainsKey($selectedQuery)) {
-                        $queryText = $Queries[$selectedQuery]
+    # Definir las palabras clave SQL
+    $sqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
 
-                        # Limpiar y establecer texto en WPF RichTextBox
-                        $RichTextBox.Document.Blocks.Clear()
-                        $paragraph = New-Object System.Windows.Documents.Paragraph
-                        $run = New-Object System.Windows.Documents.Run($queryText)
-                        $paragraph.Inlines.Add($run)
-                        $RichTextBox.Document.Blocks.Add($paragraph)
-                    }
+    # Variable para controlar el resaltado
+    $isHighlightingQuery = $false
+
+    # Crear script blocks usando GetNewClosure para capturar las variables
+    $selectionChangedScript = {
+        param($sender, $e)
+
+        try {
+            $selectedQuery = $sender.SelectedItem
+            if ($selectedQuery -and $selectedQuery -ne "Selecciona una consulta predefinida") {
+                # Usar la variable capturada
+                if ($this.Queries.ContainsKey($selectedQuery)) {
+                    $queryText = $this.Queries[$selectedQuery]
+
+                    # Limpiar y establecer texto en WPF RichTextBox
+                    $this.RichTextBox.Document.Blocks.Clear()
+                    $paragraph = New-Object System.Windows.Documents.Paragraph
+                    $run = New-Object System.Windows.Documents.Run($queryText)
+                    $paragraph.Inlines.Add($run)
+                    $this.RichTextBox.Document.Blocks.Add($paragraph)
+
+                    # Llamar a la función de resaltado
+                    Set-WpfSqlHighlighting -RichTextBox $this.RichTextBox -Keywords $this.SqlKeywords
                 }
-            })
-    } else {
-        # Windows Forms: SelectedIndexChanged
-        $ComboQueries.Add_SelectedIndexChanged({
-                $selectedQuery = $ComboQueries.SelectedItem
-                if ($selectedQuery -and $selectedQuery -ne "Selecciona una consulta predefinida") {
-                    if ($Queries.ContainsKey($selectedQuery)) {
-                        $RichTextBox.Text = $Queries[$selectedQuery]
-                    }
-                }
-            })
+            }
+        } catch {
+            Write-Host "`t[DEBUG] Error en SelectionChanged: $_" -ForegroundColor Red
+        }
+    }.GetNewClosure()
+
+    # Preparar el objeto para almacenar referencias
+    $comboData = New-Object PSObject -Property @{
+        RichTextBox = $RichTextBox
+        Queries     = $Queries
+        SqlKeywords = $sqlKeywords
     }
+
+    # Asignar el objeto como Tag del ComboBox
+    $ComboQueries.Tag = $comboData
+
+    # Agregar propiedades al ComboBox
+    $ComboQueries | Add-Member -NotePropertyName Queries -NotePropertyValue $Queries -Force
+    $ComboQueries | Add-Member -NotePropertyName SqlKeywords -NotePropertyValue $sqlKeywords -Force
+    $ComboQueries | Add-Member -NotePropertyName RichTextBox -NotePropertyValue $RichTextBox -Force
+
+    # Asignar el evento con el contexto correcto
+    $ComboQueries.Add_SelectionChanged($selectionChangedScript)
+
+    # Evento para resaltado en tiempo real - versión simplificada que evita el error
+    $textChangedScript = {
+        param($sender, $e)
+
+        # Solo procesar si no estamos en medio de otro resaltado
+        if (-not $global:isHighlightingQuery) {
+            try {
+                $global:isHighlightingQuery = $true
+                $keywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
+
+                if ([string]::IsNullOrEmpty($keywords)) {
+                    Write-Host "`t[DEBUG] Advertencia: Keywords está vacío" -ForegroundColor Yellow
+                    return
+                }
+
+                Set-WpfSqlHighlighting -RichTextBox $sender -Keywords $keywords
+            } catch {
+                Write-Host "`t[DEBUG] Error en TextChanged: $_" -ForegroundColor Red
+            } finally {
+                $global:isHighlightingQuery = $false
+            }
+        }
+    }
+
+    # Asignar el evento
+    $RichTextBox.Add_TextChanged($textChangedScript)
 }
 
+function Set-WpfSqlHighlighting {
+    param(
+        [Parameter(Mandatory = $true)]
+        $RichTextBox,
+        [Parameter(Mandatory = $true)]
+        [string]$Keywords
+    )
+
+    if ($null -eq $RichTextBox -or $null -eq $RichTextBox.Document) {
+        Write-DzDebug "`t[DEBUG] RichTextBox o Document es null" -Color Red
+        return
+    }
+
+    $script:isHighlightingQuery = $true
+    try {
+        $textRange = New-Object System.Windows.Documents.TextRange(
+            $RichTextBox.Document.ContentStart,
+            $RichTextBox.Document.ContentEnd
+        )
+        $textRange.ApplyPropertyValue(
+            [System.Windows.Documents.TextElement]::ForegroundProperty,
+            [System.Windows.Media.Brushes]::Black
+        )
+
+        $text = $textRange.Text
+        $commentRanges = @()
+
+        # Procesar comentarios de línea
+        foreach ($c in [regex]::Matches($text, '--.*', 'Multiline')) {
+            $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $c.Index
+            $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($c.Index + $c.Length)
+            if ($start -ne $null -and $end -ne $null) {
+                (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
+                    [System.Windows.Documents.TextElement]::ForegroundProperty,
+                    [System.Windows.Media.Brushes]::Green
+                )
+                $commentRanges += [PSCustomObject]@{ Start = $c.Index; End = $c.Index + $c.Length }
+            }
+        }
+
+        # Procesar comentarios de bloque
+        foreach ($b in [regex]::Matches($text, '/\*[\s\S]*?\*/', 'Multiline')) {
+            $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $b.Index
+            $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($b.Index + $b.Length)
+            if ($start -ne $null -and $end -ne $null) {
+                (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
+                    [System.Windows.Documents.TextElement]::ForegroundProperty,
+                    [System.Windows.Media.Brushes]::Green
+                )
+                $commentRanges += [PSCustomObject]@{ Start = $b.Index; End = $b.Index + $b.Length }
+            }
+        }
+
+        # Procesar palabras clave SQL
+        foreach ($m in [regex]::Matches($text, "\b($Keywords)\b", 'IgnoreCase')) {
+            $inComment = $commentRanges | Where-Object { $m.Index -ge $_.Start -and $m.Index -lt $_.End }
+            if (-not $inComment) {
+                $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $m.Index
+                $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($m.Index + $m.Length)
+                if ($start -ne $null -and $end -ne $null) {
+                    (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
+                        [System.Windows.Documents.TextElement]::ForegroundProperty,
+                        [System.Windows.Media.Brushes]::Blue
+                    )
+                }
+            }
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG] Error en Set-WpfSqlHighlighting: $_" -Color Red
+    } finally {
+        $script:isHighlightingQuery = $false
+    }
+}
+function Get-TextPointerFromOffset {
+    param(
+        [Parameter(Mandatory = $true)]
+        $RichTextBox,
+        [Parameter(Mandatory = $true)]
+        [int]$Offset
+    )
+
+    if ($null -eq $RichTextBox -or $null -eq $RichTextBox.Document) {
+        return $null
+    }
+
+    $pointer = $RichTextBox.Document.ContentStart
+    $count = 0
+
+    while ($null -ne $pointer) {
+        if ($pointer.GetPointerContext([System.Windows.Documents.LogicalDirection]::Forward) -eq
+            [System.Windows.Documents.TextPointerContext]::Text) {
+
+            $textRun = $pointer.GetTextInRun([System.Windows.Documents.LogicalDirection]::Forward)
+            if ($count + $textRun.Length -ge $Offset) {
+                return $pointer.GetPositionAtOffset($Offset - $count)
+            }
+            $count += $textRun.Length
+        }
+
+        $nextPointer = $pointer.GetNextContextPosition([System.Windows.Documents.LogicalDirection]::Forward)
+        if ($nextPointer -eq $pointer) {
+            break
+        }
+        $pointer = $nextPointer
+    }
+
+    return $RichTextBox.Document.ContentEnd
+}
 Export-ModuleMember -Function @(
     'Get-PredefinedQueries',
     'Initialize-PredefinedQueries',
-    'Remove-SqlComments'
+    'Remove-SqlComments',
+    'Set-WpfSqlHighlighting',
+    'Get-TextPointerFromOffset'
 )

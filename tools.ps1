@@ -135,31 +135,31 @@ function Create-Form {
         param (
             [Parameter(Mandatory = $true)]
             [string]$Title,
-    
+
             [Parameter()]
             [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(350, 200)),
-    
+
             [Parameter()]
             [System.Windows.Forms.FormStartPosition]$StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen,
-    
+
             [Parameter()]
             [System.Windows.Forms.FormBorderStyle]$FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog,
-    
+
             [Parameter()]
             [bool]$MaximizeBox = $false,
-    
+
             [Parameter()]
             [bool]$MinimizeBox = $false,
-    
+
             [Parameter()]
             [bool]$TopMost = $false,
-    
+
             [Parameter()]
             [bool]$ControlBox = $true,
-    
+
             [Parameter()]
             [System.Drawing.Icon]$Icon = $null,
-    
+
             [Parameter()]
             [System.Drawing.Color]$BackColor = [System.Drawing.SystemColors]::Control
         )
@@ -175,9 +175,9 @@ function Create-Form {
         if ($Icon) {
             $form.Icon = $Icon
         }
-    
+
         $form.BackColor = $BackColor
-    
+
         return $form
 }
 function Create-ComboBox {
@@ -271,7 +271,7 @@ $cmbDatabases = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 1
 $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" `
     -Location (New-Object System.Drawing.Point(10, 400)) `
     -Size (New-Object System.Drawing.Size(180, 80))
-$btnExecute = Create-Button -Text "Ejecutar" -Location (New-Object System.Drawing.Point(220, 20)) 
+$btnExecute = Create-Button -Text "Ejecutar" -Location (New-Object System.Drawing.Point(220, 20))
     $btnExecute.Size = New-Object System.Drawing.Size(100, 30)
     $btnExecute.Enabled = $false
 $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 220)) `
@@ -479,36 +479,36 @@ ORDER BY
     -- Actualiza la contraseña del primer UserName con rol administrador y retorna el UserName actualizado
 UPDATE users
     SET Password = '08/Vqq0='
-    OUTPUT inserted.UserName 
+    OUTPUT inserted.UserName
     WHERE UserName = (SELECT TOP 1 UserName FROM users WHERE IsSuperAdmin = 1 and IsEnabled = 1);
 "@
 "BackOffice Estaciones" = @"
-SELECT 
-    t.Name, 
-    t.Ip, 
-    t.LastOnline, 
-    t.IsEnabled, 
-    u.UserName AS UltimoUsuario, 
-    t.AppVersion, 
-    t.IsMaximized, 
-    t.ForceAppUpdate, 
+SELECT
+    t.Name,
+    t.Ip,
+    t.LastOnline,
+    t.IsEnabled,
+    u.UserName AS UltimoUsuario,
+    t.AppVersion,
+    t.IsMaximized,
+    t.ForceAppUpdate,
     t.SkipDoPing
 FROM Terminals t
 LEFT JOIN Users u ON t.LastUserLogin = u.Id
---WHERE t.IsEnabled = 1.0000 
+--WHERE t.IsEnabled = 1.0000
 ORDER BY t.IsEnabled DESC, t.Name;
 "@
 "SR | Actualizar contraseña de administrador" = @"
     -- Actualiza la contraseña del primer usuario con rol administrador y retorna el usuario actualizado
-    UPDATE usuarios 
-    SET contraseña = 'A9AE4E13D2A47998AC34' 
-    OUTPUT inserted.usuario 
+    UPDATE usuarios
+    SET contraseña = 'A9AE4E13D2A47998AC34'
+    OUTPUT inserted.usuario
     WHERE usuario = (SELECT TOP 1 usuario FROM usuarios WHERE administrador = 1);
 "@
 "SR | Revisar Pivot Table" = @"
-    SELECT app_id, field, COUNT(*) 
-    FROM app_settings 
-    GROUP BY app_id, field 
+    SELECT app_id, field, COUNT(*)
+    FROM app_settings
+    GROUP BY app_id, field
     HAVING COUNT(*) > 1
 /* Consulta SQL para eliminar duplicados
         BEGIN TRANSACTION;
@@ -526,48 +526,48 @@ ORDER BY t.IsEnabled DESC, t.Name;
 "@
 "SR | Fecha Revisiones" = @"
     WITH CTE AS (
-        SELECT 
-            b.estacion, 
-            b.fecha       AS UltimoUso, 
-            ROW_NUMBER() OVER (PARTITION BY b.estacion ORDER BY b.fecha DESC) AS rn 
+        SELECT
+            b.estacion,
+            b.fecha       AS UltimoUso,
+            ROW_NUMBER() OVER (PARTITION BY b.estacion ORDER BY b.fecha DESC) AS rn
         FROM bitacorasistema b
     )
-    SELECT 
-        e.FECHAREV, 
-        c.estacion, 
-        c.UltimoUso 
-    FROM CTE c 
-    JOIN estaciones e 
-        ON c.estacion = e.idestacion 
-    WHERE c.rn = 1 
+    SELECT
+        e.FECHAREV,
+        c.estacion,
+        c.UltimoUso
+    FROM CTE c
+    JOIN estaciones e
+        ON c.estacion = e.idestacion
+    WHERE c.rn = 1
     ORDER BY c.UltimoUso DESC;
 "@
 "OTM | Eliminar Server en OTM" = @"
-    SELECT serie, ipserver, nombreservidor 
-    FROM configuracion;  
-    -- UPDATE configuracion 
+    SELECT serie, ipserver, nombreservidor
+    FROM configuracion;
+    -- UPDATE configuracion
     --   SET serie='', ipserver='', nombreservidor=''
 "@
 "NSH | Eliminar Server en Hoteles" = @"
-    SELECT serievalida, numserie, ipserver, nombreservidor, llave 
-    FROM configuracion; 
-    -- UPDATE configuracion 
+    SELECT serievalida, numserie, ipserver, nombreservidor, llave
+    FROM configuracion;
+    -- UPDATE configuracion
     --   SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''
 "@
 "Restcard | Eliminar Server en Rest Card" = @"
-    -- update tabvariables 
+    -- update tabvariables
     --   SET estacion='', ipservidor='';
 "@
 "sql | Listar usuarios e idiomas" = @"
     -- Lista los usuarios del sistema y su idioma configurado
-SELECT 
-    p.name AS Usuario, 
+SELECT
+    p.name AS Usuario,
     l.default_language_name AS Idioma
-FROM 
+FROM
     sys.server_principals p
-LEFT JOIN 
+LEFT JOIN
     sys.sql_logins l ON p.principal_id = l.principal_id
-WHERE 
+WHERE
     p.type IN ('S', 'U') -- Usuarios SQL y Windows
 "@
 }
@@ -813,31 +813,31 @@ function Check-Chocolatey {
                     [System.Windows.Forms.MessageBoxButtons]::YesNo,
                     [System.Windows.Forms.MessageBoxIcon]::Question
                 )
-        
+
                 if ($response -eq [System.Windows.Forms.DialogResult]::No) {
                     Write-Host "`nEl usuario canceló la instalación de Chocolatey." -ForegroundColor Red
                     return $false  # Retorna falso si el usuario cancela
                 }
-        
+
                 Write-Host "`nInstalando Chocolatey..." -ForegroundColor Cyan
                 try {
                     Set-ExecutionPolicy Bypass -Scope Process -Force
                     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
                     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-        
+
                     Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
-        
+
                     # Configurar cacheLocation
                     Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
                     choco config set cacheLocation C:\Choco\cache
-        
+
                     [System.Windows.Forms.MessageBox]::Show(
                         "Chocolatey se instaló correctamente y ha sido configurado. Por favor, reinicie PowerShell antes de continuar.",
                         "Reinicio requerido",
                         [System.Windows.Forms.MessageBoxButtons]::OK,
                         [System.Windows.Forms.MessageBoxIcon]::Information
                     )
-        
+
                     # Cerrar el programa automáticamente
                     Write-Host "`nCerrando la aplicación para permitir reinicio de PowerShell..." -ForegroundColor Red
                     Stop-Process -Id $PID -Force
@@ -914,7 +914,7 @@ function Show-SSMSInstallerDialog {
                     }
                 }
                 # Mostrar los permisos en la consola
-                $permissions | ForEach-Object { 
+                $permissions | ForEach-Object {
                     Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
                     Write-Host "` $($_.Permiso)" -ForegroundColor Green
                 }
@@ -949,8 +949,8 @@ function Show-SSMSInstallerDialog {
         ForEach-Object {
             $interface = $_
             $interface.GetIPProperties().UnicastAddresses |
-            Where-Object { 
-                $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' 
+            Where-Object {
+                $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1'
             } |
             ForEach-Object {
                 @{
@@ -1096,11 +1096,11 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
 function Show-NewIpForm {
         $formIpAssign = Create-Form -Title "Agregar IP Adicional" -Size (New-Object System.Drawing.Size(350, 150)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
-    
+
         $lblipAssignER = Create-Label -Text "Ingrese la nueva dirección IP:" -Location (New-Object System.Drawing.Point(10, 20))
         $lblipAssignER.AutoSize = $true
         $formIpAssign.Controls.Add($lblipAssignER)
-    
+
         $ipAssignTextBox1 = Create-TextBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox1.MaxLength = 3
         $ipAssignTextBox1.Add_KeyPress({
@@ -1114,10 +1114,10 @@ function Show-NewIpForm {
             if ($ipAssignTextBox1.Text.Length -eq 3) { $ipAssignTextBox2.Focus() }
         })
         $formIpAssign.Controls.Add($ipAssignTextBox1)
-    
+
         $lblipAssignERDot1 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(65, 53))
         $lblipAssignERDot1.AutoSize = $true
-        $formIpAssign.Controls.Add($lblipAssignERDot1)    
+        $formIpAssign.Controls.Add($lblipAssignERDot1)
         $ipAssignTextBox2 = Create-TextBox -Location (New-Object System.Drawing.Point(80, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox2.MaxLength = 3
         $ipAssignTextBox2.Add_KeyPress({
@@ -1131,11 +1131,11 @@ function Show-NewIpForm {
             if ($ipAssignTextBox2.Text.Length -eq 3) { $ipAssignTextBox3.Focus() }
         })
         $formIpAssign.Controls.Add($ipAssignTextBox2)
-    
+
         $lblipAssignERDot2 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(135, 53))
         $lblipAssignERDot2.AutoSize = $true
         $formIpAssign.Controls.Add($lblipAssignERDot2)
-    
+
         $ipAssignTextBox3 = Create-TextBox -Location (New-Object System.Drawing.Point(150, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox3.MaxLength = 3
         $ipAssignTextBox3.Add_KeyPress({
@@ -1149,11 +1149,11 @@ function Show-NewIpForm {
             if ($ipAssignTextBox3.Text.Length -eq 3) { $ipAssignTextBox4.Focus() }
         })
         $formIpAssign.Controls.Add($ipAssignTextBox3)
-    
+
         $lblipAssignERDot3 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(205, 53))
         $lblipAssignERDot3.AutoSize = $true
         $formIpAssign.Controls.Add($lblipAssignERDot3)
-    
+
         $ipAssignTextBox4 = Create-TextBox -Location (New-Object System.Drawing.Point(220, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox4.MaxLength = 3
         $ipAssignTextBox4.Add_KeyPress({
@@ -1170,13 +1170,13 @@ function Show-NewIpForm {
             $octet2 = [int]$ipAssignTextBox2.Text
             $octet3 = [int]$ipAssignTextBox3.Text
             $octet4 = [int]$ipAssignTextBox4.Text
-    
+
             if ($octet1 -ge 0 -and $octet1 -le 255 -and
                 $octet2 -ge 0 -and $octet2 -le 255 -and
                 $octet3 -ge 0 -and $octet3 -le 255 -and
                 $octet4 -ge 0 -and $octet4 -le 255) {
                 $newIp = "$octet1.$octet2.$octet3.$octet4"
-    
+
                 if ($newIp -eq "0.0.0.0") {
                     Write-Host "La dirección IP no puede ser 0.0.0.0." -ForegroundColor Red
                     [System.Windows.Forms.MessageBox]::Show("La dirección IP no puede ser 0.0.0.0.", "Error")
@@ -1197,7 +1197,7 @@ function Show-NewIpForm {
 # Función para detectar el nombre del grupo de administradores
 function Get-AdminGroupName {
     $groups = net localgroup | Where-Object { $_ -match "Administrador|Administrators" }
-    
+
     # Buscar coincidencia exacta
     if ($groups -match "\bAdministradores\b") {
         return "Administradores"
@@ -1215,7 +1215,7 @@ function Get-AdminGroupName {
 #componentes
 function Clear-TemporaryFiles {
     param([string]$folderPath)
-    
+
     try {
         $items = Get-ChildItem -Path $folderPath -Recurse -Force -ErrorAction Stop
         $count = $items.Count
@@ -1234,11 +1234,11 @@ function Invoke-DiskCleanup {
         # Configurar parámetros de limpieza
         $cleanmgr = "$env:SystemDrive\Windows\System32\cleanmgr.exe"
         $sagerun = "9999"
-        
+
         # Crear registro para limpieza completa
         Start-Process $cleanmgr -ArgumentList "/sageset:$sagerun" -Wait
         Start-Process $cleanmgr -ArgumentList "/sagerun:$sagerun" -Wait
-        
+
         Write-Host "Limpieza de disco completada correctamente" -ForegroundColor Green
     }
     catch {
@@ -1247,9 +1247,9 @@ function Invoke-DiskCleanup {
 }
 function Show-SystemComponents {
     $criticalError = $false
-    
+
     Write-Host "`n=== Componentes del sistema detectados ===" -ForegroundColor Cyan
-    
+
     # Versión de Windows (componente crítico)
     try {
         $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop
@@ -1339,7 +1339,7 @@ function Start-SystemUpdate {
         }
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
-        
+
         # Paso 3: Reiniciar servicio
         Write-Host "`n[Paso 3/$totalSteps] Reiniciando servicio winmgmt..." -ForegroundColor Yellow
         net start winmgmt *>&1 | Write-Host
@@ -1408,15 +1408,15 @@ function Show-ProgressBar {
                 $lblPercentage.Size = New-Object System.Drawing.Size(360, 20)
                 $lblPercentage.Text = "0% Completado"
                 $lblPercentage.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-            
+
                 # Agregar controles al formulario usando la propiedad Controls nativa
                 $formProgress.Controls.Add($progressBar)
                 $formProgress.Controls.Add($lblPercentage)
-                
+
                 # Exponer los controles como propiedades personalizadas (opcional, si es necesario)
                 $formProgress | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $progressBar -Force
                 $formProgress | Add-Member -MemberType NoteProperty -Name Label -Value $lblPercentage -Force
-            
+
                 $formProgress.Show()
                 return $formProgress
 }
@@ -1452,14 +1452,14 @@ $lblPort.Add_Click({
 $btnCheckPermissions.Add_Click({
         Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
         Check-Permissions
-    })            
+    })
 $btnForzarActualizacion.Add_Click({
                     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
                     Show-SystemComponents
-                    
+
                     # Cargar ensamblado necesario para MessageBox
                     [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
-                    
+
                     # Mostrar MessageBox en español
                     $resultado = [System.Windows.Forms.MessageBox]::Show(
                         "¿Desea forzar la actualización de datos?",  # Texto de la pregunta
@@ -1467,7 +1467,7 @@ $btnForzarActualizacion.Add_Click({
                         [System.Windows.Forms.MessageBoxButtons]::YesNo,  # Botones
                         [System.Windows.Forms.MessageBoxIcon]::Question   # Icono
                     )
-                
+
                     if ($resultado -eq [System.Windows.Forms.DialogResult]::Yes) {
                         Start-SystemUpdate
                         [System.Windows.Forms.MessageBox]::Show(
@@ -1484,11 +1484,11 @@ $btnForzarActualizacion.Add_Click({
 # SQL MANAGEMENT
 $btnSQLManagement.Add_Click({
         Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-        
+
         function Get-SSMSVersions {
             $ssmsPaths = @()
             $possiblePaths = @(
-                "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",  
+                "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",
                 "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"
             )
             foreach ($path in $possiblePaths) {
@@ -1501,7 +1501,7 @@ $btnSQLManagement.Add_Click({
             }
             return $ssmsPaths
         }
-    
+
         function Get-SSMSVersionFromPath($path) {
             if ($path -match 'Microsoft SQL Server\\(\d+)') {
                 return "SSMS $($matches[1])"
@@ -1513,39 +1513,39 @@ $btnSQLManagement.Add_Click({
                 return "Versión desconocida"
             }
         }
-    
+
         $ssmsVersions = Get-SSMSVersions
         if ($ssmsVersions.Count -eq 0) {
             [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
-    
+
         $formSelectionSSMS = Create-Form -Title "Seleccionar versión de SSMS" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
         $labelSSMS = Create-Label -Text "Seleccione la versión de Management:" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
         $formSelectionSSMS.Controls.Add($labelSSMS)
-    
+
         $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80))
         $formSelectionSSMS.Controls.Add($labelSelectedVersion)
-    
+
         $comboBoxSSMS = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(310, 20)) -DropDownStyle DropDownList
-    
+
         foreach ($version in $ssmsVersions) {
             $comboBoxSSMS.Items.Add($version)
         }
-    
+
         $comboBoxSSMS.SelectedIndex = 0
         $formSelectionSSMS.Controls.Add($comboBoxSSMS)
-    
+
         # Actualizar la label con la versión real de SSMS extraída de la ruta
         $selectedVersion = $comboBoxSSMS.SelectedItem
         $labelSelectedVersion.Text = "Versión seleccionada: $(Get-SSMSVersionFromPath $selectedVersion)"
-    
+
         $comboBoxSSMS.Add_SelectedIndexChanged({
             $selectedVersion = $comboBoxSSMS.SelectedItem
             $labelSelectedVersion.Text = "Versión seleccionada: $(Get-SSMSVersionFromPath $selectedVersion)"
         })
-    
+
         $buttonOKSSMS = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30))
         $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
         $buttonCancelSSMS = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(180, 120)) -Size (New-Object System.Drawing.Size(140, 30))
@@ -1554,7 +1554,7 @@ $btnSQLManagement.Add_Click({
         $formSelectionSSMS.Controls.Add($buttonOKSSMS)
         $formSelectionSSMS.CancelButton = $buttonCancelSSMS
         $formSelectionSSMS.Controls.Add($buttonCancelSSMS)
-    
+
         $result = $formSelectionSSMS.ShowDialog()
         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             $selectedVersion = $comboBoxSSMS.SelectedItem
@@ -1607,14 +1607,14 @@ $btnDatabase.Add_Click({
 #seleccion de managers BOTON
 $btnSQLManager.Add_Click({
         Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-    
+
         function Get-SQLServerManagers {
             $managers = @()
             $possiblePaths = @(
                 "${env:SystemRoot}\System32\SQLServerManager*.msc",
                 "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc"
             )
-    
+
             foreach ($path in $possiblePaths) {
                 $foundManagers = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
                 if ($foundManagers) {
@@ -1623,7 +1623,7 @@ $btnSQLManager.Add_Click({
             }
             return $managers
         }
-    
+
         $managers = Get-SQLServerManagers
         if ($managers.Count -eq 0) {
             [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
@@ -1631,13 +1631,13 @@ $btnSQLManager.Add_Click({
         }
         $formSelectionManager = Create-Form -Title "Seleccionar versión de Configuration Manager" -Size (New-Object System.Drawing.Size(350, 250)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
             -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
-    
+
         $labelManager = Create-Label -Text "Seleccione la versión de Configuration Manager:" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
         $formSelectionManager.Controls.Add($labelManager)
-    
+
         $labelManagerInfo = Create-Label -Text "" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
         $formSelectionManager.Controls.Add($labelManagerInfo)
-    
+
         function Get-ManagerInfo($path) {
             if ($path -match "SQLServerManager(\d+)") {
                 $version = $matches[1]
@@ -1650,28 +1650,28 @@ $btnSQLManager.Add_Click({
                 return "Información no disponible"
             }
         }
-    
+
         $UpdateManagerInfo = {
             $selectedManager = $comboBoxManager.SelectedItem
             $managerInfo = Get-ManagerInfo $selectedManager
             $labelManagerInfo.Text = $managerInfo
         }
-    
+
         $comboBoxManager = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(310, 20)) -DropDownStyle DropDownList
-    
+
         foreach ($manager in $managers) {
             $comboBoxManager.Items.Add($manager)
         }
-    
+
         $comboBoxManager.SelectedIndex = 0
         $formSelectionManager.Controls.Add($comboBoxManager)
-    
+
         $UpdateManagerInfo.Invoke() # Actualizar al inicio
-    
+
         $comboBoxManager.Add_SelectedIndexChanged({
             $UpdateManagerInfo.Invoke()
         })
-    
+
         $btnOKManager = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30))
         $btnOKManager.DialogResult = [System.Windows.Forms.DialogResult]::OK
         $btnCancelManager = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(180, 120)) -Size (New-Object System.Drawing.Size(140, 30))
@@ -1680,7 +1680,7 @@ $btnSQLManager.Add_Click({
         $formSelectionManager.Controls.Add($btnOKManager)
         $formSelectionManager.CancelButton = $btnCancelManager
         $formSelectionManager.Controls.Add($btnCancelManager)
-    
+
         $result = $formSelectionManager.ShowDialog()
         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             $selectedManager = $comboBoxManager.SelectedItem
@@ -1700,9 +1700,9 @@ $btnClearAnyDesk.Add_Click({
         Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         # Mostrar cuadro de confirmación
         $confirmationResult = [System.Windows.Forms.MessageBox]::Show(
-            "¿Estás seguro de renovar AnyDesk?", 
-            "Confirmar Renovación", 
-            [System.Windows.Forms.MessageBoxButtons]::YesNo, 
+            "¿Estás seguro de renovar AnyDesk?",
+            "Confirmar Renovación",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Question
         )
         # Si el usuario selecciona "Sí"
@@ -1777,14 +1777,14 @@ $btnShowPrinters.Add_Click({
             if ($printers.Count -gt 0) {
                 Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "Nombre", "Puerto", "Driver", "Compartida")
                 Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "------", "------", "------", "---------")
-            
-                $printers | ForEach-Object { 
+
+                $printers | ForEach-Object {
                     Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f $_.Name, $_.PortName, $_.DriverName, $_.IsShared)
                 }
             } else {
                 Write-Host "`nNo se encontraron impresoras."
             }
-        
+
         } catch {
             Write-Host "`nError al obtener impresoras: $_"
         }
@@ -1795,14 +1795,14 @@ $btnClearPrintJobs.Add_Click({
         try {
 
             # Ejecutar el script para limpiar los trabajos de impresión y reiniciar la cola de impresión
-            Get-Printer | ForEach-Object { 
-                Get-PrintJob -PrinterName $_.Name | Remove-PrintJob 
+            Get-Printer | ForEach-Object {
+                Get-PrintJob -PrinterName $_.Name | Remove-PrintJob
             }
-        
+
             # Reiniciar el servicio de la cola de impresión
                 Stop-Service -Name Spooler -Force
                 Start-Service -Name Spooler
-        
+
             # Mensaje de confirmación
             [System.Windows.Forms.MessageBox]::Show("Los trabajos de impresión han sido eliminados y el servicio de cola de impresión se ha reiniciado.", "Operación Exitosa", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         }
@@ -1969,14 +1969,14 @@ $LZMAbtnBuscarCarpeta.Add_Click({
             [System.Windows.Forms.MessageBoxIcon]::Error
         )
     }
-})               
+})
 # Crear el nuevo formulario para los instaladores de Chocolatey
         $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))   
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))
 # Crear los botones dentro del nuevo formulario
     $btnInstallSQL2014 = Create-Button -Text "Install: SQL2014" -Location (New-Object System.Drawing.Point(10, 10)) `
         -ToolTip "Instalación mediante choco de SQL Server 2014 Express." -Enabled $false
-        
+
     $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(240, 10)) `
         -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
 # Reemplazar el botón existente (buscar alrededor de línea 1910)
@@ -2117,16 +2117,16 @@ $btnInstallSQL2014.Add_Click({
                 [System.Windows.Forms.MessageBoxButtons]::YesNo,
                 [System.Windows.Forms.MessageBoxIcon]::Warning
             )
-        
+
             if ($response -eq [System.Windows.Forms.DialogResult]::No) {
                 Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
                 return
             }
-        
+
             if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso
-        
+
             Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-        
+
             try {
                 # Verificar si la instancia ya existe
                 $instanceExists = Get-Service -Name "MSSQL`$NationalSoft" -ErrorAction SilentlyContinue
@@ -2135,7 +2135,7 @@ $btnInstallSQL2014.Add_Click({
                     [System.Windows.Forms.MessageBox]::Show("La instancia 'NationalSoft' ya existe. Cancelando la instalación.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                     return
                 }
-        
+
                 # Instalar SQL Server 2014 Express
                 Write-Host "`nInstalando SQL Server 2014 Express usando Chocolatey..." -ForegroundColor Cyan
                 Start-Process choco -ArgumentList 'install sql-server-express -y --version=2014.0.2000.8 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:NationalSoft /FEATURES:SQL"' -NoNewWindow -Wait
@@ -2188,13 +2188,13 @@ $btnConfigurarIPs.Add_Click({
                 }
                 $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
                 $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
-        
+
                 if ($currentConfig) {
                     $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
                     $currentIPAddress = $currentConfig.IPAddress
                     $currentPrefixLength = $currentConfig.PrefixLength
                     $currentGateway = (Get-NetIPConfiguration -InterfaceAlias $selectedAdapter.Name).IPv4DefaultGateway | Select-Object -ExpandProperty NextHop
-        
+
                     if (-not $isDhcp) {
                         Write-Host "`nEl adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?" -ForegroundColor Yellow
                         $confirmation = [System.Windows.Forms.MessageBox]::Show("El adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
@@ -2210,7 +2210,7 @@ $btnConfigurarIPs.Add_Click({
                                         New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
                                         Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                                         [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
-        
+
                                         # Actualizar la lista de IPs asignadas
                                         $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
                                         $ips = $currentIPs.IPAddress -join ", "
@@ -2229,23 +2229,23 @@ $btnConfigurarIPs.Add_Click({
                             try {
                                 Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Disabled
                                 New-NetIPAddress -IPAddress $currentIPAddress -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
-        
+
                                 if ($currentGateway) {
                                     Remove-NetRoute -InterfaceAlias $selectedAdapter.Name -NextHop $currentGateway -Confirm:$false -ErrorAction SilentlyContinue
                                     New-NetRoute -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -NextHop $currentGateway -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue
                                 }
-        
+
                                 $dnsServers = @("8.8.8.8", "8.8.4.4")
                                 Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ServerAddresses $dnsServers
-        
+
                                 Write-Host "`nSe cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                                 [System.Windows.Forms.MessageBox]::Show("Se cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name).", "Éxito")
-        
+
                                 # Actualizar la lista de IPs asignadas
                                 $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
                                 $ips = $currentIPs.IPAddress -join ", "
                                 $lblipAssignIps.Text = "IPs asignadas: $ips"
-        
+
                                 Write-Host "`n¿Desea agregar una dirección IP adicional?" -ForegroundColor Yellow
                                 $confirmationAdditionalIP = [System.Windows.Forms.MessageBox]::Show("¿Desea agregar una dirección IP adicional?", "IP Adicional", [System.Windows.Forms.MessageBoxButtons]::YesNo)
                                 if ($confirmationAdditionalIP -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -2260,7 +2260,7 @@ $btnConfigurarIPs.Add_Click({
                                                 New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
                                                 Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                                                 [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
-        
+
                                                 # Actualizar la lista de IPs asignadas
                                                 $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
                                                 $ips = $currentIPs.IPAddress -join ", "
@@ -2294,7 +2294,7 @@ $btnConfigurarIPs.Add_Click({
                 }
                 $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
                 $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
-        
+
                 if ($currentConfig) {
                     $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
                     if ($isDhcp) {
@@ -2313,7 +2313,7 @@ $btnConfigurarIPs.Add_Click({
                                 Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ResetServerAddresses
                                 Write-Host "`nSe cambió a DHCP en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                                 [System.Windows.Forms.MessageBox]::Show("Se cambió a DHCP en el adaptador $($selectedAdapter.Name).", "Éxito")
-        
+
                                 # Actualizar la lista de IPs asignadas
                                 $lblipAssignIps.Text = "Generando IP por DHCP. Seleccione de nuevo."
                             } catch {
@@ -2339,7 +2339,7 @@ $btnConfigurarIPs.Add_Click({
                 if ($selectedAdapterName -ne "Selecciona 1 adaptador de red") {
                     $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
                     $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
-                    $ips = $currentIPs.IPAddress -join ", "
+                    $ips = $currentIPs.IPAddress -join "cmbQueries, "
                     $lblipAssignIps.Text = "IPs asignadas: $ips"
                 } else {
                     $lblipAssignIps.Text = "IPs asignadas:"
@@ -2393,7 +2393,7 @@ function Get-IniConnections {
 function Load-IniConnectionsToComboBox {
     $connections = Get-IniConnections
     $txtServer.Items.Clear()
-    
+
     if ($connections.Count -gt 0) {
         foreach ($connection in $connections) {
             $txtServer.Items.Add($connection) | Out-Null
@@ -2483,11 +2483,11 @@ $btnLectorDPicacls.Add_Click({
                 $extractPath = "C:\Temp\Driver_DP"
                 $exeName = "x64\Setup.msi"
                 $validationPath = "C:\Temp\Driver_DP\x64\Setup.msi"
-            
+
                 # Llamar a la función de descarga y ejecución
                 DownloadAndRun -url $url -zipPath $zipPath -extractPath $extractPath -exeName $exeName -validationPath $validationPath
             }
-        
+
     } catch {
         Write-Host "Error: $_" -ForegroundColor Red
     }
@@ -2759,8 +2759,8 @@ $btnAddUser.Add_Click({
             if ($usersTable.Count -gt 0) {
                 Write-Host ("{0,-25} {1,-40} {2,-15}" -f "Nombre", "Tipo", "Estado")
                 Write-Host ("{0,-25} {1,-40} {2,-15}" -f "------", "------", "------")
-                $usersTable | ForEach-Object { 
-                    Write-Host ("{0,-25} {1,-40} {2,-15}" -f $_.Nombre, $_.Tipo, $_.Estado) 
+                $usersTable | ForEach-Object {
+                    Write-Host ("{0,-25} {1,-40} {2,-15}" -f $_.Nombre, $_.Tipo, $_.Estado)
                 }
             } else {
                 Write-Host "No se encontraron usuarios."
@@ -2837,7 +2837,7 @@ function Execute-SqlQuery {
         $connection.add_InfoMessage({
             param($sender, $e)
             $infoMessages.Add($e.Message) | Out-Null
-        })        
+        })
         $connection.Open()
         $command = $connection.CreateCommand()
         $command.CommandText = $query
@@ -2850,7 +2850,7 @@ function Execute-SqlQuery {
                 DataTable = $dataTable
                 Messages = $infoMessages
             }
-        } 
+        }
         else {
             $rowsAffected = $command.ExecuteNonQuery()
             return @{
@@ -2890,7 +2890,7 @@ function Show-ResultsConsole {
     )
     try {
         $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
-        
+
         if ($results.GetType().Name -eq 'Hashtable') {
             $consoleData = $results.ConsoleData
             if ($consoleData.Count -gt 0) {
@@ -2899,7 +2899,7 @@ function Show-ResultsConsole {
                 foreach ($col in $columns) {
                     $columnWidths[$col] = $col.Length
                 }
-                
+
                 Write-Host ""
                 $header = ""
                 foreach ($col in $columns) {
@@ -2907,7 +2907,7 @@ function Show-ResultsConsole {
                 }
                 Write-Host $header
                 Write-Host ("-" * $header.Length)
-                
+
                 foreach ($row in $consoleData) {
                     $rowText = ""
                     foreach ($col in $columns) {
@@ -2915,7 +2915,7 @@ function Show-ResultsConsole {
                     }
                     Write-Host $rowText
                 }
-            } 
+            }
             else {
                 Write-Host "`nNo se encontraron resultados." -ForegroundColor Yellow
             }
@@ -2923,7 +2923,7 @@ function Show-ResultsConsole {
         else {
             Write-Host "`nFilas afectadas: $results" -ForegroundColor Green
         }
-    } 
+    }
     catch {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
@@ -2942,7 +2942,7 @@ $btnExecute.Add_Click({
         $dgvResults.Rows.Clear()
         Clear-Host
         $selectedDb = $cmbDatabases.SelectedItem
-        if (-not $selectedDb) { throw "Selecciona una base de datos" }        
+        if (-not $selectedDb) { throw "Selecciona una base de datos" }
         $rawQuery = $rtbQuery.Text
         $cleanQuery = Remove-SqlComments -Query $rawQuery
         $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $cleanQuery
@@ -2952,7 +2952,7 @@ $btnExecute.Add_Click({
         }
         if ($result.DataTable) {
             $dgvResults.DataSource = $result.DataTable.DefaultView
-            $dgvResults.Enabled = $true            
+            $dgvResults.Enabled = $true
             Write-Host "`nColumnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
             $dgvResults.DefaultCellStyle.ForeColor = 'Blue'
             $dgvResults.AlternatingRowsDefaultCellStyle.BackColor = '#F0F8FF'
@@ -3002,7 +3002,7 @@ $btnConnectDb.Add_Click({
         $global:server = $txtServer.Text
         $global:user = $txtUser.Text
         $global:password = $txtPassword.Text
-        
+
         if (-not $global:server -or -not $global:user -or -not $global:password) {
             throw "Complete todos los campos de conexión"
         }
@@ -3014,7 +3014,7 @@ $btnConnectDb.Add_Click({
         $cmbDatabases.Items.Clear()
         foreach ($row in $result.DataTable.Rows) {
             $cmbDatabases.Items.Add($row["name"])
-        }        
+        }
         $cmbDatabases.Enabled = $true
         $cmbDatabases.SelectedIndex = 0
         $lblConnectionStatus.Text = @"
@@ -3052,7 +3052,7 @@ Servidor: $($global:server)
 Base de datos: $($global:database)
 "@.Trim()
         $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-        
+
         Write-Host "`nBase de datos seleccionada:`t $($cmbDatabases.SelectedItem)" -ForegroundColor Cyan
     }
 })
@@ -3104,7 +3104,7 @@ Refresh-AdapterStatus
 $btnCreateAPK.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     $dllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll"
-    $infoPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\info.txt"    
+    $infoPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\info.txt"
     try {
         Write-Host "`nIniciando proceso de creación de APK..." -ForegroundColor Cyan
         if (-not (Test-Path $dllPath)) {
@@ -3121,12 +3121,12 @@ $btnCreateAPK.Add_Click({
         $versionApp = $jsonContent.versionApp
         Write-Host "Versión detectada: $versionApp" -ForegroundColor Green
         $confirmation = [System.Windows.Forms.MessageBox]::Show(
-            "Se creará el APK versión: $versionApp`n¿Desea continuar?", 
-            "Confirmación", 
-            [System.Windows.Forms.MessageBoxButtons]::YesNo, 
+            "Se creará el APK versión: $versionApp`n¿Desea continuar?",
+            "Confirmación",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Question
         )
-        
+
         if ($confirmation -ne [System.Windows.Forms.DialogResult]::Yes) {
             Write-Host "Proceso cancelado por el usuario" -ForegroundColor Yellow
             return
@@ -3135,7 +3135,7 @@ $btnCreateAPK.Add_Click({
         $saveDialog.Filter = "Archivo APK (*.apk)|*.apk"
         $saveDialog.FileName = "SRM_$versionApp.apk"
         $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
-        
+
         if ($saveDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
             Write-Host "Guardado cancelado por el usuario" -ForegroundColor Yellow
             return
@@ -3194,7 +3194,7 @@ Si solo necesitas crear el respaldo básico (archivo .BAK), NO es necesario inst
                 Set-ExecutionPolicy Bypass -Scope Process -Force
                 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
                 iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-                
+
                 [System.Windows.Forms.MessageBox]::Show(
                     "Chocolatey instalado. Por favor reinicie PowerShell y vuelva a ejecutar la herramienta.",
                     "Reinicio Requerido",
@@ -3625,5 +3625,3 @@ $btnExit.Add_Click({
                 })
 $formPrincipal.Refresh()
 $formPrincipal.ShowDialog()
-
-

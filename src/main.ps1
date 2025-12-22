@@ -78,7 +78,7 @@ function Initialize-Environment {
     }
     return $true
 }
-
+$global:isHighlightingQuery = $false
 function New-MainForm {
     Write-Host "`tCreando formulario principal WPF..." -ForegroundColor Yellow
     [xml]$xaml = @"
@@ -249,7 +249,7 @@ function New-MainForm {
     Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
     Write-Host "O crea un issue en GitHub. https://github.com/water0ff/dztools/issues/new" -ForegroundColor Cyan
     $script:predefinedQueries = Get-PredefinedQueries
-    Initialize-PredefinedQueries -ComboQueries $cmbQueries -RichTextBox $rtbQuery -Queries $script:predefinedQueries
+    Initialize-PredefinedQueries -ComboQueries $cmbQueries -RichTextBox $rtbQuery -Queries $script:predefinedQueries -Window $window
     $script:setInstructionText = {
         param([string]$Message)
         if ($null -ne $txt_InfoInstrucciones) {

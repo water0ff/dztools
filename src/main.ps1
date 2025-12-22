@@ -278,13 +278,6 @@ function New-MainForm {
         $txt_IpAdress.Text = "No se encontraron direcciones IP"
         Write-DzDebug "`t[DEBUG] No se encontraron IPs" -Color Yellow
     }
-    $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
-    $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
-    if ($tcpPort -and $tcpPort.TcpPort) {
-        $lblPort.Content = "Puerto SQL \NationalSoft: $($tcpPort.TcpPort)"
-    } else {
-        $lblPort.Content = "No se encontró puerto o instancia."
-    }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
     $changeColorOnHover = {
@@ -338,16 +331,153 @@ function New-MainForm {
                 [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
         })
-    $lblPort.Add_MouseLeftButtonDown({
-            $text = $lblPort.Content
-            Write-DzDebug "`t[DEBUG] lblPort.Content al hacer clic: '$text'"
-            $port = [regex]::Match($text, '\d+').Value
-            if ([string]::IsNullOrWhiteSpace($port)) {
-                Write-Host "El texto del Label del puerto no contiene un número válido para copiar." -ForegroundColor Red
-                return
+    # Función para obtener todos los puertos SQL
+    function Get-AllSqlPorts {
+        Write-DzDebug "`t[DEBUG] Iniciando búsqueda de puertos SQL en el registro" -Color DarkGray
+        $ports = @()
+
+        # Ruta base donde están todas las instancias
+        $sqlServerBasePath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server"
+
+        try {
+            # Obtener todas las instancias instaladas
+            $instanceNames = Get-ItemProperty -Path "$sqlServerBasePath" -Name "InstalledInstances" -ErrorAction SilentlyContinue
+
+            if ($instanceNames -and $instanceNames.InstalledInstances) {
+                Write-DzDebug "`t[DEBUG] Instancias encontradas: $($instanceNames.InstalledInstances -join ', ')" -Color Cyan
+
+                foreach ($instance in $instanceNames.InstalledInstances) {
+                    Write-DzDebug "`t[DEBUG] Procesando instancia: $instance" -Color DarkGray
+
+                    # Construir la ruta al puerto TCP de esta instancia
+                    $tcpPath = "$sqlServerBasePath\$instance\MSSQLServer\SuperSocketNetLib\Tcp"
+
+                    Write-DzDebug "`t[DEBUG] Buscando en: $tcpPath" -Color DarkGray
+
+                    if (Test-Path $tcpPath) {
+                        $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
+
+                        if ($tcpPort -and $tcpPort.TcpPort) {
+                            $ports += [PSCustomObject]@{
+                                Instance = $instance
+                                Port     = $tcpPort.TcpPort
+                                Path     = $tcpPath
+                            }
+                            Write-DzDebug "`t[DEBUG] ✓ Puerto encontrado: $($tcpPort.TcpPort) para instancia $instance" -Color Green
+                        } else {
+                            Write-DzDebug "`t[DEBUG] ✗ No se encontró puerto para $instance" -Color Yellow
+                        }
+                    } else {
+                        Write-DzDebug "`t[DEBUG] ✗ Ruta no existe: $tcpPath" -Color Yellow
+                    }
+                }
+            } else {
+                Write-DzDebug "`t[DEBUG] No se encontró la clave 'InstalledInstances'" -Color Yellow
             }
-            [System.Windows.Clipboard]::SetText($port)
-            Write-Host "Puerto copiado al portapapeles: $port" -ForegroundColor Green
+
+            # Búsqueda alternativa: Enumerar todas las carpetas en Microsoft SQL Server
+            Write-DzDebug "`t[DEBUG] Iniciando búsqueda alternativa..." -Color DarkGray
+
+            $allInstances = Get-ChildItem -Path $sqlServerBasePath -ErrorAction SilentlyContinue |
+            Where-Object { $_.PSIsContainer }
+
+            foreach ($instance in $allInstances) {
+                $instanceName = $instance.PSChildName
+
+                # Saltar carpetas que no son instancias
+                if ($instanceName -match "^(Client|Tools|Instance Names|MSSQLServer)$") {
+                    continue
+                }
+
+                $tcpPath = "$sqlServerBasePath\$instanceName\MSSQLServer\SuperSocketNetLib\Tcp"
+
+                if (Test-Path $tcpPath) {
+                    $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
+
+                    if ($tcpPort -and $tcpPort.TcpPort) {
+                        # Verificar si ya existe (evitar duplicados)
+                        $exists = $ports | Where-Object { $_.Instance -eq $instanceName -and $_.Port -eq $tcpPort.TcpPort }
+
+                        if (-not $exists) {
+                            $ports += [PSCustomObject]@{
+                                Instance = $instanceName
+                                Port     = $tcpPort.TcpPort
+                                Path     = $tcpPath
+                            }
+                            Write-DzDebug "`t[DEBUG] ✓ Puerto adicional encontrado: $($tcpPort.TcpPort) para $instanceName" -Color Green
+                        }
+                    }
+                }
+            }
+
+        } catch {
+            Write-DzDebug "`t[DEBUG] Error en búsqueda: $($_.Exception.Message)" -Color Red
+            Write-Host "`t[ERROR] Error buscando puertos SQL: $($_.Exception.Message)" -ForegroundColor Red
+        }
+
+        Write-DzDebug "`t[DEBUG] Total de puertos encontrados: $($ports.Count)" -Color $(if ($ports.Count -gt 0) { "Green" } else { "Red" })
+
+        return $ports
+    }
+
+    # En tu código principal, reemplaza la sección del puerto:
+    $sqlPorts = Get-AllSqlPorts
+
+    if ($sqlPorts.Count -gt 0) {
+        if ($sqlPorts.Count -eq 1) {
+            # Una sola instancia
+            $lblPort.Content = "Puerto SQL \$($sqlPorts[0].Instance): $($sqlPorts[0].Port)"
+            $lblPort.Tag = $sqlPorts[0].Port  # Guardar el puerto en el Tag para facilitar la copia
+        } else {
+            # Múltiples instancias - mostrar todas
+            $portsText = ($sqlPorts | ForEach-Object { "$($_.Instance): $($_.Port)" }) -join " | "
+            $lblPort.Content = $portsText
+            $lblPort.Tag = ($sqlPorts | ForEach-Object { $_.Port }) -join ","  # Guardar todos los puertos
+        }
+
+        Write-Host "`n✓ Puertos SQL encontrados:" -ForegroundColor Green
+        $sqlPorts | ForEach-Object {
+            Write-Host "  - Instancia: $($_.Instance) | Puerto: $($_.Port)" -ForegroundColor Cyan
+        }
+    } else {
+        $lblPort.Content = "No se encontraron puertos SQL"
+        $lblPort.Tag = $null
+        Write-Host "`n✗ No se encontraron puertos SQL configurados" -ForegroundColor Yellow
+    }
+
+    # Evento de clic mejorado
+    $lblPort.Add_MouseLeftButtonDown({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
+
+            try {
+                $text = $lblPort.Content
+                $savedPorts = $lblPort.Tag
+
+                Write-DzDebug "`t[DEBUG] lblPort.Content: '$text'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] lblPort.Tag: '$savedPorts'" -Color DarkGray
+
+                # Si tenemos puertos guardados en Tag, usar esos
+                if ($savedPorts) {
+                    [System.Windows.Clipboard]::SetText($savedPorts)
+                    Write-Host "`nPuerto(s) copiado(s) al portapapeles: $savedPorts" -ForegroundColor Green
+                } else {
+                    # Fallback: extraer números del texto
+                    $port = [regex]::Match($text, '\d+').Value
+
+                    if ([string]::IsNullOrWhiteSpace($port)) {
+                        Write-Host "`n[AVISO] No hay puerto válido para copiar." -ForegroundColor Yellow
+                        return
+                    }
+
+                    [System.Windows.Clipboard]::SetText($port)
+                    Write-Host "`nPuerto copiado al portapapeles: $port" -ForegroundColor Green
+                }
+
+            } catch {
+                Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            }
         })
     $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
@@ -450,27 +580,81 @@ function New-MainForm {
         })
     $btnSQLManagement.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+            Write-DzDebug "`t[DEBUG] Iniciando búsqueda de SSMS instalados" -Color DarkGray
+
             function Get-SSMSVersions {
                 $ssmsPaths = @()
+
+                # Rutas expandidas para incluir SSMS 2022 y versiones más nuevas
                 $possiblePaths = @(
+                    # Instalaciones clásicas (SSMS 2008-2017)
                     "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",
-                    "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"
+
+                    # Instalaciones standalone (SSMS 2016+)
+                    "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe",
+
+                    # SSMS 2019-2022 (x86)
+                    "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 19\Common7\IDE\Ssms.exe",
+                    "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 20\Common7\IDE\Ssms.exe",
+
+                    # SSMS 2022+ puede instalarse en Program Files (x64)
+                    "${env:ProgramFiles}\Microsoft SQL Server Management Studio 19\Common7\IDE\Ssms.exe",
+                    "${env:ProgramFiles}\Microsoft SQL Server Management Studio 20\Common7\IDE\Ssms.exe",
+                    "${env:ProgramFiles}\Microsoft SQL Server Management Studio 21\Common7\IDE\Ssms.exe",
+
+                    # Búsqueda con wildcard en x64
+                    "${env:ProgramFiles}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"
                 )
+
+                Write-DzDebug "`t[DEBUG] Buscando en $($possiblePaths.Count) rutas posibles" -Color DarkGray
+
                 foreach ($path in $possiblePaths) {
+                    Write-DzDebug "`t[DEBUG] Buscando: $path" -Color DarkGray
+
                     $foundPaths = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+
                     if ($foundPaths) {
                         foreach ($foundPath in $foundPaths) {
-                            $ssmsPaths += $foundPath.FullName
+                            # Evitar duplicados
+                            if ($ssmsPaths -notcontains $foundPath.FullName) {
+                                $ssmsPaths += $foundPath.FullName
+                                Write-DzDebug "`t[DEBUG] ✓ Encontrado: $($foundPath.FullName)" -Color Green
+
+                                # Obtener información de versión si está disponible
+                                try {
+                                    $versionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($foundPath.FullName)
+                                    Write-DzDebug "`t[DEBUG]   Versión: $($versionInfo.FileVersion)" -Color Cyan
+                                    Write-DzDebug "`t[DEBUG]   Producto: $($versionInfo.ProductName)" -Color Cyan
+                                } catch {
+                                    Write-DzDebug "`t[DEBUG]   No se pudo obtener info de versión" -Color Yellow
+                                }
+                            } else {
+                                Write-DzDebug "`t[DEBUG] - Duplicado (ignorado): $($foundPath.FullName)" -Color DarkGray
+                            }
                         }
                     }
                 }
+
+                Write-DzDebug "`t[DEBUG] Total de SSMS encontrados: $($ssmsPaths.Count)" -Color $(if ($ssmsPaths.Count -gt 0) { "Green" } else { "Red" })
+
                 return $ssmsPaths
             }
+
             $ssmsVersions = Get-SSMSVersions
+
             if ($ssmsVersions.Count -eq 0) {
+                Write-Host "`tNo se encontró ninguna versión de SSMS instalada." -ForegroundColor Red
+                Write-DzDebug "`t[DEBUG] Rutas comunes verificadas:" -Color Yellow
+                Write-DzDebug "`t[DEBUG]   - ${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 19" -Color Yellow
+                Write-DzDebug "`t[DEBUG]   - ${env:ProgramFiles}\Microsoft SQL Server Management Studio 19" -Color Yellow
+                Write-DzDebug "`t[DEBUG]   - ${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 20" -Color Yellow
+                Write-DzDebug "`t[DEBUG]   - ${env:ProgramFiles}\Microsoft SQL Server Management Studio 20" -Color Yellow
+
                 [System.Windows.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada.", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
                 return
             }
+
+            Write-Host "`t✓ Se encontraron $($ssmsVersions.Count) instalación(es) de SSMS" -ForegroundColor Green
             Show-SSMSSelectionDialog -SSMSVersions $ssmsVersions
         })
     $btnForzarActualizacion.Add_Click({

@@ -70,7 +70,7 @@ function Initialize-Environment {
     }
     try {
         $debugEnabled = Initialize-DzToolsConfig
-        Write-DzDebug "`t[DEBUG]Configuración de debug cargada (debug=$debugEnabled)" -Color DarkGray
+        Write-DzDebug "`t[DEBUG]`t[DEBUG]Configuración de debug cargada (debug=$debugEnabled)" -Color DarkGray
     } catch {
         Write-Host "Advertencia: No se pudo inicializar la configuración de debug. $_" -ForegroundColor Yellow
     }
@@ -275,13 +275,11 @@ function New-MainForm {
     if ($ipsWithAdapters.Count -gt 0) {
         $ipsTextForLabel = $ipsWithAdapters | ForEach-Object { "- $($_.AdapterName) - IP: $($_.IPAddress)" } | Out-String
         $txt_IpAdress.Text = $ipsTextForLabel
-
-        # DEBUG: Verificar que se llenó
-        Write-DzDebug "`t[DEBUG] txt_IpAdress poblado con: '$($txt_IpAdress.Text)'" -Color Green
-        Write-DzDebug "`t[DEBUG] txt_IpAdress.Text.Length: $($txt_IpAdress.Text.Length)" -Color Green
+        Write-DzDebug "`t[DEBUG]`t[DEBUG] txt_IpAdress poblado con: '$($txt_IpAdress.Text)'"
+        Write-DzDebug "`t[DEBUG]`t[DEBUG] txt_IpAdress.Text.Length: $($txt_IpAdress.Text.Length)"
     } else {
         $txt_IpAdress.Text = "No se encontraron direcciones IP"
-        Write-DzDebug "`t[DEBUG] No se encontraron IPs" -Color Yellow
+        Write-DzDebug "`t[DEBUG]`t[DEBUG] No se encontraron IPs" -Color Yellow
     }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
@@ -388,11 +386,11 @@ function New-MainForm {
     }
     $lblPort.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
-            Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
+            Write-DzDebug "`t[DEBUG]`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
 
             try {
                 $textToCopy = $global:sqlPortsData.DetailedText.Trim()
-                Write-DzDebug "`t[DEBUG] Contenido a copiar: '$textToCopy'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Contenido a copiar: '$textToCopy'" -Color DarkGray
 
                 # Mostrar en consola
                 Write-Host "`n=== INFORMACIÓN DE PUERTOS SQL ===" -ForegroundColor Cyan
@@ -444,7 +442,7 @@ function New-MainForm {
         })
     $lblHostname.Add_MouseLeftButtonDown({
             param($sender, $e)
-            Write-DzDebug "`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
+            Write-DzDebug "`t[DEBUG]`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
             try {
                 $hostname = [System.Net.Dns]::GetHostName()
 
@@ -465,14 +463,14 @@ function New-MainForm {
 
     $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
-            Write-DzDebug "`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
+            Write-DzDebug "`t[DEBUG]`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
             try {
                 # Usar $sender.Text en lugar de $txt_IpAdress.Text por si hay problema de scope
                 $ipsText = $sender.Text
 
-                Write-DzDebug "`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
-                Write-DzDebug "`t[DEBUG] Contenido (variable): '$($txt_IpAdress.Text)'" -Color DarkGray
-                Write-DzDebug "`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Contenido (variable): '$($txt_IpAdress.Text)'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
 
                 if ([string]::IsNullOrWhiteSpace($ipsText)) {
                     Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow
@@ -508,35 +506,592 @@ function New-MainForm {
             }
             Show-ChocolateyInstallerMenu
         })
-    $btnProfiler.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            $ProfilerUrl = "https://codeplexarchive.org/codeplex/browse/ExpressProfiler/releases/4/ExpressProfiler22wAddinSigned.zip"
-            $ProfilerZipPath = "C:\Temp\ExpressProfiler22wAddinSigned.zip"
-            $ExtractPath = "C:\Temp\ExpressProfiler2"
-            $ExeName = "ExpressProfiler.exe"
-            $ValidationPath = "C:\Temp\ExpressProfiler2\ExpressProfiler.exe"
-            DownloadAndRun -url $ProfilerUrl -zipPath $ProfilerZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
-        })
 
-    $btnDatabase.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            $DatabaseUrl = "https://fishcodelib.com/files/DatabaseNet4.zip"
-            $DatabaseZipPath = "C:\Temp\DatabaseNet4.zip"
-            $ExtractPath = "C:\Temp\Database4"
-            $ExeName = "Database4.exe"
-            $ValidationPath = "C:\Temp\Database4\Database4.exe"
-            DownloadAndRun -url $DatabaseUrl -zipPath $DatabaseZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
+    $btnProfiler.Add_Click({
+            Write-DzDebug "`t[DEBUG]BTN CLICK: Inicio ejecución (ExpressProfiler)" ([System.ConsoleColor]::DarkGray)
+
+            try {
+                $toolName = "ExpressProfiler"
+                $url = "https://github.com/ststeiger/ExpressProfiler/releases/download/1.0/ExpressProfiler20.zip"
+                $zip = "C:\Temp\ExpressProfiler22wAddinSigned.zip"
+                $extract = "C:\Temp\ExpressProfiler2"
+                $exe = "ExpressProfiler.exe"
+                $exePath = Join-Path $extract $exe
+
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] toolName=$toolName" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] url=$url" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] zip=$zip" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] extract=$extract" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] exePath=$exePath" ([System.ConsoleColor]::DarkGray)
+
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Validando si existe exe en $exePath" ([System.ConsoleColor]::DarkGray)
+
+                if (Test-Path $exePath) {
+                    Write-DzDebug "`t[DEBUG]INFO: $toolName ya existe en: $exePath" ([System.ConsoleColor]::Cyan)
+
+                    $rExist = Show-WpfMessageBox -Message "$toolName ya existe en:`n$exePath`n`nSí = Abrir local`nNo = Volver a descargar`nCancelar = Cancelar operación" `
+                        -Title "Ya existe" `
+                        -Buttons "YesNoCancel" `
+                        -Icon "Question"
+
+                    Write-DzDebug "`t[DEBUG]INFO: Resultado existe (rExist) = $rExist" ([System.ConsoleColor]::Cyan)
+
+                    if ($rExist -eq [System.Windows.MessageBoxResult]::Yes) {
+                        Start-Process $exePath
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Abriendo $toolName existente..." }
+                        return
+                    }
+
+                    if ($rExist -eq [System.Windows.MessageBoxResult]::Cancel) {
+                        Write-DzDebug "`t[DEBUG]INFO: Operación cancelada por el usuario." ([System.ConsoleColor]::Cyan)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Operación cancelada." }
+                        return
+                    }
+                } else {
+                    $r = Show-WpfMessageBox -Message "¿Deseas descargar $toolName?" `
+                        -Title "Confirmar descarga" `
+                        -Buttons "YesNo" `
+                        -Icon "Question"
+
+                    Write-DzDebug "`t[DEBUG]INFO: Resultado confirmación (r) = $r" ([System.ConsoleColor]::Cyan)
+
+                    if ($r -ne [System.Windows.MessageBoxResult]::Yes) {
+                        Write-DzDebug "`t[DEBUG]INFO: Operación cancelada por el usuario." ([System.ConsoleColor]::Cyan)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Operación cancelada." }
+                        return
+                    }
+                }
+
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Creando progress bar (Show-WpfProgressBar)..." ([System.ConsoleColor]::DarkGray)
+                $pw = Show-WpfProgressBar -Title "Descargando $toolName" -Message "Iniciando..."
+                if ($null -eq $pw -or $null -eq $pw.ProgressBar) {
+                    Write-DzDebug "`t[DEBUG]ERROR: No se pudo crear la ventana de progreso." ([System.ConsoleColor]::Red)
+                    return
+                }
+
+                if (Test-Path $zip) {
+                    Write-DzDebug "`t[DEBUG]WARN: Borrando zip anterior: $zip" ([System.ConsoleColor]::Yellow)
+                    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+                }
+
+                try {
+                    Write-DzDebug "`t[DEBUG]PROGRESS: 0% - Iniciando descarga..." ([System.ConsoleColor]::DarkGray)
+                    Update-WpfProgressBar -Window $pw -Percent 0 -Message "Preparando descarga..."
+                    if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Preparando descarga..." }
+
+                    $ok = Download-FileWithProgressWpfStream -Url $url -OutFile $zip -Window $pw -OnStatus {
+                        param($p, $m)
+                        Write-DzDebug "`t[DEBUG]PROGRESS: $p% - $m" ([System.ConsoleColor]::DarkGray)
+                        if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = $m }
+                    }
+
+                    if (-not $ok) { throw "Descarga fallida." }
+
+                    Update-WpfProgressBar -Window $pw -Percent 100 -Message "Extrayendo..."
+                    if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Extrayendo..." }
+
+                    $exeRunning = Get-Process | Where-Object { $_.Path -and $_.Path -ieq $exePath }
+
+                    if (-not $exeRunning) {
+                        if (Test-Path $extract) { Remove-Item $extract -Recurse -Force -ErrorAction SilentlyContinue }
+                    } else {
+                        Write-DzDebug "`t[DEBUG]WARN: $exe está en ejecución, se omitió limpieza previa" ([System.ConsoleColor]::Yellow)
+                    }
+
+                    Expand-Archive -Path $zip -DestinationPath $extract -Force
+
+                    if (-not (Test-Path $exePath)) { throw "No se encontró $exePath" }
+
+                    Update-WpfProgressBar -Window $pw -Percent 100 -Message "Ejecutando..."
+                    if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Ejecutando..." }
+
+                    Start-Process $exePath
+                    Write-DzDebug "`t[DEBUG]INFO: Listo: Ejecutado $toolName" ([System.ConsoleColor]::Cyan)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Listo: Ejecutado $toolName" }
+
+                } catch {
+                    Write-DzDebug "`t[DEBUG]ERROR Download/Run: $($_.Exception.Message)" ([System.ConsoleColor]::Red)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Error: $($_.Exception.Message)" }
+                } finally {
+                    Close-WpfProgressBar -Window $pw
+                }
+
+            } catch {
+                Write-DzDebug "`t[DEBUG]ERROR TryCatch: $($_.Exception.Message)`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
+            }
         })
 
     $btnPrinterTool.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            $PrinterToolUrl = "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip"
-            $PrinterToolZipPath = "C:\Temp\RPT-RPI-Printer-Tool-1.zip"
-            $ExtractPath = "C:\Temp\RPT-RPI-Printer-Tool-1"
-            $ExeName = "POS Printer Test.exe"
-            $ValidationPath = "C:\Temp\RPT-RPI-Printer-Tool-1\POS Printer Test.exe"
-            DownloadAndRun -url $PrinterToolUrl -zipPath $PrinterToolZipPath -extractPath $ExtractPath -exeName $ExeName -validationPath $ValidationPath
+            Write-DzDebug "`t[DEBUG]BTN CLICK: Inicio ejecución (POS Printer Test)" ([System.ConsoleColor]::DarkGray)
+
+            try {
+                $toolName = "POS Printer Test"
+                $url = "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip"
+                $zip = "C:\Temp\RPT-RPI-Printer-Tool-1.zip"
+                $extract = "C:\Temp\RPT-RPI-Printer-Tool-1"
+                $exe = "POS Printer Test.exe"
+                $exePath = Join-Path $extract $exe
+
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] toolName=$toolName" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] url=$url" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] zip=$zip" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] extract=$extract" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] exePath=$exePath" ([System.ConsoleColor]::DarkGray)
+
+                $shouldDownload = $true
+
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Validando si existe exe en $exePath" ([System.ConsoleColor]::DarkGray)
+                if (Test-Path $exePath) {
+                    Write-DzDebug "`t[DEBUG]INFO: $toolName ya existe en: $exePath" ([System.ConsoleColor]::Cyan)
+
+                    $rExist = Show-WpfMessageBox -Message "$toolName ya existe en:`n$exePath`n`nSí = Abrir local`nNo = Volver a descargar`nCancelar = Cancelar operación" `
+                        -Title "Ya existe" `
+                        -Buttons "YesNoCancel" `
+                        -Icon "Question"
+
+                    Write-DzDebug "`t[DEBUG]INFO: Resultado existe (rExist) = $rExist" ([System.ConsoleColor]::Cyan)
+
+                    if ($rExist -eq [System.Windows.MessageBoxResult]::Yes) {
+                        Start-Process $exePath
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Abriendo $toolName existente..." }
+                        return
+                    }
+
+                    if ($rExist -eq [System.Windows.MessageBoxResult]::Cancel) {
+                        Write-DzDebug "`t[DEBUG]INFO: Operación cancelada por el usuario." ([System.ConsoleColor]::Cyan)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Operación cancelada." }
+                        return
+                    }
+
+                    $shouldDownload = $true
+                } else {
+                    $r = Show-WpfMessageBox -Message "¿Deseas descargar $toolName?" `
+                        -Title "Confirmar descarga" `
+                        -Buttons "YesNo" `
+                        -Icon "Question"
+
+                    Write-DzDebug "`t[DEBUG]INFO: Resultado confirmación (r) = $r" ([System.ConsoleColor]::Cyan)
+
+                    if ($r -ne [System.Windows.MessageBoxResult]::Yes) {
+                        Write-DzDebug "`t[DEBUG]INFO: Operación cancelada por el usuario." ([System.ConsoleColor]::Cyan)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Operación cancelada." }
+                        return
+                    }
+
+                    $shouldDownload = $true
+                }
+
+                if (-not $shouldDownload) { return }
+
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Creando progress bar (Show-WpfProgressBar)..." ([System.ConsoleColor]::DarkGray)
+                $pw = Show-WpfProgressBar -Title "Descargando $toolName" -Message "Iniciando..."
+                if ($null -eq $pw -or $null -eq $pw.ProgressBar) {
+                    Write-DzDebug "`t[DEBUG]ERROR: No se pudo crear la ventana de progreso." ([System.ConsoleColor]::Red)
+                    return
+                }
+
+                if (Test-Path $zip) {
+                    Write-DzDebug "`t[DEBUG]WARN: Borrando zip anterior: $zip" ([System.ConsoleColor]::Yellow)
+                    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+                }
+
+                try {
+                    Write-DzDebug "`t[DEBUG]PROGRESS: 0% - Iniciando descarga..." ([System.ConsoleColor]::DarkGray)
+                    Update-WpfProgressBar -Window $pw -Percent 0 -Message "Preparando descarga..."
+                    if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Preparando descarga..." }
+
+                    $ok = Download-FileWithProgressWpfStream -Url $url -OutFile $zip -Window $pw -OnStatus {
+                        param($p, $m)
+                        Write-DzDebug "`t[DEBUG]PROGRESS: $p% - $m" ([System.ConsoleColor]::DarkGray)
+                        if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = $m }
+                    }
+
+                    if (-not $ok) { throw "Descarga fallida." }
+
+                    Update-WpfProgressBar -Window $pw -Percent 100 -Message "Extrayendo..."
+                    if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Extrayendo..." }
+
+                    $exeRunning = Get-Process | Where-Object { $_.Path -and $_.Path -ieq $exePath }
+
+                    if (-not $exeRunning) {
+                        if (Test-Path $extract) { Remove-Item $extract -Recurse -Force -ErrorAction SilentlyContinue }
+                    } else {
+                        Write-DzDebug "`t[DEBUG]WARN: $exe está en ejecución, se omitió limpieza previa" ([System.ConsoleColor]::Yellow)
+                    }
+
+                    Expand-Archive -Path $zip -DestinationPath $extract -Force
+
+                    if (-not (Test-Path $exePath)) { throw "No se encontró $exePath" }
+
+                    Update-WpfProgressBar -Window $pw -Percent 100 -Message "Ejecutando..."
+                    if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Ejecutando..." }
+
+                    Start-Process $exePath
+                    Write-DzDebug "`t[DEBUG]INFO: Listo: Ejecutado $toolName" ([System.ConsoleColor]::Cyan)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Listo: Ejecutado $toolName" }
+
+                } catch {
+                    Write-DzDebug "`t[DEBUG]ERROR Download/Run: $($_.Exception.Message)" ([System.ConsoleColor]::Red)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Error: $($_.Exception.Message)" }
+                } finally {
+                    Close-WpfProgressBar -Window $pw
+                }
+
+            } catch {
+                Write-DzDebug "`t[DEBUG]ERROR TryCatch: $($_.Exception.Message)`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
+            }
         })
+
+
+    $btnDatabase.Add_Click({
+            Write-DzDebug "`t[DEBUG]BTN CLICK: Inicio ejecución (Database4)" ([System.ConsoleColor]::DarkGray)
+
+            try {
+                $toolName = "Database4"
+                $url = "https://fishcodelib.com/files/DatabaseNet4.zip"
+                $zip = "C:\Temp\DatabaseNet4.zip"
+                $extract = "C:\Temp\Database4"
+                $exe = "Database4.exe"
+                $exePath = Join-Path $extract $exe
+
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] toolName=$toolName" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] url=$url" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] zip=$zip" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] extract=$extract" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] exePath=$exePath" ([System.ConsoleColor]::DarkGray)
+
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Validando si existe exe en $exePath" ([System.ConsoleColor]::DarkGray)
+
+                if (Test-Path $exePath) {
+                    Write-DzDebug "`t[DEBUG]INFO: $toolName ya existe en: $exePath" ([System.ConsoleColor]::Cyan)
+
+                    $rExist = Show-WpfMessageBox -Message "$toolName ya existe en:`n$exePath`n`nSí = Abrir local`nNo = Volver a descargar`nCancelar = Cancelar operación" `
+                        -Title "Ya existe" `
+                        -Buttons "YesNoCancel" `
+                        -Icon "Question"
+
+                    Write-DzDebug "`t[DEBUG]INFO: Resultado existe (rExist) = $rExist" ([System.ConsoleColor]::Cyan)
+
+                    if ($rExist -eq [System.Windows.MessageBoxResult]::Yes) {
+                        Start-Process $exePath
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Abriendo $toolName existente..." }
+                        return
+                    }
+
+                    if ($rExist -eq [System.Windows.MessageBoxResult]::Cancel) {
+                        Write-DzDebug "`t[DEBUG]INFO: Operación cancelada por el usuario." ([System.ConsoleColor]::Cyan)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Operación cancelada." }
+                        return
+                    }
+                } else {
+                    $r = Show-WpfMessageBox -Message "¿Deseas descargar $toolName?" `
+                        -Title "Confirmar descarga" `
+                        -Buttons "YesNo" `
+                        -Icon "Question"
+
+                    Write-DzDebug "`t[DEBUG]INFO: Resultado confirmación (r) = $r" ([System.ConsoleColor]::Cyan)
+
+                    if ($r -ne [System.Windows.MessageBoxResult]::Yes) {
+                        Write-DzDebug "`t[DEBUG]INFO: Operación cancelada por el usuario." ([System.ConsoleColor]::Cyan)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Operación cancelada." }
+                        return
+                    }
+                }
+
+                $pw = Show-WpfProgressBar -Title "Descargando $toolName" -Message "Iniciando..."
+                if ($null -eq $pw -or $null -eq $pw.ProgressBar) {
+                    Write-DzDebug "`t[DEBUG]ERROR: No se pudo crear la ventana de progreso." ([System.ConsoleColor]::Red)
+                    return
+                }
+
+                if (Test-Path $zip) {
+                    Write-DzDebug "`t[DEBUG]WARN: Borrando zip anterior: $zip" ([System.ConsoleColor]::Yellow)
+                    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+                }
+
+                try {
+                    Write-DzDebug "`t[DEBUG]PROGRESS: 0% - Iniciando descarga..." ([System.ConsoleColor]::DarkGray)
+                    Update-WpfProgressBar -Window $pw -Percent 0 -Message "Preparando descarga..."
+                    if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Preparando descarga..." }
+
+                    $ok = Download-FileWithProgressWpfStream -Url $url -OutFile $zip -Window $pw -OnStatus {
+                        param($p, $m)
+                        Write-DzDebug "`t[DEBUG]PROGRESS: $p% - $m" ([System.ConsoleColor]::DarkGray)
+                        if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = $m }
+                    }
+
+                    if (-not $ok) { throw "Descarga fallida." }
+
+                    Update-WpfProgressBar -Window $pw -Percent 100 -Message "Extrayendo..."
+                    if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Extrayendo..." }
+
+                    if (Test-Path $extract) { Remove-Item $extract -Recurse -Force -ErrorAction SilentlyContinue }
+                    Expand-Archive -Path $zip -DestinationPath $extract -Force
+
+                    if (-not (Test-Path $exePath)) { throw "No se encontró $exePath" }
+
+                    Update-WpfProgressBar -Window $pw -Percent 100 -Message "Ejecutando..."
+                    if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Ejecutando..." }
+
+                    Start-Process $exePath
+                    Write-DzDebug "`t[DEBUG]INFO: Listo: Ejecutado $toolName" ([System.ConsoleColor]::Cyan)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Listo: Ejecutado $toolName" }
+
+                } catch {
+                    Write-DzDebug "`t[DEBUG]ERROR Download/Run: $($_.Exception.Message)" ([System.ConsoleColor]::Red)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Error: $($_.Exception.Message)" }
+                } finally {
+                    Close-WpfProgressBar -Window $pw
+                }
+
+            } catch {
+                Write-DzDebug "`t[DEBUG]ERROR TryCatch: $($_.Exception.Message)`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
+            }
+        })
+
+    $btnLectorDPicacls.Add_Click({
+            Write-DzDebug "`t[DEBUG]BTN CLICK: Inicio ejecución (Lector DP + icacls)" ([System.ConsoleColor]::DarkGray)
+
+            $pwPs = $null
+            $pwDrv = $null
+
+            try {
+                $rMain = Show-WpfMessageBox -Message "Este proceso ejecutará cambios de permisos con PsExec (SYSTEM) y puede descargar/instalar un driver.`n`n¿Deseas continuar?" `
+                    -Title "Confirmar operación" `
+                    -Buttons "YesNo" `
+                    -Icon "Warning"
+
+                Write-DzDebug "`t[DEBUG]INFO: Confirmación principal (rMain) = $rMain" ([System.ConsoleColor]::Cyan)
+                if ($rMain -ne [System.Windows.MessageBoxResult]::Yes) {
+                    Write-DzDebug "`t[DEBUG]INFO: Operación cancelada por el usuario." ([System.ConsoleColor]::Cyan)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Operación cancelada." }
+                    return
+                }
+
+                Write-DzDebug "`t[DEBUG] Iniciando proceso..." ([System.ConsoleColor]::DarkGray)
+                if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Iniciando..." }
+
+                $psexecPath = "C:\Temp\PsExec\PsExec.exe"
+                $psexecZip = "C:\Temp\PSTools.zip"
+                $psexecUrl = "https://download.sysinternals.com/files/PSTools.zip"
+                $psexecExtractPath = "C:\Temp\PsExec"
+
+                if (-not (Test-Path $psexecPath)) {
+                    Write-DzDebug "`t[DEBUG] PsExec no encontrado. Se descargará PSTools.zip" ([System.ConsoleColor]::Yellow)
+                    if (-not (Test-Path "C:\Temp")) { New-Item -Path "C:\Temp" -ItemType Directory | Out-Null }
+
+                    $pwPs = Show-WpfProgressBar -Title "Descargando PsExec" -Message "Preparando descarga..."
+                    if ($null -eq $pwPs -or $null -eq $pwPs.ProgressBar) {
+                        Write-DzDebug "`t[DEBUG]ERROR: No se pudo crear progress bar para PsExec." ([System.ConsoleColor]::Red)
+                        return
+                    }
+
+                    if (Test-Path $psexecZip) { Remove-Item $psexecZip -Force -ErrorAction SilentlyContinue }
+
+                    try {
+                        Update-WpfProgressBar -Window $pwPs -Percent 0 -Message "Preparando descarga..."
+                        if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Descargando PsExec..." }
+
+                        $okPs = Download-FileWithProgressWpfStream -Url $psexecUrl -OutFile $psexecZip -Window $pwPs -OnStatus {
+                            param($p, $m)
+                            Write-DzDebug "`t[DEBUG]PROGRESS(PsExec): $p% - $m" ([System.ConsoleColor]::DarkGray)
+                            if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "PsExec: $m" }
+                        }
+
+                        if (-not $okPs) { throw "Descarga de PSTools.zip fallida." }
+
+                        Update-WpfProgressBar -Window $pwPs -Percent 100 -Message "Extrayendo..."
+                        if ($txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Extrayendo PsExec..." }
+
+                        if (Test-Path $psexecExtractPath) { Remove-Item $psexecExtractPath -Recurse -Force -ErrorAction SilentlyContinue }
+                        Expand-Archive -Path $psexecZip -DestinationPath $psexecExtractPath -Force
+
+                        if (-not (Test-Path $psexecPath)) { throw "No se pudo extraer PsExec.exe." }
+
+                        Write-DzDebug "`t[DEBUG] PsExec descargado y extraído correctamente." ([System.ConsoleColor]::Cyan)
+                    } catch {
+                        Write-DzDebug "`t[DEBUG]ERROR PsExec: $($_.Exception.Message)" ([System.ConsoleColor]::Red)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Error PsExec: $($_.Exception.Message)" }
+                        return
+                    } finally {
+                        if ($null -ne $pwPs) {
+                            try { Close-WpfProgressBar -Window $pwPs } catch {}
+                            $pwPs = $null
+                        }
+                    }
+                } else {
+                    Write-DzDebug "`t[DEBUG] PsExec ya está instalado en: $psexecPath" ([System.ConsoleColor]::Cyan)
+                }
+
+                $grupoAdmin = ""
+                $gruposLocales = net localgroup | Where-Object { $_ -match "Administrators|Administradores" }
+                if ($gruposLocales -match "Administrators") {
+                    $grupoAdmin = "Administrators"
+                } elseif ($gruposLocales -match "Administradores") {
+                    $grupoAdmin = "Administradores"
+                } else {
+                    Write-DzDebug "`t[DEBUG]ERROR: No se encontró el grupo de administradores en el sistema." ([System.ConsoleColor]::Red)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Error: No se encontró grupo Administradores." }
+                    return
+                }
+
+                Write-DzDebug "`t[DEBUG] Grupo de administradores detectado: $grupoAdmin" ([System.ConsoleColor]::Cyan)
+                if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Grupo admin: $grupoAdmin" }
+
+                $comando1 = "icacls C:\Windows\System32\en-us /grant `"$grupoAdmin`":F"
+                $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
+                $psexecCmd1 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando1`""
+                $psexecCmd2 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando2`""
+
+                Write-DzDebug "`t[DEBUG] Ejecutando primer comando: $comando1" ([System.ConsoleColor]::Yellow)
+                if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Ejecutando icacls (1)..." }
+                $output1 = & cmd /c $psexecCmd1
+                Write-DzDebug ([string]$output1) ([System.ConsoleColor]::Gray)
+
+                Write-DzDebug "`t[DEBUG] Ejecutando segundo comando: $comando2" ([System.ConsoleColor]::Yellow)
+                if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Ejecutando icacls (2)..." }
+                $output2 = & cmd /c $psexecCmd2
+                Write-DzDebug ([string]$output2) ([System.ConsoleColor]::Gray)
+
+                Write-DzDebug "`t[DEBUG] Modificación de permisos completada." ([System.ConsoleColor]::Cyan)
+                if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Permisos actualizados." }
+
+                $ResponderDriver = Show-WpfMessageBox -Message "¿Desea descargar e instalar el driver del lector?" `
+                    -Title "Descargar Driver" `
+                    -Buttons "YesNo" `
+                    -Icon "Question"
+
+                Write-DzDebug "`t[DEBUG]INFO: Respuesta driver = $ResponderDriver" ([System.ConsoleColor]::Cyan)
+
+                if ($ResponderDriver -ne [System.Windows.MessageBoxResult]::Yes) {
+                    Write-DzDebug "`t[DEBUG]INFO: Usuario decidió NO descargar el driver." ([System.ConsoleColor]::Cyan)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Driver omitido." }
+                    return
+                }
+
+                $url = "https://softrestaurant.com/drivers?download=120:dp"
+                $zipPath = "C:\Temp\Driver_DP.zip"
+                $extractPath = "C:\Temp\Driver_DP"
+                $exeName = "x64\Setup.msi"
+                $validationPath = "C:\Temp\Driver_DP\x64\Setup.msi"
+                $msiPath = Join-Path $extractPath $exeName
+
+                Write-DzDebug "`t[DEBUG] Driver URL=$url" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG] zipPath=$zipPath" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG] extractPath=$extractPath" ([System.ConsoleColor]::DarkGray)
+                Write-DzDebug "`t[DEBUG] msiPath=$msiPath" ([System.ConsoleColor]::DarkGray)
+
+                if (Test-Path $validationPath) {
+                    $rExistDrv = Show-WpfMessageBox -Message "El driver ya existe en:`n$validationPath`n`nSí = Instalar local`nNo = Volver a descargar`nCancelar = Cancelar operación" `
+                        -Title "Driver ya existe" `
+                        -Buttons "YesNoCancel" `
+                        -Icon "Question"
+
+                    Write-DzDebug "`t[DEBUG]INFO: Resultado existe driver (rExistDrv) = $rExistDrv" ([System.ConsoleColor]::Cyan)
+
+                    if ($rExistDrv -eq [System.Windows.MessageBoxResult]::Yes) {
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Instalando driver existente..." }
+                        Start-Process "msiexec.exe" -ArgumentList "/i `"$validationPath`"" -Wait
+                        Write-DzDebug "`t[DEBUG]INFO: Driver instalado correctamente." ([System.ConsoleColor]::Cyan)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Driver instalado correctamente." }
+                        return
+                    }
+
+                    if ($rExistDrv -eq [System.Windows.MessageBoxResult]::Cancel) {
+                        Write-DzDebug "`t[DEBUG]INFO: Operación de driver cancelada." ([System.ConsoleColor]::Cyan)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Operación de driver cancelada." }
+                        return
+                    }
+                } else {
+                    $rDrv = Show-WpfMessageBox -Message "¿Deseas descargar el driver del lector ahora?" `
+                        -Title "Confirmar descarga" `
+                        -Buttons "YesNo" `
+                        -Icon "Question"
+
+                    Write-DzDebug "`t[DEBUG]INFO: Confirmación descarga driver (rDrv) = $rDrv" ([System.ConsoleColor]::Cyan)
+                    if ($rDrv -ne [System.Windows.MessageBoxResult]::Yes) {
+                        Write-DzDebug "`t[DEBUG]INFO: Descarga de driver cancelada." ([System.ConsoleColor]::Cyan)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Descarga cancelada." }
+                        return
+                    }
+                }
+
+                $pwDrv = Show-WpfProgressBar -Title "Descargando Driver DP" -Message "Preparando descarga..."
+                if ($null -eq $pwDrv -or $null -eq $pwDrv.ProgressBar) {
+                    Write-DzDebug "`t[DEBUG]ERROR: No se pudo crear progress bar para Driver." ([System.ConsoleColor]::Red)
+                    return
+                }
+
+                if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
+
+                try {
+                    Update-WpfProgressBar -Window $pwDrv -Percent 0 -Message "Preparando descarga..."
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Descargando driver..." }
+
+                    $okDrv = Download-FileWithProgressWpfStream -Url $url -OutFile $zipPath -Window $pwDrv -OnStatus {
+                        param($p, $m)
+                        Write-DzDebug "`t[DEBUG]PROGRESS(Driver): $p% - $m" ([System.ConsoleColor]::DarkGray)
+                        if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Driver: $m" }
+                    }
+
+                    if (-not $okDrv) { throw "Descarga del driver fallida." }
+
+                    Update-WpfProgressBar -Window $pwDrv -Percent 100 -Message "Extrayendo..."
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Extrayendo driver..." }
+
+                    if (Test-Path $extractPath) {
+                        Remove-Item $extractPath -Recurse -Force -ErrorAction SilentlyContinue
+                    }
+
+                    Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+
+                    if (-not (Test-Path $validationPath)) { throw "No se encontró $validationPath" }
+
+                    Update-WpfProgressBar -Window $pwDrv -Percent 100 -Message "Instalando..."
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Instalando driver..." }
+
+                    try {
+                        $pwDrv.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, [action] {}) | Out-Null
+                    } catch {}
+
+                    try {
+                        $pwDrv.Dispatcher.Invoke([action] {
+                                $pwDrv.Topmost = $false
+                                $pwDrv.WindowState = [System.Windows.WindowState]::Minimized
+                            }) | Out-Null
+                    } catch {}
+
+                    Start-Process "msiexec.exe" -ArgumentList "/i `"$validationPath`" /passive" -Wait
+
+                    try {
+                        $pwDrv.Dispatcher.Invoke([action] {
+                                $pwDrv.WindowState = [System.Windows.WindowState]::Normal
+                            }) | Out-Null
+                    } catch {}
+
+                    Write-DzDebug "`t[DEBUG]INFO: Driver instalado correctamente." ([System.ConsoleColor]::Cyan)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Driver instalado correctamente." }
+
+                } catch {
+                    Write-DzDebug "`t[DEBUG]ERROR Driver: $($_.Exception.Message)" ([System.ConsoleColor]::Red)
+                    if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Error Driver: $($_.Exception.Message)" }
+                }
+
+            } catch {
+                Write-DzDebug "`t[DEBUG]ERROR TryCatch: $($_.Exception.Message)`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
+                if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Error: $($_.Exception.Message)" }
+            } finally {
+                if ($null -ne $pwDrv) {
+                    try { Close-WpfProgressBar -Window $pwDrv } catch {}
+                    $pwDrv = $null
+                }
+                if ($null -ne $pwPs) {
+                    try { Close-WpfProgressBar -Window $pwPs } catch {}
+                    $pwPs = $null
+                }
+            }
+        })
+
 
     $btnSQLManager.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
@@ -563,7 +1118,7 @@ function New-MainForm {
         })
     $btnSQLManagement.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Write-DzDebug "`t[DEBUG] Iniciando búsqueda de SSMS instalados" -Color DarkGray
+            Write-DzDebug "`t[DEBUG]`t[DEBUG] Iniciando búsqueda de SSMS instalados" -Color DarkGray
 
             function Get-SSMSVersions {
                 $ssmsPaths = @()
@@ -599,27 +1154,27 @@ function New-MainForm {
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio *\Release\Common7\IDE\Ssms.exe"
                 )
 
-                Write-DzDebug "`t[DEBUG] Buscando en $($fixedPaths.Count) rutas fijas" -Color DarkGray
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Buscando en $($fixedPaths.Count) rutas fijas" -Color DarkGray
 
                 foreach ($path in $fixedPaths) {
-                    Write-DzDebug "`t[DEBUG] Buscando patrón: $path" -Color DarkGray
+                    Write-DzDebug "`t[DEBUG]`t[DEBUG] Buscando patrón: $path" -Color DarkGray
                     $foundPaths = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
 
                     if ($foundPaths) {
                         foreach ($foundPath in $foundPaths) {
                             if ($ssmsPaths -notcontains $foundPath.FullName) {
                                 $ssmsPaths += $foundPath.FullName
-                                Write-DzDebug "`t[DEBUG] ✓ Encontrado: $($foundPath.FullName)" -Color Green
+                                Write-DzDebug "`t[DEBUG]`t[DEBUG] ✓ Encontrado: $($foundPath.FullName)" -Color Green
 
                                 try {
                                     $versionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($foundPath.FullName)
-                                    Write-DzDebug "`t[DEBUG]   Versión: $($versionInfo.FileVersion)" -Color Cyan
-                                    Write-DzDebug "`t[DEBUG]   Producto: $($versionInfo.ProductName)" -Color Cyan
+                                    Write-DzDebug "`t[DEBUG]`t[DEBUG]   Versión: $($versionInfo.FileVersion)" -Color Cyan
+                                    Write-DzDebug "`t[DEBUG]`t[DEBUG]   Producto: $($versionInfo.ProductName)" -Color Cyan
                                 } catch {
-                                    Write-DzDebug "`t[DEBUG]   No se pudo obtener info de versión" -Color Yellow
+                                    Write-DzDebug "`t[DEBUG]`t[DEBUG]   No se pudo obtener info de versión" -Color Yellow
                                 }
                             } else {
-                                Write-DzDebug "`t[DEBUG] - Duplicado (ignorado): $($foundPath.FullName)" -Color DarkGray
+                                Write-DzDebug "`t[DEBUG]`t[DEBUG] - Duplicado (ignorado): $($foundPath.FullName)" -Color DarkGray
                             }
                         }
                     }
@@ -627,7 +1182,7 @@ function New-MainForm {
 
                 # Búsqueda en el registro solo si no encontramos en las rutas fijas
                 if ($ssmsPaths.Count -eq 0) {
-                    Write-DzDebug "`t[DEBUG] No se encontró en rutas fijas. Buscando en registro..." -Color DarkGray
+                    Write-DzDebug "`t[DEBUG]`t[DEBUG] No se encontró en rutas fijas. Buscando en registro..." -Color DarkGray
 
                     # Buscar en el registro de manera más específica
                     $registryPaths = @(
@@ -663,7 +1218,7 @@ function New-MainForm {
                                     $resolvedPath = Resolve-Path $fullPath
                                     if ($ssmsPaths -notcontains $resolvedPath.Path) {
                                         $ssmsPaths += $resolvedPath.Path
-                                        Write-DzDebug "`t[DEBUG] ✓ Encontrado (registro): $($resolvedPath.Path)" -Color Green
+                                        Write-DzDebug "`t[DEBUG]`t[DEBUG] ✓ Encontrado (registro): $($resolvedPath.Path)" -Color Green
                                     }
                                 }
                             }
@@ -671,7 +1226,7 @@ function New-MainForm {
                     }
                 }
 
-                Write-DzDebug "`t[DEBUG] Total de SSMS encontrados: $($ssmsPaths.Count)" -Color $(if ($ssmsPaths.Count -gt 0) { "Green" } else { "Red" })
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Total de SSMS encontrados: $($ssmsPaths.Count)" -Color $(if ($ssmsPaths.Count -gt 0) { "Green" } else { "Red" })
 
                 return $ssmsPaths | Sort-Object -Descending
             }
@@ -806,9 +1361,9 @@ function New-MainForm {
             $dialog.Content = $stackPanel
 
             # Mostrar el diálogo de forma modal
-            Write-DzDebug "`t[DEBUG] Mostrando diálogo de selección de SSMS" -Color DarkGray
+            Write-DzDebug "`t[DEBUG]`t[DEBUG] Mostrando diálogo de selección de SSMS" -Color DarkGray
             $dialog.ShowDialog() | Out-Null
-            Write-DzDebug "`t[DEBUG] Diálogo de SSMS cerrado" -Color DarkGray
+            Write-DzDebug "`t[DEBUG]`t[DEBUG] Diálogo de SSMS cerrado" -Color DarkGray
         })
     $btnForzarActualizacion.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
@@ -1137,65 +1692,6 @@ function New-MainForm {
                 Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
             }
         })
-    $btnLectorDPicacls.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            try {
-                $psexecPath = "C:\Temp\PsExec\PsExec.exe"
-                $psexecZip = "C:\Temp\PSTools.zip"
-                $psexecUrl = "https://download.sysinternals.com/files/PSTools.zip"
-                $psexecExtractPath = "C:\Temp\PsExec"
-                if (-Not (Test-Path $psexecPath)) {
-                    Write-Host "`tPsExec no encontrado. Descargando desde Sysinternals..." -ForegroundColor Yellow
-                    if (-Not (Test-Path "C:\Temp")) {
-                        New-Item -Path "C:\Temp" -ItemType Directory | Out-Null
-                    }
-                    Invoke-WebRequest -Uri $psexecUrl -OutFile $psexecZip
-                    Write-Host "`tExtrayendo PsExec..." -ForegroundColor Cyan
-                    Expand-Archive -Path $psexecZip -DestinationPath $psexecExtractPath -Force
-                    if (-Not (Test-Path $psexecPath)) {
-                        Write-Host "`tError: No se pudo extraer PsExec.exe." -ForegroundColor Red
-                        return
-                    }
-                    Write-Host "`tPsExec descargado y extraído correctamente." -ForegroundColor Green
-                } else {
-                    Write-Host "`tPsExec ya está instalado en: $psexecPath" -ForegroundColor Green
-                }
-                $grupoAdmin = ""
-                $gruposLocales = net localgroup | Where-Object { $_ -match "Administrators|Administradores" }
-                if ($gruposLocales -match "Administrators") {
-                    $grupoAdmin = "Administrators"
-                } elseif ($gruposLocales -match "Administradores") {
-                    $grupoAdmin = "Administradores"
-                } else {
-                    Write-Host "`tNo se encontró el grupo de administradores en el sistema." -ForegroundColor Red
-                    return
-                }
-                Write-Host "`tGrupo de administradores detectado: " -NoNewline
-                Write-Host "$grupoAdmin" -ForegroundColor Green
-                $comando1 = "icacls C:\Windows\System32\en-us /grant `"$grupoAdmin`":F"
-                $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
-                $psexecCmd1 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando1`""
-                $psexecCmd2 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando2`""
-                Write-Host "`nEjecutando primer comando: $comando1" -ForegroundColor Yellow
-                $output1 = & cmd /c $psexecCmd1
-                Write-Host $output1
-                Write-Host "`nEjecutando segundo comando: $comando2" -ForegroundColor Yellow
-                $output2 = & cmd /c $psexecCmd2
-                Write-Host $output2
-                Write-Host "`nModificación de permisos completada." -ForegroundColor Cyan
-                $ResponderDriver = [System.Windows.MessageBox]::Show("¿Desea descargar e instalar el driver del lector?", "Descargar Driver", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
-                if ($ResponderDriver -eq [System.Windows.MessageBoxResult]::Yes) {
-                    $url = "https://softrestaurant.com/drivers?download=120:dp"
-                    $zipPath = "C:\Temp\Driver_DP.zip"
-                    $extractPath = "C:\Temp\Driver_DP"
-                    $exeName = "x64\Setup.msi"
-                    $validationPath = "C:\Temp\Driver_DP\x64\Setup.msi"
-                    DownloadAndRun -url $url -zipPath $zipPath -extractPath $extractPath -exeName $exeName -validationPath $validationPath
-                }
-            } catch {
-                Write-Host "Error: $_" -ForegroundColor Red
-            }
-        })
     $LZMAbtnBuscarCarpeta.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
@@ -1293,7 +1789,7 @@ function New-MainForm {
                 $serverText = $global:txtServer.Text.Trim()
                 $userText = $global:txtUser.Text.Trim()
                 $passwordText = $global:txtPassword.Password
-                Write-DzDebug "`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
                 if ([string]::IsNullOrWhiteSpace($serverText) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordText)) {
                     throw "Complete todos los campos de conexión"
                 }
@@ -1330,11 +1826,11 @@ Base de datos: ((
                 $global:btnDisconnectDb.IsEnabled = $true
                 $global:rtbQuery.IsEnabled = $true
             } catch {
-                Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: ((
+                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] CATCH: ((
 (_.Exception.Message)"
-                Write-DzDebug "`t[DEBUG][btnConnectDb] Tipo: ((
+                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] Tipo: ((
 (_.Exception.GetType().FullName)"
-                Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: ((
+                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] Stack: ((
 (_.ScriptStackTrace)"
                 [System.Windows.MessageBox]::Show("Error de conexión: ((
 (_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
@@ -1422,24 +1918,24 @@ Base de datos: ((
         [CmdletBinding()]
         param()
 
-        Write-DzDebug "[Initialize-ThreadJob] Verificando módulo ThreadJob"
+        Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Verificando módulo ThreadJob"
 
         # Verificar si el módulo está disponible
         if (Get-Module -ListAvailable -Name ThreadJob) {
             Import-Module ThreadJob -Force
-            Write-DzDebug "[Initialize-ThreadJob] Módulo ThreadJob importado"
+            Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob importado"
             return $true
         } else {
-            Write-DzDebug "[Initialize-ThreadJob] Módulo ThreadJob no encontrado, intentando instalar"
+            Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob no encontrado, intentando instalar"
 
             try {
                 # Intentar instalar desde PSGallery
                 Install-Module -Name ThreadJob -Force -Scope CurrentUser -ErrorAction Stop
                 Import-Module ThreadJob -Force
-                Write-DzDebug "[Initialize-ThreadJob] Módulo ThreadJob instalado e importado"
+                Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob instalado e importado"
                 return $true
             } catch {
-                Write-DzDebug "[Initialize-ThreadJob] Error instalando ThreadJob: $_"
+                Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Error instalando ThreadJob: $_"
                 return $false
             }
         }
@@ -1456,7 +1952,7 @@ Base de datos: ((
     # Crear el scriptblock con GetNewClosure() para capturar el contexto
     $closeWindowScript = {
         Write-Host "Cerrando aplicación..." -ForegroundColor Yellow
-        Write-DzDebug "`t[DEBUG] Botón Salir presionado" -Color DarkGray
+        Write-DzDebug "`t[DEBUG]`t[DEBUG] Botón Salir presionado" -Color DarkGray
 
         try {
             # Método 1: Buscar la ventana desde el sender
@@ -1465,15 +1961,15 @@ Base de datos: ((
 
             if ($null -ne $win) {
                 $win.Close()
-                Write-DzDebug "`t[DEBUG] Ventana cerrada (método 1)" -Color DarkGray
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Ventana cerrada (método 1)" -Color DarkGray
             } else {
                 # Método 2: Usar la ventana capturada
                 $window.Close()
-                Write-DzDebug "`t[DEBUG] Ventana cerrada (método 2)" -Color DarkGray
+                Write-DzDebug "`t[DEBUG]`t[DEBUG] Ventana cerrada (método 2)" -Color DarkGray
             }
         } catch {
             Write-Host "Error al cerrar: $_" -ForegroundColor Yellow
-            Write-DzDebug "`t[DEBUG] Error: $_" -Color Red
+            Write-DzDebug "`t[DEBUG]`t[DEBUG] Error: $_" -Color Red
         }
     }.GetNewClosure()
 
@@ -1498,18 +1994,18 @@ function Start-Application {
 
     try {
         Write-Host "Mostrando formulario WPF..." -ForegroundColor Yellow
-        Write-DzDebug "`t[DEBUG] Mostrando ventana principal" -Color DarkGray
+        Write-DzDebug "`t[DEBUG]`t[DEBUG] Mostrando ventana principal" -Color DarkGray
 
         # ShowDialog() bloquea hasta que se cierre la ventana
         $null = $mainForm.ShowDialog()
 
         Write-Host "Aplicación finalizada correctamente." -ForegroundColor Green
-        Write-DzDebug "`t[DEBUG] Aplicación finalizada" -Color DarkGray
+        Write-DzDebug "`t[DEBUG]`t[DEBUG] Aplicación finalizada" -Color DarkGray
 
     } catch {
         Write-Host "Error mostrando formulario: $_" -ForegroundColor Red
-        Write-DzDebug "`t[DEBUG] Error mostrando formulario: $_" -Color Red
-        Write-DzDebug "`t[DEBUG] Stack trace: $($_.ScriptStackTrace)" -Color Red
+        Write-DzDebug "`t[DEBUG]`t[DEBUG] Error mostrando formulario: $_" -Color Red
+        Write-DzDebug "`t[DEBUG]`t[DEBUG] Stack trace: $($_.ScriptStackTrace)" -Color Red
         [System.Windows.MessageBox]::Show("Error: $_", "Error en la aplicación")
     }
     # NO HAY FINALLY - Dejar que PowerShell maneje el cierre naturalmente

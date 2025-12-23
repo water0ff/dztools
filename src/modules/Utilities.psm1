@@ -234,29 +234,45 @@ function Invoke-DiskCleanup {
             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzando /sagerun:$profileId (BLOQUEANTE con timeout)"
             Write-Host "`n`tEsperando a que termine la limpieza de disco..." -ForegroundColor Yellow
             Write-Host "`t(Timeout: $TimeoutMinutes minutos)" -ForegroundColor Yellow
-            $proc = Start-Process $cleanmgr `
-                -ArgumentList "/sagerun:$profileId" `
-                -WindowStyle Hidden `
-                -PassThru
+            $proc = Start-Process $cleanmgr -ArgumentList "/sagerun:$profileId" -WindowStyle Hidden -PassThru
+            if ($null -eq $proc) {
+                throw "Invoke-DiskCleanup: Start-Process devolvió NULL (no se pudo iniciar cleanmgr)."
+            }
             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso iniciado. PID=$($proc.Id)"
             $timeoutSeconds = $TimeoutMinutes * 60
             $script:remainingSeconds = $timeoutSeconds
             $script:cleanupCompleted = $false
+            # antes del if ($ProgressWindow...)
+            $timer = $null
+
             if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
+
                 $timer = New-Object System.Windows.Threading.DispatcherTimer
                 $timer.Interval = [TimeSpan]::FromSeconds(1)
+
                 $timer.Add_Tick({
-                        if ($script:remainingSeconds -gt 0) {
-                            $script:remainingSeconds--
-                            $mins = [math]::Floor($script:remainingSeconds / 60)
-                            $secs = $script:remainingSeconds % 60
-                            if ($ProgressWindow.PSObject.Properties.Name -contains 'MessageLabel') {
-                                $ProgressWindow.MessageLabel.Text = "Liberando espacio en disco...`nTiempo restante: $mins min $secs seg"
+                        param($sender, $e)
+
+                        try {
+                            if ($script:remainingSeconds -gt 0) {
+                                $script:remainingSeconds--
+
+                                $mins = [math]::Floor($script:remainingSeconds / 60)
+                                $secs = $script:remainingSeconds % 60
+
+                                if ($ProgressWindow -and $ProgressWindow.PSObject.Properties.Name -contains 'MessageLabel') {
+                                    $ProgressWindow.MessageLabel.Text = "Liberando espacio en disco...`nTiempo restante: $mins min $secs seg"
+                                }
+                            } else {
+                                # ✅ en vez de $this.Stop()
+                                $sender.Stop()
                             }
-                        } else {
-                            $this.Stop()
+                        } catch {
+                            Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Tick EXCEPCIÓN: $($_.Exception.Message)" Red
+                            $sender.Stop()
                         }
-                    }.GetNewClosure())
+                    })
+
                 $timer.Start()
                 Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Timer iniciado"
             }
@@ -266,7 +282,7 @@ function Invoke-DiskCleanup {
                 Start-Sleep -Milliseconds $checkInterval
                 $elapsed += $checkInterval
                 if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
-                    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke(
+                    $ProgressWindow.Dispatcher.Invoke(
                         [System.Windows.Threading.DispatcherPriority]::Background,
                         [action] {}
                     )
@@ -553,90 +569,7 @@ function Check-Permissions {
         }
     }
 }
-function DownloadAndRun {
-    <#
-    .SYNOPSIS
-    Descarga y ejecuta una aplicación desde URL
-    #>
-    param(
-        [string]$url,
-        [string]$zipPath,
-        [string]$extractPath,
-        [string]$exeName,
-        [string]$validationPath
-    )
-    if (!(Test-Path -Path $validationPath)) {
-        $response = [System.Windows.MessageBox]::Show(
-            "El archivo o aplicación no se encontró en '$validationPath'. ¿Desea descargarlo?",
-            "Archivo no encontrado",
-            [System.Windows.MessageBoxButton]::YesNo,
-            [System.Windows.MessageBoxImage]::Warning
-        )
-        if ($response -ne [System.Windows.MessageBoxResult]::Yes) {
-            Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red
-            return
-        }
-    }
-    if (Test-Path -Path $zipPath) {
-        $response = [System.Windows.MessageBox]::Show(
-            "Archivo encontrado. ¿Lo desea eliminar y volver a descargar?",
-            "Archivo ya descargado",
-            [System.Windows.MessageBoxButton]::YesNoCancel,
-            [System.Windows.MessageBoxImage]::Question
-        )
 
-        if ($response -eq [System.Windows.MessageBoxResult]::Yes) {
-            Remove-Item -Path $zipPath -Force
-            Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Host "`tEliminando archivos anteriores..."
-        } elseif ($response -eq [System.Windows.MessageBoxResult]::No) {
-            $exePath = Join-Path -Path $extractPath -ChildPath $exeName
-            if (Test-Path -Path $exePath) {
-                Write-Host "`tEjecutando el archivo ya descargado..."
-                Start-Process -FilePath $exePath
-                Write-Host "`t$exeName se está ejecutando."
-                return
-            } else {
-                Write-Host "`tNo se pudo encontrar el archivo ejecutable." -ForegroundColor Red
-                return
-            }
-        } elseif ($response -eq [System.Windows.MessageBoxResult]::Cancel) {
-            Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red
-            return
-        }
-    }
-    Write-Host "`tDescargando desde: $url"
-    try {
-        $response = Invoke-WebRequest -Uri $url -Method Head
-        $totalSize = $response.Headers["Content-Length"]
-        $totalSizeKB = [math]::round($totalSize / 1KB, 2)
-        Write-Host "`tTamaño total: $totalSizeKB KB" -ForegroundColor Yellow
-        Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
-        Write-Host "`tDescarga completada." -ForegroundColor Green
-    } catch {
-        Write-Host "`tError en descarga: $_" -ForegroundColor Red
-        return
-    }
-    if (!(Test-Path -Path $extractPath)) {
-        New-Item -ItemType Directory -Path $extractPath | Out-Null
-    }
-    Write-Host "`tExtrayendo archivos..."
-    try {
-        Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-        Write-Host "`tArchivos extraídos correctamente." -ForegroundColor Green
-    } catch {
-        Write-Host "`tError al descomprimir: $_" -ForegroundColor Red
-        return
-    }
-    $exePath = Join-Path -Path $extractPath -ChildPath $exeName
-    if (Test-Path -Path $exePath) {
-        Write-Host "`tEjecutando $exeName..."
-        Start-Process -FilePath $exePath
-        Write-Host "`n$exeName se está ejecutando."
-    } else {
-        Write-Host "`nNo se pudo encontrar el archivo ejecutable." -ForegroundColor Red
-    }
-}
 function Refresh-AdapterStatus {
     try {
         if ($null -eq $global:txt_AdapterStatus) {
@@ -801,8 +734,8 @@ function Start-SystemUpdate {
         return $true
     } catch {
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: EXCEPCIÓN: $($_.Exception.Message)" Red
-        Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
-        [System.Windows.MessageBox]::Show(
+        Write-DzDebug "`t[DEBUG]Start-SystemUpdate: ScriptStackTrace: $($_.ScriptStackTrace)" Red
+        Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red        [System.Windows.MessageBox]::Show(
             "Error durante la actualización: $($_.Exception.Message)`n`n" +
             "Revise los logs y considere reiniciar manualmente el equipo.",
             "Error en actualización",
@@ -819,7 +752,7 @@ function Start-SystemUpdate {
 }
 function Get-SqlPortWithDebug {
     Write-DzDebug "`n[DEBUG] === INICIANDO BÚSQUEDA DE PUERTOS SQL ==="
-    Write-DzDebug "[DEBUG] Fecha/Hora: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    Write-DzDebug "`t[DEBUG] Fecha/Hora: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 
     $ports = @()
 
@@ -830,32 +763,32 @@ function Get-SqlPortWithDebug {
     )
 
     # 1. Buscar por todas las instancias instaladas
-    Write-DzDebug "[DEBUG] 1. Buscando instancias SQL instaladas..."
+    Write-DzDebug "`t[DEBUG] 1. Buscando instancias SQL instaladas..."
 
     foreach ($basePath in $registryPaths) {
         try {
-            Write-DzDebug "[DEBUG]   Examinando ruta: $basePath"
+            Write-DzDebug "`t[DEBUG]   Examinando ruta: $basePath"
 
             if (-not (Test-Path $basePath)) {
-                Write-DzDebug "[DEBUG]   ✗ La ruta no existe"
+                Write-DzDebug "`t[DEBUG]   ✗ La ruta no existe"
                 continue
             }
 
             # Método 1: Obtener de InstalledInstances
-            Write-DzDebug "[DEBUG]   Método 1: Buscando en 'InstalledInstances'..."
+            Write-DzDebug "`t[DEBUG]   Método 1: Buscando en 'InstalledInstances'..."
             $installedInstances = Get-ItemProperty -Path $basePath -Name "InstalledInstances" -ErrorAction SilentlyContinue
 
             if ($installedInstances -and $installedInstances.InstalledInstances) {
-                Write-DzDebug "[DEBUG]   ✓ Instancias encontradas: $($installedInstances.InstalledInstances -join ', ')"
+                Write-DzDebug "`t[DEBUG]   ✓ Instancias encontradas: $($installedInstances.InstalledInstances -join ', ')"
 
                 foreach ($instance in $installedInstances.InstalledInstances) {
                     # Si ya procesamos esta instancia, saltar
                     if ($ports.Instance -contains $instance) {
-                        Write-DzDebug "[DEBUG]     Instancia '$instance' ya procesada, saltando..."
+                        Write-DzDebug "`t[DEBUG]     Instancia '$instance' ya procesada, saltando..."
                         continue
                     }
 
-                    Write-DzDebug "[DEBUG]     Procesando instancia: '$instance'"
+                    Write-DzDebug "`t[DEBUG]     Procesando instancia: '$instance'"
 
                     # Construir rutas posibles para esta instancia
                     $possiblePaths = @(
@@ -866,10 +799,10 @@ function Get-SqlPortWithDebug {
 
                     $portFound = $false
                     foreach ($tcpPath in $possiblePaths) {
-                        Write-DzDebug "[DEBUG]       Probando ruta: $tcpPath"
+                        Write-DzDebug "`t[DEBUG]       Probando ruta: $tcpPath"
 
                         if (Test-Path $tcpPath) {
-                            Write-DzDebug "[DEBUG]       ✓ Ruta existe"
+                            Write-DzDebug "`t[DEBUG]       ✓ Ruta existe"
 
                             # Buscar puerto TCP
                             $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
@@ -883,7 +816,7 @@ function Get-SqlPortWithDebug {
                                     Type     = "Static"
                                 }
                                 $ports += $portInfo
-                                Write-DzDebug "[DEBUG]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
+                                Write-DzDebug "`t[DEBUG]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
                                 $portFound = $true
                                 break
                             } elseif ($tcpDynamicPorts -and $tcpDynamicPorts.TcpDynamicPorts) {
@@ -894,50 +827,50 @@ function Get-SqlPortWithDebug {
                                     Type     = "Dynamic"
                                 }
                                 $ports += $portInfo
-                                Write-DzDebug "[DEBUG]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
+                                Write-DzDebug "`t[DEBUG]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
                                 $portFound = $true
                                 break
                             } else {
-                                Write-DzDebug "[DEBUG]       ✗ No se encontró puerto en esta ruta"
+                                Write-DzDebug "`t[DEBUG]       ✗ No se encontró puerto en esta ruta"
                             }
                         } else {
-                            Write-DzDebug "[DEBUG]       ✗ Ruta no existe"
+                            Write-DzDebug "`t[DEBUG]       ✗ Ruta no existe"
                         }
                     }
 
                     if (-not $portFound) {
-                        Write-DzDebug "[DEBUG]     ✗ No se encontró puerto para la instancia '$instance'"
+                        Write-DzDebug "`t[DEBUG]     ✗ No se encontró puerto para la instancia '$instance'"
                     }
                 }
             } else {
-                Write-DzDebug "[DEBUG]   ✗ No se encontró la clave 'InstalledInstances' en esta ruta"
+                Write-DzDebug "`t[DEBUG]   ✗ No se encontró la clave 'InstalledInstances' en esta ruta"
             }
 
             # Método 2: Explorar todas las carpetas bajo SQL Server
-            Write-DzDebug "[DEBUG]   Método 2: Explorando todas las carpetas..."
+            Write-DzDebug "`t[DEBUG]   Método 2: Explorando todas las carpetas..."
 
             $allSqlEntries = Get-ChildItem -Path $basePath -ErrorAction SilentlyContinue |
             Where-Object { $_.PSIsContainer } |
             Select-Object -ExpandProperty PSChildName
 
             if ($allSqlEntries) {
-                Write-DzDebug "[DEBUG]   Carpetas encontradas: $($allSqlEntries -join ', ')"
+                Write-DzDebug "`t[DEBUG]   Carpetas encontradas: $($allSqlEntries -join ', ')"
 
                 foreach ($entry in $allSqlEntries) {
                     # Filtrar nombres que parecen instancias
                     if ($entry -match "^MSSQL\d+" -or $entry -match "^SQL" -or $entry -match "NATIONALSOFT") {
                         # Si ya procesamos esta instancia, saltar
                         if ($ports.Instance -contains $entry) {
-                            Write-DzDebug "[DEBUG]     Instancia '$entry' ya procesada, saltando..."
+                            Write-DzDebug "`t[DEBUG]     Instancia '$entry' ya procesada, saltando..."
                             continue
                         }
 
-                        Write-DzDebug "[DEBUG]     Analizando posible instancia: '$entry'"
+                        Write-DzDebug "`t[DEBUG]     Analizando posible instancia: '$entry'"
 
                         $tcpPath = "$basePath\$entry\MSSQLServer\SuperSocketNetLib\Tcp"
 
                         if (Test-Path $tcpPath) {
-                            Write-DzDebug "[DEBUG]       ✓ Ruta TCP encontrada: $tcpPath"
+                            Write-DzDebug "`t[DEBUG]       ✓ Ruta TCP encontrada: $tcpPath"
 
                             $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
                             $tcpDynamicPorts = Get-ItemProperty -Path $tcpPath -Name "TcpDynamicPorts" -ErrorAction SilentlyContinue
@@ -950,7 +883,7 @@ function Get-SqlPortWithDebug {
                                     Type     = "Static"
                                 }
                                 $ports += $portInfo
-                                Write-DzDebug "[DEBUG]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
+                                Write-DzDebug "`t[DEBUG]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
                             } elseif ($tcpDynamicPorts -and $tcpDynamicPorts.TcpDynamicPorts) {
                                 $portInfo = [PSCustomObject]@{
                                     Instance = $entry
@@ -959,9 +892,9 @@ function Get-SqlPortWithDebug {
                                     Type     = "Dynamic"
                                 }
                                 $ports += $portInfo
-                                Write-DzDebug "[DEBUG]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
+                                Write-DzDebug "`t[DEBUG]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
                             } else {
-                                Write-DzDebug "[DEBUG]       ✗ No se encontró puerto en esta ruta"
+                                Write-DzDebug "`t[DEBUG]       ✗ No se encontró puerto en esta ruta"
                             }
                         }
                     }
@@ -969,19 +902,19 @@ function Get-SqlPortWithDebug {
             }
 
         } catch {
-            Write-DzDebug "[DEBUG]   ERROR en búsqueda: $($_.Exception.Message)"
-            Write-DzDebug "[DEBUG]   StackTrace: $($_.ScriptStackTrace)"
+            Write-DzDebug "`t[DEBUG]   ERROR en búsqueda: $($_.Exception.Message)"
+            Write-DzDebug "`t[DEBUG]   StackTrace: $($_.ScriptStackTrace)"
         }
     }
 
     # Método 3: Buscar por servicios SQL Server (común para ambos)
-    Write-DzDebug "[DEBUG]   Método 3: Buscando servicios SQL Server..."
+    Write-DzDebug "`t[DEBUG]   Método 3: Buscando servicios SQL Server..."
 
     $sqlServices = Get-Service -Name "*SQL*" -ErrorAction SilentlyContinue |
     Where-Object { $_.DisplayName -like "*SQL Server (*" }
 
     foreach ($service in $sqlServices) {
-        Write-DzDebug "[DEBUG]     Servicio: $($service.DisplayName)"
+        Write-DzDebug "`t[DEBUG]     Servicio: $($service.DisplayName)"
 
         # Extraer nombre de instancia del servicio
         if ($service.DisplayName -match "SQL Server \((.+)\)") {
@@ -989,11 +922,11 @@ function Get-SqlPortWithDebug {
 
             # Si ya procesamos esta instancia, saltar
             if ($ports.Instance -contains $instanceName) {
-                Write-DzDebug "[DEBUG]       Instancia '$instanceName' ya procesada, saltando..."
+                Write-DzDebug "`t[DEBUG]       Instancia '$instanceName' ya procesada, saltando..."
                 continue
             }
 
-            Write-DzDebug "[DEBUG]       Posible instancia: '$instanceName'"
+            Write-DzDebug "`t[DEBUG]       Posible instancia: '$instanceName'"
             # Buscar en ambas rutas del registro
             foreach ($basePath in $registryPaths) {
                 $tcpPath = "$basePath\MSSQLServer\$instanceName\SuperSocketNetLib\Tcp"
@@ -1010,7 +943,7 @@ function Get-SqlPortWithDebug {
                             Type     = "Static"
                         }
                         $ports += $portInfo
-                        Write-DzDebug "[DEBUG]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
+                        Write-DzDebug "`t[DEBUG]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
                         break
                     } elseif ($tcpDynamicPorts -and $tcpDynamicPorts.TcpDynamicPorts) {
                         $portInfo = [PSCustomObject]@{
@@ -1020,7 +953,7 @@ function Get-SqlPortWithDebug {
                             Type     = "Dynamic"
                         }
                         $ports += $portInfo
-                        Write-DzDebug "[DEBUG]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
+                        Write-DzDebug "`t[DEBUG]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
                         break
                     }
                 }
@@ -1029,12 +962,12 @@ function Get-SqlPortWithDebug {
     }
 
     # Método 4: Buscar puertos en uso por SQL Server
-    Write-DzDebug "[DEBUG]   Método 4: Buscando puertos en uso por sqlservr.exe..."
+    Write-DzDebug "`t[DEBUG]   Método 4: Buscando puertos en uso por sqlservr.exe..."
 
     $sqlProcesses = Get-Process -Name "sqlservr" -ErrorAction SilentlyContinue
     if ($sqlProcesses) {
         foreach ($process in $sqlProcesses) {
-            Write-DzDebug "[DEBUG]     Proceso sqlservr.exe encontrado (PID: $($process.Id))"
+            Write-DzDebug "`t[DEBUG]     Proceso sqlservr.exe encontrado (PID: $($process.Id))"
 
             # Obtener puertos usando netstat
             $netstatOutput = netstat -ano | Select-String ":$($process.Id)\s"
@@ -1042,7 +975,7 @@ function Get-SqlPortWithDebug {
             foreach ($line in $netstatOutput) {
                 if ($line -match ":(\d+)\s.*$($process.Id)$") {
                     $port = $matches[1]
-                    Write-DzDebug "[DEBUG]       Puerto en uso: $port"
+                    Write-DzDebug "`t[DEBUG]       Puerto en uso: $port"
 
                     # Si no tenemos esta instancia en la lista, agregarla
                     if (-not ($ports.Port -contains $port)) {
@@ -1066,29 +999,29 @@ function Get-SqlPortWithDebug {
             }
         }
     } else {
-        Write-DzDebug "[DEBUG]     ✗ No se encontraron procesos sqlservr.exe"
+        Write-DzDebug "`t[DEBUG]     ✗ No se encontraron procesos sqlservr.exe"
     }
 
     # Resumen final
-    Write-DzDebug "[DEBUG] `n=== RESUMEN DE BÚSQUEDA ==="
-    Write-DzDebug "[DEBUG] Total de instancias con puerto encontradas: $($ports.Count)"
+    Write-DzDebug "`t[DEBUG] `n=== RESUMEN DE BÚSQUEDA ==="
+    Write-DzDebug "`t[DEBUG] Total de instancias con puerto encontradas: $($ports.Count)"
 
     if ($ports.Count -gt 0) {
         foreach ($port in $ports) {
-            Write-DzDebug "[DEBUG]   - Instancia: $($port.Instance) | Puerto: $($port.Port) | Tipo: $($port.Type)"
-            Write-DzDebug "[DEBUG]     Ruta: $($port.Path)"
+            Write-DzDebug "`t[DEBUG]   - Instancia: $($port.Instance) | Puerto: $($port.Port) | Tipo: $($port.Type)"
+            Write-DzDebug "`t[DEBUG]     Ruta: $($port.Path)"
         }
     } else {
-        Write-DzDebug "[DEBUG]   ✗ No se encontraron puertos SQL configurados"
+        Write-DzDebug "`t[DEBUG]   ✗ No se encontraron puertos SQL configurados"
 
         # Sugerencias para debugging
-        Write-DzDebug "[DEBUG] `n=== SUGERENCIAS ==="
-        Write-DzDebug "[DEBUG] 1. Verifica si SQL Server está instalado"
-        Write-DzDebug "[DEBUG] 2. Revisa el Configuration Manager de SQL Server"
-        Write-DzDebug "[DEBUG] 3. Verifica si el servicio SQL Server está ejecutándose"
-        Write-DzDebug "[DEBUG] 4. Consulta el log de errores de SQL Server"
+        Write-DzDebug "`t[DEBUG] `n=== SUGERENCIAS ==="
+        Write-DzDebug "`t[DEBUG] 1. Verifica si SQL Server está instalado"
+        Write-DzDebug "`t[DEBUG] 2. Revisa el Configuration Manager de SQL Server"
+        Write-DzDebug "`t[DEBUG] 3. Verifica si el servicio SQL Server está ejecutándose"
+        Write-DzDebug "`t[DEBUG] 4. Consulta el log de errores de SQL Server"
     }
-    Write-DzDebug "[DEBUG] === FIN DE BÚSQUEDA ===`n"
+    Write-DzDebug "`t[DEBUG] === FIN DE BÚSQUEDA ===`n"
     if ($ports.Count -gt 0) {
         # Ordenar por instancia
         $ports = $ports | Sort-Object -Property Instance
@@ -1248,6 +1181,104 @@ function Install-7ZipWithChoco {
     }
 }
 
+function Download-FileWithProgressWpfStream {
+    param(
+        [Parameter(Mandatory)] [string]$Url,
+        [Parameter(Mandatory)] [string]$OutFile,
+        [Parameter(Mandatory)] $Window,
+        [Parameter()] [ScriptBlock]$OnStatus
+    )
+
+    try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
+
+    $dir = Split-Path $OutFile -Parent
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+
+    $total = $null
+    try {
+        $head = Invoke-WebRequest -Uri $Url -Method Head -UseBasicParsing -ErrorAction Stop
+        $cl = $head.Headers["Content-Length"]
+        if ($cl) { $total = [int64]$cl }
+    } catch {
+        $total = $null
+    }
+
+    $req = [System.Net.HttpWebRequest]::Create($Url)
+    $req.Method = "GET"
+    $req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    $req.Accept = "*/*"
+    $req.AllowAutoRedirect = $true
+
+    $resp = $null
+    $inStream = $null
+    $outStream = $null
+
+    try {
+        $resp = $req.GetResponse()
+        if (-not $total) {
+            try { $total = [int64]$resp.ContentLength } catch { $total = $null }
+        }
+
+        $inStream = $resp.GetResponseStream()
+        $outStream = New-Object System.IO.FileStream($OutFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+
+        $buffer = New-Object byte[] (1024 * 128)
+        [int64]$readTotal = 0
+        [int64]$lastUi = 0
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+
+        if ($Window -and $Window.ProgressBar) {
+            try {
+                $Window.Dispatcher.Invoke([Action] {
+                        $Window.ProgressBar.IsIndeterminate = $false
+                        $Window.ProgressBar.Value = 0
+                    }, [System.Windows.Threading.DispatcherPriority]::Render) | Out-Null
+            } catch {}
+        }
+
+        while (($read = $inStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $outStream.Write($buffer, 0, $read)
+            $readTotal += $read
+
+            if (($readTotal - $lastUi) -ge (512KB) -or $sw.ElapsedMilliseconds -ge 200) {
+                $lastUi = $readTotal
+                $sw.Restart()
+
+                $percent = 0
+                if ($total -and $total -gt 0) {
+                    $percent = [int][Math]::Min(100, [Math]::Floor(($readTotal * 100.0) / $total))
+                }
+
+                $mb = [Math]::Round($readTotal / 1MB, 2)
+                $totalMb = if ($total) { [Math]::Round($total / 1MB, 2) } else { $null }
+                $msg = if ($totalMb) { "Descargando... $mb / $totalMb MB ($percent%)" } else { "Descargando... $mb MB" }
+
+                if ($Window) {
+                    try {
+                        Update-WpfProgressBar -Window $Window -Percent $percent -Message $msg
+                        $Window.Dispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Render) | Out-Null
+                    } catch {}
+                }
+
+                if ($OnStatus) { try { & $OnStatus $percent $msg } catch {} }
+            }
+        }
+
+        if ($Window) {
+            try {
+                Update-WpfProgressBar -Window $Window -Percent 100 -Message "Descarga completada."
+                $Window.Dispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Render) | Out-Null
+            } catch {}
+        }
+
+        return $true
+    } finally {
+        try { if ($outStream) { $outStream.Flush(); $outStream.Close() } } catch {}
+        try { if ($inStream) { $inStream.Close() } } catch {}
+        try { if ($resp) { $resp.Close() } } catch {}
+    }
+}
+
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
@@ -1266,7 +1297,7 @@ Export-ModuleMember -Function @(
     'Test-7ZipInstalled',
     'Test-MegaToolsInstalled',
     'Check-Permissions',
-    'DownloadAndRun',
+    'Download-FileWithProgressWpfStream',
     'Refresh-AdapterStatus',
     'Get-NetworkAdapterStatus',
     'Start-SystemUpdate',

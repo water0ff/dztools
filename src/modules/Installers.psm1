@@ -398,21 +398,21 @@ function Show-SSMSInstallerDialog {
 
         # Eventos
         $btnOK.Add_Click({
-            $selectedIndex = $cmbVersion.SelectedIndex
-            $script:selectedVersion = switch ($selectedIndex) {
-                0 { "latest" }
-                1 { "ssms14" }
-                default { "latest" }
-            }
-            $window.DialogResult = $true
-            $window.Close()
-        })
+                $selectedIndex = $cmbVersion.SelectedIndex
+                $script:selectedVersion = switch ($selectedIndex) {
+                    0 { "latest" }
+                    1 { "ssms14" }
+                    default { "latest" }
+                }
+                $window.DialogResult = $true
+                $window.Close()
+            })
 
         $btnCancel.Add_Click({
-            $script:selectedVersion = $null
-            $window.DialogResult = $false
-            $window.Close()
-        })
+                $script:selectedVersion = $null
+                $window.DialogResult = $false
+                $window.Close()
+            })
 
         # Mostrar diálogo
         $result = $window.ShowDialog()
@@ -494,7 +494,7 @@ function Get-InstalledChocoPackages {
         foreach ($line in $output) {
             if ($line -match '^(?<name>[^\|]+)\|(?<version>.+)$') {
                 $packages += [PSCustomObject]@{
-                    Name = $Matches['name']
+                    Name    = $Matches['name']
                     Version = $Matches['version']
                 }
             }
@@ -546,8 +546,8 @@ function Search-ChocoPackages {
 
             if ($line -match $pattern) {
                 $packages += [PSCustomObject]@{
-                    Name = $Matches['name']
-                    Version = $Matches['version']
+                    Name        = $Matches['name']
+                    Version     = $Matches['version']
                     Description = $Matches['description'].Trim()
                 }
             }
@@ -649,20 +649,358 @@ function Uninstall-ChocoPackage {
         return $false
     }
 }
+function Show-ChocolateyInstallerMenu {
+    <#
+    .SYNOPSIS
+        Menú de instalación de paquetes Chocolatey con búsqueda mejorada.
+    #>
 
-# ============================================
-# EXPORTAR FUNCIONES
-# ============================================
-Export-ModuleMember -Function `
-    Check-Chocolatey,
-    Test-ChocolateyInstalled,
-    Install-Software,
-    Download-File,
-    Expand-ArchiveFile,
-    Show-SSMSInstallerDialog,
-    Test-7ZipInstalled,
-    Test-MegaToolsInstalled,
-    Get-InstalledChocoPackages,
-    Search-ChocoPackages,
-    Install-ChocoPackage,
-    Uninstall-ChocoPackage
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Instaladores Choco" Height="420" Width="520"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+    <Grid Margin="10" Background="#505055">
+        <Label Content="Buscar en Chocolatey:" HorizontalAlignment="Left" VerticalAlignment="Top"
+               Margin="0,0,0,0" Foreground="White"/>
+        <TextBox Name="txtChocoSearch" HorizontalAlignment="Left" VerticalAlignment="Top"
+                 Width="360" Height="25" Margin="0,25,0,0"/>
+        <Button Content="Buscar" Name="btnBuscarChoco" Width="120" Height="32"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="370,23,0,0"
+                Background="#4CAF50" Foreground="White"/>
+
+        <Label Content="SSMS" Name="lblPresetSSMS" Width="70" Height="25"
+               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,65,0,0"
+               Background="#C8E6FF" HorizontalContentAlignment="Center"
+               VerticalContentAlignment="Center" BorderBrush="Black" BorderThickness="1" Cursor="Hand"/>
+        <Label Content="Heidi" Name="lblPresetHeidi" Width="70" Height="25"
+               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="80,65,0,0"
+               Background="#C8E6FF" HorizontalContentAlignment="Center"
+               VerticalContentAlignment="Center" BorderBrush="Black" BorderThickness="1" Cursor="Hand"/>
+
+        <Button Content="Mostrar instalados" Name="btnShowInstalledChoco" Width="150" Height="32"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,100,0,0"/>
+        <Button Content="Instalar seleccionado" Name="btnInstallSelectedChoco" Width="170" Height="32"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="160,100,0,0" IsEnabled="False"/>
+        <Button Content="Desinstalar seleccionado" Name="btnUninstallSelectedChoco" Width="150" Height="32"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="340,100,0,0" IsEnabled="False"/>
+        <DataGrid Name="dgvChocoResults" HorizontalAlignment="Left" VerticalAlignment="Top"
+                Width="490" Height="200" Margin="0,145,0,0" IsReadOnly="True"
+                AutoGenerateColumns="False" SelectionMode="Single" CanUserAddRows="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Paquete" Binding="{Binding Name}" Width="170"/>
+                <DataGridTextColumn Header="Versión" Binding="{Binding Version}" Width="100"/>
+                <DataGridTextColumn Header="Descripción" Binding="{Binding Description}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <Button Content="Salir" Name="btnExitInstaladores" Width="490" Height="30"
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,355,0,0"/>
+    </Grid>
+</Window>
+"@
+
+    try {
+        $result = New-WpfWindow -Xaml $xaml -PassThru
+        $window = $result.Window
+    } catch {
+        Write-Host "Error creando ventana: $_" -ForegroundColor Red
+        return
+    }
+
+    # Obtener controles
+    $txtChocoSearch = $window.FindName("txtChocoSearch")
+    $btnBuscarChoco = $window.FindName("btnBuscarChoco")
+    $lblPresetSSMS = $window.FindName("lblPresetSSMS")
+    $lblPresetHeidi = $window.FindName("lblPresetHeidi")
+    $btnShowInstalledChoco = $window.FindName("btnShowInstalledChoco")
+    $btnInstallSelectedChoco = $window.FindName("btnInstallSelectedChoco")
+    $btnUninstallSelectedChoco = $window.FindName("btnUninstallSelectedChoco")
+    $dgvChocoResults = $window.FindName("dgvChocoResults")
+    $btnExitInstaladores = $window.FindName("btnExitInstaladores")
+
+    # Colección observable
+    $chocoResultsCollection = New-Object System.Collections.ObjectModel.ObservableCollection[PSObject]
+    $dgvChocoResults.ItemsSource = $chocoResultsCollection
+
+    # Función auxiliar para agregar resultados (SEARCH)
+    $addChocoResult = {
+        param($line)
+        if ([string]::IsNullOrWhiteSpace($line)) { return }
+        if ($line -match '^Chocolatey') { return }
+        if ($line -match 'packages?\s+found' -or $line -match 'page size') { return }
+
+        if ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+(?<version>[0-9][A-Za-z0-9\.\-]*)\s+(?<description>.+)$') {
+            $window.Dispatcher.Invoke([action] {
+                    $chocoResultsCollection.Add([PSCustomObject]@{
+                            Name        = $Matches['name']
+                            Version     = $Matches['version']
+                            Description = $Matches['description'].Trim()
+                        })
+                }) | Out-Null
+        } elseif ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+\|\s+(?<version>[0-9][A-Za-z0-9\.\-]*)$') {
+            $window.Dispatcher.Invoke([action] {
+                    $chocoResultsCollection.Add([PSCustomObject]@{
+                            Name        = $Matches['name']
+                            Version     = $Matches['version']
+                            Description = "Paquete instalado"
+                        })
+                }) | Out-Null
+        }
+    }
+
+    # Función auxiliar para agregar resultados (INSTALADOS)  ✅ NUEVA
+    # Formato esperado con --limit-output: paquete|version
+    $addChocoInstalled = {
+        param($line)
+
+        if ([string]::IsNullOrWhiteSpace($line)) { return }
+        if ($line -match '^Chocolatey') { return }
+
+        if ($line -match '^(?<name>[^|]+)\|(?<version>.+)$') {
+            $name = $Matches['name'].Trim()
+            $ver = $Matches['version'].Trim()
+
+            $window.Dispatcher.Invoke([action] {
+                    $chocoResultsCollection.Add([PSCustomObject]@{
+                            Name        = $name
+                            Version     = $ver
+                            Description = "Paquete instalado"
+                        })
+                }) | Out-Null
+        }
+    }
+
+    # Actualizar botones de acción
+    $updateActionButtons = {
+        $hasValidSelection = $false
+        if ($dgvChocoResults.SelectedItem) {
+            $selectedItem = $dgvChocoResults.SelectedItem
+            if ($selectedItem.Name -and $selectedItem.Version -match '^[0-9]') {
+                $hasValidSelection = $true
+            }
+        }
+        $btnInstallSelectedChoco.IsEnabled = $hasValidSelection
+        $btnUninstallSelectedChoco.IsEnabled = $hasValidSelection
+    }
+
+    $dgvChocoResults.Add_SelectionChanged({ & $updateActionButtons })
+
+    # Botón Buscar - MEJORADO CON BARRA DE PROGRESO
+    $btnBuscarChoco.Add_Click({
+            $chocoResultsCollection.Clear()
+            & $updateActionButtons
+
+            $query = $txtChocoSearch.Text.Trim()
+
+            if ([string]::IsNullOrWhiteSpace($query)) {
+                [System.Windows.MessageBox]::Show("Ingresa un término para buscar", "Búsqueda")
+                return
+            }
+
+            if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+                [System.Windows.MessageBox]::Show("Chocolatey no está instalado", "Error")
+                return
+            }
+
+            $btnBuscarChoco.IsEnabled = $false
+
+            # USAR BARRA DE PROGRESO MEJORADA
+            $progress = Show-WpfProgressBar -Title "Buscando paquetes" -Message "Iniciando búsqueda..."
+
+            try {
+                Update-WpfProgressBar -Window $progress -Percent 20 -Message "Verificando Chocolatey..."
+                Start-Sleep -Milliseconds 300
+
+                Update-WpfProgressBar -Window $progress -Percent 40 -Message "Buscando '$query'..."
+                $searchOutput = & choco search $query --page-size=20 2>&1
+
+                Update-WpfProgressBar -Window $progress -Percent 70 -Message "Procesando resultados..."
+
+                foreach ($line in $searchOutput) {
+                    & $addChocoResult $line
+                }
+
+                Update-WpfProgressBar -Window $progress -Percent 100 -Message "Búsqueda completada"
+                Start-Sleep -Milliseconds 300
+
+                if ($chocoResultsCollection.Count -eq 0) {
+                    [System.Windows.MessageBox]::Show("No se encontraron paquetes", "Sin resultados")
+                }
+            } catch {
+                Write-Error "Error: $_"
+                [System.Windows.MessageBox]::Show("Error durante la búsqueda: $_", "Error")
+            } finally {
+                Close-WpfProgressBar -Window $progress
+                $btnBuscarChoco.IsEnabled = $true
+            }
+        })
+
+    # Presets
+    $lblPresetSSMS.Add_MouseLeftButtonDown({
+            $txtChocoSearch.Text = "ssms"
+            $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent)))
+        })
+
+    $lblPresetHeidi.Add_MouseLeftButtonDown({
+            $txtChocoSearch.Text = "heidi"
+            $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent)))
+        })
+
+    # Mostrar instalados - FIX (parse correcto de choco list)
+    $btnShowInstalledChoco.Add_Click({
+            $chocoResultsCollection.Clear()
+            & $updateActionButtons
+
+            if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+                [System.Windows.MessageBox]::Show("Chocolatey no está instalado", "Error")
+                return
+            }
+
+            $btnShowInstalledChoco.IsEnabled = $false
+            $progress = Show-WpfProgressBar -Title "Listando instalados" -Message "Recuperando paquetes..."
+
+            try {
+                Update-WpfProgressBar -Window $progress -Percent 30 -Message "Consultando paquetes instalados..."
+
+                # ✅ Este formato es el más fácil de parsear:
+                # choco list --local-only --limit-output  => paquete|version
+                $installedOutput = & choco list --local-only --limit-output 2>&1
+
+                Update-WpfProgressBar -Window $progress -Percent 70 -Message "Procesando resultados..."
+
+                foreach ($line in $installedOutput) {
+                    & $addChocoInstalled $line
+                }
+
+                Update-WpfProgressBar -Window $progress -Percent 100 -Message "Completado"
+                Start-Sleep -Milliseconds 200
+
+                if ($chocoResultsCollection.Count -eq 0) {
+                    [System.Windows.MessageBox]::Show("No hay paquetes instalados (o no se pudo leer la salida).", "Sin resultados")
+                }
+            } catch {
+                Write-Error "Error: $_"
+                [System.Windows.MessageBox]::Show("Error consultando paquetes: $_", "Error")
+            } finally {
+                Close-WpfProgressBar -Window $progress
+                $btnShowInstalledChoco.IsEnabled = $true
+            }
+        })
+
+    $btnInstallSelectedChoco.Add_Click({
+            if (-not $dgvChocoResults.SelectedItem) {
+                [System.Windows.MessageBox]::Show("Seleccione un paquete", "Instalación")
+                return
+            }
+
+            $packageName = $dgvChocoResults.SelectedItem.Name
+
+            $result = [System.Windows.MessageBox]::Show(
+                "¿Instalar $packageName?",
+                "Confirmar",
+                [System.Windows.MessageBoxButton]::YesNo,
+                [System.Windows.MessageBoxImage]::Question
+            )
+
+            if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
+                return
+            }
+
+            $progress = Show-WpfProgressBar -Title "Instalando" -Message "Preparando instalación..."
+
+            try {
+                Update-WpfProgressBar -Window $progress -Percent 20 -Message "Verificando paquete..."
+                Start-Sleep -Milliseconds 300
+
+                Update-WpfProgressBar -Window $progress -Percent 40 -Message "Instalando $packageName..."
+
+                $installProcess = Start-Process -FilePath "choco" `
+                    -ArgumentList "install", $packageName, "-y" `
+                    -NoNewWindow -PassThru -Wait
+
+                Update-WpfProgressBar -Window $progress -Percent 90 -Message "Verificando instalación..."
+                Start-Sleep -Milliseconds 500
+
+                if ($installProcess.ExitCode -eq 0) {
+                    Update-WpfProgressBar -Window $progress -Percent 100 -Message "Instalación completada"
+                    Start-Sleep -Milliseconds 500
+                    [System.Windows.MessageBox]::Show("Paquete instalado exitosamente", "Éxito")
+                } else {
+                    throw "Error de instalación: código $($installProcess.ExitCode)"
+                }
+            } catch {
+                Write-Error $_
+                [System.Windows.MessageBox]::Show("Error: $_", "Error")
+            } finally {
+                Close-WpfProgressBar -Window $progress
+            }
+        })
+
+    # Desinstalar - MEJORADO
+    $btnUninstallSelectedChoco.Add_Click({
+            if (-not $dgvChocoResults.SelectedItem) {
+                [System.Windows.MessageBox]::Show("Seleccione un paquete", "Desinstalación")
+                return
+            }
+
+            $packageName = $dgvChocoResults.SelectedItem.Name
+
+            $result = [System.Windows.MessageBox]::Show(
+                "¿Desinstalar $packageName?",
+                "Confirmar",
+                [System.Windows.MessageBoxButton]::YesNo,
+                [System.Windows.MessageBoxImage]::Warning
+            )
+
+            if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
+                return
+            }
+
+            $progress = Show-WpfProgressBar -Title "Desinstalando" -Message "Preparando desinstalación..."
+
+            try {
+                Update-WpfProgressBar -Window $progress -Percent 30 -Message "Desinstalando $packageName..."
+
+                $uninstallProcess = Start-Process -FilePath "choco" `
+                    -ArgumentList "uninstall", $packageName, "-y" `
+                    -NoNewWindow -PassThru -Wait
+
+                Update-WpfProgressBar -Window $progress -Percent 90 -Message "Verificando desinstalación..."
+                Start-Sleep -Milliseconds 500
+
+                if ($uninstallProcess.ExitCode -eq 0) {
+                    Update-WpfProgressBar -Window $progress -Percent 100 -Message "Desinstalación completada"
+                    Start-Sleep -Milliseconds 500
+                    [System.Windows.MessageBox]::Show("Paquete desinstalado exitosamente", "Éxito")
+                } else {
+                    throw "Error: código $($uninstallProcess.ExitCode)"
+                }
+            } catch {
+                Write-Error $_
+                [System.Windows.MessageBox]::Show("Error: $_", "Error")
+            } finally {
+                Close-WpfProgressBar -Window $progress
+            }
+        })
+
+    # Salir
+    $btnExitInstaladores.Add_Click({ $window.Close() })
+
+    # Mostrar ventana
+    $window.ShowDialog() | Out-Null
+}
+
+Export-ModuleMember -Function @(
+    'Check-Chocolatey',
+    'Test-ChocolateyInstalled',
+    'Install-Software',
+    'Download-File',
+    'Expand-ArchiveFile',
+    'Show-SSMSInstallerDialog',
+    'Test-7ZipInstalled',
+    'Test-MegaToolsInstalled',
+    'Get-InstalledChocoPackages',
+    'Search-ChocoPackages',
+    'Install-ChocoPackage',
+    'Uninstall-ChocoPackage',
+    'Show-ChocolateyInstallerMenu'
+)

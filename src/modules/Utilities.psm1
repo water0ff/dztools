@@ -1131,6 +1131,123 @@ function Show-SqlPortsInfo {
     }
     Write-Host "`n=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
 }
+function Show-ConfirmDialog {
+    <#
+      .SYNOPSIS
+      Confirmación Yes/No con WPF MessageBox
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Message,
+        [Parameter(Mandatory)]
+        [string]$Title
+    )
+
+    Add-Type -AssemblyName PresentationFramework | Out-Null
+    $result = [System.Windows.MessageBox]::Show(
+        $Message,
+        $Title,
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Question
+    )
+
+    return ($result -eq [System.Windows.MessageBoxResult]::Yes)
+}
+
+function Show-InfoDialog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Message,
+        [Parameter(Mandatory)]
+        [string]$Title
+    )
+    Add-Type -AssemblyName PresentationFramework | Out-Null
+    [System.Windows.MessageBox]::Show(
+        $Message,
+        $Title,
+        [System.Windows.MessageBoxButton]::OK,
+        [System.Windows.MessageBoxImage]::Information
+    ) | Out-Null
+}
+
+function Show-WarnDialog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Message,
+        [Parameter(Mandatory)]
+        [string]$Title
+    )
+    Add-Type -AssemblyName PresentationFramework | Out-Null
+    [System.Windows.MessageBox]::Show(
+        $Message,
+        $Title,
+        [System.Windows.MessageBoxButton]::OK,
+        [System.Windows.MessageBoxImage]::Warning
+    ) | Out-Null
+}
+
+function Test-7ZipInstalled {
+    [CmdletBinding()]
+    param()
+
+    $paths = @(
+        "C:\Program Files\7-Zip\7z.exe",
+        "C:\Program Files (x86)\7-Zip\7z.exe"
+    )
+    foreach ($p in $paths) {
+        if (Test-Path $p) { return $true }
+    }
+
+    # Por si existe en PATH
+    return [bool](Get-Command 7z -ErrorAction SilentlyContinue)
+}
+
+function Get-7ZipPath {
+    [CmdletBinding()]
+    param()
+
+    $paths = @(
+        "C:\Program Files\7-Zip\7z.exe",
+        "C:\Program Files (x86)\7-Zip\7z.exe"
+    )
+    foreach ($p in $paths) {
+        if (Test-Path $p) { return $p }
+    }
+
+    $cmd = Get-Command 7z -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+
+    return $null
+}
+
+function Install-7ZipWithChoco {
+    [CmdletBinding()]
+    param()
+
+    if (-not (Test-ChocolateyInstalled)) {
+        Write-DzDebug "[Install-7ZipWithChoco] Chocolatey no está instalado"
+        return $false
+    }
+
+    try {
+        Write-Host "Instalando 7zip con Chocolatey..." -ForegroundColor Yellow
+        choco install 7zip -y --no-progress | Out-Null
+
+        # refrescar PATH para el proceso actual (a veces choco no refresca inmediatamente)
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+        [System.Environment]::GetEnvironmentVariable("Path", "User")
+
+        Start-Sleep -Seconds 2
+        return (Test-7ZipInstalled)
+    } catch {
+        Write-Host "Error instalando 7zip: $_" -ForegroundColor Red
+        return $false
+    }
+}
+
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
@@ -1154,5 +1271,10 @@ Export-ModuleMember -Function @(
     'Get-NetworkAdapterStatus',
     'Start-SystemUpdate',
     'Get-SqlPortWithDebug',
-    'Show-SqlPortsInfo'
+    'Show-SqlPortsInfo',
+    'Show-ConfirmDialog',
+    'Show-InfoDialog',
+    'Show-WarnDialog',
+    'Get-7ZipPath',
+    'Install-7ZipWithChoco'
 )

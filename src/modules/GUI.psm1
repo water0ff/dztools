@@ -139,11 +139,11 @@ function Show-WpfProgressBar {
         $result = New-WpfWindow -Xaml $xaml -PassThru
         $window = $result.Window
 
-        # Agregar propiedades personalizadas
-        $window | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $result.Controls['progressBar']
-        $window | Add-Member -MemberType NoteProperty -Name MessageLabel -Value $result.Controls['lblMessage']
-        $window | Add-Member -MemberType NoteProperty -Name PercentLabel -Value $result.Controls['lblPercent']
-        $window | Add-Member -MemberType NoteProperty -Name IsClosed -Value $false
+        $window | Add-Member -MemberType NoteProperty -Name ProgressBar   -Value $result.Controls['progressBar'] | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name MessageLabel  -Value $result.Controls['lblMessage']  | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name PercentLabel  -Value $result.Controls['lblPercent']  | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name IsClosed      -Value $false                          | Out-Null
+
 
         # Manejador para cuando se cierra la ventana
         $window.Add_Closed({
@@ -154,97 +154,91 @@ function Show-WpfProgressBar {
         # Mostrar de forma no modal
         $window.Show()
 
-        # Forzar render inicial
-        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke(
+        # Forzar render inicial (siempre con el dispatcher de la misma ventana)
+        $window.Dispatcher.Invoke(
             [System.Windows.Threading.DispatcherPriority]::Background,
             [action] {}
-        )
+        ) | Out-Null
 
-        return $window
+        # IMPORTANTE: retornar exactamente 1 objeto (Window), no array
+        return [System.Windows.Window]$window
+
     } catch {
         Write-Error "Error al crear barra de progreso: $_"
         return $null
     }
 }
-
 function Update-WpfProgressBar {
-    <#
-    .SYNOPSIS
-        Actualiza una barra de progreso WPF de forma segura.
-    #>
     param(
+        [Parameter(Mandatory = $true)] $Window,
         [Parameter(Mandatory = $true)]
-        $Window,
-        [Parameter(Mandatory = $true)]
-        [ValidateRange(0, 100)]
-        [int]$Percent,
-        [string]$Message = $null
+        [ValidateRange(0, 100)] [int] $Percent,
+        [string] $Message = $null
     )
 
-    if ($null -eq $Window) {
-        Write-Warning "Ventana de progreso es null. No se puede actualizar."
+    if ($null -eq $Window) { return }
+
+    # Asegurar que sea ventana WPF
+    if (-not ($Window -is [System.Windows.Window])) {
+        Write-Warning "Update-WpfProgressBar: El objeto recibido NO es WPF Window. Tipo: $($Window.GetType().FullName)"
         return
     }
 
-    if ($Window.IsClosed) {
-        Write-Warning "Ventana de progreso ya está cerrada. No se puede actualizar."
+    if ($Window.IsClosed) { return }
+
+    # Asegurar dispatcher vivo
+    if ($null -eq $Window.Dispatcher -or
+        $Window.Dispatcher.HasShutdownStarted -or
+        $Window.Dispatcher.HasShutdownFinished) {
+        Write-Warning "Update-WpfProgressBar: Dispatcher no disponible."
         return
     }
 
     try {
-        $Window.Dispatcher.Invoke([action] {
-                $Window.ProgressBar.Value = [Math]::Min($Percent, 100)
-                $Window.PercentLabel.Text = "$Percent%"
+        # Pasa valores por parámetro para evitar problemas de closure
+        $Window.Dispatcher.Invoke(
+            [action[object, int, string]] {
+                param($w, $p, $m)
+                $w.ProgressBar.Value = [Math]::Min($p, 100)
+                $w.PercentLabel.Text = "$p%"
 
-                if (-not [string]::IsNullOrWhiteSpace($Message)) {
-                    $Window.MessageLabel.Text = $Message
+                if (-not [string]::IsNullOrWhiteSpace($m)) {
+                    $w.MessageLabel.Text = $m
                 }
-            }, [System.Windows.Threading.DispatcherPriority]::Normal)
-
-        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke(
-            [System.Windows.Threading.DispatcherPriority]::Background,
-            [action] {}
+                $w.UpdateLayout()
+            },
+            [System.Windows.Threading.DispatcherPriority]::Render,
+            @($Window, $Percent, $Message)
         )
     } catch {
-        Write-Warning "Error actualizando barra de progreso: $_"
+        Write-Warning "Error actualizando barra de progreso: $($_.Exception.Message)"
     }
 }
 
 function Close-WpfProgressBar {
-    <#
-    .SYNOPSIS
-        Cierra una barra de progreso WPF de forma segura.
-    #>
-    param(
-        [Parameter(Mandatory = $true)]
-        $Window
-    )
+    param([Parameter(Mandatory = $true)] $Window)
 
-    if ($null -eq $Window) {
-        Write-Warning "Ventana de progreso es null. No se puede cerrar."
+    if ($null -eq $Window) { return }
+
+    if (-not ($Window -is [System.Windows.Window])) {
+        Write-Warning "Close-WpfProgressBar: El objeto recibido NO es WPF Window. Tipo: $($Window.GetType().FullName)"
         return
     }
 
-    if ($Window.IsClosed) {
-        Write-Verbose "Ventana de progreso ya está cerrada."
-        return
-    }
+    if ($Window.IsClosed) { return }
+
+    if ($null -eq $Window.Dispatcher -or
+        $Window.Dispatcher.HasShutdownStarted -or
+        $Window.Dispatcher.HasShutdownFinished) { return }
 
     try {
         $Window.Dispatcher.Invoke([action] {
-                if (-not $Window.IsClosed) {
-                    $Window.Close()
-                }
+                if (-not $Window.IsClosed) { $Window.Close() }
             }, [System.Windows.Threading.DispatcherPriority]::Normal)
     } catch {
-        Write-Warning "Error cerrando barra de progreso: $_"
+        Write-Warning "Error cerrando barra de progreso: $($_.Exception.Message)"
     }
 }
-
-#endregion
-
-#region Funciones Helper de Progreso (Compatibilidad)
-
 function Show-ProgressBar {
     return Show-WpfProgressBar -Title "Progreso de Actualización" -Message "Iniciando proceso..."
 }
@@ -450,8 +444,6 @@ function Show-WpfFolderDialog {
         [string]$InitialDirectory = [Environment]::GetFolderPath('Desktop')
     )
 
-    Add-Type -AssemblyName System.Windows.Forms
-
     $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $dialog.Description = $Description
     $dialog.SelectedPath = $InitialDirectory
@@ -464,10 +456,6 @@ function Show-WpfFolderDialog {
 
     return $null
 }
-
-#endregion
-
-#region Diálogos Específicos de la Aplicación
 
 function Show-NewIpForm {
     [xml]$xaml = @"
@@ -741,17 +729,15 @@ function Show-ChocolateyInstallerMenu {
                 HorizontalAlignment="Left" VerticalAlignment="Top" Margin="160,100,0,0" IsEnabled="False"/>
         <Button Content="Desinstalar seleccionado" Name="btnUninstallSelectedChoco" Width="150" Height="32"
                 HorizontalAlignment="Left" VerticalAlignment="Top" Margin="340,100,0,0" IsEnabled="False"/>
-
         <DataGrid Name="dgvChocoResults" HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Width="490" Height="200" Margin="0,145,0,0" IsReadOnly="True"
-                  AutoGenerateColumns="False" SelectionMode="Single" CanUserAddRows="False">
+                Width="490" Height="200" Margin="0,145,0,0" IsReadOnly="True"
+                AutoGenerateColumns="False" SelectionMode="Single" CanUserAddRows="False">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Paquete" Binding="{Binding Name}" Width="170"/>
                 <DataGridTextColumn Header="Versión" Binding="{Binding Version}" Width="100"/>
-                <DataGridTextColumn Header="Descripción" Binding="{Binding Description}" Width="200"/>
+                <DataGridTextColumn Header="Descripción" Binding="{Binding Description}" Width="*"/>
             </DataGrid.Columns>
         </DataGrid>
-
         <Button Content="Salir" Name="btnExitInstaladores" Width="490" Height="30"
                 HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,355,0,0"/>
     </Grid>
@@ -781,7 +767,7 @@ function Show-ChocolateyInstallerMenu {
     $chocoResultsCollection = New-Object System.Collections.ObjectModel.ObservableCollection[PSObject]
     $dgvChocoResults.ItemsSource = $chocoResultsCollection
 
-    # Función auxiliar para agregar resultados
+    # Función auxiliar para agregar resultados (SEARCH)
     $addChocoResult = {
         param($line)
         if ([string]::IsNullOrWhiteSpace($line)) { return }
@@ -795,7 +781,7 @@ function Show-ChocolateyInstallerMenu {
                             Version     = $Matches['version']
                             Description = $Matches['description'].Trim()
                         })
-                })
+                }) | Out-Null
         } elseif ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+\|\s+(?<version>[0-9][A-Za-z0-9\.\-]*)$') {
             $window.Dispatcher.Invoke([action] {
                     $chocoResultsCollection.Add([PSCustomObject]@{
@@ -803,7 +789,29 @@ function Show-ChocolateyInstallerMenu {
                             Version     = $Matches['version']
                             Description = "Paquete instalado"
                         })
-                })
+                }) | Out-Null
+        }
+    }
+
+    # Función auxiliar para agregar resultados (INSTALADOS)  ✅ NUEVA
+    # Formato esperado con --limit-output: paquete|version
+    $addChocoInstalled = {
+        param($line)
+
+        if ([string]::IsNullOrWhiteSpace($line)) { return }
+        if ($line -match '^Chocolatey') { return }
+
+        if ($line -match '^(?<name>[^|]+)\|(?<version>.+)$') {
+            $name = $Matches['name'].Trim()
+            $ver = $Matches['version'].Trim()
+
+            $window.Dispatcher.Invoke([action] {
+                    $chocoResultsCollection.Add([PSCustomObject]@{
+                            Name        = $name
+                            Version     = $ver
+                            Description = "Paquete instalado"
+                        })
+                }) | Out-Null
         }
     }
 
@@ -883,7 +891,7 @@ function Show-ChocolateyInstallerMenu {
             $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent)))
         })
 
-    # Mostrar instalados - MEJORADO
+    # Mostrar instalados - FIX (parse correcto de choco list)
     $btnShowInstalledChoco.Add_Click({
             $chocoResultsCollection.Clear()
             & $updateActionButtons
@@ -898,19 +906,22 @@ function Show-ChocolateyInstallerMenu {
 
             try {
                 Update-WpfProgressBar -Window $progress -Percent 30 -Message "Consultando paquetes instalados..."
+
+                # ✅ Este formato es el más fácil de parsear:
+                # choco list --local-only --limit-output  => paquete|version
                 $installedOutput = & choco list --local-only --limit-output 2>&1
 
                 Update-WpfProgressBar -Window $progress -Percent 70 -Message "Procesando resultados..."
 
                 foreach ($line in $installedOutput) {
-                    & $addChocoResult $line
+                    & $addChocoInstalled $line
                 }
 
                 Update-WpfProgressBar -Window $progress -Percent 100 -Message "Completado"
-                Start-Sleep -Milliseconds 300
+                Start-Sleep -Milliseconds 200
 
                 if ($chocoResultsCollection.Count -eq 0) {
-                    [System.Windows.MessageBox]::Show("No hay paquetes instalados", "Sin resultados")
+                    [System.Windows.MessageBox]::Show("No hay paquetes instalados (o no se pudo leer la salida).", "Sin resultados")
                 }
             } catch {
                 Write-Error "Error: $_"
@@ -921,7 +932,6 @@ function Show-ChocolateyInstallerMenu {
             }
         })
 
-    # Instalar - MEJORADO
     $btnInstallSelectedChoco.Add_Click({
             if (-not $dgvChocoResults.SelectedItem) {
                 [System.Windows.MessageBox]::Show("Seleccione un paquete", "Instalación")

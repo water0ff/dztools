@@ -4,7 +4,6 @@ chcp 65001 > $null
 [Console]::InputEncoding = [System.Text.UTF8Encoding]::new()
 $OutputEncoding = [Console]::OutputEncoding
 $global:version = "beta.25.12.03.1046"
-
 try {
     Write-Host "Cargando ensamblados de WPF..." -ForegroundColor Yellow
     Add-Type -AssemblyName PresentationFramework
@@ -41,7 +40,6 @@ foreach ($module in $modules) {
         Write-Host "  ✗ $module no encontrado" -ForegroundColor Red
     }
 }
-
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
 - Se agregó una mejor busqueda para SQL Server Management Studio.
@@ -80,6 +78,7 @@ function Initialize-Environment {
 }
 $global:isHighlightingQuery = $false
 function New-MainForm {
+
     Write-Host "`tCreando formulario principal WPF..." -ForegroundColor Yellow
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -1419,7 +1418,37 @@ Base de datos: ((
                 Write-Host "====================================" -ForegroundColor Red
             }
         })
+    function Initialize-ThreadJob {
+        [CmdletBinding()]
+        param()
 
+        Write-DzDebug "[Initialize-ThreadJob] Verificando módulo ThreadJob"
+
+        # Verificar si el módulo está disponible
+        if (Get-Module -ListAvailable -Name ThreadJob) {
+            Import-Module ThreadJob -Force
+            Write-DzDebug "[Initialize-ThreadJob] Módulo ThreadJob importado"
+            return $true
+        } else {
+            Write-DzDebug "[Initialize-ThreadJob] Módulo ThreadJob no encontrado, intentando instalar"
+
+            try {
+                # Intentar instalar desde PSGallery
+                Install-Module -Name ThreadJob -Force -Scope CurrentUser -ErrorAction Stop
+                Import-Module ThreadJob -Force
+                Write-DzDebug "[Initialize-ThreadJob] Módulo ThreadJob instalado e importado"
+                return $true
+            } catch {
+                Write-DzDebug "[Initialize-ThreadJob] Error instalando ThreadJob: $_"
+                return $false
+            }
+        }
+    }
+
+    # Agregar al inicio de tu script principal
+    if (-not (Initialize-ThreadJob)) {
+        Write-Host "Advertencia: No se pudo cargar ThreadJob. Las funciones de backup pueden no funcionar correctamente." -ForegroundColor Yellow
+    }
     $btnBackup.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso de Backup - - -" -ForegroundColor Gray
             Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem

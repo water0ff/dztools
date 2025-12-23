@@ -336,41 +336,91 @@ function Show-BackupDialog {
                     param([string]$Message)
                     $m = ($Message -replace '\s+', ' ').Trim()
                     if ($m) { EnqLog ("[SQL] {0}" -f $m) }
+                    # Reserva de barra si hay compresión
+                    $backupMax = 100
+                    if ($DoCompress) { $backupMax = 90 }  # 0..90 backup, 90..99 zip, 100 solo al final (__DONE__)
+
                     if ($Message -match '(?i)\b(\d{1,3})\s*(percent|porcentaje|por\s+ciento)\b') {
                         $p = [int]$Matches[1]
                         if ($p -gt 100) { $p = 100 }
                         if ($p -lt 0) { $p = 0 }
-                        EnqProg $p ("Progreso: {0}%" -f $p)
+                        # Escalar el progreso del backup al rango 0..$backupMax
+                        $scaled = [int][math]::Floor(($p * $backupMax) / 100)
+                        # Si hay compresión, evita que el BACKUP alcance 100 visualmente
+                        if ($DoCompress -and $scaled -ge 100) { $scaled = 90 }
+                        EnqProg $scaled ("Progreso backup: {0}%" -f $p)
                         EnqLog  ("Progreso backup: {0}%" -f $p)
                         return
                     }
                     if ($Message -match '(?i)\b(successfully processed|procesad[oa]\s+correctamente|completad[oa])\b') {
-                        EnqProg 100 "¡Backup completado!"
+                        if ($DoCompress) {
+                            EnqProg 90 "Backup listo. Iniciando compresión..."
+                        } else {
+                            EnqProg 100 "¡Backup completado!"
+                        }
                         EnqLog "✅ Backup completado (mensaje SQL)"
                         return
                     }
                 }
                 $r = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $BackupQuery -Credential $Credential -InfoMessageCallback $progressCb
                 if (-not $r.Success) { EnqProg 0 "Error en backup"; EnqLog ("❌ Error de SQL: {0}" -f $r.ErrorMessage); EnqLog "__DONE__"; return }
-                EnqProg 100 "Backup terminado, verificando archivo..."
+                if ($DoCompress) {
+                    EnqProg 90 "Backup terminado. Iniciando compresión..."
+                } else {
+                    EnqProg 100 "Backup terminado."
+                }
                 EnqLog  "✅ Comando BACKUP finalizó (ExecuteNonQuery)"
                 Start-Sleep -Milliseconds 500
                 if (Test-Path $ScriptBackupPath)
                 { $sizeMB = [math]::Round((Get-Item $ScriptBackupPath).Length / 1MB, 2); EnqLog ("📊 Tamaño del archivo: {0} MB" -f $sizeMB); EnqLog ("📁 Ubicación: {0}" -f $ScriptBackupPath) }
                 else { EnqLog ("⚠️ No se encontró el archivo en: {0}" -f $ScriptBackupPath) }
                 if ($DoCompress) {
+                    EnqProg 90 "Backup listo. Preparando compresión..."
                     EnqLog "🗜️ Iniciando compresión ZIP..."
+
                     $inputBak = $ScriptBackupPath
                     $zipPath = "$ScriptBackupPath.zip"
-                    if (-not (Test-Path $inputBak)) { EnqLog ("⚠️ No existe el BAK accesible: {0}" -f $inputBak); EnqLog "__DONE__"; return }
+
+                    if (-not (Test-Path $inputBak)) {
+                        EnqProg 0 "Error: no existe BAK"
+                        EnqLog ("⚠️ No existe el BAK accesible: {0}" -f $inputBak)
+                        EnqLog "__DONE__"
+                        return
+                    }
+
                     $sevenZip = Get-7ZipPath
-                    if (-not $sevenZip -or -not (Test-Path $sevenZip)) { EnqLog "❌ No se encontró 7z.exe. No se puede comprimir."; EnqLog "__DONE__"; return }
+                    if (-not $sevenZip -or -not (Test-Path $sevenZip)) {
+                        EnqProg 0 "Error: no se encontró 7-Zip"
+                        EnqLog "❌ No se encontró 7z.exe. No se puede comprimir."
+                        EnqLog "__DONE__"
+                        return
+                    }
+
                     try {
                         if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
-                        if ($ZipPassword -and $ZipPassword.Trim().Length -gt 0) { & $sevenZip a -tzip -p"$($ZipPassword.Trim())" -mem=AES256 $zipPath $inputBak | Out-Null } else { & $sevenZip a -tzip $zipPath $inputBak | Out-Null }
+
+                        EnqProg 92 "Comprimiendo (ZIP)..."
+                        if ($ZipPassword -and $ZipPassword.Trim().Length -gt 0) {
+                            & $sevenZip a -tzip -p"$($ZipPassword.Trim())" -mem=AES256 $zipPath $inputBak | Out-Null
+                        } else {
+                            & $sevenZip a -tzip $zipPath $inputBak | Out-Null
+                        }
+
+                        EnqProg 97 "Finalizando compresión..."
                         Start-Sleep -Milliseconds 300
-                        if (Test-Path $zipPath) { $zipMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2); EnqLog ("✅ ZIP creado ({0} MB): {1}" -f $zipMB, $zipPath) } else { EnqLog ("❌ Se ejecutó 7-Zip pero NO se generó el ZIP: {0}" -f $zipPath) }
-                    } catch { EnqLog ("❌ Error al comprimir: {0}" -f $_.Exception.Message) }
+
+                        if (Test-Path $zipPath) {
+                            $zipMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
+                            EnqProg 99 "ZIP creado. Cerrando..."
+                            EnqLog ("✅ ZIP creado ({0} MB): {1}" -f $zipMB, $zipPath)
+                        } else {
+                            EnqProg 0 "Error: ZIP no generado"
+                            EnqLog ("❌ Se ejecutó 7-Zip pero NO se generó el ZIP: {0}" -f $zipPath)
+                        }
+                    } catch {
+                        EnqProg 0 "Error al comprimir"
+                        EnqLog ("❌ Error al comprimir: {0}" -f $_.Exception.Message)
+                    }
                 }
                 EnqLog "__DONE__"
             } catch {
@@ -399,12 +449,18 @@ function Show-BackupDialog {
     $logTimer.Add_Tick({
             try {
                 $count = 0
+                $doneThisTick = $false
+
                 while ($count -lt 50) {
                     $line = $null
                     if (-not $logQueue.TryDequeue([ref]$line)) { break }
+
                     $txtLog.Text = "$line`n" + $txtLog.Text
+
                     if ($line -like "*__DONE__*") {
                         Write-DzDebug "`t[DEBUG][UI] Señal DONE recibida"
+                        $doneThisTick = $true
+
                         $script:BackupRunning = $false
                         $btnAceptar.IsEnabled = $true
                         $btnAceptar.Content = "Iniciar Respaldo"
@@ -412,28 +468,36 @@ function Show-BackupDialog {
                         $chkComprimir.IsEnabled = $true
                         if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true }
                         $btnAbrirCarpeta.IsEnabled = $true
-                        if ($pbBackup.Value -lt 100) {
-                            Paint-Progress -Percent 100 -Message "Completado"
-                        }
+
+                        # Limpia progreso pendiente para que no pise el 100
+                        $tmp = $null
+                        while ($progressQueue.TryDequeue([ref]$tmp)) { }
+
+                        Paint-Progress -Percent 100 -Message "Completado"
                         $script:BackupDone = $true
                     }
+
                     $count++
                 }
+
                 if ($count -gt 0) { $txtLog.ScrollToLine(0) }
-                $last = $null
-                while ($true) {
-                    $p = $null
-                    if (-not $progressQueue.TryDequeue([ref]$p)) { break }
-                    $last = $p
+
+                # Solo si NO llegó DONE en este tick, aplicamos el último progreso
+                if (-not $doneThisTick) {
+                    $last = $null
+                    while ($true) {
+                        $p = $null
+                        if (-not $progressQueue.TryDequeue([ref]$p)) { break }
+                        $last = $p
+                    }
+                    if ($last) { Paint-Progress -Percent $last.Percent -Message $last.Message }
                 }
-                if ($last) {
-                    Paint-Progress -Percent $last.Percent -Message $last.Message
-                }
+
             } catch {
                 Write-DzDebug "`t[DEBUG][UI][logTimer] ERROR: $($_.Exception.Message)"
             }
+
             if ($script:BackupDone) {
-                # si ya no queda nada por mostrar, ahora sí detenemos
                 $tmpLine = $null
                 $tmpProg = $null
                 if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) {
@@ -442,6 +506,7 @@ function Show-BackupDialog {
                 }
             }
         })
+
     $logTimer.Start()
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] logTimer iniciado"
 

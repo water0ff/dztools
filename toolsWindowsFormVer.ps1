@@ -1,4 +1,3 @@
-# Crear la carpeta 'C:\Temp' si no existe
 if (!(Test-Path -Path "C:\Temp")) {
     New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
     Write-Host "Carpeta 'C:\Temp' creada correctamente."
@@ -8,7 +7,6 @@ if (-not (Test-Path $iconDir)) {
     New-Item -ItemType Directory -Path $iconDir -Force | Out-Null
     Write-Host "Carpeta de íconos creada: $iconDir"
 }
-# Mostrar advertencia ALFA y solicitar confirmación
 Write-Host "`n==============================================" -ForegroundColor Red
 Write-Host "           ADVERTENCIA DE VERSIÓN ALFA          " -ForegroundColor Red
 Write-Host "==============================================" -ForegroundColor Red
@@ -27,11 +25,27 @@ if ($response.Character -ne 'Y') {
     exit
 }
 Clear-Host
+                                                                                                        $version = "Alfa 251125.1626"  #INIS
+$global:defaultInstructions = @"
+----- CAMBIOS -----
+- Carga de INIS en la conexión a BDD.
+- Se cambió la instalación de SSMS14 a SSMS21.
+- Se deshabilitó la subida a mega.
+- Restructura del proceso de Backups (choco).
+- Se agregó subida a megaupload.
+- Se agregó compresión con contraseña de respaldos
+- Se agregó compresión con contraseña de respaldos
+- Se agregó consola de cambios y tool tip para botones
+- Reorganización de botones
+- Query Browser para SQL en pestaña: Base de datos
+- - Ahora se pueden agregar comentarios con "-" y entre "/* */"
+- - Tabla en consola
+- - Obtener columnas en consola
+"@
 Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundColor Green
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
     [System.Windows.Forms.Application]::EnableVisualStyles()
-# Crear el formulario
     $formPrincipal = New-Object System.Windows.Forms.Form
     $formPrincipal.Size = New-Object System.Drawing.Size(1000, 600)  # Aumentado de 720x400
     $formPrincipal.StartPosition = "CenterScreen"
@@ -41,7 +55,6 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     $formPrincipal.MinimizeBox = $false
     $defaultFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
     $boldFont = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-                                                                                                        $version = "Alfa 250604.1220"  #mega update
     $formPrincipal.Text = "Daniel Tools v$version"
     Write-Host "`n=============================================" -ForegroundColor DarkCyan
     Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -49,7 +62,6 @@ Write-Host "El usuario aceptó los riesgos. Corriendo programa..." -ForegroundCo
     Write-Host "=============================================" -ForegroundColor DarkCyan
     Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
     Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
-# Creación maestra de botones
     $toolTip = New-Object System.Windows.Forms.ToolTip
 function Create-Button {
                 param (
@@ -94,7 +106,6 @@ $button.Font = $Font # Usar el parámetro Font
                     }
                 return $button
             }
-#Lo mismo pero para las labels
 function Create-Label {
         param (
             [string]$Text,
@@ -124,56 +135,49 @@ function Create-Form {
         param (
             [Parameter(Mandatory = $true)]
             [string]$Title,
-    
+
             [Parameter()]
             [System.Drawing.Size]$Size = (New-Object System.Drawing.Size(350, 200)),
-    
+
             [Parameter()]
             [System.Windows.Forms.FormStartPosition]$StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen,
-    
+
             [Parameter()]
             [System.Windows.Forms.FormBorderStyle]$FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog,
-    
+
             [Parameter()]
             [bool]$MaximizeBox = $false,
-    
+
             [Parameter()]
             [bool]$MinimizeBox = $false,
-    
+
             [Parameter()]
             [bool]$TopMost = $false,
-    
+
             [Parameter()]
             [bool]$ControlBox = $true,
-    
+
             [Parameter()]
             [System.Drawing.Icon]$Icon = $null,
-    
+
             [Parameter()]
             [System.Drawing.Color]$BackColor = [System.Drawing.SystemColors]::Control
         )
-    
-        # Crear la instancia
         $form = New-Object System.Windows.Forms.Form
-    
-        # Propiedades básicas
         $form.Text            = $Title
         $form.Size            = $Size
         $form.StartPosition   = $StartPosition
         $form.FormBorderStyle = $FormBorderStyle
         $form.MaximizeBox     = $MaximizeBox
         $form.MinimizeBox     = $MinimizeBox
-    
-        # Nuevas propiedades
         $form.TopMost     = $TopMost
         $form.ControlBox  = $ControlBox
-    
         if ($Icon) {
             $form.Icon = $Icon
         }
-    
+
         $form.BackColor = $BackColor
-    
+
         return $form
 }
 function Create-ComboBox {
@@ -229,7 +233,6 @@ function Create-TextBox {
     }
     return $textBox
 }
-#COMIENZA EL PROGRAMA ----------------------------------
 $global:lastReportedPct = -1  # Añadir al inicio del script
 $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Size = New-Object System.Drawing.Size(990, 515)    # Original: 710x315
@@ -241,12 +244,12 @@ $tabControl = New-Object System.Windows.Forms.TabControl
     $tabProSql.AutoScroll = $true  # Habilitar scrollbar si el contenido excede el área
     $tabControl.TabPages.Add($tabAplicaciones)
     $tabControl.TabPages.Add($tabProSql)
-# Panel izquierdo (controles manualmente posicionados)
 $lblServer = Create-Label -Text "Instancia SQL:" `
     -Location (New-Object System.Drawing.Point(10, 10)) `
     -Size (New-Object System.Drawing.Size(100, 10))
-    $txtServer = Create-TextBox -Location (New-Object System.Drawing.Point(10, 20)) `
-        -Size (New-Object System.Drawing.Size(180, 20))
+$txtServer = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 20)) `
+    -Size (New-Object System.Drawing.Size(180, 20)) -DropDownStyle "DropDown"
+    $txtServer.Text = ".\NationalSoft"
 $lblUser = Create-Label -Text "Usuario:" `
     -Location (New-Object System.Drawing.Point(10, 50)) `
     -Size (New-Object System.Drawing.Size(100, 10))
@@ -257,7 +260,6 @@ $lblPassword = Create-Label -Text "Contraseña:" `
     -Size (New-Object System.Drawing.Size(100, 10))
     $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(10, 100)) `
         -Size (New-Object System.Drawing.Size(180, 20)) -UseSystemPasswordChar $true
-        $txtServer.Text = ".\NationalSoft"
         $txtUser.Text = "sa"
 $lblbdd_cmb = Create-Label -Text "Base de datos" `
     -Location (New-Object System.Drawing.Point(10, 130)) `
@@ -269,7 +271,7 @@ $cmbDatabases = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 1
 $lblConnectionStatus = Create-Label -Text "Conectado a BDD: Ninguna" `
     -Location (New-Object System.Drawing.Point(10, 400)) `
     -Size (New-Object System.Drawing.Size(180, 80))
-$btnExecute = Create-Button -Text "Ejecutar" -Location (New-Object System.Drawing.Point(220, 20)) 
+$btnExecute = Create-Button -Text "Ejecutar" -Location (New-Object System.Drawing.Point(220, 20))
     $btnExecute.Size = New-Object System.Drawing.Size(100, 30)
     $btnExecute.Enabled = $false
 $btnConnectDb = Create-Button -Text "Conectar a BDD" -Location (New-Object System.Drawing.Point(10, 220)) `
@@ -287,7 +289,6 @@ $cmbQueries = New-Object System.Windows.Forms.ComboBox
     $cmbQueries.Location = New-Object System.Drawing.Point(330, 25)
     $cmbQueries.Size = New-Object System.Drawing.Size(350, 20)
     $cmbQueries.Enabled = $false
-# Crear RichTextBox
 $rtbQuery = New-Object System.Windows.Forms.RichTextBox
     $rtbQuery.Location   = New-Object System.Drawing.Point(220, 60)
     $rtbQuery.Size = New-Object System.Drawing.Size(740, 140)     # Mayor ancho
@@ -298,27 +299,19 @@ $rtbQuery = New-Object System.Windows.Forms.RichTextBox
     $rtbQuery.Add_TextChanged({
         $pos = $rtbQuery.SelectionStart
         $rtbQuery.SuspendLayout()
-    
-        # 1. Restablecer todo a negro
         $rtbQuery.SelectAll()
         $rtbQuery.SelectionColor = [System.Drawing.Color]::Black
-    
-        # 2. Encontrar y resaltar comentarios de línea (--) y almacenar rangos
         $commentRanges = @()
         foreach ($c in [regex]::Matches($rtbQuery.Text, '--.*', 'Multiline')) {
             $rtbQuery.Select($c.Index, $c.Length)
             $rtbQuery.SelectionColor = [System.Drawing.Color]::Green
             $commentRanges += [PSCustomObject]@{ Start = $c.Index; End = $c.Index + $c.Length }
         }
-    
-        # 3. Encontrar y resaltar comentarios de bloque (/* ... */) y agregar rangos
         foreach ($b in [regex]::Matches($rtbQuery.Text, '/\*[\s\S]*?\*/', 'Multiline')) {
             $rtbQuery.Select($b.Index, $b.Length)
             $rtbQuery.SelectionColor = [System.Drawing.Color]::Green
             $commentRanges += [PSCustomObject]@{ Start = $b.Index; End = $b.Index + $b.Length }
         }
-    
-        # 4. Resaltar keywords en azul sólo fuera de comentarios
         foreach ($m in [regex]::Matches($rtbQuery.Text, "\b($keywords)\b", 'IgnoreCase')) {
             $inComment = $commentRanges | Where-Object { $m.Index -ge $_.Start -and $m.Index -lt $_.End }
             if (-not $inComment) {
@@ -326,14 +319,9 @@ $rtbQuery = New-Object System.Windows.Forms.RichTextBox
                 $rtbQuery.SelectionColor = [System.Drawing.Color]::Blue
             }
         }
-    
-        # 5. Restaurar posición del cursor
         $rtbQuery.Select($pos, 0)
         $rtbQuery.ResumeLayout()
     })
-
-# Configuración del DataGridView
-# Configuración del DataGridView
 $dgvResults = New-Object System.Windows.Forms.DataGridView
 $dgvResults.Location                   = New-Object System.Drawing.Point(220, 205)
 $dgvResults.Size                       = New-Object System.Drawing.Size(740, 280)
@@ -346,27 +334,22 @@ $dgvResults.MultiSelect                = $true
 $dgvResults.ClipboardCopyMode          = [System.Windows.Forms.DataGridViewClipboardCopyMode]::EnableAlwaysIncludeHeaderText
 $dgvResults.DefaultCellStyle.SelectionBackColor  = [System.Drawing.Color]::LightBlue
 $dgvResults.DefaultCellStyle.SelectionForeColor  = [System.Drawing.Color]::Black
-# Capturar estilos originales
 $script:originalForeColor = $dgvResults.DefaultCellStyle.ForeColor
 $script:originalHeaderBackColor = $dgvResults.ColumnHeadersDefaultCellStyle.BackColor
 $script:originalAutoSizeMode = $dgvResults.AutoSizeColumnsMode
-# 1. Crear menú contextual
 $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
 $copyMenu    = New-Object System.Windows.Forms.ToolStripMenuItem
 $copyMenu.Text = "Copiar selección"
 $contextMenu.Items.Add($copyMenu) | Out-Null
 $dgvResults.ContextMenuStrip = $contextMenu
-# 2. Evento Click en “Copiar selección”
 $copyMenu.Add_Click({
     if ($dgvResults.GetCellCount("Selected") -gt 0) {
-        # Obtener texto tabulado de todas las celdas seleccionadas
         $dataObj = $dgvResults.GetClipboardContent()
         if ($dataObj) {
             [Windows.Forms.Clipboard]::SetText($dataObj.GetText())
         }
     }
 })
-# 3. Habilitar Ctrl+C para copiar selección
 $dgvResults.Add_KeyDown({
     param($sender, $e)
     if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::C) {
@@ -377,7 +360,6 @@ $dgvResults.Add_KeyDown({
         $e.Handled = $true
     }
 })
-# 4. Selección con clic derecho puntual
 $dgvResults.Add_MouseDown({
     param($sender, $args)
     if ($args.Button -eq [System.Windows.Forms.MouseButtons]::Right) {
@@ -392,14 +374,12 @@ $dgvResults.Add_MouseDown({
         }
     }
 })
-#PANEL
 $panelGrid = New-Object System.Windows.Forms.Panel
     $panelGrid.Location = $dgvResults.Location
     $panelGrid.Size = $dgvResults.Size
     $panelGrid.AutoScroll = $true
     $dgvResults.Dock = [System.Windows.Forms.DockStyle]::Fill
     $panelGrid.Controls.Add($dgvResults)
-#DISABLE:
         $btnConnectDb.Enabled    = $True
         $btnBackup.Enabled       = $false
         $btnDisconnectDb.Enabled = $false
@@ -413,6 +393,7 @@ $panelGrid = New-Object System.Windows.Forms.Panel
 $tabProSql.Controls.AddRange(@(
     $btnConnectDb,
     $btnDisconnectDb,
+    $btnReloadConnections,  # <-- Agregar este
     $cmbDatabases,  # <-- Aquí el ComboBox reemplaza al ListBox
     $lblConnectionStatus,
     $btnExecute,
@@ -428,7 +409,6 @@ $tabProSql.Controls.AddRange(@(
     $panelGrid,
     $btnBackup
 ))
-# Hashtable con consultas predefinidas usando here-strings
 $script:predefinedQueries = @{
 "Monitor de Servicios | Ventas a subir" = @"
 SELECT DISTINCT TOP (10)
@@ -499,36 +479,36 @@ ORDER BY
     -- Actualiza la contraseña del primer UserName con rol administrador y retorna el UserName actualizado
 UPDATE users
     SET Password = '08/Vqq0='
-    OUTPUT inserted.UserName 
+    OUTPUT inserted.UserName
     WHERE UserName = (SELECT TOP 1 UserName FROM users WHERE IsSuperAdmin = 1 and IsEnabled = 1);
 "@
 "BackOffice Estaciones" = @"
-SELECT 
-    t.Name, 
-    t.Ip, 
-    t.LastOnline, 
-    t.IsEnabled, 
-    u.UserName AS UltimoUsuario, 
-    t.AppVersion, 
-    t.IsMaximized, 
-    t.ForceAppUpdate, 
+SELECT
+    t.Name,
+    t.Ip,
+    t.LastOnline,
+    t.IsEnabled,
+    u.UserName AS UltimoUsuario,
+    t.AppVersion,
+    t.IsMaximized,
+    t.ForceAppUpdate,
     t.SkipDoPing
 FROM Terminals t
 LEFT JOIN Users u ON t.LastUserLogin = u.Id
---WHERE t.IsEnabled = 1.0000 
+--WHERE t.IsEnabled = 1.0000
 ORDER BY t.IsEnabled DESC, t.Name;
 "@
 "SR | Actualizar contraseña de administrador" = @"
     -- Actualiza la contraseña del primer usuario con rol administrador y retorna el usuario actualizado
-    UPDATE usuarios 
-    SET contraseña = 'A9AE4E13D2A47998AC34' 
-    OUTPUT inserted.usuario 
+    UPDATE usuarios
+    SET contraseña = 'A9AE4E13D2A47998AC34'
+    OUTPUT inserted.usuario
     WHERE usuario = (SELECT TOP 1 usuario FROM usuarios WHERE administrador = 1);
 "@
 "SR | Revisar Pivot Table" = @"
-    SELECT app_id, field, COUNT(*) 
-    FROM app_settings 
-    GROUP BY app_id, field 
+    SELECT app_id, field, COUNT(*)
+    FROM app_settings
+    GROUP BY app_id, field
     HAVING COUNT(*) > 1
 /* Consulta SQL para eliminar duplicados
         BEGIN TRANSACTION;
@@ -546,52 +526,51 @@ ORDER BY t.IsEnabled DESC, t.Name;
 "@
 "SR | Fecha Revisiones" = @"
     WITH CTE AS (
-        SELECT 
-            b.estacion, 
-            b.fecha       AS UltimoUso, 
-            ROW_NUMBER() OVER (PARTITION BY b.estacion ORDER BY b.fecha DESC) AS rn 
+        SELECT
+            b.estacion,
+            b.fecha       AS UltimoUso,
+            ROW_NUMBER() OVER (PARTITION BY b.estacion ORDER BY b.fecha DESC) AS rn
         FROM bitacorasistema b
     )
-    SELECT 
-        e.FECHAREV, 
-        c.estacion, 
-        c.UltimoUso 
-    FROM CTE c 
-    JOIN estaciones e 
-        ON c.estacion = e.idestacion 
-    WHERE c.rn = 1 
+    SELECT
+        e.FECHAREV,
+        c.estacion,
+        c.UltimoUso
+    FROM CTE c
+    JOIN estaciones e
+        ON c.estacion = e.idestacion
+    WHERE c.rn = 1
     ORDER BY c.UltimoUso DESC;
 "@
 "OTM | Eliminar Server en OTM" = @"
-    SELECT serie, ipserver, nombreservidor 
-    FROM configuracion;  
-    -- UPDATE configuracion 
+    SELECT serie, ipserver, nombreservidor
+    FROM configuracion;
+    -- UPDATE configuracion
     --   SET serie='', ipserver='', nombreservidor=''
 "@
 "NSH | Eliminar Server en Hoteles" = @"
-    SELECT serievalida, numserie, ipserver, nombreservidor, llave 
-    FROM configuracion; 
-    -- UPDATE configuracion 
+    SELECT serievalida, numserie, ipserver, nombreservidor, llave
+    FROM configuracion;
+    -- UPDATE configuracion
     --   SET serievalida='', numserie='', ipserver='', nombreservidor='', llave=''
 "@
 "Restcard | Eliminar Server en Rest Card" = @"
-    -- update tabvariables 
+    -- update tabvariables
     --   SET estacion='', ipservidor='';
 "@
 "sql | Listar usuarios e idiomas" = @"
     -- Lista los usuarios del sistema y su idioma configurado
-SELECT 
-    p.name AS Usuario, 
+SELECT
+    p.name AS Usuario,
     l.default_language_name AS Idioma
-FROM 
+FROM
     sys.server_principals p
-LEFT JOIN 
+LEFT JOIN
     sys.sql_logins l ON p.principal_id = l.principal_id
-WHERE 
+WHERE
     p.type IN ('S', 'U') -- Usuarios SQL y Windows
 "@
 }
-#Agregando los Queries en orden:
     $sortedKeys = $script:predefinedQueries.Keys | Sort-Object
     $cmbQueries.Items.Clear()
     foreach ($key in $sortedKeys) {
@@ -651,16 +630,19 @@ $txt_AdapterStatus = Create-TextBox -Location (New-Object System.Drawing.Point(7
     -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
     -ScrollBars 'Vertical' -Multiline $true -ReadOnly  $true
     $toolTip.SetToolTip($txt_AdapterStatus, "Lista de adaptadores y su estado. Haga clic en 'Actualizar adaptadores' para refrescar.")
-$txt_InfoInstrucciones = Create-TextBox -Location (New-Object System.Drawing.Point(730, 50)) -Size(New-Object System.Drawing.Size(220, 500)) `
-    -BackColor([System.Drawing.Color]::FromArgb(255, 0, 0, 0)) -ForeColor([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
-    -Multiline $true -ReadOnly  $true
-    $txt_InfoInstrucciones.WordWrap = $true
-
-#FUERA DEL TAB
+$txt_InfoInstrucciones = Create-TextBox `
+    -Location (New-Object System.Drawing.Point(730, 50)) `
+    -Size     (New-Object System.Drawing.Size(220, 500)) `
+    -BackColor ([System.Drawing.Color]::FromArgb(255, 1, 36, 86)) `
+    -ForeColor ([System.Drawing.Color]::White) `
+    -Font      (New-Object System.Drawing.Font("Courier New", 10)) `
+    -Multiline $true `
+    -ReadOnly  $true
+$txt_InfoInstrucciones.WordWrap = $true
+$txt_InfoInstrucciones.Text = $global:defaultInstructions
     $btnExit = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(350, 525)) `
                                 -Size (New-Object System.Drawing.Size(500, 30)) `
                                 -BackColor ([System.Drawing.Color]::FromArgb(255, 169, 169, 169))
-# Agregar botones a la pestaña de aplicaciones
 $tabAplicaciones.Controls.AddRange(@(
             $btnInstalarHerramientas,
             $btnProfiler,
@@ -686,18 +668,28 @@ $tabAplicaciones.Controls.AddRange(@(
             $txt_InfoInstrucciones,
             $btnCreateAPK
 ))
-# Función para manejar MouseEnter y cambiar el color
 $changeColorOnHover = {
     param($sender, $eventArgs)
     $sender.BackColor = [System.Drawing.Color]::Orange
 }
-# Función para manejar MouseLeave y restaurar el color
 $restoreColorOnLeave = {
     param($sender, $eventArgs)
     $sender.BackColor = [System.Drawing.Color]::Black
 }
         $lblHostname.Add_MouseEnter($changeColorOnHover)
         $lblHostname.Add_MouseLeave($restoreColorOnLeave)
+$buttonsToUpdate = @(
+    $LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler,
+    $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool,
+    $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion,
+    $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
+    $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK
+)
+foreach ($button in $buttonsToUpdate) {
+    $button.Add_MouseLeave({
+        $txt_InfoInstrucciones.Text = $global:defaultInstructions
+    })
+}
 $LZMAbtnBuscarCarpeta.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Busca en los registros de Windows el histórico de instalaciones que han fallado,
@@ -707,70 +699,42 @@ un nuevo registro y así evite el mensaje de error conocido:
     Error al crear el archivo en temporales
 "@
 })
-$LZMAbtnBuscarCarpeta.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.2 “Instalar Herramientas (Chocolatey)”
 $btnInstalarHerramientas.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Abre el menú de instaladores de Chocolatey para instalar o actualizar
 herramientas de línea de comandos y utilerías en el sistema.
 "@
 })
-$btnInstalarHerramientas.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.3 “Ejecutar ExpressProfiler”
 $btnProfiler.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Ejecuta o descarga ExpressProfiler desde el servidor oficial,
 herramienta para monitorear consultas de SQL Server.
 "@
 })
-$btnProfiler.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.4 “Ejecutar Database4”
 $btnDatabase.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Ejecuta Database4: si no está instalado, lo descarga automáticamente
 y luego lo lanza para la gestión de sus bases de datos.
 "@
 })
-$btnDatabase.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.5 “Ejecutar Manager (SQL 2014)”
 $btnSQLManager.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Ejecuta SQL Server Management Studio (para SQL 2014). Si no lo encuentra,
 avisará al usuario dónde descargarlo desde el repositorio oficial.
 "@
 })
-$btnSQLManager.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.6 “Ejecutar Management (SQL Management)”
 $btnSQLManagement.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Busca SQL Management en el equipo, recupera la versión instalada
 y la muestra antes de ejecutarlo.
 "@
 })
-$btnSQLManagement.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.7 “Printer Tools”
 $btnPrinterTool.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Herramienta de Star Micronics para configurar y diagnosticar impresoras POS:
 permite probar estado, formatear y configurar parámetros fundamentales.
 "@
 })
-$btnPrinterTool.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.8 “Lector DP - Permisos”
 $btnLectorDPicacls.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Repara el error al instalar el Driver del lector DP.
@@ -778,10 +742,6 @@ Modifica los permisos de la carpeta C:\Windows\System32\en-us
 mediante el comando ICALCS para el driver tenga los permisos necesarios.
 "@
 })
-$btnLectorDPicacls.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.9 “Agregar IPs”
 $btnConfigurarIPs.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Agrega direcciones IP adicionales para configurar impresoras en red
@@ -789,20 +749,12 @@ que estén en un segmento diferente al predeterminado.
 Convierte de DHCP a ip fija y tambien permite cambiar la configuración de ip fija a DHCP.
 "@
 })
-$btnConfigurarIPs.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.10 “Agregar usuario de Windows”
 $btnAddUser.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Crea un nuevo usuario local en Windows con permisos básicos:
 útil para sesión independiente en estaciones o terminales.
 "@
 })
-$btnAddUser.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.11 “Actualizar datos del sistema”
 $btnForzarActualizacion.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Para el error de descarga de licencia por no tener datos de equipo como el procesador.
@@ -810,50 +762,30 @@ Actualiza la información de hardware del sistema:
 reescanea unidades, adaptadores y muestra un resumen de dispositivos.
 "@
 })
-$btnForzarActualizacion.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.12 “Clear AnyDesk”
 $btnClearAnyDesk.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Detiene el servicio de AnyDesk, elimina los archivos temporales
 y forja un nuevo ID para evitar conflictos de acceso remoto.
 "@
 })
-$btnClearAnyDesk.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.13 “Mostrar Impresoras”
 $btnShowPrinters.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Muestra en consola las impresoras instaladas en Windows,
 junto con su puerto y driver correspondiente.
 "@
 })
-$btnShowPrinters.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.14 “Limpia y Reinicia Cola de Impresión”
 $btnClearPrintJobs.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Limpia la cola de impresión y reinicia el servicio de spooler
 para liberar trabajos atascados.
 "@
 })
-$btnClearPrintJobs.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.15 “Aplicaciones National Soft”
 $btnAplicacionesNS.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Busca los archivos INI de National Soft en el equipo
 y extrae la información de conexión a bases de datos.
 "@
 })
-$btnAplicacionesNS.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-# 2.16 “Permisos C:\NationalSoft”
 $btnCheckPermissions.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Revisa los permisos de la carpeta C:\NationalSoft
@@ -861,34 +793,18 @@ y muestra qué usuarios tienen acceso de lectura/escritura.
 * Permite asignar permisos heredados a Everyone a dicha carpeta.
 "@
 })
-$btnCheckPermissions.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-
-# 2.17 “Cambiar OTM a SQL/DBF”
 $btnCambiarOTM.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Cambia la configuración de On The Minute (OTM)
 entre SQL Server y DBF según corresponda.
 "@
 })
-$btnCambiarOTM.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-
-# 2.18 “Creación de SRM APK”
 $btnCreateAPK.Add_MouseEnter({
     $txt_InfoInstrucciones.Text = @"
 Genera el archivo APK para Comandero Móvil:
 compila el proyecto y lo coloca en la carpeta de salida.
 "@
 })
-$btnCreateAPK.Add_MouseLeave({
-    $txt_InfoInstrucciones.Clear()
-})
-
-#FUNCIONES:
-# Función para verificar e instalar Chocolatey
 function Check-Chocolatey {
             if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
                 $response = [System.Windows.Forms.MessageBox]::Show(
@@ -897,31 +813,31 @@ function Check-Chocolatey {
                     [System.Windows.Forms.MessageBoxButtons]::YesNo,
                     [System.Windows.Forms.MessageBoxIcon]::Question
                 )
-        
+
                 if ($response -eq [System.Windows.Forms.DialogResult]::No) {
                     Write-Host "`nEl usuario canceló la instalación de Chocolatey." -ForegroundColor Red
                     return $false  # Retorna falso si el usuario cancela
                 }
-        
+
                 Write-Host "`nInstalando Chocolatey..." -ForegroundColor Cyan
                 try {
                     Set-ExecutionPolicy Bypass -Scope Process -Force
                     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
                     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-        
+
                     Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
-        
+
                     # Configurar cacheLocation
                     Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
                     choco config set cacheLocation C:\Choco\cache
-        
+
                     [System.Windows.Forms.MessageBox]::Show(
                         "Chocolatey se instaló correctamente y ha sido configurado. Por favor, reinicie PowerShell antes de continuar.",
                         "Reinicio requerido",
                         [System.Windows.Forms.MessageBoxButtons]::OK,
                         [System.Windows.Forms.MessageBoxIcon]::Information
                     )
-        
+
                     # Cerrar el programa automáticamente
                     Write-Host "`nCerrando la aplicación para permitir reinicio de PowerShell..." -ForegroundColor Red
                     Stop-Process -Id $PID -Force
@@ -941,7 +857,37 @@ function Check-Chocolatey {
                 return $true # Retorna verdadero si Chocolatey ya está instalado
             }
 }
-# Función para revisar permisos y agregar Full Control a "Everyone" si es necesario
+# NUEVO: Selector de versión para SSMS
+function Show-SSMSInstallerDialog {
+    $form = Create-Form -Title "Instalar SSMS" `
+        -Size (New-Object System.Drawing.Size(360,180)) `
+        -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
+        -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) `
+        -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255,255,255))
+
+    $lbl = Create-Label -Text "Elige la versión a instalar:" -Location (New-Object System.Drawing.Point(10,15)) -Size (New-Object System.Drawing.Size(320,20))
+    $cmb = Create-ComboBox -Location (New-Object System.Drawing.Point(10,40)) -Size (New-Object System.Drawing.Size(320,22)) -DropDownStyle DropDownList
+    $null = $cmb.Items.Add("Último disponible.")
+    $null = $cmb.Items.Add("SSMS 14 (2014)")
+    $cmb.SelectedIndex = 0
+
+    $btnOK = Create-Button -Text "Instalar" -Location (New-Object System.Drawing.Point(10,80)) -Size (New-Object System.Drawing.Size(140,30))
+    $btnOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $btnCancel = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(190,80)) -Size (New-Object System.Drawing.Size(140,30))
+    $btnCancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+
+    $form.AcceptButton = $btnOK
+    $form.CancelButton = $btnCancel
+    $form.Controls.AddRange(@($lbl,$cmb,$btnOK,$btnCancel))
+
+    $result = $form.ShowDialog()
+    if ($result -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
+
+    switch ($cmb.SelectedIndex) {
+        0 { return "latest" }
+        1 { return "ssms14" }
+    }
+}
     function Check-Permissions {
                 $folderPath = "C:\NationalSoft"
                 $acl = Get-Acl -Path $folderPath
@@ -968,7 +914,7 @@ function Check-Chocolatey {
                     }
                 }
                 # Mostrar los permisos en la consola
-                $permissions | ForEach-Object { 
+                $permissions | ForEach-Object {
                     Write-Host "`t$($_.Usuario) - $($_.Tipo) - " -NoNewline
                     Write-Host "` $($_.Permiso)" -ForegroundColor Green
                 }
@@ -1003,8 +949,8 @@ function Check-Chocolatey {
         ForEach-Object {
             $interface = $_
             $interface.GetIPProperties().UnicastAddresses |
-            Where-Object { 
-                $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' 
+            Where-Object {
+                $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1'
             } |
             ForEach-Object {
                 @{
@@ -1028,6 +974,7 @@ function Check-Chocolatey {
 # Agregar los controles al formulario
             $formPrincipal.Controls.Add($tabControl)
             $formPrincipal.Controls.Add($btnExit)
+
 # Obtener el puerto de SQL Server desde el registro
         $regKeyPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\NATIONALSOFT\MSSQLServer\SuperSocketNetLib\Tcp"
         $tcpPort = Get-ItemProperty -Path $regKeyPath -Name "TcpPort" -ErrorAction SilentlyContinue
@@ -1149,11 +1096,11 @@ function DownloadAndRun($url, $zipPath, $extractPath, $exeName, $validationPath)
 function Show-NewIpForm {
         $formIpAssign = Create-Form -Title "Agregar IP Adicional" -Size (New-Object System.Drawing.Size(350, 150)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
-    
+
         $lblipAssignER = Create-Label -Text "Ingrese la nueva dirección IP:" -Location (New-Object System.Drawing.Point(10, 20))
         $lblipAssignER.AutoSize = $true
         $formIpAssign.Controls.Add($lblipAssignER)
-    
+
         $ipAssignTextBox1 = Create-TextBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox1.MaxLength = 3
         $ipAssignTextBox1.Add_KeyPress({
@@ -1167,10 +1114,10 @@ function Show-NewIpForm {
             if ($ipAssignTextBox1.Text.Length -eq 3) { $ipAssignTextBox2.Focus() }
         })
         $formIpAssign.Controls.Add($ipAssignTextBox1)
-    
+
         $lblipAssignERDot1 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(65, 53))
         $lblipAssignERDot1.AutoSize = $true
-        $formIpAssign.Controls.Add($lblipAssignERDot1)    
+        $formIpAssign.Controls.Add($lblipAssignERDot1)
         $ipAssignTextBox2 = Create-TextBox -Location (New-Object System.Drawing.Point(80, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox2.MaxLength = 3
         $ipAssignTextBox2.Add_KeyPress({
@@ -1184,11 +1131,11 @@ function Show-NewIpForm {
             if ($ipAssignTextBox2.Text.Length -eq 3) { $ipAssignTextBox3.Focus() }
         })
         $formIpAssign.Controls.Add($ipAssignTextBox2)
-    
+
         $lblipAssignERDot2 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(135, 53))
         $lblipAssignERDot2.AutoSize = $true
         $formIpAssign.Controls.Add($lblipAssignERDot2)
-    
+
         $ipAssignTextBox3 = Create-TextBox -Location (New-Object System.Drawing.Point(150, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox3.MaxLength = 3
         $ipAssignTextBox3.Add_KeyPress({
@@ -1202,11 +1149,11 @@ function Show-NewIpForm {
             if ($ipAssignTextBox3.Text.Length -eq 3) { $ipAssignTextBox4.Focus() }
         })
         $formIpAssign.Controls.Add($ipAssignTextBox3)
-    
+
         $lblipAssignERDot3 = Create-Label -Text "." -Location (New-Object System.Drawing.Point(205, 53))
         $lblipAssignERDot3.AutoSize = $true
         $formIpAssign.Controls.Add($lblipAssignERDot3)
-    
+
         $ipAssignTextBox4 = Create-TextBox -Location (New-Object System.Drawing.Point(220, 50)) -Size (New-Object System.Drawing.Size(50, 20))
         $ipAssignTextBox4.MaxLength = 3
         $ipAssignTextBox4.Add_KeyPress({
@@ -1223,13 +1170,13 @@ function Show-NewIpForm {
             $octet2 = [int]$ipAssignTextBox2.Text
             $octet3 = [int]$ipAssignTextBox3.Text
             $octet4 = [int]$ipAssignTextBox4.Text
-    
+
             if ($octet1 -ge 0 -and $octet1 -le 255 -and
                 $octet2 -ge 0 -and $octet2 -le 255 -and
                 $octet3 -ge 0 -and $octet3 -le 255 -and
                 $octet4 -ge 0 -and $octet4 -le 255) {
                 $newIp = "$octet1.$octet2.$octet3.$octet4"
-    
+
                 if ($newIp -eq "0.0.0.0") {
                     Write-Host "La dirección IP no puede ser 0.0.0.0." -ForegroundColor Red
                     [System.Windows.Forms.MessageBox]::Show("La dirección IP no puede ser 0.0.0.0.", "Error")
@@ -1250,7 +1197,7 @@ function Show-NewIpForm {
 # Función para detectar el nombre del grupo de administradores
 function Get-AdminGroupName {
     $groups = net localgroup | Where-Object { $_ -match "Administrador|Administrators" }
-    
+
     # Buscar coincidencia exacta
     if ($groups -match "\bAdministradores\b") {
         return "Administradores"
@@ -1268,7 +1215,7 @@ function Get-AdminGroupName {
 #componentes
 function Clear-TemporaryFiles {
     param([string]$folderPath)
-    
+
     try {
         $items = Get-ChildItem -Path $folderPath -Recurse -Force -ErrorAction Stop
         $count = $items.Count
@@ -1287,11 +1234,11 @@ function Invoke-DiskCleanup {
         # Configurar parámetros de limpieza
         $cleanmgr = "$env:SystemDrive\Windows\System32\cleanmgr.exe"
         $sagerun = "9999"
-        
+
         # Crear registro para limpieza completa
         Start-Process $cleanmgr -ArgumentList "/sageset:$sagerun" -Wait
         Start-Process $cleanmgr -ArgumentList "/sagerun:$sagerun" -Wait
-        
+
         Write-Host "Limpieza de disco completada correctamente" -ForegroundColor Green
     }
     catch {
@@ -1300,9 +1247,9 @@ function Invoke-DiskCleanup {
 }
 function Show-SystemComponents {
     $criticalError = $false
-    
+
     Write-Host "`n=== Componentes del sistema detectados ===" -ForegroundColor Cyan
-    
+
     # Versión de Windows (componente crítico)
     try {
         $os = Get-CimInstance -ClassName CIM_OperatingSystem -ErrorAction Stop
@@ -1392,7 +1339,7 @@ function Start-SystemUpdate {
         }
         $currentStep++
         Update-ProgressBar -ProgressForm $progressForm -CurrentStep $currentStep -TotalSteps $totalSteps
-        
+
         # Paso 3: Reiniciar servicio
         Write-Host "`n[Paso 3/$totalSteps] Reiniciando servicio winmgmt..." -ForegroundColor Yellow
         net start winmgmt *>&1 | Write-Host
@@ -1461,15 +1408,15 @@ function Show-ProgressBar {
                 $lblPercentage.Size = New-Object System.Drawing.Size(360, 20)
                 $lblPercentage.Text = "0% Completado"
                 $lblPercentage.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-            
+
                 # Agregar controles al formulario usando la propiedad Controls nativa
                 $formProgress.Controls.Add($progressBar)
                 $formProgress.Controls.Add($lblPercentage)
-                
+
                 # Exponer los controles como propiedades personalizadas (opcional, si es necesario)
                 $formProgress | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $progressBar -Force
                 $formProgress | Add-Member -MemberType NoteProperty -Name Label -Value $lblPercentage -Force
-            
+
                 $formProgress.Show()
                 return $formProgress
 }
@@ -1505,14 +1452,14 @@ $lblPort.Add_Click({
 $btnCheckPermissions.Add_Click({
         Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
         Check-Permissions
-    })            
+    })
 $btnForzarActualizacion.Add_Click({
                     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
                     Show-SystemComponents
-                    
+
                     # Cargar ensamblado necesario para MessageBox
                     [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
-                    
+
                     # Mostrar MessageBox en español
                     $resultado = [System.Windows.Forms.MessageBox]::Show(
                         "¿Desea forzar la actualización de datos?",  # Texto de la pregunta
@@ -1520,7 +1467,7 @@ $btnForzarActualizacion.Add_Click({
                         [System.Windows.Forms.MessageBoxButtons]::YesNo,  # Botones
                         [System.Windows.Forms.MessageBoxIcon]::Question   # Icono
                     )
-                
+
                     if ($resultado -eq [System.Windows.Forms.DialogResult]::Yes) {
                         Start-SystemUpdate
                         [System.Windows.Forms.MessageBox]::Show(
@@ -1537,11 +1484,11 @@ $btnForzarActualizacion.Add_Click({
 # SQL MANAGEMENT
 $btnSQLManagement.Add_Click({
         Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-        
+
         function Get-SSMSVersions {
             $ssmsPaths = @()
             $possiblePaths = @(
-                "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",  
+                "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",
                 "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe"
             )
             foreach ($path in $possiblePaths) {
@@ -1554,7 +1501,7 @@ $btnSQLManagement.Add_Click({
             }
             return $ssmsPaths
         }
-    
+
         function Get-SSMSVersionFromPath($path) {
             if ($path -match 'Microsoft SQL Server\\(\d+)') {
                 return "SSMS $($matches[1])"
@@ -1566,39 +1513,39 @@ $btnSQLManagement.Add_Click({
                 return "Versión desconocida"
             }
         }
-    
+
         $ssmsVersions = Get-SSMSVersions
         if ($ssmsVersions.Count -eq 0) {
             [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Management Studio instalada.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
-    
+
         $formSelectionSSMS = Create-Form -Title "Seleccionar versión de SSMS" -Size (New-Object System.Drawing.Size(350, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
                 -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
         $labelSSMS = Create-Label -Text "Seleccione la versión de Management:" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
         $formSelectionSSMS.Controls.Add($labelSSMS)
-    
+
         $labelSelectedVersion = Create-Label -Text "Versión seleccionada: " -Location (New-Object System.Drawing.Point(10, 80))
         $formSelectionSSMS.Controls.Add($labelSelectedVersion)
-    
+
         $comboBoxSSMS = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(310, 20)) -DropDownStyle DropDownList
-    
+
         foreach ($version in $ssmsVersions) {
             $comboBoxSSMS.Items.Add($version)
         }
-    
+
         $comboBoxSSMS.SelectedIndex = 0
         $formSelectionSSMS.Controls.Add($comboBoxSSMS)
-    
+
         # Actualizar la label con la versión real de SSMS extraída de la ruta
         $selectedVersion = $comboBoxSSMS.SelectedItem
         $labelSelectedVersion.Text = "Versión seleccionada: $(Get-SSMSVersionFromPath $selectedVersion)"
-    
+
         $comboBoxSSMS.Add_SelectedIndexChanged({
             $selectedVersion = $comboBoxSSMS.SelectedItem
             $labelSelectedVersion.Text = "Versión seleccionada: $(Get-SSMSVersionFromPath $selectedVersion)"
         })
-    
+
         $buttonOKSSMS = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30))
         $buttonOKSSMS.DialogResult = [System.Windows.Forms.DialogResult]::OK
         $buttonCancelSSMS = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(180, 120)) -Size (New-Object System.Drawing.Size(140, 30))
@@ -1607,7 +1554,7 @@ $btnSQLManagement.Add_Click({
         $formSelectionSSMS.Controls.Add($buttonOKSSMS)
         $formSelectionSSMS.CancelButton = $buttonCancelSSMS
         $formSelectionSSMS.Controls.Add($buttonCancelSSMS)
-    
+
         $result = $formSelectionSSMS.ShowDialog()
         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             $selectedVersion = $comboBoxSSMS.SelectedItem
@@ -1660,14 +1607,14 @@ $btnDatabase.Add_Click({
 #seleccion de managers BOTON
 $btnSQLManager.Add_Click({
         Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-    
+
         function Get-SQLServerManagers {
             $managers = @()
             $possiblePaths = @(
                 "${env:SystemRoot}\System32\SQLServerManager*.msc",
                 "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc"
             )
-    
+
             foreach ($path in $possiblePaths) {
                 $foundManagers = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
                 if ($foundManagers) {
@@ -1676,7 +1623,7 @@ $btnSQLManager.Add_Click({
             }
             return $managers
         }
-    
+
         $managers = Get-SQLServerManagers
         if ($managers.Count -eq 0) {
             [System.Windows.Forms.MessageBox]::Show("No se encontró ninguna versión de SQL Server Configuration Manager.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
@@ -1684,13 +1631,13 @@ $btnSQLManager.Add_Click({
         }
         $formSelectionManager = Create-Form -Title "Seleccionar versión de Configuration Manager" -Size (New-Object System.Drawing.Size(350, 250)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
             -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
-    
+
         $labelManager = Create-Label -Text "Seleccione la versión de Configuration Manager:" -Location (New-Object System.Drawing.Point(10, 20)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
         $formSelectionManager.Controls.Add($labelManager)
-    
+
         $labelManagerInfo = Create-Label -Text "" -Location (New-Object System.Drawing.Point(10, 80)) -Size (New-Object System.Drawing.Size(310, 30)) -BackColor ([System.Drawing.Color]::FromArgb(255, 255, 255))
         $formSelectionManager.Controls.Add($labelManagerInfo)
-    
+
         function Get-ManagerInfo($path) {
             if ($path -match "SQLServerManager(\d+)") {
                 $version = $matches[1]
@@ -1703,28 +1650,28 @@ $btnSQLManager.Add_Click({
                 return "Información no disponible"
             }
         }
-    
+
         $UpdateManagerInfo = {
             $selectedManager = $comboBoxManager.SelectedItem
             $managerInfo = Get-ManagerInfo $selectedManager
             $labelManagerInfo.Text = $managerInfo
         }
-    
+
         $comboBoxManager = Create-ComboBox -Location (New-Object System.Drawing.Point(10, 50)) -Size (New-Object System.Drawing.Size(310, 20)) -DropDownStyle DropDownList
-    
+
         foreach ($manager in $managers) {
             $comboBoxManager.Items.Add($manager)
         }
-    
+
         $comboBoxManager.SelectedIndex = 0
         $formSelectionManager.Controls.Add($comboBoxManager)
-    
+
         $UpdateManagerInfo.Invoke() # Actualizar al inicio
-    
+
         $comboBoxManager.Add_SelectedIndexChanged({
             $UpdateManagerInfo.Invoke()
         })
-    
+
         $btnOKManager = Create-Button -Text "Aceptar" -Location (New-Object System.Drawing.Point(10, 120)) -Size (New-Object System.Drawing.Size(140, 30))
         $btnOKManager.DialogResult = [System.Windows.Forms.DialogResult]::OK
         $btnCancelManager = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(180, 120)) -Size (New-Object System.Drawing.Size(140, 30))
@@ -1733,7 +1680,7 @@ $btnSQLManager.Add_Click({
         $formSelectionManager.Controls.Add($btnOKManager)
         $formSelectionManager.CancelButton = $btnCancelManager
         $formSelectionManager.Controls.Add($btnCancelManager)
-    
+
         $result = $formSelectionManager.ShowDialog()
         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             $selectedManager = $comboBoxManager.SelectedItem
@@ -1753,9 +1700,9 @@ $btnClearAnyDesk.Add_Click({
         Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
         # Mostrar cuadro de confirmación
         $confirmationResult = [System.Windows.Forms.MessageBox]::Show(
-            "¿Estás seguro de renovar AnyDesk?", 
-            "Confirmar Renovación", 
-            [System.Windows.Forms.MessageBoxButtons]::YesNo, 
+            "¿Estás seguro de renovar AnyDesk?",
+            "Confirmar Renovación",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Question
         )
         # Si el usuario selecciona "Sí"
@@ -1830,14 +1777,14 @@ $btnShowPrinters.Add_Click({
             if ($printers.Count -gt 0) {
                 Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "Nombre", "Puerto", "Driver", "Compartida")
                 Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "------", "------", "------", "---------")
-            
-                $printers | ForEach-Object { 
+
+                $printers | ForEach-Object {
                     Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f $_.Name, $_.PortName, $_.DriverName, $_.IsShared)
                 }
             } else {
                 Write-Host "`nNo se encontraron impresoras."
             }
-        
+
         } catch {
             Write-Host "`nError al obtener impresoras: $_"
         }
@@ -1848,14 +1795,14 @@ $btnClearPrintJobs.Add_Click({
         try {
 
             # Ejecutar el script para limpiar los trabajos de impresión y reiniciar la cola de impresión
-            Get-Printer | ForEach-Object { 
-                Get-PrintJob -PrinterName $_.Name | Remove-PrintJob 
+            Get-Printer | ForEach-Object {
+                Get-PrintJob -PrinterName $_.Name | Remove-PrintJob
             }
-        
+
             # Reiniciar el servicio de la cola de impresión
                 Stop-Service -Name Spooler -Force
                 Start-Service -Name Spooler
-        
+
             # Mensaje de confirmación
             [System.Windows.Forms.MessageBox]::Show("Los trabajos de impresión han sido eliminados y el servicio de cola de impresión se ha reiniciado.", "Operación Exitosa", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         }
@@ -1864,10 +1811,6 @@ $btnClearPrintJobs.Add_Click({
             [System.Windows.Forms.MessageBox]::Show("Ocurrió un error al intentar limpiar las impresoras o reiniciar el servicio.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
-
-
-
-#LMZA
 $LZMAbtnBuscarCarpeta.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
 
@@ -2027,19 +1970,18 @@ $LZMAbtnBuscarCarpeta.Add_Click({
         )
     }
 })
-
-
-                
 # Crear el nuevo formulario para los instaladores de Chocolatey
         $formInstaladoresChoco = Create-Form -Title "Instaladores Choco" -Size (New-Object System.Drawing.Size(500, 200)) -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
-                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))   
+                -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog) -MaximizeBox $false -MinimizeBox $false -BackColor ([System.Drawing.Color]::FromArgb(5, 5, 5))
 # Crear los botones dentro del nuevo formulario
     $btnInstallSQL2014 = Create-Button -Text "Install: SQL2014" -Location (New-Object System.Drawing.Point(10, 10)) `
         -ToolTip "Instalación mediante choco de SQL Server 2014 Express." -Enabled $false
+
     $btnInstallSQL2019 = Create-Button -Text "Install: SQL2019" -Location (New-Object System.Drawing.Point(240, 10)) `
         -ToolTip "Instalación mediante choco de SQL Server 2019 Express."
-    $btnInstallSQLManagement = Create-Button -Text "Install: Management14" -Location (New-Object System.Drawing.Point(10, 50)) `
-        -ToolTip "Instalación mediante choco de SQL Management 2014."
+# Reemplazar el botón existente (buscar alrededor de línea 1910)
+    $btnInstallSQLManagement = Create-Button -Text "Install: SQL Server Management Studio" -Location (New-Object System.Drawing.Point(10, 50)) `
+        -ToolTip "Instalación mediante choco de SQL Server Management Studio."
     $btnExitInstaladores = Create-Button -Text "Salir" -Location (New-Object System.Drawing.Point(10, 120)) `
         -ToolTip "Salir del formulario de instaladores."
 # Agregar los botones al nuevo formulario
@@ -2062,34 +2004,78 @@ $btnInstalarHerramientas.Add_Click({
             Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
         }
 })
-#Boton para instalar Management
+$btnInstallSQLManagement.Add_MouseEnter({
+    $txt_InfoInstrucciones.Text = @"
+Instalación de SQL Server Management Studio mediante Chocolatey.
+Al presionar, podrás elegir:
+  • Último disponible (paquete: sql-server-management-studio)
+  • SSMS 14 / 2014 (paquete: mssqlservermanagementstudio2014express)
+"@
+})
+#btnInstallSQLManagement Click
 $btnInstallSQLManagement.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+
+    # Verificar Chocolatey
+    if (!(Check-Chocolatey)) { return }
+
+    # Mostrar selector
+    $choice = Show-SSMSInstallerDialog
+    if (-not $choice) {
+        Write-Host "`nInstalación cancelada por el usuario." -ForegroundColor Yellow
+        return
+    }
+
+    # Confirmación
+    $texto = if ($choice -eq "latest") {
+        "¿Desea instalar el SSMS 'Último disponible'?"
+    } else {
+        "¿Desea instalar SSMS 14 (2014)?"
+    }
     $response = [System.Windows.Forms.MessageBox]::Show(
-        "¿Desea proceder con la instalación de SQL Server Management Studio 2014 Express?",
-        "Advertencia de instalación",
+        $texto,"Advertencia de instalación",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Warning
     )
-
-    if ($response -eq [System.Windows.Forms.DialogResult]::No) {
+    if ($response -ne [System.Windows.Forms.DialogResult]::Yes) {
         Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
         return
     }
 
-    if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso (cancelado o error)
-
-    Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-
     try {
         Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
-        choco config set cacheLocation C:\Choco\cache
+        choco config set cacheLocation C:\Choco\cache | Out-Null
 
-        Write-Host "`nInstalando SQL Server Management Studio 2014 Express usando Chocolatey..." -ForegroundColor Cyan
-        Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express --confirm --yes' -NoNewWindow -Wait
-        Write-Host "`nInstalación completa." -ForegroundColor Green
-    } catch {
+        if ($choice -eq "latest") {
+            Write-Host "`nInstalando 'Último disponible' (sql-server-management-studio)..." -ForegroundColor Cyan
+            Start-Process choco -ArgumentList 'install sql-server-management-studio -y' -NoNewWindow -Wait
+            [System.Windows.Forms.MessageBox]::Show(
+                "SSMS (último disponible) instalado correctamente.",
+                "Éxito",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            ) | Out-Null
+        }
+        elseif ($choice -eq "ssms14") {
+            Write-Host "`nInstalando SSMS 14 (mssqlservermanagementstudio2014express)..." -ForegroundColor Cyan
+            Start-Process choco -ArgumentList 'install mssqlservermanagementstudio2014express -y' -NoNewWindow -Wait
+            [System.Windows.Forms.MessageBox]::Show(
+                "SSMS 14 (2014) instalado correctamente.",
+                "Éxito",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            ) | Out-Null
+        }
+        Write-Host "`nInstalación completada." -ForegroundColor Green
+    }
+    catch {
         Write-Host "`nOcurrió un error durante la instalación: $_" -ForegroundColor Red
+        [System.Windows.Forms.MessageBox]::Show(
+            "Error al instalar SSMS: $($_.Exception.Message)",
+            "Error",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        ) | Out-Null
     }
 })
 # Instalador de SQL 2019
@@ -2131,16 +2117,16 @@ $btnInstallSQL2014.Add_Click({
                 [System.Windows.Forms.MessageBoxButtons]::YesNo,
                 [System.Windows.Forms.MessageBoxIcon]::Warning
             )
-        
+
             if ($response -eq [System.Windows.Forms.DialogResult]::No) {
                 Write-Host "`nEl usuario canceló la instalación." -ForegroundColor Red
                 return
             }
-        
+
             if (!(Check-Chocolatey)) { return } # Sale si Check-Chocolatey retorna falso
-        
+
             Write-Host "`nComenzando el proceso, por favor espere..." -ForegroundColor Green
-        
+
             try {
                 # Verificar si la instancia ya existe
                 $instanceExists = Get-Service -Name "MSSQL`$NationalSoft" -ErrorAction SilentlyContinue
@@ -2149,7 +2135,7 @@ $btnInstallSQL2014.Add_Click({
                     [System.Windows.Forms.MessageBox]::Show("La instancia 'NationalSoft' ya existe. Cancelando la instalación.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                     return
                 }
-        
+
                 # Instalar SQL Server 2014 Express
                 Write-Host "`nInstalando SQL Server 2014 Express usando Chocolatey..." -ForegroundColor Cyan
                 Start-Process choco -ArgumentList 'install sql-server-express -y --version=2014.0.2000.8 --params "/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:NationalSoft /FEATURES:SQL"' -NoNewWindow -Wait
@@ -2202,13 +2188,13 @@ $btnConfigurarIPs.Add_Click({
                 }
                 $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
                 $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
-        
+
                 if ($currentConfig) {
                     $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
                     $currentIPAddress = $currentConfig.IPAddress
                     $currentPrefixLength = $currentConfig.PrefixLength
                     $currentGateway = (Get-NetIPConfiguration -InterfaceAlias $selectedAdapter.Name).IPv4DefaultGateway | Select-Object -ExpandProperty NextHop
-        
+
                     if (-not $isDhcp) {
                         Write-Host "`nEl adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?" -ForegroundColor Yellow
                         $confirmation = [System.Windows.Forms.MessageBox]::Show("El adaptador ya tiene una IP fija. ¿Desea agregar una nueva IP?", "Confirmación", [System.Windows.Forms.MessageBoxButtons]::YesNo)
@@ -2224,7 +2210,7 @@ $btnConfigurarIPs.Add_Click({
                                         New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
                                         Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                                         [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
-        
+
                                         # Actualizar la lista de IPs asignadas
                                         $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
                                         $ips = $currentIPs.IPAddress -join ", "
@@ -2243,23 +2229,23 @@ $btnConfigurarIPs.Add_Click({
                             try {
                                 Set-NetIPInterface -InterfaceAlias $selectedAdapter.Name -Dhcp Disabled
                                 New-NetIPAddress -IPAddress $currentIPAddress -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
-        
+
                                 if ($currentGateway) {
                                     Remove-NetRoute -InterfaceAlias $selectedAdapter.Name -NextHop $currentGateway -Confirm:$false -ErrorAction SilentlyContinue
                                     New-NetRoute -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -NextHop $currentGateway -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue
                                 }
-        
+
                                 $dnsServers = @("8.8.8.8", "8.8.4.4")
                                 Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ServerAddresses $dnsServers
-        
+
                                 Write-Host "`nSe cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                                 [System.Windows.Forms.MessageBox]::Show("Se cambió a IP fija $currentIPAddress en el adaptador $($selectedAdapter.Name).", "Éxito")
-        
+
                                 # Actualizar la lista de IPs asignadas
                                 $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
                                 $ips = $currentIPs.IPAddress -join ", "
                                 $lblipAssignIps.Text = "IPs asignadas: $ips"
-        
+
                                 Write-Host "`n¿Desea agregar una dirección IP adicional?" -ForegroundColor Yellow
                                 $confirmationAdditionalIP = [System.Windows.Forms.MessageBox]::Show("¿Desea agregar una dirección IP adicional?", "IP Adicional", [System.Windows.Forms.MessageBoxButtons]::YesNo)
                                 if ($confirmationAdditionalIP -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -2274,7 +2260,7 @@ $btnConfigurarIPs.Add_Click({
                                                 New-NetIPAddress -IPAddress $newIp -PrefixLength $currentPrefixLength -InterfaceAlias $selectedAdapter.Name
                                                 Write-Host "`nSe agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                                                 [System.Windows.Forms.MessageBox]::Show("Se agregó la dirección IP adicional $newIp al adaptador $($selectedAdapter.Name).", "Éxito")
-        
+
                                                 # Actualizar la lista de IPs asignadas
                                                 $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
                                                 $ips = $currentIPs.IPAddress -join ", "
@@ -2308,7 +2294,7 @@ $btnConfigurarIPs.Add_Click({
                 }
                 $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
                 $currentConfig = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue
-        
+
                 if ($currentConfig) {
                     $isDhcp = ($currentConfig.PrefixOrigin -eq "Dhcp")
                     if ($isDhcp) {
@@ -2327,7 +2313,7 @@ $btnConfigurarIPs.Add_Click({
                                 Set-DnsClientServerAddress -InterfaceAlias $selectedAdapter.Name -ResetServerAddresses
                                 Write-Host "`nSe cambió a DHCP en el adaptador $($selectedAdapter.Name)." -ForegroundColor Green
                                 [System.Windows.Forms.MessageBox]::Show("Se cambió a DHCP en el adaptador $($selectedAdapter.Name).", "Éxito")
-        
+
                                 # Actualizar la lista de IPs asignadas
                                 $lblipAssignIps.Text = "Generando IP por DHCP. Seleccione de nuevo."
                             } catch {
@@ -2353,13 +2339,80 @@ $btnConfigurarIPs.Add_Click({
                 if ($selectedAdapterName -ne "Selecciona 1 adaptador de red") {
                     $selectedAdapter = Get-NetAdapter -Name $selectedAdapterName
                     $currentIPs = Get-NetIPAddress -InterfaceAlias $selectedAdapter.Name -AddressFamily IPv4
-                    $ips = $currentIPs.IPAddress -join ", "
+                    $ips = $currentIPs.IPAddress -join "cmbQueries, "
                     $lblipAssignIps.Text = "IPs asignadas: $ips"
                 } else {
                     $lblipAssignIps.Text = "IPs asignadas:"
                 }
             })
             $formIpAssignAsignacion.ShowDialog()
+})
+function Get-IniConnections {
+    $connections = @()
+    $pathsToCheck = @(
+        @{ Path = "C:\NationalSoft\Softrestaurant9.5.0Pro"; INI = "restaurant.ini"; Nombre = "SR9.5" },
+        @{ Path = "C:\NationalSoft\Softrestaurant10.0";    INI = "restaurant.ini"; Nombre = "SR10" },
+        @{ Path = "C:\NationalSoft\Softrestaurant11.0";    INI = "restaurant.ini"; Nombre = "SR11" },
+        @{ Path = "C:\NationalSoft\Softrestaurant12.0";    INI = "restaurant.ini"; Nombre = "SR12" },
+        @{ Path = "C:\Program Files (x86)\NsBackOffice1.0";    INI = "DbConfig.ini"; Nombre = "NSBackOffice" },
+        @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0";INI = "nshoteles.ini";   Nombre = "Hoteles" },
+        @{ Path = "C:\NationalSoft\OnTheMinute4.5";        INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
+    )
+    function Get-IniValue {
+        param([string]$FilePath, [string]$Key)
+        if (Test-Path $FilePath) {
+            $line = Get-Content $FilePath | Where-Object { $_ -match "^$Key\s*=" }
+            if ($line) {
+                return $line.Split('=')[1].Trim()
+            }
+        }
+        return $null
+    }
+    foreach ($entry in $pathsToCheck) {
+        $mainIni = Join-Path $entry.Path $entry.INI
+        if (Test-Path $mainIni) {
+            $dataSource = Get-IniValue -FilePath $mainIni -Key "DataSource"
+            if ($dataSource -and $dataSource -notin $connections) {
+                $connections += $dataSource
+            }
+        }
+        $inisFolder = Join-Path $entry.Path "INIS"
+        if (Test-Path $inisFolder) {
+            $iniFiles = Get-ChildItem -Path $inisFolder -Filter "*.ini"
+            foreach ($iniFile in $iniFiles) {
+                $dataSource = Get-IniValue -FilePath $iniFile.FullName -Key "DataSource"
+                if ($dataSource -and $dataSource -notin $connections) {
+                    $connections += $dataSource
+                }
+            }
+        }
+    }
+
+    return $connections | Sort-Object
+}
+function Load-IniConnectionsToComboBox {
+    $connections = Get-IniConnections
+    $txtServer.Items.Clear()
+
+    if ($connections.Count -gt 0) {
+        foreach ($connection in $connections) {
+            $txtServer.Items.Add($connection) | Out-Null
+        }
+        #Write-Host "`tSe cargaron $($connections.Count) conexiones desde archivos INI" -ForegroundColor Green Probar sin este
+    } else {
+        Write-Host "`tNo se encontraron conexiones en archivos INI" -ForegroundColor Yellow
+    }
+    $defaultServer = ".\NationalSoft"
+    $txtServer.Text = $defaultServer
+}
+        Load-IniConnectionsToComboBox
+$btnReloadConnections = Create-Button -Text "Recargar Conexiones" -Location (New-Object System.Drawing.Point(10, 180)) `
+    -Size (New-Object System.Drawing.Size(180, 30)) `
+    -BackColor ([System.Drawing.Color]::FromArgb(200, 230, 255)) `
+    -ToolTip "Recargar la lista de conexiones desde archivos INI"
+$btnReloadConnections.Add_Click({
+    Write-Host "Recargando conexiones desde archivos INI..." -ForegroundColor Cyan
+    Load-IniConnectionsToComboBox
 })
 # ICACLS para dar permisos cuando marca error driver de lector
 $btnLectorDPicacls.Add_Click({
@@ -2430,11 +2483,11 @@ $btnLectorDPicacls.Add_Click({
                 $extractPath = "C:\Temp\Driver_DP"
                 $exeName = "x64\Setup.msi"
                 $validationPath = "C:\Temp\Driver_DP\x64\Setup.msi"
-            
+
                 # Llamar a la función de descarga y ejecución
                 DownloadAndRun -url $url -zipPath $zipPath -extractPath $extractPath -exeName $exeName -validationPath $validationPath
             }
-        
+
     } catch {
         Write-Host "Error: $_" -ForegroundColor Red
     }
@@ -2558,7 +2611,6 @@ $btnAplicacionesNS.Add_Click({
             Usuario    = "NA"
         }
     }
-    # Cálculo de anchos para presentación
     $columnas = @("Aplicacion","INI","DataSource","Catalog","Usuario")
     $anchos   = @{}
     foreach ($col in $columnas) { $anchos[$col] = $col.Length }
@@ -2569,16 +2621,10 @@ $btnAplicacionesNS.Add_Click({
             }
         }
     }
-
-    # Mostrar encabezados
     $titulos = $columnas | ForEach-Object { $_.PadRight($anchos[$_] + 2) }
     Write-Host ($titulos -join "") -ForegroundColor Cyan
-
-    # Línea separadora
     $separador = $columnas | ForEach-Object { ("-" * $anchos[$_]).PadRight($anchos[$_] + 2) }
     Write-Host ($separador -join "") -ForegroundColor Cyan
-
-    # Mostrar resultados
     foreach ($res in $resultados) {
         $fila = $columnas | ForEach-Object { $res.$_.PadRight($anchos[$_] + 2) }
         if ($res.INI -eq "No encontrado") {
@@ -2588,65 +2634,43 @@ $btnAplicacionesNS.Add_Click({
         }
     }
 })
-# Cambiar OTM de DBL a SQL y viceverza
 $btnCambiarOTM.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-    # Ruta de configuración
     $syscfgPath = "C:\Windows\SysWOW64\Syscfg45_2.0.dll"
     $iniPath = "C:\NationalSoft\OnTheMinute4.5"
-
-    # Verificar si existe el archivo de configuración
     if (-not (Test-Path $syscfgPath)) {
         [System.Windows.Forms.MessageBox]::Show("El archivo de configuración no existe.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
         Write-Host "`tEl archivo de configuración no existe." -ForegroundColor Red
         return
     }
-
-    # Leer la configuración actual
     $fileContent = Get-Content $syscfgPath
     $isSQL = $fileContent -match "494E5354414C4C=1" -and $fileContent -match "56455253495354454D41=3"
     $isDBF = $fileContent -match "494E5354414C4C=2" -and $fileContent -match "56455253495354454D41=2"
-
-    # Verificar si la configuración es válida
     if (!$isSQL -and !$isDBF) {
         [System.Windows.Forms.MessageBox]::Show("No se detectó una configuración válida de SQL o DBF.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
         Write-Host "`tNo se detectó una configuración válida de SQL o DBF." -ForegroundColor Red
         return
     }
-
-    # Obtener todos los archivos .ini en la carpeta
     $iniFiles = Get-ChildItem -Path $iniPath -Filter "*.ini"
-
-    # Si no hay archivos INI, mostrar error
     if ($iniFiles.Count -eq 0) {
         [System.Windows.Forms.MessageBox]::Show("No se encontraron archivos INI en $iniPath.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
         Write-Host "`tNo se encontraron archivos INI en $iniPath." -ForegroundColor Red
         return
     }
-
-    # Variables para almacenar los archivos INI detectados
     $iniSQLFile = $null
     $iniDBFFile = $null
-
-    # Iterar sobre los archivos INI y verificar el contenido de cada uno
     foreach ($iniFile in $iniFiles) {
         $content = Get-Content $iniFile.FullName
-
-        # Verificar si contiene la sección Provider para DBF (VFPOLEDB.1) o SQL (SQLOLEDB.1)
         if ($content -match "Provider=VFPOLEDB.1" -and -not $iniDBFFile) {
             $iniDBFFile = $iniFile
         }
         if ($content -match "Provider=SQLOLEDB.1" -and -not $iniSQLFile) {
             $iniSQLFile = $iniFile
         }
-
-        # Si ambos archivos ya han sido encontrados, salir del bucle
         if ($iniSQLFile -and $iniDBFFile) {
             break
         }
     }
-
-    # Si no se encontraron ambos archivos, mostrar mensaje
     if (-not $iniSQLFile -or -not $iniDBFFile) {
         [System.Windows.Forms.MessageBox]::Show("No se encontraron los archivos INI esperados.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK)
         Write-Host "`tNo se encontraron los archivos INI esperados." -ForegroundColor Red
@@ -2654,15 +2678,11 @@ $btnCambiarOTM.Add_Click({
         $iniFiles | ForEach-Object { Write-Host "`t- $_.Name" }
         return
     }
-
-    # Confirmar cambio de configuración
     $currentConfig = if ($isSQL) { "SQL" } else { "DBF" }
     $newConfig = if ($isSQL) { "DBF" } else { "SQL" }
     $message = "Actualmente tienes configurado: $currentConfig.`n¿Quieres cambiar a $newConfig?"
     $result = [System.Windows.Forms.MessageBox]::Show($message, "Cambiar Configuración", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-
     if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-        # Modificar Syscfg45_2.0.dll para cambiar configuración
         if ($newConfig -eq "SQL") {
             Write-Host "`tCambiando a SQL: C:\Windows\SysWOW64\Syscfg45_2.0.dll" -ForegroundColor Yellow
             Write-Host "`t494E5354414C4C=1"
@@ -2676,8 +2696,6 @@ $btnCambiarOTM.Add_Click({
             (Get-Content $syscfgPath) -replace "494E5354414C4C=1", "494E5354414C4C=2" | Set-Content $syscfgPath
             (Get-Content $syscfgPath) -replace "56455253495354454D41=3", "56455253495354454D41=2" | Set-Content $syscfgPath
         }
-
-        # Renombrar archivos INI
         if ($newConfig -eq "SQL") {
             Rename-Item -Path $iniDBFFile.FullName -NewName "checadorsql_DBF_old.ini" -ErrorAction Stop
             Rename-Item -Path $iniSQLFile.FullName -NewName "checadorsql.ini" -ErrorAction Stop
@@ -2685,66 +2703,39 @@ $btnCambiarOTM.Add_Click({
             Rename-Item -Path $iniSQLFile.FullName -NewName "checadorsql_SQL_old.ini" -ErrorAction Stop
             Rename-Item -Path $iniDBFFile.FullName -NewName "checadorsql.ini" -ErrorAction Stop
         }
-
         [System.Windows.Forms.MessageBox]::Show("Configuración cambiada exitosamente.", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK)
         Write-Host "Configuración cambiada exitosamente." -ForegroundColor Green
     }
 })
-
-
-<# ---------------------------------------------------------------------------
-  Formulario "Crear Usuario de Windows" con correcciones:
-  - Obtención confiable de grupos Administradores y Usuarios estándar
-  - Validación de complejidad de contraseña antes de New-LocalUser
-  - Manejo adecuado de errores al verificar pertenencia a grupos
---------------------------------------------------------------------------- #>
 $btnAddUser.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-
-    # Crear formulario
     $formAddUser = Create-Form -Title "Crear Usuario de Windows" -Size (New-Object System.Drawing.Size(450, 250))
-
-    # Controles
     $txtUsername = Create-TextBox -Location (New-Object System.Drawing.Point(120, 20)) -Size (New-Object System.Drawing.Size(290, 30))
     $lblUsername = Create-Label -Text "Nombre:" -Location (New-Object System.Drawing.Point(10, 20))
     $txtPassword = Create-TextBox -Location (New-Object System.Drawing.Point(120, 60)) -Size (New-Object System.Drawing.Size(290, 30)) -UseSystemPasswordChar $true
     $lblPassword = Create-Label -Text "Contraseña:" -Location (New-Object System.Drawing.Point(10, 60))
     $cmbType     = Create-ComboBox -Location (New-Object System.Drawing.Point(120, 100)) -Size (New-Object System.Drawing.Size(290, 30)) -Items @("Usuario estándar","Administrador")
     $lblType     = Create-Label -Text "Tipo:" -Location (New-Object System.Drawing.Point(10, 100))
-
-    # Determinar nombres de grupos estándar y administradores por SID
     $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name
     $userGroup  = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name
-
-    # Botones
     $btnCreate = Create-Button -Text "Crear"    -Location (New-Object System.Drawing.Point(10, 150))  -Size (New-Object System.Drawing.Size(130, 30))
     $btnCancel = Create-Button -Text "Cancelar" -Location (New-Object System.Drawing.Point(150, 150)) -Size (New-Object System.Drawing.Size(130, 30))
     $btnShow   = Create-Button -Text "Mostrar usuarios" -Location (New-Object System.Drawing.Point(290, 150)) -Size (New-Object System.Drawing.Size(130, 30))
-    # Mostrar usuarios existentes
     $btnShow.Add_Click({
         Write-Host "`nUsuarios actuales en el sistema:`n" -ForegroundColor Cyan
-            # Obtener todos los usuarios locales
             $users = Get-LocalUser
-            # Crear objetos con formato similar al de impresoras
             $usersTable = $users | ForEach-Object {
                 $user = $_
-                # Determinar estado
                 $estado = if ($user.Enabled) { "Habilitado" } else { "Deshabilitado" }
-                
-                # Determinar tipo de usuario
                 $tipoUsuario = "Usuario estándar"
-                
-                # Verificar si es administrador
                 try {
                     $adminMembers = Get-LocalGroupMember -Group $adminGroup -ErrorAction Stop
                     if ($adminMembers | Where-Object { $_.SID -eq $user.SID }) {
                         $tipoUsuario = "Administrador"
                     }
                     else {
-                        # Verificar grupo de usuarios estándar
                         $userMembers = Get-LocalGroupMember -Group $userGroup -ErrorAction Stop
                         if (-not ($userMembers | Where-Object { $_.SID -eq $user.SID })) {
-                            # Buscar en otros grupos
                             $grupos = Get-LocalGroup | ForEach-Object {
                                 if (Get-LocalGroupMember -Group $_ | Where-Object { $_.SID -eq $user.SID }) {
                                     $_.Name
@@ -2757,31 +2748,24 @@ $btnAddUser.Add_Click({
                 catch {
                     $tipoUsuario = "Error verificando grupos"
                 }
-                
-                # Acortar texto si es muy largo (como en impresoras)
                 $nombre = $user.Name.Substring(0, [Math]::Min(25, $user.Name.Length))
                 $tipo = $tipoUsuario.Substring(0, [Math]::Min(40, $tipoUsuario.Length))
-                
                 [PSCustomObject]@{
                     Nombre = $nombre
                     Tipo   = $tipo
                     Estado = $estado
                 }
             }
-        
-            # Mostrar en tabla formateada
             if ($usersTable.Count -gt 0) {
                 Write-Host ("{0,-25} {1,-40} {2,-15}" -f "Nombre", "Tipo", "Estado")
                 Write-Host ("{0,-25} {1,-40} {2,-15}" -f "------", "------", "------")
-                
-                $usersTable | ForEach-Object { 
-                    Write-Host ("{0,-25} {1,-40} {2,-15}" -f $_.Nombre, $_.Tipo, $_.Estado) 
+                $usersTable | ForEach-Object {
+                    Write-Host ("{0,-25} {1,-40} {2,-15}" -f $_.Nombre, $_.Tipo, $_.Estado)
                 }
             } else {
                 Write-Host "No se encontraron usuarios."
             }
         })
-    # Crear usuario y asignar grupo
     $btnCreate.Add_Click({
         $username = $txtUsername.Text.Trim()
         $password = $txtPassword.Text
@@ -2790,51 +2774,35 @@ $btnAddUser.Add_Click({
         if (-not $username -or -not $password) {
             Write-Host "`nError: Nombre y contraseña son requeridos" -ForegroundColor Red; return
         }
-
-        # Validar complejidad mínima: 8+ caracteres, mayúscula, minúscula, número y símbolo
         if ($password.Length -lt 8 -or $password -notmatch '[A-Z]' -or $password -notmatch '[a-z]' -or $password -notmatch '\d' -or $password -notmatch '[^\w]') {
             Write-Host "`nError: La contraseña debe tener al menos 8 caracteres, incluir mayúscula, minúscula, número y símbolo" -ForegroundColor Red; return
         }
-
         try {
             if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
                 Write-Host "`nError: El usuario '$username' ya existe" -ForegroundColor Red; return
             }
-            # Crear usuario
             $securePwd = ConvertTo-SecureString $password -AsPlainText -Force
             New-LocalUser -Name $username -Password $securePwd -AccountNeverExpires -PasswordNeverExpires
             Write-Host "`nUsuario '$username' creado exitosamente" -ForegroundColor Green
-
-            # Asignar grupo
             $group = if ($type -eq 'Administrador') { $adminGroup } else { $userGroup }
             Add-LocalGroupMember -Group $group -Member $username
             Write-Host "`tUsuario agregado al grupo $group" -ForegroundColor Cyan
-
             $formAddUser.Close()
         } catch {
             Write-Host "`nError durante la creación del usuario: $_" -ForegroundColor Red
         }
     })
-    # Cancelar
     $btnCancel.Add_Click({ Write-Host "`tOperación cancelada." -ForegroundColor Yellow; $formAddUser.Close() })
-    # Agregar controles
     $formAddUser.Controls.AddRange(@($txtUsername,$txtPassword,$cmbType,$btnCreate,$btnCancel,$btnShow,$lblUsername,$lblPassword,$lblType))
     $formAddUser.ShowDialog()
 })
-# SQL SENTENCIAS QUERIES Y TODO
 function Remove-SqlComments {
     param(
         [string]$Query
     )
-    # 1) Eliminar comentarios de bloque /* … */ (incluso si abarcan varias líneas)
     $cleanedQuery = $Query -replace '(?s)/\*.*?\*/', ''
-
-    # 2) Eliminar líneas que comienzan con -- (incluyendo espacios iniciales)
     $cleanedQuery = $cleanedQuery -replace '(?m)^\s*--.*\n?', ''
-
-    # 3) Eliminar comentarios en línea con -- (sin afectar URLs)
     $cleanedQuery = $cleanedQuery -replace '(?<!\w)--.*$', ''
-
     return $cleanedQuery.Trim()
 }
 function ConvertTo-DataTable {
@@ -2865,34 +2833,24 @@ function Execute-SqlQuery {
     try {
         $connectionString = "Server=$server;Database=$database;User Id=$global:user;Password=$global:password;MultipleActiveResultSets=True"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        
-        # Variable para capturar mensajes
         $infoMessages = New-Object System.Collections.ArrayList
-        
-        # Evento para capturar mensajes de SQL
         $connection.add_InfoMessage({
             param($sender, $e)
             $infoMessages.Add($e.Message) | Out-Null
         })
-        
         $connection.Open()
         $command = $connection.CreateCommand()
         $command.CommandText = $query
-
-        # Detectar si es una consulta que devuelve datos
         if ($query -match "(?si)^\s*(SELECT|WITH|INSERT|UPDATE|DELETE|RESTORE)") {
             $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
             $dataTable = New-Object System.Data.DataTable
             $adapter.Fill($dataTable) | Out-Null
-
-            # Obtener mensajes durante la ejecución
             $command.ExecuteNonQuery() | Out-Null
-
             return @{
                 DataTable = $dataTable
                 Messages = $infoMessages
             }
-        } 
+        }
         else {
             $rowsAffected = $command.ExecuteNonQuery()
             return @{
@@ -2909,7 +2867,6 @@ function Execute-SqlQuery {
         $connection.Close()
     }
 }
-#Boton para desconectar de la base de datos
 function ConvertTo-DataTable {
     param($InputObject)
     $dt = New-Object System.Data.DataTable
@@ -2927,15 +2884,13 @@ function ConvertTo-DataTable {
     }
     return $dt
 }
-
-# Función original para mostrar resultados en consola (SIN CAMBIOS)
 function Show-ResultsConsole {
     param (
         [string]$query
     )
     try {
         $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
-        
+
         if ($results.GetType().Name -eq 'Hashtable') {
             $consoleData = $results.ConsoleData
             if ($consoleData.Count -gt 0) {
@@ -2944,7 +2899,7 @@ function Show-ResultsConsole {
                 foreach ($col in $columns) {
                     $columnWidths[$col] = $col.Length
                 }
-                
+
                 Write-Host ""
                 $header = ""
                 foreach ($col in $columns) {
@@ -2952,7 +2907,7 @@ function Show-ResultsConsole {
                 }
                 Write-Host $header
                 Write-Host ("-" * $header.Length)
-                
+
                 foreach ($row in $consoleData) {
                     $rowText = ""
                     foreach ($col in $columns) {
@@ -2960,7 +2915,7 @@ function Show-ResultsConsole {
                     }
                     Write-Host $rowText
                 }
-            } 
+            }
             else {
                 Write-Host "`nNo se encontraron resultados." -ForegroundColor Yellow
             }
@@ -2968,16 +2923,14 @@ function Show-ResultsConsole {
         else {
             Write-Host "`nFilas afectadas: $results" -ForegroundColor Green
         }
-    } 
+    }
     catch {
         Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red
     }
 }
-#EJECUTANDO
 $btnExecute.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     try {
-        # Resetear a estilos normales antes de ejecutar
         $dgvResults.DefaultCellStyle.ForeColor = $script:originalForeColor
         $dgvResults.ColumnHeadersDefaultCellStyle.BackColor = $script:originalHeaderBackColor
         $dgvResults.AutoSizeColumnsMode = $script:originalAutoSizeMode
@@ -2990,36 +2943,24 @@ $btnExecute.Add_Click({
         Clear-Host
         $selectedDb = $cmbDatabases.SelectedItem
         if (-not $selectedDb) { throw "Selecciona una base de datos" }
-        
         $rawQuery = $rtbQuery.Text
         $cleanQuery = Remove-SqlComments -Query $rawQuery
         $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $cleanQuery
-
-        # Mostrar mensajes de SQL (incluyendo progreso de RESTORE)
         if ($result.Messages.Count -gt 0) {
             Write-Host "`nMensajes de SQL:" -ForegroundColor Cyan
             $result.Messages | ForEach-Object { Write-Host $_ }
         }
-
         if ($result.DataTable) {
-            # Mostrar resultados en DataGridView
             $dgvResults.DataSource = $result.DataTable.DefaultView
             $dgvResults.Enabled = $true
-            
             Write-Host "`nColumnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
-            
-            # Estilos para resultados exitosos
             $dgvResults.DefaultCellStyle.ForeColor = 'Blue'
             $dgvResults.AlternatingRowsDefaultCellStyle.BackColor = '#F0F8FF'
-            
-            # Ajuste automático de columnas
             $dgvResults.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
             foreach ($col in $dgvResults.Columns) {
                 $col.AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::DisplayedCells
                 $col.Width = [Math]::Max($col.Width, $col.HeaderText.Length * 8)
             }
-
-            # Mostrar en consola si no hay datos
             if ($result.DataTable.Rows.Count -eq 0) {
                 Write-Host "La consulta no devolvió resultados" -ForegroundColor Yellow
             }
@@ -3028,39 +2969,27 @@ $btnExecute.Add_Click({
             }
         }
         else {
-            # Mostrar filas afectadas para consultas no SELECT
             Write-Host "`nFilas afectadas: $($result.RowsAffected)" -ForegroundColor Green
         }
     }
     catch {
-        # Manejo de errores
         $errorTable = New-Object System.Data.DataTable
         $errorTable.Columns.Add("Tipo") | Out-Null
         $errorTable.Columns.Add("Mensaje") | Out-Null
         $errorTable.Columns.Add("Detalle") | Out-Null
-        
         $cleanQuery = $rtbQuery.Text -replace '(?s)/\*.*?\*/', '' -replace '(?m)^\s*--.*'
         $shortQuery = if ($cleanQuery.Length -gt 50) { $cleanQuery.Substring(0,47) + "..." } else { $cleanQuery }
-        
         $errorTable.Rows.Add("ERROR SQL", $_.Exception.Message, $shortQuery) | Out-Null
-        
-        # Configurar DataGridView para errores
         $dgvResults.DataSource = $errorTable
-        # 1) Permitir salto de línea en la columna de mensaje de error (índice 1)
         $dgvResults.Columns[1].DefaultCellStyle.WrapMode = [System.Windows.Forms.DataGridViewTriState]::True
         $dgvResults.AutoSizeRowsMode = [System.Windows.Forms.DataGridViewAutoSizeRowsMode]::AllCells
-        #$dgvResults.RowTemplate.Height = 40
         $dgvResults.AutoSizeColumnsMode = 'Fill'
         $dgvResults.Columns[0].Width = 100
         $dgvResults.Columns[1].Width = 300
         $dgvResults.Columns[2].Width = 200
-        
-        # Estilos de error
         $dgvResults.DefaultCellStyle.ForeColor = 'Red'
         $dgvResults.ColumnHeadersDefaultCellStyle.BackColor = '#FFB3B3'
         $toolTip.SetToolTip($dgvResults, "Consulta completa:`n$cleanQuery")
-        
-        # Mensaje en consola
         Write-Host "`n=============== ERROR ==============" -ForegroundColor Red
         Write-Host "Mensaje: $($_.Exception.Message)" -ForegroundColor Yellow
         Write-Host "Consulta: $shortQuery" -ForegroundColor Cyan
@@ -3073,23 +3002,19 @@ $btnConnectDb.Add_Click({
         $global:server = $txtServer.Text
         $global:user = $txtUser.Text
         $global:password = $txtPassword.Text
-        
+
         if (-not $global:server -or -not $global:user -or -not $global:password) {
             throw "Complete todos los campos de conexión"
         }
-        
         $connStr = "Server=$global:server;User Id=$global:user;Password=$global:password;"
         $global:connection = [System.Data.SqlClient.SqlConnection]::new($connStr)
         $global:connection.Open()
-
-        # Obtener bases de datos
         $query = "SELECT name FROM sys.databases WHERE name NOT IN ('tempdb','model','msdb') AND state_desc = 'ONLINE' ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name;"
         $result = Execute-SqlQuery -server $global:server -database "master" -query $query
         $cmbDatabases.Items.Clear()
         foreach ($row in $result.DataTable.Rows) {
             $cmbDatabases.Items.Add($row["name"])
         }
-        
         $cmbDatabases.Enabled = $true
         $cmbDatabases.SelectedIndex = 0
         $lblConnectionStatus.Text = @"
@@ -3098,7 +3023,6 @@ Servidor: $($global:server)
 Base de datos: $($global:database)
 "@.Trim()
         $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-        # After successful connection
         $txtServer.Enabled = $false
         $txtUser.Enabled = $false
         $txtPassword.Enabled = $false
@@ -3119,24 +3043,19 @@ Base de datos: $($global:database)
             Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
     }
 })
-# Actualizar el evento SelectedIndexChanged
 $cmbDatabases.Add_SelectedIndexChanged({
     if ($cmbDatabases.SelectedItem) {
         $global:database = $cmbDatabases.SelectedItem
-        
-        # Actualizar etiqueta
         $lblConnectionStatus.Text = @"
 Conectado a:
 Servidor: $($global:server)
 Base de datos: $($global:database)
 "@.Trim()
-        #$lblConnectionStatus.Text = "Conectado a: $global:server | BDD: $global:database"
         $lblConnectionStatus.ForeColor = [System.Drawing.Color]::Green
-        
+
         Write-Host "`nBase de datos seleccionada:`t $($cmbDatabases.SelectedItem)" -ForegroundColor Cyan
     }
 })
-#boton para desconectar a la base de datos.
 $btnDisconnectDb.Add_Click({
     try {
         Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
@@ -3160,7 +3079,6 @@ $btnDisconnectDb.Add_Click({
             Write-Host "`nError al desconectar: $_" -ForegroundColor Red
         }
 })
-#Etiquetas clics------------------------------------------------------------------------------------------------
 $lblHostname.Add_Click({
         [System.Windows.Forms.Clipboard]::SetText($lblHostname.Text)
         Write-Host "`nNombre del equipo copiado al portapapeles: $($lblHostname.Text)"
@@ -3172,7 +3090,6 @@ $lblHostname.Add_Click({
             $txt_IpAdress.Add_MouseEnter($changeColorOnHover)
             $txt_IpAdress.Add_MouseLeave($restoreColorOnLeave)
 $txt_AdapterStatus.Add_Click({
-    # Cambiar sólo las que no sean ya Private
     Get-NetConnectionProfile |
       Where-Object { $_.NetworkCategory -ne 'Private' } |
       ForEach-Object {
@@ -3183,18 +3100,13 @@ $txt_AdapterStatus.Add_Click({
 })
         $txt_AdapterStatus.Add_MouseEnter($changeColorOnHover)
         $txt_AdapterStatus.Add_MouseLeave($restoreColorOnLeave)
-#Llamarla pro primera vez
 Refresh-AdapterStatus
-#Creación del APK
 $btnCreateAPK.Add_Click({
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
     $dllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll"
     $infoPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\info.txt"
-    
     try {
         Write-Host "`nIniciando proceso de creación de APK..." -ForegroundColor Cyan
-        
-        # Validar existencia de archivos
         if (-not (Test-Path $dllPath)) {
             Write-Host "Componente necesario no encontrado. Verifique la instalación del Enlace Android." -ForegroundColor Red
             [System.Windows.Forms.MessageBox]::Show("Componente necesario no encontrado. Verifique la instalación del Enlace Android.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
@@ -3205,36 +3117,29 @@ $btnCreateAPK.Add_Click({
             [System.Windows.Forms.MessageBox]::Show("Archivo de configuración no encontrado. Verifique la instalación del Enlace Android.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             return
         }
-        # Leer y parsear info.txt
         $jsonContent = Get-Content $infoPath -Raw | ConvertFrom-Json
         $versionApp = $jsonContent.versionApp
         Write-Host "Versión detectada: $versionApp" -ForegroundColor Green
-
-        # Confirmación con usuario
         $confirmation = [System.Windows.Forms.MessageBox]::Show(
-            "Se creará el APK versión: $versionApp`n¿Desea continuar?", 
-            "Confirmación", 
-            [System.Windows.Forms.MessageBoxButtons]::YesNo, 
+            "Se creará el APK versión: $versionApp`n¿Desea continuar?",
+            "Confirmación",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Question
         )
-        
+
         if ($confirmation -ne [System.Windows.Forms.DialogResult]::Yes) {
             Write-Host "Proceso cancelado por el usuario" -ForegroundColor Yellow
             return
         }
-
-        # Selección de ubicación
         $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
         $saveDialog.Filter = "Archivo APK (*.apk)|*.apk"
         $saveDialog.FileName = "SRM_$versionApp.apk"
         $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
-        
+
         if ($saveDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
             Write-Host "Guardado cancelado por el usuario" -ForegroundColor Yellow
             return
         }
-
-        # Copiar archivo
         Copy-Item -Path $dllPath -Destination $saveDialog.FileName -Force
         Write-Host "APK generado exitosamente en: $($saveDialog.FileName)" -ForegroundColor Green
         [System.Windows.Forms.MessageBox]::Show("APK creado correctamente!", "Éxito", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -3245,75 +3150,93 @@ $btnCreateAPK.Add_Click({
         [System.Windows.Forms.MessageBox]::Show("Error durante la creación del APK. Consulte la consola para más detalles.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
 })
-
-
-
-
-
-
-
-
-
-
-
-
-<# ESTP ESTA EN EL RENGLON 3260---------------------------------------------------------------------------
-  Sección "BACKUP" adaptada para uso ad-hoc con Admin Share C$
-  - Incluye barra de progreso para subida a Mega.nz
-  - Muestra mensajes idénticos en consola e interfaz
---------------------------------------------------------------------------- #>
-# -------------------------------------------------------------------
-# 1. Función auxiliar para verificar si el script se está ejecutando
-#    en el mismo host que el servidor SQL (para habilitar Comprimir/Subir).
-# -------------------------------------------------------------------
+function Test-ChocolateyInstalled {
+    return [bool](Get-Command choco -ErrorAction SilentlyContinue)
+}
 function Test-SameHost {
     param(
         [string]$serverName
     )
-    # Extrae el nombre del servidor remoto (parte antes de '\', coma, etc.)
     $machinePart = $serverName.Split('\')[0]
     $machineName = $machinePart.Split(',')[0]
     if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
     return ($env:COMPUTERNAME -eq $machineName)
 }
-
-# -------------------------------------------------------------------
-# 2. Función auxiliar para verificar si 7-Zip está instalado en C:\Program Files\7-Zip\7z.exe
-# -------------------------------------------------------------------
 function Test-7ZipInstalled {
     return (Test-Path "C:\Program Files\7-Zip\7z.exe")
 }
-
-# -------------------------------------------------------------------
-# 3. Función auxiliar para verificar si megatools está en el PATH
-# -------------------------------------------------------------------
 function Test-MegaToolsInstalled {
     return ([bool](Get-Command megatools -ErrorAction SilentlyContinue))
 }
-
-# -------------------------------------------------------------------
-# 4. Reemplazo completo del manejador de clic en $btnBackup
-# -------------------------------------------------------------------
 $btnBackup.Add_Click({
-    # 4.1 Preparación de variables comunes
+    $chocoInstalled = Test-ChocolateyInstalled
+    if (-not $chocoInstalled) {
+        Write-Host "Chocolatey no está instalado." -ForegroundColor Yellow
+        $messageInstalacionChoco = @"
+Chocolatey es necesario SOLAMENTE si deseas:
+✓ Comprimir el respaldo (crear ZIP con contraseña)
+✓ Subir el respaldo a Mega.nz
+
+Si solo necesitas crear el respaldo básico (archivo .BAK), NO es necesario instalarlo.
+
+¿Deseas instalar Chocolatey ahora para habilitar estas funciones adicionales?
+"@
+                $response = [System.Windows.Forms.MessageBox]::Show(
+                    $messageInstalacionChoco,
+                    "Instalación Requerida",
+                    [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                    [System.Windows.Forms.MessageBoxIcon]::Question
+                )
+
+        if ($response -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Write-Host "Instalando Chocolatey..." -ForegroundColor Cyan
+            try {
+                Set-ExecutionPolicy Bypass -Scope Process -Force
+                [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+                iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Chocolatey instalado. Por favor reinicie PowerShell y vuelva a ejecutar la herramienta.",
+                    "Reinicio Requerido",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Information
+                )
+                Stop-Process -Id $PID -Force
+            }
+            catch {
+                Write-Host "Error instalando Chocolatey: $_" -ForegroundColor Red
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Error instalando Chocolatey: $_",
+                    "Error",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error
+                )
+            }
+            return
+        }
+        else {
+            Write-Host "El usuario omitió la instalación de Chocolatey." -ForegroundColor Yellow
+            [System.Windows.Forms.MessageBox]::Show(
+                "Opciones de compresión/subida deshabilitadas.",
+                "Advertencia",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Warning
+            )
+        }
+    }
     $script:animTimer   = $null
     $script:backupTimer = $null
     $serverRaw   = $global:server
     $sameHost    = Test-SameHost -serverName $serverRaw
-    # Extraer nombre de servidor y definir ruta remota para respaldos
     $machinePart = $serverRaw.Split('\')[0]
     $machineName = $machinePart.Split(',')[0]
     if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
     $global:tempBackupFolder = "\\$machineName\C$\Temp\SQLBackups"
-    # 4.2 Crear formulario principal para Opciones de Respaldo
     $formSize = New-Object System.Drawing.Size(480, 400)
     $formBackupOptions = Create-Form -Title "Opciones de Respaldo" `
         -Size $formSize `
         -StartPosition ([System.Windows.Forms.FormStartPosition]::CenterScreen) `
         -FormBorderStyle ([System.Windows.Forms.FormBorderStyle]::FixedDialog)
-    # ----------------------------------------------------------------
-    # 4.3 Control: Checkbox de "Respaldo" (siempre marcado y deshabilitado)
-    # ----------------------------------------------------------------
     $chkRespaldo = New-Object System.Windows.Forms.CheckBox
     $chkRespaldo.Text      = "Respaldar"
     $chkRespaldo.Checked   = $true
@@ -3321,21 +3244,14 @@ $btnBackup.Add_Click({
     $chkRespaldo.AutoSize  = $true
     $chkRespaldo.Location  = New-Object System.Drawing.Point(20, 20)
     $formBackupOptions.Controls.Add($chkRespaldo)
-
-    # ----------------------------------------------------------------
-    # 4.4 Control: TextBox para nombre de archivo de respaldo
-    #          (por defecto usa la convención actual con fecha)
-    # ----------------------------------------------------------------
     $lblNombre = New-Object System.Windows.Forms.Label
     $lblNombre.Text     = "Nombre del respaldo:"
     $lblNombre.AutoSize = $true
     $lblNombre.Location = New-Object System.Drawing.Point(20, 50)
     $formBackupOptions.Controls.Add($lblNombre)
-
     $txtNombre = New-Object System.Windows.Forms.TextBox
     $txtNombre.Size     = New-Object System.Drawing.Size(350, 20)
     $txtNombre.Location = New-Object System.Drawing.Point(20, 70)
-    # Valor por defecto: BD-<TIMESTAMP>.bak
     $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'
     $selectedDb        = $cmbDatabases.SelectedItem
     if ($selectedDb) {
@@ -3344,11 +3260,6 @@ $btnBackup.Add_Click({
         $txtNombre.Text = "Backup-$timestampsDefault.bak"
     }
     $formBackupOptions.Controls.Add($txtNombre)
-
-    # ----------------------------------------------------------------
-    # 4.5 Control: Checkbox "Comprimir"
-    #          Se habilita solo si ejecuta en el mismo host (Test-SameHost).
-    # ----------------------------------------------------------------
     $tooltipCHK = New-Object System.Windows.Forms.ToolTip
     $chkComprimir = New-Object System.Windows.Forms.CheckBox
     $chkComprimir.Text     = "Comprimir"
@@ -3362,24 +3273,21 @@ $btnBackup.Add_Click({
         $chkComprimir.Enabled = $true
     }
     $formBackupOptions.Controls.Add($chkComprimir)
-
-    # ----------------------------------------------------------------
-    # 4.6 Control: TextBox para contraseña de ZIP (solo si comprimir está marcado)
-    # ----------------------------------------------------------------
+    $chkComprimir.Enabled = $chocoInstalled  # <-- Nueva línea
+    if (-not $chocoInstalled) {
+        $tooltipCHK.SetToolTip($chkComprimir, "Requiere Chocolatey instalado")
+    }
     $lblPassword = New-Object System.Windows.Forms.Label
     $lblPassword.Text     = "Contraseña (opcional) para ZIP:"
     $lblPassword.AutoSize = $true
     $lblPassword.Location = New-Object System.Drawing.Point(40, 135)
     $formBackupOptions.Controls.Add($lblPassword)
-
     $txtPassword = New-Object System.Windows.Forms.TextBox
     $txtPassword.Size     = New-Object System.Drawing.Size(250, 20)
     $txtPassword.Location = New-Object System.Drawing.Point(40, 155)
     $txtPassword.UseSystemPasswordChar = $true
     $txtPassword.Enabled  = $false
     $formBackupOptions.Controls.Add($txtPassword)
-
-    # Cuando el usuario activa/desactiva "Comprimir", habilitamos/ deshabilitamos el TextBox de contraseña
     $chkComprimir.Add_CheckedChanged({
         if ($chkComprimir.Checked) {
             $txtPassword.Enabled = $true
@@ -3390,179 +3298,56 @@ $btnBackup.Add_Click({
             $chkSubir.Enabled         = $false
         }
     })
-
-    # ----------------------------------------------------------------
-    # 4.7 Control: Checkbox "Subir" (solo si comprimir está marcado)
-    #          Además valida que megatools esté instalado y mismo host.
-    # ----------------------------------------------------------------
-    # -------------------------------------------------------------------
-    # 4.7.a Función auxiliar para verificar si gdrive está en el PATH
-    # -------------------------------------------------------------------
-    function Test-GDriveInstalled {
-        # Buscar gdrive en ubicaciones comunes
-        $commonPaths = @(
-            "$env:ProgramData\chocolatey\bin\gdrive.exe"
-            "${env:LocalAppData}\Programs\gdrive\gdrive.exe"
-            "$env:ProgramFiles\gdrive\gdrive.exe"
-            "$env:LOCALAPPDATA\gdrive\gdrive.exe"  # Nueva ruta
-        )
-        
-        foreach ($path in $commonPaths) {
-            if (Test-Path $path) {
-                return $true
-            }
+        $chkSubir = New-Object System.Windows.Forms.CheckBox
+        $chkSubir.Text     = "Subir a Mega.nz"
+        $chkSubir.AutoSize = $true
+        $chkSubir.Location = New-Object System.Drawing.Point(20, 195)
+        $chkSubir.Checked  = $false
+        $chkSubir.Enabled  = $false  # inicialmente deshabilitado; se activará al chequeo de "Comprimir"
+        $formBackupOptions.Controls.Add($chkSubir)
+        $chkSubir.Enabled = $chocoInstalled  # <-- Nueva línea
+        if (-not $chocoInstalled) {
+            $tooltipCHK.SetToolTip($chkSubir, "Requiere Chocolatey instalado")
         }
-        
-        # Verificar si está en el PATH
-        return ([bool](Get-Command gdrive -ErrorAction SilentlyContinue))
-    }
-
-    $chkSubir = New-Object System.Windows.Forms.CheckBox
-    $chkSubir.Text = "Subir a la nube"
-    $chkSubir.AutoSize = $true
-    $chkSubir.Location = New-Object System.Drawing.Point(20, 195)
-    $chkSubir.Checked = $false
-    $chkSubir.Enabled = $false
-    $formBackupOptions.Controls.Add($chkSubir)
-    
-    # Cloud service selection (Mega or Google Drive)
-    $grpCloudService = New-Object System.Windows.Forms.GroupBox
-    $grpCloudService.Text = "Servicio de nube"
-    $grpCloudService.Location = New-Object System.Drawing.Point(80, 220)
-    $grpCloudService.Size = New-Object System.Drawing.Size(300, 50)
-    $grpCloudService.Enabled = $false
-    $formBackupOptions.Controls.Add($grpCloudService)
-    
-    $radMega = New-Object System.Windows.Forms.RadioButton
-    $radMega.Text = "Mega"
-    $radMega.Location = New-Object System.Drawing.Point(10, 20)
-    $radMega.Checked = $true
-    $grpCloudService.Controls.Add($radMega)
-    
-    $radGoogle = New-Object System.Windows.Forms.RadioButton
-    $radGoogle.Text = "Google Drive"
-    $radGoogle.Location = New-Object System.Drawing.Point(110, 20)
-    $grpCloudService.Controls.Add($radGoogle)
-    
-    # Asociar validación al cambiar el estado de Comprimir
-    $chkComprimir.Add_CheckedChanged({
-        if ($chkComprimir.Checked) {
-            # Habilitar Subir sólo si mismo host; la instalación dinámica de megatools la gestionamos al marcar
-            if ($sameHost) {
-                $chkSubir.Enabled = $true
-                $grpCloudService.Enabled = $true
-                $tooltipCHK.SetToolTip($chkSubir, "Activar para subir respaldo comprimido a la nube.")
+        $chkComprimir.Add_CheckedChanged({
+            if ($chkComprimir.Checked) {
+                if ($sameHost) {
+                    #$chkSubir.Enabled = $true
+                    $chkSubir.Enabled = $false
+                    $tooltipCHK.SetToolTip($chkSubir, "Activar para subir respaldo comprimido a Mega.nz.")
+                }
+                else {
+                    $chkSubir.Enabled = $false
+                    $chkSubir.Checked = $false
+                    $tooltipCHK.SetToolTip($chkSubir, "No disponible: debe ejecutar desde el mismo host que el servidor.")
+                }
             }
             else {
                 $chkSubir.Enabled = $false
                 $chkSubir.Checked = $false
-                $grpCloudService.Enabled = $false
-                $tooltipCHK.SetToolTip($chkSubir, "No disponible: debe ejecutar desde el mismo host que el servidor.")
             }
-        }
-        else {
-            $chkSubir.Enabled = $false
-            $chkSubir.Checked = $false
-            $grpCloudService.Enabled = $false
-        }
-    })
-    
-    $chkSubir.Add_CheckedChanged({
-        if ($chkSubir.Checked) {
-            $selectedService = if ($radMega.Checked) { "Mega" } else { "GoogleDrive" }
-            
-            # Install required tools based on service selection
-            if ($selectedService -eq "Mega" -and -not (Test-MegaToolsInstalled)) {
-                # Mostrar progreso en consola/interfaz
-                Write-Host "megatools no encontrado. Instalando con Chocolatey..." -ForegroundColor Yellow
-                try {
-                    if (Get-Command choco -ErrorAction SilentlyContinue) {
-                        choco install megatools -y | Out-Null
-                        Start-Sleep -Seconds 2
-                        if (-not (Test-MegaToolsInstalled)) {
-                            throw "megatools no se instaló correctamente."
-                        }
-                    }
-                    else {
-                        throw "Chocolatey no está instalado. Imposible instalar megatools automáticamente."
-                    }
-                }
-                catch {
-                    [System.Windows.Forms.MessageBox]::Show(
-                        "Error instalando megatools:`n$($_.Exception.Message)",
-                        "Error",
-                        [System.Windows.Forms.MessageBoxButtons]::OK,
-                        [System.Windows.Forms.MessageBoxIcon]::Error
-                    )
-                    $chkSubir.Checked = $false
-                    return
-                }
-                Write-Host "megatools instalado correctamente." -ForegroundColor Yellow
-            }
-                elseif ($selectedService -eq "GoogleDrive" -and -not (Test-GDriveInstalled)) {
-                    try {
-                        Write-Host "Instalando gdrive..." -ForegroundColor Yellow
-                        choco install gdrive -y
-                        if ($LASTEXITCODE -ne 0) {
-                            throw "Instalación fallida con código $LASTEXITCODE"
-                        }
-                        # Actualizar el PATH desde el registro
-                        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + 
-                                    [System.Environment]::GetEnvironmentVariable("Path", "User")
-                        
-                        # Verificar nuevamente después de actualizar PATH
-                        if (-not (Test-GDriveInstalled)) {
-                            throw "gdrive no se instaló correctamente. Por favor reinicie la aplicación."
-                        }
-                    }
-                    catch {
-                        [System.Windows.Forms.MessageBox]::Show(
-                            "Error instalando gdrive: $($_.Exception.Message)",
-                            "Error",
-                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                            [System.Windows.Forms.MessageBoxIcon]::Error
-                        )
-                        $chkSubir.Checked = $false
-                    }
-                }
-        }
-        else {
-            # Si el usuario desmarca, no necesitamos hacer nada
-        }
-    })
-
-    # ----------------------------------------------------------------
-    # 4.8 Barra de progreso (invisible hasta iniciar la tarea)
-    # ----------------------------------------------------------------
+        })
     $pbBackup = New-Object System.Windows.Forms.ProgressBar
-    $pbBackup.Location = New-Object System.Drawing.Point(20, 290)
-    $pbBackup.Size     = New-Object System.Drawing.Size(420, 20)
-    $pbBackup.Minimum  = 0
-    $pbBackup.Maximum  = 100
-    $pbBackup.Value    = 0
-    $pbBackup.Style    = [System.Windows.Forms.ProgressBarStyle]::Continuous
-    $pbBackup.Visible  = $false
+    $pbBackup.Location = New-Object System.Drawing.Point(20, 240)
+        $pbBackup.Size     = New-Object System.Drawing.Size(420, 20)
+        $pbBackup.Minimum  = 0
+        $pbBackup.Maximum  = 100
+        $pbBackup.Value    = 0
+        $pbBackup.Style    = [System.Windows.Forms.ProgressBarStyle]::Continuous
+        $pbBackup.Visible  = $false
     $formBackupOptions.Controls.Add($pbBackup)
-    
-    # ----------------------------------------------------------------
-    # 4.9 Botones de "Aceptar", "Abrir Carpeta" y "Cerrar"
-    # ----------------------------------------------------------------
     $btnAceptar = Create-Button -Text "Aceptar" `
         -Size (New-Object System.Drawing.Size(120, 30)) `
-        -Location (New-Object System.Drawing.Point(20, 320))
+        -Location (New-Object System.Drawing.Point(20, 270))
     $formBackupOptions.Controls.Add($btnAceptar)
     $btnAbrirCarpeta = Create-Button -Text "Abrir Carpeta" `
         -Size (New-Object System.Drawing.Size(120, 30)) `
-        -Location (New-Object System.Drawing.Point(160, 320))
+        -Location (New-Object System.Drawing.Point(160, 270))
     $formBackupOptions.Controls.Add($btnAbrirCarpeta)
     $btnCerrar = Create-Button -Text "Cerrar" `
         -Size (New-Object System.Drawing.Size(120, 30)) `
-        -Location (New-Object System.Drawing.Point(300, 320))
+        -Location (New-Object System.Drawing.Point(340, 270))
     $formBackupOptions.Controls.Add($btnCerrar)
-    
-    # ----------------------------------------------------------------
-    # 4.10 Evento Click: "Abrir Carpeta" — abre el Explorador en la carpeta de respaldos
-    # ----------------------------------------------------------------
     $btnAbrirCarpeta.Add_Click({
         if (Test-Path $global:tempBackupFolder) {
             Start-Process explorer.exe $global:tempBackupFolder
@@ -3575,203 +3360,159 @@ $btnBackup.Add_Click({
             )
         }
     })
-
-    # ----------------------------------------------------------------
-    # 4.11 Evento Click: "Cerrar" — cierra el formulario sin hacer nada adicional
-    # ----------------------------------------------------------------
     $btnCerrar.Add_Click({
         $formBackupOptions.Close()
     })
-
-    # ----------------------------------------------------------------
-    # 4.12 Evento Click: "Aceptar" — aquí se realizará el proceso de Respaldo,
-    #          Compresión (si corresponde) y Subida (si corresponde),
-    #          mostrando la barra de progreso en "ping-pong" mientras
-    #          el JOB de respaldo avanza. Esta lógica es similar a la
-    #          que usted ya tenía, pero adaptada a las nuevas opciones.
-    # ----------------------------------------------------------------
-$btnAceptar.Add_Click({
-    # 4.12.1 Deshabilitar controles para evitar doble clic
-    $chkComprimir.Enabled     = $false
-    $chkSubir.Enabled         = $false
-    $txtNombre.Enabled        = $false
-    $txtPassword.Enabled      = $false
-    $btnAceptar.Enabled       = $false
-    $btnAbrirCarpeta.Enabled  = $false
-    $btnCerrar.Enabled        = $false
-    $grpCloudService.Enabled  = $false
-
-    # DECLARAR Label en scope script: antes de usarlo
-    $script:lblTrabajando = New-Object System.Windows.Forms.Label
-    $script:lblTrabajando.Text     = "Iniciando respaldo..."
-    $script:lblTrabajando.AutoSize = $false
-    $script:lblTrabajando.Size     = New-Object System.Drawing.Size(420, 20)
-    $script:lblTrabajando.Location = New-Object System.Drawing.Point(20, 250)
-    $formBackupOptions.Controls.Add($script:lblTrabajando)
-
-    # Hacer visible la barra de progreso y etiqueta de estado
-    $pbBackup.Visible = $true
-
-    # ------------------------------------------------------------
-    # 4.12.2 Verificar selección de Base de Datos
-    # ------------------------------------------------------------
-    $selectedDb = $cmbDatabases.SelectedItem
-    if (-not $selectedDb) {
-        [System.Windows.Forms.MessageBox]::Show(
-            "Seleccione una base de datos primero.",
-            "Error",
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Warning
-        )
-        # Restaurar controles y cerrar formulario
-        $formBackupOptions.Close()
-        return
-    }
-
-    # ------------------------------------------------------------
-    # 4.12.3 Preparar nombres y rutas
-    # ------------------------------------------------------------
-    $timestamp   = Get-Date -Format 'yyyyMMdd-HHmmss'
-    # Si el usuario cambió el nombre en el TextBox, lo usamos; si no,
-    # nos aseguramos de que termine en .bak
-    $inputName      = $txtNombre.Text.Trim()
-    if (-not $inputName.ToLower().EndsWith(".bak")) {
-        $bakFileName = "$inputName.bak"
-    } else {
-        $bakFileName = $inputName
-    }
-    $global:backupPath = Join-Path $global:tempBackupFolder $bakFileName
-
-    # ------------------------------------------------------------
-    # 4.12.4 Crear carpeta de destino en servidor remoto si no existe
-    # ------------------------------------------------------------
-    if (-not (Test-Path -Path $global:tempBackupFolder)) {
-        try {
-            New-Item -ItemType Directory -Path $global:tempBackupFolder -Force | Out-Null
-        } catch {
+    $btnAceptar.Add_Click({
+        $chkComprimir.Enabled     = $false
+        $chkSubir.Enabled         = $false
+        $txtNombre.Enabled        = $false
+        $txtPassword.Enabled      = $false
+        $btnAceptar.Enabled       = $false
+        $btnAbrirCarpeta.Enabled  = $false
+        $btnCerrar.Enabled        = $false
+            $script:lblTrabajando = New-Object System.Windows.Forms.Label
+                $script:lblTrabajando.Text     = "Iniciando respaldo..."
+                $script:lblTrabajando.AutoSize = $false
+                $script:lblTrabajando.Size     = New-Object System.Drawing.Size(420, 20)
+                $script:lblTrabajando.Location = New-Object System.Drawing.Point(20, 215)
+            $formBackupOptions.Controls.Add($script:lblTrabajando)
+        $pbBackup.Visible = $true
+        $selectedDb = $cmbDatabases.SelectedItem
+        if (-not $selectedDb) {
             [System.Windows.Forms.MessageBox]::Show(
-                "No se pudo crear la carpeta remota: $global:tempBackupFolder.`n$_",
+                "Seleccione una base de datos primero.",
                 "Error",
                 [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Error
+                [System.Windows.Forms.MessageBoxIcon]::Warning
             )
             $formBackupOptions.Close()
             return
         }
-    }
-
-    # ------------------------------------------------------------
-    # 4.12.5 Iniciar JOB de respaldo en segundo plano
-    # ------------------------------------------------------------
-    $scriptBackup = {
-        param($srv,$usr,$pwd,$db,$pathBak)
-        $conn = New-Object System.Data.SqlClient.SqlConnection("Server=$srv; Database=master; User Id=$usr; Password=$pwd")
-        $conn.Open()
-        $cmd = $conn.CreateCommand()
-        $cmd.CommandText = "BACKUP DATABASE [$db] TO DISK='$pathBak' WITH CHECKSUM"
-        $cmd.CommandTimeout = 0
-        $cmd.ExecuteNonQuery()
-        $conn.Close()
-    }
-    $global:backupJob = Start-Job -ScriptBlock $scriptBackup -ArgumentList `
-        $global:server, $global:user, $global:password, $selectedDb, $global:backupPath
-
-    # ------------------------------------------------------------
-    # 4.12.6 Temporizador para animar la ProgressBar (ping-pong)
-    # ------------------------------------------------------------
-    $script:animTimer = New-Object System.Windows.Forms.Timer
-    $script:animTimer.Interval = 400
-    $direction = 1
-    $script:animTimer.Add_Tick({
-        if ($pbBackup.Value -ge $pbBackup.Maximum) {
-            $direction = -1
-        } elseif ($pbBackup.Value -le $pbBackup.Minimum) {
-            $direction = 1
+        $timestamp   = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $inputName      = $txtNombre.Text.Trim()
+        if (-not $inputName.ToLower().EndsWith(".bak")) {
+            $bakFileName = "$inputName.bak"
+        } else {
+            $bakFileName = $inputName
         }
-        $pbBackup.Value += 10 * $direction
-    })
-    $script:animTimer.Start()
-
-    # ------------------------------------------------------------
-    # 4.12.7 Temporizador para vigilar el estado del JOB
-    # ------------------------------------------------------------
-    $script:backupTimer = New-Object System.Windows.Forms.Timer
-    $script:backupTimer.Interval = 500
-    $script:backupTimer.Add_Tick({
-        if ($global:backupJob.State -in 'Completed','Failed','Stopped') {
-            # Detener timers solo si existen (evita error sobre $null)
-            if ($script:animTimer)   { $script:animTimer.Stop()   }
-            if ($script:backupTimer) { $script:backupTimer.Stop() }
-
-            # Recuperar resultados y eliminar el JOB
-            Receive-Job $global:backupJob | Out-Null
-            Remove-Job $global:backupJob -Force
-
-            # Deshabilitar el formulario para que no se interactúe mientras se procesan siguientes pasos
-            if ($formBackupOptions.InvokeRequired) {
-                $formBackupOptions.Invoke([action]{ $formBackupOptions.Enabled = $false })
-            } else {
-                $formBackupOptions.Enabled = $false
+        $global:backupPath = Join-Path $global:tempBackupFolder $bakFileName
+        if (-not (Test-Path -Path $global:tempBackupFolder)) {
+            try {
+                New-Item -ItemType Directory -Path $global:tempBackupFolder -Force | Out-Null
+            } catch {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "No se pudo crear la carpeta remota: $global:tempBackupFolder.`n$_",
+                    "Error",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error
+                )
+                $formBackupOptions.Close()
+                return
             }
-
-            # ------------------------------------------------------------
-            # 4.12.8 Validar estado del respaldo
-            # ------------------------------------------------------------
-            if ($global:backupJob.State -eq 'Completed') {
-                Write-Host "Backup finalizado correctamente." -ForegroundColor Green
-
-                # --------------------------------------------------------
-                # 4.12.9 Si Comprimir está marcado, procedemos a crear ZIP
-                # --------------------------------------------------------
-                if ($chkComprimir.Checked) {
-                    # 4.12.9.1 Validar que 7-Zip exista
-                    if (-not (Test-7ZipInstalled)) {
-                        Write-Host "7-Zip no encontrado. Intentando instalar con Chocolatey..."
-                        try {
-                            # Verificar existencia de choco
-                            if (Get-Command choco -ErrorAction SilentlyContinue) {
-                                choco install 7zip -y | Out-Null
-                                Start-Sleep -Seconds 2
-                                if (-not (Test-7ZipInstalled)) {
-                                    throw "La instalación de 7-Zip no completó correctamente."
+        }
+        $scriptBackup = {
+            param($srv,$usr,$pwd,$db,$pathBak)
+            $conn = New-Object System.Data.SqlClient.SqlConnection("Server=$srv; Database=master; User Id=$usr; Password=$pwd")
+            $conn.Open()
+            $cmd = $conn.CreateCommand()
+            $cmd.CommandText = "BACKUP DATABASE [$db] TO DISK='$pathBak' WITH CHECKSUM"
+            $cmd.CommandTimeout = 0
+            $cmd.ExecuteNonQuery()
+            $conn.Close()
+        }
+        $global:backupJob = Start-Job -ScriptBlock $scriptBackup -ArgumentList `
+            $global:server, $global:user, $global:password, $selectedDb, $global:backupPath
+        $script:animTimer = New-Object System.Windows.Forms.Timer
+        $script:animTimer.Interval = 400
+        $direction = 1
+        $script:animTimer.Add_Tick({
+            if ($pbBackup.Value -ge $pbBackup.Maximum) {
+                $direction = -1
+            } elseif ($pbBackup.Value -le $pbBackup.Minimum) {
+                $direction = 1
+            }
+            $pbBackup.Value += 10 * $direction
+        })
+        $script:animTimer.Start()
+        $script:backupTimer = New-Object System.Windows.Forms.Timer
+        $script:backupTimer.Interval = 500
+        $script:backupTimer.Add_Tick({
+            if ($global:backupJob.State -in 'Completed','Failed','Stopped') {
+                if ($script:animTimer)   { $script:animTimer.Stop()   }
+                if ($script:backupTimer) { $script:backupTimer.Stop() }
+                Receive-Job $global:backupJob | Out-Null
+                Remove-Job $global:backupJob -Force
+                if ($formBackupOptions.InvokeRequired) {
+                    $formBackupOptions.Invoke([action]{ $formBackupOptions.Enabled = $false })
+                } else {
+                    $formBackupOptions.Enabled = $false
+                }
+                if ($global:backupJob.State -eq 'Completed') {
+                    Write-Host "Backup finalizado correctamente." -ForegroundColor Green
+                    if ($chkComprimir.Checked) {
+                        if (-not (Test-7ZipInstalled)) {
+                                Write-Host "7-Zip no encontrado. Intentando instalar con Chocolatey..."
+                           try {
+                                if (Get-Command choco -ErrorAction SilentlyContinue) {
+                                    choco install 7zip -y | Out-Null
+                                    Start-Sleep -Seconds 2  # Dar un momento para que termine la instalación
+                                    if (-not (Test-7ZipInstalled)) {
+                                        throw "La instalación de 7-Zip no completó correctamente."
+                                    }
+                                    else {
+                                        Write-Host "7-Zip instalado correctamente en 'C:\Program Files\7-Zip\7z.exe'."
+                                    }
                                 }
                                 else {
-                                    Write-Host "7-Zip instalado correctamente en 'C:\Program Files\7-Zip\7z.exe'."
+                                    throw "Chocolatey no está instalado. Imposible instalar 7-Zip automáticamente."
                                 }
                             }
-                            else {
-                                throw "Chocolatey no está instalado. Imposible instalar 7-Zip automáticamente."
+                            catch {
+                                [System.Windows.Forms.MessageBox]::Show(
+                                    "Error instalando 7-Zip:`n$($_.Exception.Message)",
+                                    "Error",
+                                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                                    [System.Windows.Forms.MessageBoxIcon]::Error
+                                )
+                                return
                             }
                         }
-                        catch {
-                            [System.Windows.Forms.MessageBox]::Show(
-                                "Error instalando 7-Zip:`n$($_.Exception.Message)",
-                                "Error",
-                                [System.Windows.Forms.MessageBoxButtons]::OK,
-                                [System.Windows.Forms.MessageBoxIcon]::Error
-                            )
-                            return
+                        $zipPath = "$global:backupPath.zip"
+                        $script:lblTrabajando.Text = "Comprimiendo respaldo..."
+                        if ($txtPassword.Text.Trim().Length -gt 0) {
+                            & "C:\Program Files\7-Zip\7z.exe" a -tzip -p"$($txtPassword.Text.Trim())" -mem=AES256 $zipPath $global:backupPath
                         }
-                    }
-                    # Si llegamos aquí, 7-Zip está instalado (o ya existía)
-                    $zipPath = "$global:backupPath.zip"
-                    $script:lblTrabajando.Text = "Comprimiendo respaldo..."
-                    if ($txtPassword.Text.Trim().Length -gt 0) {
-                        & "C:\Program Files\7-Zip\7z.exe" a -tzip -p"$($txtPassword.Text.Trim())" -mem=AES256 $zipPath $global:backupPath
-                    }
-                    else {
-                        & "C:\Program Files\7-Zip\7z.exe" a -tzip $zipPath $global:backupPath
-                    }
-                    Write-Host "Respaldo comprimido en: $zipPath" -ForegroundColor Green
-                    # Fin de la sección de compresión
-                    
-                    # ----------------------------------------------------
-                    # 4.12.10 Si Subir está marcado, procedemos a subir a la nube
-                    # ----------------------------------------------------
-                    if ($chkSubir.Checked -and $chkComprimir.Checked) {
-                        $selectedService = if ($radMega.Checked) { "Mega" } else { "GoogleDrive" }
-                        
-                        if ($selectedService -eq "Mega") {
+                        else {
+                            & "C:\Program Files\7-Zip\7z.exe" a -tzip $zipPath $global:backupPath
+                        }
+                        Write-Host "Respaldo comprimido en: $zipPath" -ForegroundColor Green
+                        if ($chkSubir.Checked) {
+                            if (-not (Test-MegaToolsInstalled)) {
+                                Write-Host "MegaTools no encontrado. Intentando instalar con Chocolatey..."
+                                try {
+                                    if (Get-Command choco -ErrorAction SilentlyContinue) {
+                                        choco install megatools -y | Out-Null
+                                        Start-Sleep -Seconds 2
+                                        if (-not (Test-MegaToolsInstalled)) {
+                                            throw "La instalación de megatools falló"
+                                        }
+                                    } else {
+                                        throw "Chocolatey no está instalado"
+                                    }
+                                } catch {
+                                    [System.Windows.Forms.MessageBox]::Show(
+                                        "Error instalando megatools: $($_.Exception.Message)",
+                                        "Error",
+                                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                                        [System.Windows.Forms.MessageBoxIcon]::Error
+                                    )
+                                    $chkSubir.Checked = $false
+                                    return
+                                }
+                            }
+                        }
+                        if ($chkSubir.Checked) {
                             if (-not (Test-MegaToolsInstalled)) {
                                 [System.Windows.Forms.MessageBox]::Show(
                                     "megatools no está instalado. No puede subir a Mega.nz.",
@@ -3783,16 +3524,12 @@ $btnAceptar.Add_Click({
                                 $script:lblTrabajando.Text = "Iniciando subida a Mega.nz..."
                                 $pbBackup.Value = 0
                                 Start-Sleep -Milliseconds 300
-
-                                # Simular avance hasta 30%
                                 for ($i = 0; $i -le 30; $i += 10) {
                                     $pbBackup.Value = $i
                                     Start-Sleep -Milliseconds 200
                                 }
-
-                                # Preparar credenciales y archivo de configuración
                                 $MegaUser = "gerardo.zermeno@nationalsoft.mx"
-                                $MegaPass = "National09$#"
+                                $MegaPass = "National.09$#"
                                 $configPath = "$env:APPDATA\megatools.ini"
                                 if (-not (Test-Path $configPath)) {
                                     $configDir = Split-Path -Path $configPath -Parent
@@ -3806,26 +3543,18 @@ Password = $MegaPass
 "@
                                     $megaConfig | Out-File -FilePath $configPath -Encoding utf8 -Force
                                 }
-
-                                # Simular progreso de 30% a 60%
                                 for ($i = 30; $i -le 60; $i += 10) {
                                     $pbBackup.Value = $i
                                     Start-Sleep -Milliseconds 200
                                 }
-
-                                # Ejecutar subida real con megatools
                                 $script:lblTrabajando.Text = "Subiendo archivo comprimido..."
                                 $zipToUpload = "$global:backupPath.zip"
                                 $uploadCmd   = "megatools put --username `"$MegaUser`" --password `"$MegaPass`" `"$zipToUpload`""
                                 $uploadResult = cmd /c $uploadCmd 2>&1
-
-                                # Simular avance final de 60% a 100%
                                 for ($i = 60; $i -le 100; $i += 10) {
                                     $pbBackup.Value = $i
                                     Start-Sleep -Milliseconds 200
                                 }
-
-                                # Extraer enlace si existe
                                 $downloadLink = $null
                                 $uploadResult | ForEach-Object {
                                     if ($_ -match 'https://mega\.nz/\S+') {
@@ -3833,7 +3562,6 @@ Password = $MegaPass
                                     }
                                 }
                                 if (-not $downloadLink) {
-                                    # Intentar export explícito
                                     $fileName  = [System.IO.Path]::GetFileName($zipToUpload)
                                     $exportCmd = "megatools export --username `"$MegaUser`" --password `"$MegaPass`" /Root/$fileName"
                                     $exportResult = cmd /c $exportCmd 2>&1
@@ -3841,7 +3569,6 @@ Password = $MegaPass
                                         $downloadLink = $matches[0]
                                     }
                                 }
-
                                 if ($downloadLink) {
                                     $cleanLink = $downloadLink -replace '[^\x20-\x7E]', ''
                                     [System.Windows.Forms.MessageBox]::Show(
@@ -3859,221 +3586,39 @@ Password = $MegaPass
                                         [System.Windows.Forms.MessageBoxIcon]::Warning
                                     )
                                 }
-                            }
-                        }
-                            elseif ($selectedService -eq "GoogleDrive") {
-                                    # >>> INSERCIÓN gdrive: Verificar e instalar automáticamente si no existe <<<
-                                    function Test-GDriveInstalled {
-                                        $commonPaths = @(
-                                            "$env:ProgramData\chocolatey\bin\gdrive.exe"
-                                            "${env:LocalAppData}\Programs\gdrive\gdrive.exe"
-                                            "$env:ProgramFiles\gdrive\gdrive.exe"
-                                        )
-                                        foreach ($path in $commonPaths) {
-                                            if (Test-Path $path) { return $true }
-                                        }
-                                        return ([bool](Get-Command gdrive -ErrorAction SilentlyContinue))
-                                    }
-                            
-                                    if (-not (Test-GDriveInstalled)) {
-                                        $script:lblTrabajando.Text = "Instalando gdrive.exe para Google Drive..."
-                                        $formBackupOptions.Refresh()
-                                        try {
-                                            & choco install gdrive -y | Out-Null
-                                            Start-Sleep -Seconds 2
-                                            # Refrescar PATH
-                                            $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
-                                                        [System.Environment]::GetEnvironmentVariable("Path", "User")
-                                            if (-not (Test-GDriveInstalled)) {
-                                                throw "La instalación de gdrive.exe no finalizó correctamente."
-                                            }
-                                        }
-                                        catch {
-                                            [System.Windows.Forms.MessageBox]::Show(
-                                                "Error instalando gdrive.exe automáticamente:`n$($_.Exception.Message)",
-                                                "Error",
-                                                [System.Windows.Forms.MessageBoxButtons]::OK,
-                                                [System.Windows.Forms.MessageBoxIcon]::Error
-                                            )
-                                            # Desactivar la casilla de “Subir” para que no intente proceder sin gdrive
-                                            $chkSubir.Checked = $false
-                                            $lblTrabajando.Text = ""
-                                            $formBackupOptions.Enabled = $true
-                                            return
-                                        }
-                                    }
-                                    # <<<< Fin de inserción gdrive >>>>
-                            
-                                    try {
-                                        $script:lblTrabajando.Text = "Subiendo a Google Drive..."
-                                        $pbBackup.Value = 0
-                                        $formBackupOptions.Refresh()
-                            
-                                        # -------------------------------------------------------------------
-                                        #  Verificar que exista el archivo creds.json en el directorio actual
-                                        # -------------------------------------------------------------------
-    $originalDir = Get-Location
-    Set-Location "C:\Temp"
-                                        if (-not (Test-Path $credsPath)) {
-                                            [System.Windows.Forms.MessageBox]::Show(
-                                                "No se encontró ‘creds.json’ en la carpeta actual:`n$credsPath`n" +
-                                                "Por favor coloque ahí su archivo de credenciales de Google Service Account.",
-                                                "Error",
-                                                [System.Windows.Forms.MessageBoxButtons]::OK,
-                                                [System.Windows.Forms.MessageBoxIcon]::Error
-                                            )
-                                            return
-                                        }
-                            
-                                        # -------------------------------------------------------------------
-                                        #  Obtener ruta de gdrive.exe
-                                        # -------------------------------------------------------------------
-                                        $gdrivePath = $null
-                                        $commonPaths = @(
-                                            "$env:ProgramData\chocolatey\bin\gdrive.exe"
-                                            "${env:LocalAppData}\Programs\gdrive\gdrive.exe"
-                                            "$env:ProgramFiles\gdrive\gdrive.exe"
-                                            "$env:LOCALAPPDATA\gdrive\gdrive.exe"  # Nueva ruta
-                                        )
-                                        foreach ($path in $commonPaths) {
-                                            if (Test-Path $path) {
-                                                $gdrivePath = $path
-                                                break
-                                            }
-                                        }
-                                        if (-not $gdrivePath) {
-                                            # Intentar encontrar vía PATH actualizado
-                                            $gdrivePath = (Get-Command gdrive -ErrorAction SilentlyContinue).Source
-                                        }
-                                        if (-not $gdrivePath) {
-                                            throw "gdrive.exe no encontrado. Por favor verifique la instalación."
-                                        }
-                            
-                                        # -------------------------------------------------------------------
-                                        #  Ejecutar comando de subida
-                                        # -------------------------------------------------------------------
-                                        # Nota: $zipPath ya fue definido en el paso de compresión
-    $uploadCommand = "`"$gdrivePath`" upload --service-account `"creds.json`" `"$zipPath`""
-    $uploadResult = cmd /c $uploadCommand 2>&1
-                            
-                                        # Mostrar, para depuración, el resultado completo de gdrive
-                                        if ($uploadResult -ne $null) {
-                                            [System.Windows.Forms.MessageBox]::Show(
-                                                "Respuesta de gdrive (subida):`n$($uploadResult -join "`n")",
-                                                "Depuración",
-                                                [System.Windows.Forms.MessageBoxButtons]::OK,
-                                                [System.Windows.Forms.MessageBoxIcon]::Information
-                                            )
-                                        }
-                            
-                                        # -------------------------------------------------------------------
-                                        #  Extraer fileId de la salida
-                                        # -------------------------------------------------------------------
-                                        $fileId = ($uploadResult | Select-String -Pattern 'Uploaded (\w+) at') `
-                                                    | ForEach-Object { $_.Matches.Groups[1].Value }
-                            
-                                        if (-not $fileId) {
-                                            [System.Windows.Forms.MessageBox]::Show(
-                                                "No se obtuvo fileId tras la subida. Verifique los siguientes detalles:`n$($uploadResult -join "`n")",
-                                                "Error",
-                                                [System.Windows.Forms.MessageBoxButtons]::OK,
-                                                [System.Windows.Forms.MessageBoxIcon]::Error
-                                            )
-                                            return
-                                        }
-                            
-                                        # -------------------------------------------------------------------
-                                        #  Crear enlace compartido
-                                        # -------------------------------------------------------------------
-    $shareCommand = "`"$gdrivePath`" share --service-account `"creds.json`" $fileId"
-    $shareResult = cmd /c $shareCommand 2>&1
-                            
-                                        # Mostrar, para depuración, el resultado completo de share
-                                        if ($shareResult -ne $null) {
-                                            [System.Windows.Forms.MessageBox]::Show(
-                                                "Respuesta de gdrive (share):`n$($shareResult -join "`n")",
-                                                "Depuración",
-                                                [System.Windows.Forms.MessageBoxButtons]::OK,
-                                                [System.Windows.Forms.MessageBoxIcon]::Information
-                                            )
-                                        }
-                            
-                                        # -------------------------------------------------------------------
-                                        #  Extraer enlace final
-                                        # -------------------------------------------------------------------
-                                        $downloadLink = ($shareResult | Select-String -Pattern 'https://drive\.google\.com[^\s]+') `
-                                                         | ForEach-Object { $_.Matches.Value }
-                            
-                                        if ($downloadLink) {
-                                            [System.Windows.Forms.MessageBox]::Show(
-                                                "Subida exitosa a Google Drive.`nEnlace: $downloadLink",
-                                                "Éxito",
-                                                [System.Windows.Forms.MessageBoxButtons]::OK,
-                                                [System.Windows.Forms.MessageBoxIcon]::Information
-                                            )
-                                            Write-Host "Google Drive Link: $downloadLink" -ForegroundColor Green
-                                            $downloadLink | Set-Clipboard
-                                        } else {
-                                            [System.Windows.Forms.MessageBox]::Show(
-                                                "Se completó la acción de share, pero no se pudo extraer enlace compartido.`n" +
-                                                "Revisar salida:`n$($shareResult -join "`n")",
-                                                "Atención",
-                                                [System.Windows.Forms.MessageBoxButtons]::OK,
-                                                [System.Windows.Forms.MessageBoxIcon]::Warning
-                                            )
-                                        }
-                                    }
-                                    catch {
-                                        [System.Windows.Forms.MessageBox]::Show(
-                                            "Error subiendo a Google Drive: $($_.Exception.Message)`nDetalle interno:",
-                                            "Error",
-                                            [System.Windows.Forms.MessageBoxButtons]::OK,
-                                            [System.Windows.Forms.MessageBoxIcon]::Error
-                                        )
-                                    }
-                            
-                                    # Eliminar ZIP local
-                                    if (Test-Path $zipPath) {
-                                        Remove-Item $zipPath -Force
-                                    }
+                                if (Test-Path $zipToUpload) {
+                                    Remove-Item $zipToUpload -Force
                                 }
                             }
-}
-                # --------------------------------------------------------
-                # 4.12.11 Una vez finalizadas todas las acciones, cerrar formulario
-                # --------------------------------------------------------
-                [System.Windows.Forms.Application]::DoEvents()
-                $formBackupOptions.Close()
+                        }
+                    }
+                    [System.Windows.Forms.Application]::DoEvents()
+                    $formBackupOptions.Close()
+                }
+                elseif ($global:backupJob.State -eq 'Stopped') {
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Backup cancelado por el usuario.",
+                        "Cancelado",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Information
+                    )
+                    $formBackupOptions.Close()
+                }
+                else {
+                    $errorMessage = Receive-Job $global:backupJob -ErrorAction SilentlyContinue
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Error en backup:`n$errorMessage",
+                        "Error",
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Error
+                    )
+                }
             }
-            elseif ($global:backupJob.State -eq 'Stopped') {
-                [System.Windows.Forms.MessageBox]::Show(
-                    "Backup cancelado por el usuario.",
-                    "Cancelado",
-                    [System.Windows.Forms.MessageBoxButtons]::OK,
-                    [System.Windows.Forms.MessageBoxIcon]::Information
-                )
-                $formBackupOptions.Close()
-            }
-            else {
-                $errorMessage = Receive-Job $global:backupJob -ErrorAction SilentlyContinue
-                [System.Windows.Forms.MessageBox]::Show(
-                    "Error en backup:`n$errorMessage",
-                    "Error",
-                    [System.Windows.Forms.MessageBoxButtons]::OK,
-                    [System.Windows.Forms.MessageBoxIcon]::Error
-                )
-            }
-        }
+        })
+        $script:backupTimer.Start()
     })
-    $script:backupTimer.Start()
-})
-    # ----------------------------------------------------------------
-    # 4.13 Mostrar el formulario de Opciones de Respaldo
-    # ----------------------------------------------------------------
     $formBackupOptions.ShowDialog()
 })
-
-# Botón para salir
 $btnExit.Add_Click({
     $formPrincipal.Dispose()
     $formPrincipal.Close()

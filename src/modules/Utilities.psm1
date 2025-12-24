@@ -54,6 +54,7 @@ function Initialize-DzToolsConfig {
     $script:DzDebugEnabled = Get-DzDebugPreference
     return $script:DzDebugEnabled
 }
+
 function Write-DzDebug {
     <#
     .SYNOPSIS
@@ -72,9 +73,19 @@ function Write-DzDebug {
     }
 
     if ($script:DzDebugEnabled) {
+
+        # ✅ Si hay una barra de progreso “inline”, ciérrala para no mezclar texto
+        if (Get-Command Stop-GlobalProgress -ErrorAction SilentlyContinue) {
+            Stop-GlobalProgress
+        } else {
+            # fallback: por si no existe, evita pegarse a un -NoNewline
+            Write-Host ""
+        }
+
         Write-Host $Message -ForegroundColor $Color
     }
 }
+
 function Test-Administrator {
     <#
     .SYNOPSIS
@@ -1279,142 +1290,7 @@ function Download-FileWithProgressWpfStream {
     }
 }
 
-function Show-LZMADialog {
-    param(
-        [array]$Instaladores
-    )
-    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-    if (-not $Instaladores -or $Instaladores.Count -eq 0) {
-        $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
-        if (-not (Test-Path $LZMAregistryPath)) {
-            Write-Host "`tNo existe la clave LZMA: $LZMAregistryPath" -ForegroundColor Yellow
-            Show-WpfMessageBox -Message "No se encontró Advanced Installer (LZMA) en este equipo.`n`nRuta no existe:`n$LZMAregistryPath" `
-                -Title "Sin instaladores" -Buttons OK -Icon Information | Out-Null
-            return
-        }
-        try {
-            $carpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
-            if (-not $carpetasPrincipales -or $carpetasPrincipales.Count -lt 1) {
-                Write-Host "`tNo se encontraron carpetas principales." -ForegroundColor Yellow
-                Show-WpfMessageBox -Message "No se encontraron carpetas principales en la ruta del registro." `
-                    -Title "Sin resultados" -Buttons OK -Icon Information | Out-Null
-                return
-            }
-            $tmp = @()
-            foreach ($carpeta in $carpetasPrincipales) {
-                $subdirs = Get-ChildItem -Path $carpeta.PSPath -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer }
-                foreach ($sd in $subdirs) {
-                    $tmp += [PSCustomObject]@{
-                        Name = $sd.PSChildName
-                        Path = $sd.PSPath
-                    }
-                }
-            }
-            if (-not $tmp -or $tmp.Count -lt 1) {
-                Write-Host "`tNo se encontraron subcarpetas." -ForegroundColor Yellow
-                Show-WpfMessageBox -Message "No se encontraron instaladores (subcarpetas) en la ruta del registro." `
-                    -Title "Sin resultados" -Buttons OK -Icon Information | Out-Null
-                return
-            }
-            $Instaladores = $tmp | Sort-Object Name -Descending
-        } catch {
-            Write-Host "`tError accediendo al registro: $($_.Exception.Message)" -ForegroundColor Red
-            Show-WpfMessageBox -Message "Error accediendo al registro:`n$($_.Exception.Message)" `
-                -Title "Error" -Buttons OK -Icon Error | Out-Null
-            return
-        }
-    }
-    [xml]$xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="Carpetas LZMA"
-        Height="240" Width="520"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        ShowInTaskbar="False">
-    <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <ComboBox Name="cmbInstallers" Grid.Row="0" Height="28" FontSize="12" Margin="0,0,0,10"/>
-        <TextBlock Name="lblExePath" Grid.Row="1" Text="AI_ExePath: -" FontSize="12" Foreground="Red" TextWrapping="Wrap" Margin="0,0,0,12" MinHeight="40"/>
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Name="btnRename" Content="Renombrar" Width="110" Height="30" Margin="0,0,10,0" IsEnabled="False"/>
-            <Button Name="btnExit" Content="Salir" Width="110" Height="30" IsCancel="True"/>
-        </StackPanel>
-    </Grid>
-</Window>
-"@
 
-    $ui = New-WpfWindow -Xaml $xaml -PassThru
-    $window = $ui.Window
-    $c = $ui.Controls
-    try {
-        if ($Global:window -is [System.Windows.Window]) {
-            $window.Owner = $Global:window
-            $window.WindowStartupLocation = "CenterOwner"
-        } else {
-            $window.WindowStartupLocation = "CenterScreen"
-        }
-    } catch {
-        $window.WindowStartupLocation = "CenterScreen"
-    }
-    $c['cmbInstallers'].Items.Clear()
-    $c['cmbInstallers'].Items.Add("Selecciona instalador a renombrar") | Out-Null
-    foreach ($i in $Instaladores) {
-        $c['cmbInstallers'].Items.Add($i.Name) | Out-Null
-    }
-    $c['cmbInstallers'].SelectedIndex = 0
-    $updateUi = {
-        $idx = $c['cmbInstallers'].SelectedIndex
-        $c['btnRename'].IsEnabled = ($idx -gt 0)
-        if ($idx -gt 0) {
-            $selectedName = $c['cmbInstallers'].SelectedItem
-            $item = $Instaladores | Where-Object Name -eq $selectedName | Select-Object -First 1
-            if ($item -and $item.Path) {
-                $prop = Get-ItemProperty -Path $item.Path -Name "AI_ExePath" -ErrorAction SilentlyContinue
-                if ($prop -and $prop.AI_ExePath) {
-                    $c['lblExePath'].Text = "AI_ExePath: $($prop.AI_ExePath)"
-                } else {
-                    $c['lblExePath'].Text = "AI_ExePath: No encontrado"
-                }
-            } else {
-                $c['lblExePath'].Text = "AI_ExePath: No encontrado"
-            }
-        } else {
-            $c['lblExePath'].Text = "AI_ExePath: -"
-        }
-    }
-    $c['cmbInstallers'].Add_SelectionChanged({ & $updateUi })
-    & $updateUi
-    $c['btnRename'].Add_Click({
-            $idx = $c['cmbInstallers'].SelectedIndex
-            if ($idx -le 0) { return }
-            $nombre = [string]$c['cmbInstallers'].SelectedItem
-            $item = $Instaladores | Where-Object Name -eq $nombre | Select-Object -First 1
-            if (-not $item) { return }
-            $rutaVieja = $item.Path
-            $nuevoNombre = "$nombre.backup"
-            $msg = "¿Está seguro de renombrar:`n$rutaVieja`n`na:`n$nuevoNombre ?"
-            $conf = Show-WpfMessageBox -Message $msg -Title "Confirmar renombrado" -Buttons YesNo -Icon Warning
-            if ($conf -eq [System.Windows.MessageBoxResult]::Yes) {
-                try {
-                    Rename-Item -Path $rutaVieja -NewName $nuevoNombre -ErrorAction Stop
-                    Show-WpfMessageBox -Message "Registro renombrado correctamente." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
-                    $window.Close()
-                } catch {
-                    Show-WpfMessageBox -Message "Error al renombrar:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
-                }
-            }
-        })
-    $c['btnExit'].Add_Click({
-            Write-Host "`tCancelado por el usuario." -ForegroundColor Yellow
-            $window.Close()
-        })
-    $window.ShowDialog() | Out-Null
-}
 function Show-InstallerExtractorDialog {
     Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] INICIO"
 
@@ -1706,231 +1582,100 @@ function Show-SQLselector {
         [array]$SSMSVersions
     )
 
-    # Helper: intenta asignar owner ($window) para modal real
-    function Set-DialogOwner {
-        param([System.Windows.Window]$Dialog)
-
-        try {
-            if (Get-Variable -Name window -Scope Global -ErrorAction SilentlyContinue) {
-                $Dialog.Owner = $Global:window
-                return
-            }
-            if (Get-Variable -Name window -Scope Script -ErrorAction SilentlyContinue) {
-                $Dialog.Owner = $script:window
-                return
-            }
-        } catch { }
-    }
-
-    # Helper: bits para managers
     function Get-ManagerBits {
         param([string]$Path)
-
-        # System32 = 64-bit, SysWOW64 = 32-bit
         if ($Path -match "\\SysWOW64\\") { return "32 bits" }
         return "64 bits"
     }
 
-    # Helper: versión del manager (SQLServerManager15.msc => 15)
     function Get-ManagerVersion {
         param([string]$Path)
         if ($Path -match "SQLServerManager(\d+)\.msc") { return $matches[1] }
         return "?"
     }
 
-    # Helper: crea items para listbox (Display + Path)
     function New-SelectorItem {
         param(
             [string]$Path,
-            [string]$Display
+            [string]$Display,
+            [string]$DisplayShort
         )
+
         [PSCustomObject]@{
-            Path    = $Path
-            Display = $Display
+            Path         = $Path
+            Display      = $Display
+            DisplayShort = $DisplayShort
         }
     }
 
-    # Helper: construye un diálogo genérico de selección
-    function Show-PathSelectionDialog {
-        param(
-            [string]$Title,
-            [string]$Prompt,
-            [array]$Items,               # array de PSCustomObject {Path, Display}
-            [scriptblock]$OnExecute,     # recibe $SelectedPath
-            [string]$ExecuteButtonText = "Ejecutar"
-        )
 
-        $dialog = New-Object System.Windows.Window
-        $dialog.Title = $Title
-        $dialog.Width = 780
-        $dialog.Height = 420
-        $dialog.WindowStartupLocation = "CenterOwner"
-        $dialog.ResizeMode = "NoResize"
-        if ($Global:window -is [System.Windows.Window]) {
-            $dialog.Owner = $Global:window
-        }
 
-        # 2) Centrar respecto al owner
-        $dialog.WindowStartupLocation = "CenterOwner"
-
-        # 3) Fallback: si no hay Owner, centrar en pantalla
-        if (-not $dialog.Owner) {
-            $dialog.WindowStartupLocation = "CenterScreen"
-        }
-        Set-DialogOwner -Dialog $dialog
-
-        $root = New-Object System.Windows.Controls.StackPanel
-        $root.Margin = New-Object System.Windows.Thickness(10)
-
-        $label = New-Object System.Windows.Controls.TextBlock
-        $label.Text = $Prompt
-        $label.Margin = New-Object System.Windows.Thickness(0, 0, 0, 10)
-        $label.FontSize = 13
-        $root.Children.Add($label) | Out-Null
-
-        # ListBox: aquí va lo "legible": version/bits + RUTA COMPLETA
-        $listBox = New-Object System.Windows.Controls.ListBox
-        $listBox.Height = 250
-        $listBox.FontSize = 12
-        $listBox.DisplayMemberPath = "Display"
-        $listBox.SelectedValuePath = "Path"
-        foreach ($it in $Items) { $null = $listBox.Items.Add($it) }
-        $listBox.SelectedIndex = 0
-        $root.Children.Add($listBox) | Out-Null
-
-        # Ruta seleccionada (para copiar fácil)
-        $pathLabelTitle = New-Object System.Windows.Controls.TextBlock
-        $pathLabelTitle.Text = "Ruta seleccionada:"
-        $pathLabelTitle.Margin = New-Object System.Windows.Thickness(0, 10, 0, 2)
-        $pathLabelTitle.FontSize = 11
-        $root.Children.Add($pathLabelTitle) | Out-Null
-
-        $pathLabel = New-Object System.Windows.Controls.TextBlock
-        $pathLabel.Text = ""
-        $pathLabel.FontSize = 11
-        $pathLabel.FontFamily = "Consolas"
-        $pathLabel.TextWrapping = "Wrap"
-        $pathLabel.Margin = New-Object System.Windows.Thickness(0, 0, 0, 10)
-        $root.Children.Add($pathLabel) | Out-Null
-
-        $updatePath = {
-            if ($listBox.SelectedValue) { $pathLabel.Text = $listBox.SelectedValue }
-            else { $pathLabel.Text = "" }
-        }
-        & $updatePath
-        $listBox.Add_SelectionChanged({ & $updatePath })
-
-        $btnPanel = New-Object System.Windows.Controls.StackPanel
-        $btnPanel.Orientation = "Horizontal"
-        $btnPanel.HorizontalAlignment = "Right"
-
-        $cancelButton = New-Object System.Windows.Controls.Button
-        $cancelButton.Content = "Cancelar"
-        $cancelButton.Width = 95
-        $cancelButton.Margin = New-Object System.Windows.Thickness(0, 0, 10, 0)
-        $cancelButton.Add_Click({
-                $dialog.DialogResult = $false
-                $dialog.Close()
-            })
-
-        $okButton = New-Object System.Windows.Controls.Button
-        $okButton.Content = $ExecuteButtonText
-        $okButton.Width = 95
-        $okButton.IsDefault = $true
-        $okButton.Add_Click({
-                if ($listBox.SelectedValue) {
-                    try {
-                        & $OnExecute $listBox.SelectedValue
-                        $dialog.DialogResult = $true
-                        $dialog.Close()
-                    } catch {
-                        [System.Windows.MessageBox]::Show(
-                            "Error al ejecutar:`n$($_.Exception.Message)",
-                            "Error",
-                            [System.Windows.MessageBoxButton]::OK,
-                            [System.Windows.MessageBoxImage]::Error
-                        ) | Out-Null
-                    }
-                }
-            })
-
-        $btnPanel.Children.Add($cancelButton) | Out-Null
-        $btnPanel.Children.Add($okButton) | Out-Null
-        $root.Children.Add($btnPanel) | Out-Null
-
-        $dialog.Content = $root
-        $null = $dialog.ShowDialog()
-    }
-
-    # =========================
-    # 1) MANAGERS (SQLServerManager*.msc)
-    # =========================
     if ($Managers -and $Managers.Count -gt 0) {
-
         $items = @()
-
         $unique = $Managers | Where-Object { $_ } | Select-Object -Unique
+
         foreach ($m in $unique) {
             $ver = Get-ManagerVersion -Path $m
             $bits = Get-ManagerBits    -Path $m
 
-            # Display legible (incluye RUTA COMPLETA)
             $display = "SQLServerManager$ver  |  $bits  |  $m"
-            $items += (New-SelectorItem -Path $m -Display $display)
+            $displayShort = "SQLServerManager$ver  |  $bits"
+
+            $items += (New-SelectorItem -Path $m -Display $display -DisplayShort $displayShort)
         }
 
-        Show-PathSelectionDialog `
+
+        $selected = Show-WpfPathSelectionDialog `
             -Title  "Seleccionar Configuration Manager" `
             -Prompt "Seleccione la versión de SQL Server Configuration Manager a ejecutar:" `
             -Items  $items `
-            -OnExecute {
-            param($selectedPath)
-            Write-Host "`tEjecutando SQL Server Configuration Manager desde: $selectedPath" -ForegroundColor Green
-            Start-Process -FilePath $selectedPath
-        } `
             -ExecuteButtonText "Abrir"
+
+        if ($selected) {
+            Write-DzDebug "`t[DEBUG][Show-SQLselector] Seleccionado: $($selected.Display)"
+            Start-Process -FilePath $selected.Path
+        }
 
         return
     }
 
-    # =========================
-    # 2) SSMS (Ssms.exe)
-    # =========================
+    # 2) SSMS
     if ($SSMSVersions -and $SSMSVersions.Count -gt 0) {
-
         $items = @()
         $unique = $SSMSVersions | Where-Object { $_ } | Select-Object -Unique
 
         foreach ($p in $unique) {
-            # Display legible: producto + versión + ruta completa
             try {
                 $vi = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($p)
                 $prod = if ($vi.ProductName) { $vi.ProductName } else { "SSMS" }
-                $ver = if ($vi.FileVersion) { $vi.FileVersion }  else { "" }
+                $ver = if ($vi.FileVersion) { $vi.FileVersion } else { "" }
 
                 $display = "$prod  |  $ver  |  $p"
-                $items += (New-SelectorItem -Path $p -Display $display)
+                $displayShort = "$prod  |  $ver"
+
+                $items += (New-SelectorItem -Path $p -Display $display -DisplayShort $displayShort)
             } catch {
-                $items += (New-SelectorItem -Path $p -Display "SSMS  |  $p")
+                $items += (New-SelectorItem -Path $p -Display "SSMS  |  $p" -DisplayShort "SSMS")
             }
         }
 
-        Show-PathSelectionDialog `
+        $selected = Show-WpfPathSelectionDialog `
             -Title  "Seleccionar SSMS" `
             -Prompt "Seleccione la versión de SQL Server Management Studio a ejecutar:" `
             -Items  $items `
-            -OnExecute {
-            param($selectedPath)
-            Write-Host "`tEjecutando: $selectedPath" -ForegroundColor Green
-            Start-Process -FilePath $selectedPath
-        } `
             -ExecuteButtonText "Ejecutar"
 
+        if ($selected) {
+            Write-DzDebug "`t[DEBUG][Show-SQLselector] Seleccionado: $($selected.DisplayShort)"
+            Start-Process -FilePath $selected.Path
+        }
         return
+
     }
 
-    Write-Host "Show-SQLselector: No se recibieron rutas para Managers ni para SSMS." -ForegroundColor Yellow
+    Write-DzDebug "`t[DEBUG][Show-SQLselector] No se recibieron rutas para Managers ni para SSMS." Yellow
 }
+
 function Show-IPConfigDialog {
 
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
@@ -2692,6 +2437,756 @@ function Invoke-ClearPrintJobs {
         return $false
     }
 }
+function Show-WpfPathSelectionDialog {
+    param(
+        [Parameter(Mandatory)][string]$Title,
+        [Parameter(Mandatory)][string]$Prompt,
+        [Parameter(Mandatory)][array] $Items,  # PSCustomObject { Path, Display }
+        [string]$ExecuteButtonText = "Ejecutar"
+    )
+
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="$Title"
+        Height="420" Width="780"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+    <Border Background="White"
+            CornerRadius="10"
+            BorderBrush="#FFC896"
+            BorderThickness="2"
+            Padding="0">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
+        </Border.Effect>
+
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="250"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Name="txtHeader"
+                           Text="$Title"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="#333333"/>
+
+                <Button Name="btnClose"
+                        Grid.Column="1"
+                        Content="✕"
+                        Width="34" Height="26"
+                        Margin="8,0,0,0"
+                        ToolTip="Cerrar"
+                        Background="Transparent"
+                        BorderBrush="Transparent"/>
+            </Grid>
+
+            <TextBlock Grid.Row="1"
+                       Name="lblPrompt"
+                       Text="$Prompt"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="#333333"
+                       Margin="0,0,0,10"/>
+
+            <ListBox Grid.Row="2"
+                     Name="lstItems"
+                     FontSize="12"
+                     DisplayMemberPath="Display"
+                     SelectedValuePath="Path" />
+
+            <!-- Footer: versión seleccionada + botones a la derecha -->
+            <Grid Grid.Row="3" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Versión seleccionada:" FontSize="11" Foreground="#555555" Margin="0,0,0,2"/>
+                    <TextBlock Name="lblSelectedDisplay"
+                            Text=""
+                            FontSize="11"
+                            FontFamily="Consolas"
+                            TextWrapping="NoWrap"
+                            TextTrimming="CharacterEllipsis"
+                            Foreground="#333333"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True"/>
+                    <Button Name="btnExecute" Content="$ExecuteButtonText" Width="110" Height="30" Background="#FFC896" IsDefault="True"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
+"@
+
+
+    $ui = New-WpfWindow -Xaml $xaml -PassThru
+    $w = $ui.Window
+    $c = $ui.Controls
+
+    # Owner / centrado
+    try { if (Get-Command Set-WpfDialogOwner -ErrorAction SilentlyContinue) { Set-WpfDialogOwner -Dialog $w } } catch {}
+    if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
+
+    # Cerrar + Drag
+    $c['btnClose'].Add_Click({ $w.Close() })
+    $c['HeaderBar'].Add_MouseLeftButtonDown({
+            if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() }
+        })
+
+    # Cargar items
+    $c['lstItems'].ItemsSource = $Items
+    if ($Items.Count -gt 0) { $c['lstItems'].SelectedIndex = 0 }
+
+    $updateSelected = {
+        $it = $c['lstItems'].SelectedItem
+        if ($it) {
+            $short = $null
+            if ($it.PSObject.Properties.Match('DisplayShort').Count -gt 0) {
+                $short = [string]$it.DisplayShort
+            }
+            $c['lblSelectedDisplay'].Text = if (-not [string]::IsNullOrWhiteSpace($short)) { $short } else { [string]$it.Display }
+        } else {
+            $c['lblSelectedDisplay'].Text = ""
+        }
+    }
+
+
+    & $updateSelected
+    $c['lstItems'].Add_SelectionChanged({ & $updateSelected })
+    $script:_selectedItem = $null
+
+    $c['btnExecute'].Add_Click({
+            $it = $c['lstItems'].SelectedItem
+            if (-not $it) { return }
+            $script:_selectedItem = $it   # <- devolvemos el objeto completo
+            $w.DialogResult = $true
+            $w.Close()
+        })
+
+    $c['btnCancel'].Add_Click({
+            $w.DialogResult = $false
+            $w.Close()
+        })
+
+    $ok = $w.ShowDialog()
+    if ($ok) { return $script:_selectedItem }
+    return $null
+}
+function Show-LZMADialog {
+    param(
+        [array]$Instaladores
+    )
+
+    Write-DzDebug "`t[DEBUG][Show-LZMADialog] INICIO"
+
+    if (-not $Instaladores -or $Instaladores.Count -eq 0) {
+        $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
+
+        if (-not (Test-Path $LZMAregistryPath)) {
+            Write-DzDebug "`t[DEBUG][Show-LZMADialog] No existe la clave LZMA: $LZMAregistryPath" Yellow
+            Show-WpfMessageBox -Message "No se encontró Advanced Installer (LZMA) en este equipo.`n`nRuta no existe:`n$LZMAregistryPath" `
+                -Title "Sin instaladores" -Buttons OK -Icon Information | Out-Null
+            return
+        }
+
+        try {
+            $carpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
+            if (-not $carpetasPrincipales -or $carpetasPrincipales.Count -lt 1) {
+                Write-DzDebug "`t[DEBUG][Show-LZMADialog] No se encontraron carpetas principales." Yellow
+                Show-WpfMessageBox -Message "No se encontraron carpetas principales en la ruta del registro." `
+                    -Title "Sin resultados" -Buttons OK -Icon Information | Out-Null
+                return
+            }
+
+            $tmp = @()
+            foreach ($carpeta in $carpetasPrincipales) {
+                $subdirs = Get-ChildItem -Path $carpeta.PSPath -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer }
+                foreach ($sd in $subdirs) {
+                    $tmp += [PSCustomObject]@{
+                        Name = $sd.PSChildName
+                        Path = $sd.PSPath
+                    }
+                }
+            }
+
+            if (-not $tmp -or $tmp.Count -lt 1) {
+                Write-DzDebug "`t[DEBUG][Show-LZMADialog] No se encontraron subcarpetas." Yellow
+                Show-WpfMessageBox -Message "No se encontraron instaladores (subcarpetas) en la ruta del registro." `
+                    -Title "Sin resultados" -Buttons OK -Icon Information | Out-Null
+                return
+            }
+
+            $Instaladores = $tmp | Sort-Object Name -Descending
+        } catch {
+            Write-DzDebug "`t[DEBUG][Show-LZMADialog] Error accediendo al registro: $($_.Exception.Message)" Red
+            Show-WpfMessageBox -Message "Error accediendo al registro:`n$($_.Exception.Message)" `
+                -Title "Error" -Buttons OK -Icon Error | Out-Null
+            return
+        }
+    }
+
+    # Construir items: lista muestra nombre + ruta, pero guardamos Name/Path separadas
+    $items = foreach ($i in $Instaladores) {
+        if (-not $i) { continue }
+        [PSCustomObject]@{
+            Name    = [string]$i.Name
+            Path    = [string]$i.Path
+            Display = ("{0}  |  {1}" -f $i.Name, $i.Path) # LISTA con ruta
+        }
+    }
+
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Carpetas LZMA"
+        Height="290" Width="760"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+    <Border Background="White"
+            CornerRadius="10"
+            BorderBrush="#FFC896"
+            BorderThickness="2"
+            Padding="0">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
+        </Border.Effect>
+
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/>   <!-- Header -->
+                <RowDefinition Height="Auto"/> <!-- Instrucción -->
+                <RowDefinition Height="Auto"/> <!-- Combo -->
+                <RowDefinition Height="*"/>    <!-- AI_ExePath -->
+                <RowDefinition Height="Auto"/> <!-- Botones -->
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="Carpetas LZMA"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="#333333"/>
+
+                <Button Name="btnClose"
+                        Grid.Column="1"
+                        Content="✕"
+                        Width="34" Height="26"
+                        Margin="8,0,0,0"
+                        ToolTip="Cerrar"
+                        Background="Transparent"
+                        BorderBrush="Transparent"/>
+            </Grid>
+
+            <TextBlock Grid.Row="1"
+                       Text="Seleccione el instalador (registro) que desea renombrar."
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="#333333"
+                       Margin="0,0,0,10"/>
+
+            <ComboBox Name="cmbInstallers"
+                      Grid.Row="2"
+                      Height="30"
+                      FontSize="12"
+                      Margin="0,0,0,10"
+                      DisplayMemberPath="Display"
+                      SelectedValuePath="Path"/>
+
+            <!-- AI_ExePath -->
+            <Border Grid.Row="3"
+                    Background="#FFF7F0"
+                    CornerRadius="8"
+                    Padding="10"
+                    Margin="0,0,0,8"
+                    MinHeight="78">
+                <StackPanel>
+                    <TextBlock Text="AI_ExePath:"
+                               FontSize="11"
+                               Foreground="#555555"
+                               Margin="0,0,0,4"/>
+                    <TextBlock Name="lblExePath"
+                               Text="-"
+                               FontSize="12"
+                               Foreground="#B00020"
+                               TextWrapping="Wrap"
+                               TextTrimming="None"
+                               MaxHeight="48"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Botones -->
+            <StackPanel Grid.Row="4"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,0,0,0">
+                <Button Name="btnRename" Content="Renombrar" Width="110" Height="30" Margin="0,0,10,0" IsEnabled="False"/>
+                <Button Name="btnExit" Content="Salir" Width="110" Height="30" IsCancel="True"/>
+            </StackPanel>
+
+        </Grid>
+    </Border>
+</Window>
+"@
+
+    try {
+        $ui = New-WpfWindow -Xaml $xaml -PassThru
+    } catch {
+        Write-DzDebug "`t[DEBUG][Show-LZMADialog] ERROR creando ventana: $($_.Exception.Message)" Red
+        Show-WpfMessageBox -Message "No se pudo crear la ventana LZMA." -Title "Error" -Buttons OK -Icon Error | Out-Null
+        return
+    }
+
+    $w = $ui.Window
+    $c = $ui.Controls
+
+    # Owner / centrado
+    try { Set-WpfDialogOwner -Dialog $w } catch {}
+    if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
+
+    # Header drag + close
+    $c['btnClose'].Add_Click({ $w.DialogResult = $false; $w.Close() })
+    $c['HeaderBar'].Add_MouseLeftButtonDown({
+            if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() }
+        })
+
+    # Poblar combo
+    $placeholder = [PSCustomObject]@{ Name = ""; Path = ""; Display = "Selecciona instalador a renombrar" }
+    $c['cmbInstallers'].ItemsSource = @($placeholder) + @($items)
+    $c['cmbInstallers'].SelectedIndex = 0
+
+    $updateUi = {
+        $idx = $c['cmbInstallers'].SelectedIndex
+        $c['btnRename'].IsEnabled = ($idx -gt 0)
+
+        if ($idx -le 0) {
+            $c['lblExePath'].Text = "-"
+            return
+        }
+
+        $it = $c['cmbInstallers'].SelectedItem
+        if (-not $it -or [string]::IsNullOrWhiteSpace($it.Path)) {
+            $c['lblExePath'].Text = "No encontrado"
+            return
+        }
+
+        try {
+            $prop = Get-ItemProperty -Path $it.Path -Name "AI_ExePath" -ErrorAction SilentlyContinue
+            if ($prop -and $prop.AI_ExePath) {
+                $pathTxt = [string]$prop.AI_ExePath
+                $pathTxt = $pathTxt -replace "\\", "\ "
+                $c['lblExePath'].Text = $pathTxt
+
+            } else {
+                $c['lblExePath'].Text = "No encontrado"
+            }
+        } catch {
+            $c['lblExePath'].Text = "Error leyendo AI_ExePath"
+        }
+    }
+
+    $c['cmbInstallers'].Add_SelectionChanged({ & $updateUi })
+    & $updateUi
+
+    $c['btnRename'].Add_Click({
+            $idx = $c['cmbInstallers'].SelectedIndex
+            if ($idx -le 0) { return }
+
+            $it = $c['cmbInstallers'].SelectedItem
+            if (-not $it -or [string]::IsNullOrWhiteSpace($it.Path)) { return }
+
+            $rutaVieja = [string]$it.Path
+            $nombre = [string]$it.Name
+            $nuevoNombre = "$nombre.backup"
+
+            $msg = "¿Está seguro de renombrar el registro?`n`n$rutaVieja`n`nA:`n$nuevoNombre"
+            $conf = Show-WpfMessageBox -Message $msg -Title "Confirmar renombrado" -Buttons YesNo -Icon Warning
+
+            if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { return }
+
+            try {
+                Rename-Item -Path $rutaVieja -NewName $nuevoNombre -ErrorAction Stop
+                Show-WpfMessageBox -Message "Registro renombrado correctamente." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+                $w.DialogResult = $true
+                $w.Close()
+            } catch {
+                Show-WpfMessageBox -Message "Error al renombrar:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+            }
+        })
+
+    $c['btnExit'].Add_Click({
+            $w.DialogResult = $false
+            $w.Close()
+        })
+
+    $w.ShowDialog() | Out-Null
+    Write-DzDebug "`t[DEBUG][Show-LZMADialog] FIN"
+}
+
+function Show-AddUserDialog {
+
+    Write-DzDebug "`t[DEBUG][Show-AddUserDialog] INICIO"
+
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Crear Usuario de Windows"
+        Height="420" Width="640"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+    <Border Background="White"
+            CornerRadius="10"
+            BorderBrush="#FFC896"
+            BorderThickness="2"
+            Padding="0">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
+        </Border.Effect>
+
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/>   <!-- Header -->
+                <RowDefinition Height="Auto"/> <!-- Intro -->
+                <RowDefinition Height="Auto"/> <!-- Form -->
+                <RowDefinition Height="*"/>    <!-- Tips -->
+                <RowDefinition Height="Auto"/> <!-- Status + buttons -->
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="Crear Usuario de Windows"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="#333333"/>
+
+                <Button Name="btnClose"
+                        Grid.Column="1"
+                        Content="✕"
+                        Width="34" Height="26"
+                        Margin="8,0,0,0"
+                        ToolTip="Cerrar"
+                        Background="Transparent"
+                        BorderBrush="Transparent"/>
+            </Grid>
+
+            <TextBlock Grid.Row="1"
+                       Text="Crea un usuario local y asígnalo al grupo correspondiente."
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="#333333"
+                       Margin="0,0,0,12"/>
+
+            <!-- Form -->
+            <Grid Grid.Row="2" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Nombre de usuario" FontSize="12" Foreground="#555555" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Name="txtUsername" Grid.Row="0" Grid.Column="1" Height="32" FontSize="12" VerticalContentAlignment="Center" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Contraseña" FontSize="12" Foreground="#555555" VerticalAlignment="Center" Margin="0,0,10,8"/>
+
+                <!-- PasswordBox + TextBox (toggle show/hide) -->
+                <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <PasswordBox Name="pwdPassword" Grid.Column="0" Height="32" FontSize="12" Padding="6,0,6,0"/>
+                    <TextBox Name="txtPasswordVisible" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Visibility="Collapsed"/>
+
+                    <ToggleButton Name="tglShowPassword"
+                                  Grid.Column="1"
+                                  Content="👁"
+                                  Width="40" Height="32"
+                                  Margin="8,0,0,0"
+                                  ToolTip="Mostrar/Ocultar contraseña"/>
+                </Grid>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Tipo de usuario" FontSize="12" Foreground="#555555" VerticalAlignment="Center"/>
+                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <RadioButton Name="rbStandard" Content="Usuario estándar" IsChecked="True" Margin="0,0,12,0"/>
+                    <RadioButton Name="rbAdmin" Content="Administrador"/>
+                </StackPanel>
+
+                <Button Name="btnShowUsers"
+                        Grid.Row="2"
+                        Grid.Column="2"
+                        Content="Ver usuarios"
+                        Width="110"
+                        Height="30"
+                        Margin="12,0,0,0"/>
+            </Grid>
+
+            <!-- Tips -->
+            <Border Grid.Row="3" Background="#F5F5F5" CornerRadius="8" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Requisitos:"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="#333333"
+                               Margin="0,0,0,6"/>
+                    <TextBlock Text="• Nombre: sin espacios (ej. soporte01)" FontSize="12" Foreground="#444444" Margin="0,0,0,2"/>
+                    <TextBlock Text="• Contraseña: mínimo 8 caracteres" FontSize="12" Foreground="#444444" Margin="0,0,0,2"/>
+                    <TextBlock Text="• Administrador: úsalo solo si es necesario" FontSize="12" Foreground="#444444"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Status + Buttons -->
+            <Grid Grid.Row="4" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Name="lblStatus"
+                           Grid.Column="0"
+                           Text="Listo."
+                           FontSize="12"
+                           Foreground="#2E7D32"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           Margin="0,0,10,0"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True"/>
+                    <Button Name="btnCreate" Content="Crear usuario" Width="130" Height="30" Background="#FFC896" IsEnabled="False" IsDefault="True"/>
+                </StackPanel>
+            </Grid>
+
+        </Grid>
+    </Border>
+</Window>
+"@
+
+    try {
+        $ui = New-WpfWindow -Xaml $xaml -PassThru
+    } catch {
+        Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando ventana: $($_.Exception.Message)" Red
+        Show-WpfMessageBox -Message "No se pudo crear la ventana de usuario." -Title "Error" -Buttons OK -Icon Error | Out-Null
+        return
+    }
+
+    $w = $ui.Window
+    $c = $ui.Controls
+
+    # Owner / centrado
+    try { Set-WpfDialogOwner -Dialog $w } catch {}
+    if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
+
+    # Header drag + close
+    $c['btnClose'].Add_Click({ $w.DialogResult = $false; $w.Close() })
+    $c['HeaderBar'].Add_MouseLeftButtonDown({
+            if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() }
+        })
+
+    # Grupos
+    try {
+        $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name
+        $userGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name
+    } catch {
+        Show-WpfMessageBox -Message "No se pudieron obtener los grupos locales (requiere permisos).`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+        $w.Close()
+        return
+    }
+
+    function Set-Status {
+        param(
+            [string]$Text,
+            [string]$Level = "Ok" # Ok | Warn | Error
+        )
+        switch ($Level) {
+            "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen }
+            "Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod }
+            "Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick }
+        }
+        $c['lblStatus'].Text = $Text
+    }
+
+    function Get-PasswordText {
+        if ($c['txtPasswordVisible'].Visibility -eq 'Visible') {
+            return [string]$c['txtPasswordVisible'].Text
+        }
+        # PasswordBox no expone .Text, usamos .Password
+        return [string]$c['pwdPassword'].Password
+    }
+
+    function Validate-Form {
+        $username = [string]$c['txtUsername'].Text
+        $username = $username.Trim()
+
+        $pass = Get-PasswordText
+        $pass = $pass.Trim()
+
+        if ([string]::IsNullOrWhiteSpace($username)) {
+            Set-Status -Text "Escriba un nombre de usuario." -Level "Warn"
+            $c['btnCreate'].IsEnabled = $false
+            return
+        }
+
+        if ($username -match "\s") {
+            Set-Status -Text "El nombre no debe contener espacios." -Level "Warn"
+            $c['btnCreate'].IsEnabled = $false
+            return
+        }
+
+        if ([string]::IsNullOrWhiteSpace($pass)) {
+            Set-Status -Text "Escriba una contraseña." -Level "Warn"
+            $c['btnCreate'].IsEnabled = $false
+            return
+        }
+
+        if ($pass.Length -lt 8) {
+            Set-Status -Text "La contraseña debe tener al menos 8 caracteres." -Level "Warn"
+            $c['btnCreate'].IsEnabled = $false
+            return
+        }
+
+        # chequeo de existencia (ligero)
+        try {
+            if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
+                Set-Status -Text "El usuario '$username' ya existe." -Level "Error"
+                $c['btnCreate'].IsEnabled = $false
+                return
+            }
+        } catch {
+            # si falla por permisos, no bloqueamos la UI, solo avisamos
+            Set-Status -Text "Aviso: no se pudo validar si el usuario ya existe (permisos)." -Level "Warn"
+        }
+
+        Set-Status -Text "Listo para crear usuario." -Level "Ok"
+        $c['btnCreate'].IsEnabled = $true
+    }
+
+    # Toggle show/hide password
+    $c['tglShowPassword'].Add_Checked({
+            $c['txtPasswordVisible'].Text = [string]$c['pwdPassword'].Password
+            $c['pwdPassword'].Visibility = 'Collapsed'
+            $c['txtPasswordVisible'].Visibility = 'Visible'
+            Validate-Form
+        })
+    $c['tglShowPassword'].Add_Unchecked({
+            $c['pwdPassword'].Password = [string]$c['txtPasswordVisible'].Text
+            $c['txtPasswordVisible'].Visibility = 'Collapsed'
+            $c['pwdPassword'].Visibility = 'Visible'
+            Validate-Form
+        })
+
+    # eventos de validación
+    $c['txtUsername'].Add_TextChanged({ Validate-Form })
+    $c['pwdPassword'].Add_PasswordChanged({ Validate-Form })
+    $c['txtPasswordVisible'].Add_TextChanged({ Validate-Form })
+    $c['rbStandard'].Add_Checked({ Validate-Form })
+    $c['rbAdmin'].Add_Checked({ Validate-Form })
+
+    # Ver usuarios (dialog WPF simple)
+    $c['btnShowUsers'].Add_Click({
+            try {
+                $users = Get-LocalUser | Select-Object Name, Enabled
+
+                $lines = foreach ($u in $users) {
+                    $estado = if ($u.Enabled) { "Habilitado" } else { "Deshabilitado" }
+                    "{0,-20}  {1}" -f $u.Name, $estado
+                }
+
+                $msg = $lines -join "`n"
+                Show-WpfMessageBox -Message $msg -Title "Usuarios locales" -Buttons OK -Icon Information | Out-Null
+            } catch {
+                Show-WpfMessageBox -Message "No se pudieron listar usuarios:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+            }
+        })
+
+
+    # Crear
+    $c['btnCreate'].Add_Click({
+            $username = [string]$c['txtUsername'].Text.Trim()
+            $password = Get-PasswordText
+
+            $isAdmin = $false
+            try { $isAdmin = [bool]$c['rbAdmin'].IsChecked } catch {}
+
+            $group = if ($isAdmin) { $adminGroup } else { $userGroup }
+
+            $confirmMsg = "Se creará el usuario:`n`n$username`n`nTipo: " + (if ($isAdmin) { "Administrador" } else { "Usuario estándar" }) + "`nGrupo: $group"
+            $conf = Show-WpfMessageBox -Message $confirmMsg -Title "Confirmar" -Buttons YesNo -Icon Question
+            if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { return }
+
+            try {
+                if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
+                    Set-Status -Text "El usuario '$username' ya existe." -Level "Error"
+                    return
+                }
+
+                $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+                New-LocalUser -Name $username -Password $securePassword -AccountNeverExpires -PasswordNeverExpires | Out-Null
+                Add-LocalGroupMember -Group $group -Member $username
+
+                Show-WpfMessageBox -Message "Usuario '$username' creado y agregado al grupo '$group'." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+                $w.DialogResult = $true
+                $w.Close()
+            } catch {
+                Set-Status -Text "Error: $($_.Exception.Message)" -Level "Error"
+                Show-WpfMessageBox -Message "Error al crear usuario:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+            }
+        })
+
+    # Cancelar
+    $c['btnCancel'].Add_Click({ $w.DialogResult = $false; $w.Close() })
+
+    # estado inicial
+    Validate-Form
+
+    $w.ShowDialog() | Out-Null
+    Write-DzDebug "`t[DEBUG][Show-AddUserDialog] FIN"
+}
+
+
 
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
@@ -2731,5 +3226,6 @@ Export-ModuleMember -Function @(
     'get-NSApplicationsIniReport',
     'Show-NSApplicationsIniReport',
     'show-NSPrinters',
-    'Invoke-ClearPrintJobs'
+    'Invoke-ClearPrintJobs',
+    'Show-AddUserDialog'
 )

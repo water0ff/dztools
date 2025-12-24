@@ -159,6 +159,20 @@ function Show-WpfProgressBar {
         return $null
     }
 }
+function Set-WpfDialogOwner {
+    param(
+        [Parameter(Mandatory)]
+        [System.Windows.Window]$Dialog
+    )
+
+    try {
+        if ($Global:window -is [System.Windows.Window]) { $Dialog.Owner = $Global:window; return }
+    } catch {}
+
+    try {
+        if ($script:window -is [System.Windows.Window]) { $Dialog.Owner = $script:window; return }
+    } catch {}
+}
 
 function Update-WpfProgressBar {
     param(
@@ -349,116 +363,7 @@ function Show-WpfFolderDialog {
     }
     return $null
 }
-function Show-AddUserDialog {
-    [xml]$xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="Crear Usuario de Windows" Height="250" Width="450"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
-    <Grid Margin="10">
-        <Label Content="Nombre:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,0,0,0"/>
-        <TextBox Name="txtUsername" HorizontalAlignment="Left" VerticalAlignment="Top"
-                 Width="290" Height="25" Margin="110,0,0,0"/>
 
-        <Label Content="Contraseña:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,40,0,0"/>
-        <PasswordBox Name="txtPassword" HorizontalAlignment="Left" VerticalAlignment="Top"
-                     Width="290" Height="25" Margin="110,40,0,0"/>
-
-        <Label Content="Tipo:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,80,0,0"/>
-        <ComboBox Name="cmbType" HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Width="290" Height="25" Margin="110,80,0,0">
-            <ComboBoxItem Content="Usuario estándar"/>
-            <ComboBoxItem Content="Administrador"/>
-        </ComboBox>
-
-        <Button Content="Crear" Name="btnCreate" Width="130" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,130,0,0"/>
-        <Button Content="Cancelar" Name="btnCancel" Width="130" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="140,130,0,0"/>
-        <Button Content="Mostrar usuarios" Name="btnShow" Width="130" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="280,130,0,0"/>
-    </Grid>
-</Window>
-"@
-
-    $reader = New-Object System.Xml.XmlNodeReader $xaml
-    $window = [Windows.Markup.XamlReader]::Load($reader)
-
-    $txtUsername = $window.FindName("txtUsername")
-    $txtPassword = $window.FindName("txtPassword")
-    $cmbType = $window.FindName("cmbType")
-    $btnCreate = $window.FindName("btnCreate")
-    $btnCancel = $window.FindName("btnCancel")
-    $btnShow = $window.FindName("btnShow")
-
-    $cmbType.SelectedIndex = 0
-
-    $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name
-    $userGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name
-
-    $btnShow.Add_Click({
-            Write-Host "`nUsuarios actuales:" -ForegroundColor Cyan
-            $users = Get-LocalUser
-            $usersTable = $users | ForEach-Object {
-                $user = $_
-                $estado = if ($user.Enabled) { "Habilitado" } else { "Deshabilitado" }
-                $tipoUsuario = "Usuario estándar"
-                try {
-                    $adminMembers = Get-LocalGroupMember -Group $adminGroup -ErrorAction Stop
-                    if ($adminMembers | Where-Object { $_.SID -eq $user.SID }) {
-                        $tipoUsuario = "Administrador"
-                    }
-                } catch { }
-                [PSCustomObject]@{
-                    Nombre = $user.Name
-                    Tipo   = $tipoUsuario
-                    Estado = $estado
-                }
-            }
-            $usersTable | Format-Table -AutoSize | Out-String | Write-Host
-        })
-
-    $btnCreate.Add_Click({
-            $username = $txtUsername.Text.Trim()
-            $password = $txtPassword.Password
-            $type = $cmbType.Text
-
-            if (-not $username -or -not $password) {
-                Write-Host "Error: Nombre y contraseña requeridos" -ForegroundColor Red
-                return
-            }
-
-            if ($password.Length -lt 8) {
-                Write-Host "Error: Contraseña debe tener al menos 8 caracteres" -ForegroundColor Red
-                return
-            }
-
-            try {
-                if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
-                    Write-Host "Error: Usuario '$username' ya existe" -ForegroundColor Red
-                    return
-                }
-
-                $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
-                New-LocalUser -Name $username -Password $securePassword -AccountNeverExpires -PasswordNeverExpires
-                Write-Host "Usuario '$username' creado exitosamente" -ForegroundColor Green
-
-                $group = if ($type -eq 'Administrador') { $adminGroup } else { $userGroup }
-                Add-LocalGroupMember -Group $group -Member $username
-                Write-Host "Usuario agregado al grupo $group" -ForegroundColor Cyan
-
-                $window.Close()
-            } catch {
-                Write-Host "Error: $_" -ForegroundColor Red
-            }
-        })
-
-    $btnCancel.Add_Click({
-            Write-Host "Operación cancelada" -ForegroundColor Yellow
-            $window.Close()
-        })
-
-    $window.ShowDialog() | Out-Null
-}
 Export-ModuleMember -Function @(
     'New-WpfWindow',
     'Show-WpfMessageBox',
@@ -470,5 +375,5 @@ Export-ModuleMember -Function @(
     'Get-WpfPasswordBoxText',
     'Show-WpfFolderDialog',
     'Show-ProgressBar',
-    'Show-AddUserDialog'
+    'Set-WpfDialogOwner'
 )

@@ -1,6 +1,4 @@
-﻿param(
-    [string]$Branch = "release"   # solo informativo ahora
-)
+﻿#param([string]$Branch = "release")
 # ===================== ADVERTENCIA DE VERSIÓN BETA =====================
 Write-Host "`n==============================================" -ForegroundColor Red
 Write-Host "           ADVERTENCIA DE VERSIÓN BETA " -ForegroundColor Red

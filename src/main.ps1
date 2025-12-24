@@ -19,37 +19,61 @@ try {
 if (Get-Command Set-ExecutionPolicy -ErrorAction SilentlyContinue) {
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 }
+
+# Estado de la UI de consola
+$script:ProgressActive = $false
+$script:LastProgressLen = 0
+
 function Show-GlobalProgress {
     param(
         [int]$Percent,
         [string]$Status
     )
 
-    # Limitar %
     $Percent = [math]::Max(0, [math]::Min(100, $Percent))
 
-    # Construir barra
     $width = 40
     $filled = [math]::Round(($Percent / 100) * $width)
     $bar = "[" + ("#" * $filled).PadRight($width) + "]"
-
     $text = "{0} {1,3}% - {2}" -f $bar, $Percent, $Status
 
-    # Mover cursor a la linea 0 (arriba) y escribir
-    [System.Console]::SetCursorPosition(0, 0)
-    Write-Host $text -NoNewline
+    # Recorta para no rebasar ancho de consola
+    $max = [System.Console]::WindowWidth - 1
+    if ($max -gt 10 -and $text.Length -gt $max) { $text = $text.Substring(0, $max) }
 
-    # Borrar el resto de esa línea si quedó texto viejo
-    $remaining = [System.Console]::WindowWidth - $text.Length - 1
-    if ($remaining -gt 0) {
-        Write-Host (" " * $remaining) -NoNewline
+    # Sobrescribe la misma línea (sin mover cursor por filas)
+    $pad = ""
+    if ($script:LastProgressLen -gt $text.Length) {
+        $pad = " " * ($script:LastProgressLen - $text.Length)
     }
 
-    # Volver cursor a la siguiente línea disponible
-    # Para no pisar mensajes anteriores:
-    $lastRow = [System.Console]::CursorTop
-    [System.Console]::SetCursorPosition(0, $lastRow + 1)
+    Write-Host ("`r" + $text + $pad) -NoNewline
+
+    $script:ProgressActive = $true
+    $script:LastProgressLen = ($text.Length + $pad.Length)
 }
+
+function Stop-GlobalProgress {
+    # Termina la línea de progreso para que el siguiente Write-Host no se pegue
+    if ($script:ProgressActive) {
+        Write-Host ""  # nueva línea
+        $script:ProgressActive = $false
+        $script:LastProgressLen = 0
+    }
+}
+
+function Write-Log {
+    param(
+        [Parameter(Mandatory)] [string]$Message,
+        [ConsoleColor]$Color = [ConsoleColor]::Gray
+    )
+    # Si hay barra activa, ciérrala antes de imprimir logs
+    Stop-GlobalProgress
+    Write-Host $Message -ForegroundColor $Color
+}
+
+
+
 
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
@@ -108,7 +132,7 @@ function Initialize-Environment {
 $global:isHighlightingQuery = $false
 function New-MainForm {
 
-    Write-Host "`tCreando formulario principal WPF..." -ForegroundColor Yellow
+    Write-Host "`nCreando formulario principal WPF..." -ForegroundColor Yellow
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -1188,58 +1212,34 @@ function Start-Application {
 
     Show-GlobalProgress -Percent 0 -Status "Inicializando..."
 
-    # 1️⃣ Inicializar entorno
     if (-not (Initialize-Environment)) {
         Show-GlobalProgress -Percent 100 -Status "Error inicializando"
         return
     }
-    Show-GlobalProgress -Percent 5 -Status "Entorno listo"
+    Show-GlobalProgress -Percent 10 -Status "Entorno listo"
 
-    # 2️⃣ Cargar módulos con progreso
-    Show-GlobalProgress -Percent 10 -Status "Cargando módulos..."
-
+    # Importar módulos (solo una vez)
+    Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
     $modulesPath = Join-Path $PSScriptRoot "modules"
     $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "Queries.psm1", "Installers.psm1")
-    $total = $modules.Count
-    $count = 0
 
+    $i = 0
     foreach ($module in $modules) {
-        $count++
-        $percentPhase = 10 + [math]::Round((($count / $total) * 15))
-        Show-GlobalProgress -Percent $percentPhase -Status "Importando $module"
-
+        $i++
+        Show-GlobalProgress -Percent (20 + [math]::Round(($i / $modules.Count) * 20)) -Status "Importando $module"
         $modulePath = Join-Path $modulesPath $module
         if (Test-Path $modulePath) {
-            try {
-                Import-Module $modulePath -Force -ErrorAction Stop -DisableNameChecking
-            } catch {
-                Write-Host "`nError importando módulo: $module" -ForegroundColor Red
-            }
+            Import-Module $modulePath -Force -DisableNameChecking -ErrorAction Stop
         }
     }
-    Show-GlobalProgress -Percent 25 -Status "Módulos listos"
-    # 3️⃣ Predefined queries
+    Show-GlobalProgress -Percent 45 -Status "Módulos listos"
     Show-GlobalProgress -Percent 80 -Status "Creando formulario..."
-    $mainForm = New-MainForm
-    Show-GlobalProgress -Percent 90 -Status "Formulario preparado"
-    # 4️⃣ Detectar IPs/Adapters
-    Show-GlobalProgress -Percent 45 -Status "Detectando adaptadores..."
-    $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
-    Where-Object { $_.OperationalStatus -eq 'Up' }
-    Show-GlobalProgress -Percent 50 -Status "Adaptadores detectados"
-    # 5️⃣ Puertos SQL (esto puede tardar)
-    Show-GlobalProgress -Percent 60 -Status "Buscando puertos SQL..."
-    $portsResult = Get-SqlPortWithDebug
-    Show-GlobalProgress -Percent 70 -Status "Puertos SQL listos"
-    # 6️⃣ Crear formulario
-    Show-GlobalProgress -Percent 80 -Status "Creando formulario..."
-    $mainForm = New-MainForm
-    Show-GlobalProgress -Percent 90 -Status "Formulario preparado"
-    # 7️⃣ Mostrar formulario
     Show-GlobalProgress -Percent 95 -Status "Mostrando GUI..."
+    $mainForm = New-MainForm
+    Show-GlobalProgress -Percent 100 -Status "¡Listo!`n"
     $null = $mainForm.ShowDialog()
-    Show-GlobalProgress -Percent 100 -Status "¡Listo!"
 }
+
 
 try {
     Start-Application

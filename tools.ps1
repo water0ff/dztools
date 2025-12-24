@@ -1,11 +1,9 @@
-﻿param(
-    [string]$Branch = "release"   # solo informativo ahora
-)
+﻿#param([string]$Branch = "release")
 # ===================== ADVERTENCIA DE VERSIÓN BETA =====================
 Write-Host "`n==============================================" -ForegroundColor Red
 Write-Host "           ADVERTENCIA DE VERSIÓN BETA " -ForegroundColor Red
 Write-Host "==============================================" -ForegroundColor Red
-Write-Host "Esta aplicación se encuentra en fase de desarrollo ALFA.`n" -ForegroundColor Yellow
+Write-Host "Esta aplicación se encuentra en fase de desarrollo BETA.`n" -ForegroundColor Yellow
 Write-Host "Algunas funciones pueden realizar cambios irreversibles en: `n"
 Write-Host " - Su equipo" -ForegroundColor Red
 Write-Host " - Bases de datos" -ForegroundColor Red
@@ -78,6 +76,7 @@ try {
     if (-not (Test-Path $releasePath)) {
         New-Item -ItemType Directory -Path $releasePath | Out-Null
     }
+
     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $releasePath)
 } catch {
@@ -98,10 +97,10 @@ if (-not (Test-Path $mainPath)) {
 }
 Show-ProgressBar -Percent 100 -Message "Listo"
 Write-Host ""
-Write-Host "=============================================" -ForegroundColor Gray
-Write-Host "   Iniciando Daniel Tools desde GitHub" -ForegroundColor Green
+Write-Host "=================================================" -ForegroundColor Gray
+Write-Host "   Iniciando Gerardo Zermeño Tools desde GitHub" -ForegroundColor Green
 Write-Host "   Canal: $Branch" -ForegroundColor DarkGray
 Write-Host "   Carpeta: $projectRoot" -ForegroundColor DarkGray
-Write-Host "=============================================" -ForegroundColor Gray
+Write-Host "=================================================" -ForegroundColor Gray
 Write-Host ""
 powershell -ExecutionPolicy Bypass -NoProfile -File $mainPath

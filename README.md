@@ -1,4 +1,4 @@
-@"
+﻿@"
 # 🌟 Daniel Tools — Suite de Utilidades para Administración de Sistemas
 
 **Daniel Tools (dztools)** es una herramienta en PowerShell con interfaz gráfica (Windows Forms), diseñada para facilitar tareas administrativas en Windows y SQL Server.

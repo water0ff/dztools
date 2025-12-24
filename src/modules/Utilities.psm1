@@ -2123,6 +2123,575 @@ function Show-IPConfigDialog {
 
     $window.ShowDialog() | Out-Null
 }
+# --- Helpers privados (no exportar) ---
+
+function Get-OtmConfigFromSyscfg {
+    param(
+        [Parameter(Mandatory)][string]$SyscfgPath
+    )
+
+    # OJO: Tu código usa Get-Content (texto). Si el archivo fuera binario, esto no sería ideal.
+    # Mantengo tu lógica tal cual para no cambiar comportamiento.
+    $fileContent = Get-Content -LiteralPath $SyscfgPath -ErrorAction Stop
+
+    $isSQL = ($fileContent -match "494E5354414C4C=1") -and ($fileContent -match "56455253495354454D41=3")
+    $isDBF = ($fileContent -match "494E5354414C4C=2") -and ($fileContent -match "56455253495354454D41=2")
+
+    if ($isSQL) { return "SQL" }
+    if ($isDBF) { return "DBF" }
+    return $null
+}
+
+function Get-OtmIniFiles {
+    param(
+        [Parameter(Mandatory)][string]$IniPath
+    )
+
+    $iniFiles = Get-ChildItem -LiteralPath $IniPath -Filter "*.ini" -ErrorAction Stop
+    if (-not $iniFiles -or $iniFiles.Count -eq 0) { return $null }
+
+    $iniSQLFile = $null
+    $iniDBFFile = $null
+
+    foreach ($iniFile in $iniFiles) {
+        $content = Get-Content -LiteralPath $iniFile.FullName -ErrorAction SilentlyContinue
+
+        if (-not $iniDBFFile -and ($content -match "Provider=VFPOLEDB\.1")) { $iniDBFFile = $iniFile }
+        if (-not $iniSQLFile -and ($content -match "Provider=SQLOLEDB\.1")) { $iniSQLFile = $iniFile }
+
+        if ($iniSQLFile -and $iniDBFFile) { break }
+    }
+
+    if (-not $iniSQLFile -or -not $iniDBFFile) { return $null }
+
+    return [pscustomobject]@{
+        SQL = $iniSQLFile
+        DBF = $iniDBFFile
+        All = $iniFiles
+    }
+}
+
+function Set-OtmSyscfgConfig {
+    param(
+        [Parameter(Mandatory)][string]$SyscfgPath,
+        [Parameter(Mandatory)][ValidateSet("SQL", "DBF")][string]$Target
+    )
+
+    if ($Target -eq "SQL") {
+        Write-DzDebug "`t[DEBUG][OTM] Cambiando Syscfg a SQL" ([System.ConsoleColor]::Yellow)
+
+        (Get-Content -LiteralPath $SyscfgPath) `
+            -replace "494E5354414C4C=2", "494E5354414C4C=1" `
+            -replace "56455253495354454D41=2", "56455253495354454D41=3" |
+        Set-Content -LiteralPath $SyscfgPath
+    } else {
+        Write-DzDebug "`t[DEBUG][OTM] Cambiando Syscfg a DBF" ([System.ConsoleColor]::Yellow)
+
+        (Get-Content -LiteralPath $SyscfgPath) `
+            -replace "494E5354414C4C=1", "494E5354414C4C=2" `
+            -replace "56455253495354454D41=3", "56455253495354454D41=2" |
+        Set-Content -LiteralPath $SyscfgPath
+    }
+}
+
+function Rename-OtmIniForTarget {
+    param(
+        [Parameter(Mandatory)][ValidateSet("SQL", "DBF")][string]$Target,
+        [Parameter(Mandatory)]$IniSqlFile,
+        [Parameter(Mandatory)]$IniDbfFile
+    )
+
+    # Para evitar conflicto si "checadorsql.ini" ya existe, renombramos con cuidado:
+    $iniDir = Split-Path -Parent $IniSqlFile.FullName
+    $finalIni = Join-Path $iniDir "checadorsql.ini"
+
+    if ($Target -eq "SQL") {
+        # DBF -> backup
+        Rename-Item -LiteralPath $IniDbfFile.FullName -NewName "checadorsql_DBF_old.ini" -ErrorAction Stop
+        # SQL -> activo
+        Rename-Item -LiteralPath $IniSqlFile.FullName -NewName "checadorsql.ini" -ErrorAction Stop
+    } else {
+        # SQL -> backup
+        Rename-Item -LiteralPath $IniSqlFile.FullName -NewName "checadorsql_SQL_old.ini" -ErrorAction Stop
+        # DBF -> activo
+        Rename-Item -LiteralPath $IniDbfFile.FullName -NewName "checadorsql.ini" -ErrorAction Stop
+    }
+}
+
+# --- Función pública (exportar) ---
+function Invoke-CambiarOTMConfig {
+    [CmdletBinding()]
+    param(
+        [string]$SyscfgPath = "C:\Windows\SysWOW64\Syscfg45_2.0.dll",
+        [string]$IniPath = "C:\NationalSoft\OnTheMinute4.5",
+        [System.Windows.Controls.TextBlock]$InfoTextBlock
+    )
+
+    Write-DzDebug "`t[DEBUG][Invoke-CambiarOTMConfig] INICIO" ([System.ConsoleColor]::DarkGray)
+
+    try {
+        if (-not (Test-Path -LiteralPath $SyscfgPath)) {
+            Show-WpfMessageBox -Message "El archivo de configuración no existe:`n$SyscfgPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            Write-DzDebug "`t[DEBUG][OTM] Syscfg no existe: $SyscfgPath" ([System.ConsoleColor]::Red)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe Syscfg." }
+            return $false
+        }
+
+        if (-not (Test-Path -LiteralPath $IniPath)) {
+            Show-WpfMessageBox -Message "No existe la ruta de INIs:`n$IniPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            Write-DzDebug "`t[DEBUG][OTM] IniPath no existe: $IniPath" ([System.ConsoleColor]::Red)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe ruta INI." }
+            return $false
+        }
+
+        $current = Get-OtmConfigFromSyscfg -SyscfgPath $SyscfgPath
+        if (-not $current) {
+            Show-WpfMessageBox -Message "No se detectó una configuración válida de SQL o DBF en:`n$SyscfgPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            Write-DzDebug "`t[DEBUG][OTM] No se detectó config válida" ([System.ConsoleColor]::Red)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: config inválida." }
+            return $false
+        }
+
+        $ini = Get-OtmIniFiles -IniPath $IniPath
+        if (-not $ini) {
+            Show-WpfMessageBox -Message "No se encontraron los archivos INI esperados en:`n$IniPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            Write-DzDebug "`t[DEBUG][OTM] No se encontraron INIs esperados" ([System.ConsoleColor]::Red)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: faltan INIs." }
+            return $false
+        }
+
+        $new = if ($current -eq "SQL") { "DBF" } else { "SQL" }
+
+        $msg = "Actualmente tienes configurado: $current.`n¿Quieres cambiar a $new?"
+        $res = Show-WpfMessageBox -Message $msg -Title "Cambiar Configuración" -Buttons "YesNo" -Icon "Question"
+
+        if ($res -ne [System.Windows.MessageBoxResult]::Yes) {
+            Write-DzDebug "`t[DEBUG][OTM] Usuario canceló" ([System.ConsoleColor]::Cyan)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Operación cancelada." }
+            return $false
+        }
+
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Aplicando cambios..." }
+
+        # 1) Cambiar syscfg
+        Set-OtmSyscfgConfig -SyscfgPath $SyscfgPath -Target $new
+
+        # 2) Renombrar INIs (activa el correcto)
+        Rename-OtmIniForTarget -Target $new -IniSqlFile $ini.SQL -IniDbfFile $ini.DBF
+
+        Show-WpfMessageBox -Message "Configuración cambiada exitosamente a $new." -Title "Éxito" -Buttons "OK" -Icon "Information" | Out-Null
+        Write-DzDebug "`t[DEBUG][OTM] OK cambiado a $new" ([System.ConsoleColor]::Green)
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Listo: cambiado a $new." }
+
+        return $true
+
+    } catch {
+        $err = $_.Exception.Message
+        Write-DzDebug "`t[DEBUG][Invoke-CambiarOTMConfig] ERROR: $err`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: $err" }
+        Show-WpfMessageBox -Message "Error: $err" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+        return $false
+    }
+}
+
+function Invoke-CreateApk {
+    [CmdletBinding()]
+    param(
+        [string]$DllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll",
+        [string]$InfoPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\info.txt",
+        [System.Windows.Controls.TextBlock]$InfoTextBlock
+    )
+
+    Write-DzDebug "`t[DEBUG][Invoke-CreateApk] INICIO" ([System.ConsoleColor]::DarkGray)
+
+    try {
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Validando componentes..." }
+        Write-Host "`nIniciando proceso de creación de APK..." -ForegroundColor Cyan
+
+        if (-not (Test-Path -LiteralPath $DllPath)) {
+            $msg = "Componente necesario no encontrado:`n$DllPath`n`nVerifique la instalación del Enlace Android."
+            Write-Host $msg -ForegroundColor Red
+            Show-WpfMessageBox -Message $msg -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe up.dll" }
+            return $false
+        }
+
+        if (-not (Test-Path -LiteralPath $InfoPath)) {
+            $msg = "Archivo de configuración no encontrado:`n$InfoPath`n`nVerifique la instalación del Enlace Android."
+            Write-Host $msg -ForegroundColor Red
+            Show-WpfMessageBox -Message $msg -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe info.txt" }
+            return $false
+        }
+
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Leyendo versión..." }
+
+        $jsonContent = Get-Content -LiteralPath $InfoPath -Raw -ErrorAction Stop | ConvertFrom-Json
+        $versionApp = [string]$jsonContent.versionApp
+
+        if ([string]::IsNullOrWhiteSpace($versionApp)) {
+            $msg = "No se pudo leer 'versionApp' desde:`n$InfoPath"
+            Write-Host $msg -ForegroundColor Red
+            Show-WpfMessageBox -Message $msg -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: versionApp vacío" }
+            return $false
+        }
+
+        Write-Host "Versión detectada: $versionApp" -ForegroundColor Green
+
+        $confirmMsg = "Se creará el APK versión: $versionApp`n¿Desea continuar?"
+        $confirmation = Show-WpfMessageBox -Message $confirmMsg -Title "Confirmación" -Buttons "YesNo" -Icon "Question"
+
+        if ($confirmation -ne [System.Windows.MessageBoxResult]::Yes) {
+            Write-Host "Proceso cancelado por el usuario" -ForegroundColor Yellow
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Cancelado." }
+            return $false
+        }
+
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Selecciona dónde guardar..." }
+
+        $saveDialog = New-Object Microsoft.Win32.SaveFileDialog
+        $saveDialog.Filter = "Archivo APK (*.apk)|*.apk"
+        $saveDialog.FileName = "SRM_$versionApp.apk"
+        $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
+
+        if ($saveDialog.ShowDialog() -ne $true) {
+            Write-Host "Guardado cancelado por el usuario" -ForegroundColor Yellow
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Guardado cancelado." }
+            return $false
+        }
+
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Copiando APK..." }
+
+        Copy-Item -LiteralPath $DllPath -Destination $saveDialog.FileName -Force -ErrorAction Stop
+
+        $okMsg = "APK generado exitosamente en:`n$($saveDialog.FileName)"
+        Write-Host $okMsg -ForegroundColor Green
+        Show-WpfMessageBox -Message "APK creado correctamente!" -Title "Éxito" -Buttons "OK" -Icon "Information" | Out-Null
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Listo: APK creado." }
+
+        return $true
+
+    } catch {
+        $err = $_.Exception.Message
+        Write-Host "Error durante el proceso: $err" -ForegroundColor Red
+        Write-DzDebug "`t[DEBUG][Invoke-CreateApk] ERROR: $err`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
+        Show-WpfMessageBox -Message "Error durante la creación del APK:`n$err" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: $err" }
+        return $false
+    }
+}
+function Get-NSIniConnectionInfo {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$FilePath
+    )
+
+    if (-not (Test-Path -LiteralPath $FilePath)) { return $null }
+
+    try {
+        $content = Get-Content -LiteralPath $FilePath -ErrorAction Stop
+
+        $dataSource = ($content | Select-String -Pattern '^DataSource=(.*)' -ErrorAction SilentlyContinue | Select-Object -First 1).Matches.Groups[1].Value
+        $catalog = ($content | Select-String -Pattern '^Catalog=(.*)'    -ErrorAction SilentlyContinue | Select-Object -First 1).Matches.Groups[1].Value
+        $authType = ($content | Select-String -Pattern '^autenticacion=(\d+)' -ErrorAction SilentlyContinue | Select-Object -First 1).Matches.Groups[1].Value
+
+        $authUser = if ($authType -eq "2") { "sa" } elseif ($authType -eq "1") { "Windows" } else { "Desconocido" }
+
+        return [pscustomobject]@{
+            DataSource = $dataSource
+            Catalog    = $catalog
+            Usuario    = $authUser
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG][Get-NSIniConnectionInfo] ERROR: $($_.Exception.Message)" ([System.ConsoleColor]::Yellow)
+        return $null
+    }
+}
+
+function Get-NSApplicationsIniReport {
+    [CmdletBinding()]
+    param(
+        [hashtable[]]$PathsToCheck = @(
+            @{ Path = "C:\NationalSoft\Softrestaurant9.5.0Pro"; INI = "restaurant.ini"; Nombre = "SR9.5" },
+            @{ Path = "C:\NationalSoft\Softrestaurant12.0"; INI = "restaurant.ini"; Nombre = "SR12" },
+            @{ Path = "C:\NationalSoft\Softrestaurant11.0"; INI = "restaurant.ini"; Nombre = "SR11" },
+            @{ Path = "C:\NationalSoft\Softrestaurant10.0"; INI = "restaurant.ini"; Nombre = "SR10" },
+            @{ Path = "C:\NationalSoft\NationalSoftHoteles3.0"; INI = "nshoteles.ini"; Nombre = "Hoteles" },
+            @{ Path = "C:\NationalSoft\OnTheMinute4.5"; INI = "checadorsql.ini"; Nombre = "OnTheMinute" }
+        ),
+        [string]$RestCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
+    )
+
+    $resultados = New-Object System.Collections.Generic.List[object]
+
+    foreach ($entry in $PathsToCheck) {
+        $basePath = $entry.Path
+        $mainIni = Join-Path $basePath $entry.INI
+        $appName = $entry.Nombre
+
+        if (Test-Path -LiteralPath $mainIni) {
+            $iniData = Get-NSIniConnectionInfo -FilePath $mainIni
+            if ($iniData) {
+                $resultados.Add([pscustomobject]@{
+                        Aplicacion = $appName
+                        INI        = $entry.INI
+                        DataSource = $iniData.DataSource
+                        Catalog    = $iniData.Catalog
+                        Usuario    = $iniData.Usuario
+                    })
+            } else {
+                $resultados.Add([pscustomobject]@{
+                        Aplicacion = $appName
+                        INI        = $entry.INI
+                        DataSource = "NA"
+                        Catalog    = "NA"
+                        Usuario    = "NA"
+                    })
+            }
+        } else {
+            $resultados.Add([pscustomobject]@{
+                    Aplicacion = $appName
+                    INI        = "No encontrado"
+                    DataSource = "NA"
+                    Catalog    = "NA"
+                    Usuario    = "NA"
+                })
+        }
+
+        # Leer INIS\*.ini adicionales
+        $inisFolder = Join-Path $basePath "INIS"
+        if (Test-Path -LiteralPath $inisFolder) {
+            $iniFiles = Get-ChildItem -LiteralPath $inisFolder -Filter "*.ini" -ErrorAction SilentlyContinue
+
+            if ($appName -eq "OnTheMinute") {
+                # Tu lógica: solo si hay más de 1
+                if ($iniFiles -and $iniFiles.Count -gt 1) {
+                    foreach ($iniFile in $iniFiles) {
+                        $iniData = Get-NSIniConnectionInfo -FilePath $iniFile.FullName
+                        if ($iniData) {
+                            $resultados.Add([pscustomobject]@{
+                                    Aplicacion = $appName
+                                    INI        = $iniFile.Name
+                                    DataSource = $iniData.DataSource
+                                    Catalog    = $iniData.Catalog
+                                    Usuario    = $iniData.Usuario
+                                })
+                        }
+                    }
+                }
+            } else {
+                foreach ($iniFile in $iniFiles) {
+                    $iniData = Get-NSIniConnectionInfo -FilePath $iniFile.FullName
+                    if ($iniData) {
+                        $resultados.Add([pscustomobject]@{
+                                Aplicacion = $appName
+                                INI        = $iniFile.Name
+                                DataSource = $iniData.DataSource
+                                Catalog    = $iniData.Catalog
+                                Usuario    = $iniData.Usuario
+                            })
+                    }
+                }
+            }
+        }
+    }
+
+    # Restcard (tal cual tu regla)
+    if (Test-Path -LiteralPath $RestCardPath) {
+        $resultados.Add([pscustomobject]@{
+                Aplicacion = "Restcard"
+                INI        = "RestCard.ini"
+                DataSource = "existe"
+                Catalog    = "existe"
+                Usuario    = "existe"
+            })
+    } else {
+        $resultados.Add([pscustomobject]@{
+                Aplicacion = "Restcard"
+                INI        = "No encontrado"
+                DataSource = "NA"
+                Catalog    = "NA"
+                Usuario    = "NA"
+            })
+    }
+
+    return $resultados
+}
+
+function Show-NSApplicationsIniReport {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Resultados
+    )
+
+    $columnas = @("Aplicacion", "INI", "DataSource", "Catalog", "Usuario")
+    $anchos = @{}
+
+    foreach ($col in $columnas) { $anchos[$col] = $col.Length }
+
+    foreach ($res in $Resultados) {
+        foreach ($col in $columnas) {
+            $val = [string]$res.$col
+            if ($val.Length -gt $anchos[$col]) { $anchos[$col] = $val.Length }
+        }
+    }
+
+    $titulos = $columnas | ForEach-Object { $_.PadRight($anchos[$_] + 2) }
+    Write-Host ($titulos -join "") -ForegroundColor Cyan
+
+    $separador = $columnas | ForEach-Object { ("-" * $anchos[$_]).PadRight($anchos[$_] + 2) }
+    Write-Host ($separador -join "") -ForegroundColor Cyan
+
+    foreach ($res in $Resultados) {
+        $fila = $columnas | ForEach-Object { ([string]$res.$_).PadRight($anchos[$_] + 2) }
+
+        if ($res.INI -eq "No encontrado") {
+            Write-Host ($fila -join "") -ForegroundColor Red
+        } else {
+            Write-Host ($fila -join "")
+        }
+    }
+}
+function Get-NSPrinters {
+    [CmdletBinding()]
+    param()
+
+    try {
+        # Get-CimInstance es más moderno; mantiene compatibilidad con Win10/11 en PS5
+        $printers = Get-CimInstance -ClassName Win32_Printer -ErrorAction Stop | ForEach-Object {
+            $p = $_
+            [PSCustomObject]@{
+                Name       = $p.Name
+                PortName   = $p.PortName
+                DriverName = $p.DriverName
+                Shared     = [bool]$p.Shared
+            }
+        }
+        return $printers
+    } catch {
+        Write-DzDebug "`t[DEBUG][Get-NSPrinters] ERROR: $($_.Exception.Message)" ([System.ConsoleColor]::Yellow)
+        return @()
+    }
+}
+
+function Show-NSPrinters {
+    [CmdletBinding()]
+    param()
+
+    Write-Host "`nImpresoras disponibles en el sistema:"
+
+    $printers = Get-NSPrinters
+    if (-not $printers -or $printers.Count -eq 0) {
+        Write-Host "`nNo se encontraron impresoras."
+        return
+    }
+
+    # Truncado como tu código original
+    $view = $printers | ForEach-Object {
+        [PSCustomObject]@{
+            Name       = ([string]$_.Name).Substring(0, [Math]::Min(24, ([string]$_.Name).Length))
+            PortName   = ([string]$_.PortName).Substring(0, [Math]::Min(19, ([string]$_.PortName).Length))
+            DriverName = ([string]$_.DriverName).Substring(0, [Math]::Min(19, ([string]$_.DriverName).Length))
+            IsShared   = if ($_.Shared) { "Sí" } else { "No" }
+        }
+    }
+
+    Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "Nombre", "Puerto", "Driver", "Compartida")
+    Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "------", "------", "------", "---------")
+    $view | ForEach-Object {
+        Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f $_.Name, $_.PortName, $_.DriverName, $_.IsShared)
+    }
+}
+
+function Invoke-ClearPrintJobs {
+    [CmdletBinding()]
+    param(
+        [System.Windows.Controls.TextBlock]$InfoTextBlock
+    )
+
+    try {
+        if (-not (Test-Administrator)) {
+            Show-WpfMessageBox `
+                -Message "Esta acción requiere permisos de administrador.`nPor favor, ejecuta Gerardo Zermeño Tools como administrador." `
+                -Title "Permisos insuficientes" `
+                -Buttons "OK" `
+                -Icon "Warning" | Out-Null
+            return $false
+        }
+
+        $spooler = Get-Service -Name Spooler -ErrorAction SilentlyContinue
+        if (-not $spooler) {
+            Show-WpfMessageBox `
+                -Message "No se encontró el servicio 'Cola de impresión (Spooler)' en este equipo." `
+                -Title "Servicio no encontrado" `
+                -Buttons "OK" `
+                -Icon "Error" | Out-Null
+            return $false
+        }
+
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Limpiando trabajos de impresión..." }
+
+        # 1) Intento “limpio” con PrintManagement (si existe)
+        try {
+            Get-Printer -ErrorAction Stop | ForEach-Object {
+                try {
+                    Get-PrintJob -PrinterName $_.Name -ErrorAction SilentlyContinue | Remove-PrintJob -ErrorAction SilentlyContinue
+                } catch {
+                    Write-Host "`tNo se pudieron limpiar trabajos de '$($_.Name)': $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
+        } catch {
+            Write-Host "`tNo se pudieron enumerar impresoras (Get-Printer). ¿Está instalado el módulo PrintManagement?" -ForegroundColor Yellow
+        }
+
+        # 2) Reinicio del Spooler
+        if ($spooler.Status -eq 'Running') {
+            Write-Host "`tDeteniendo servicio Spooler..." -ForegroundColor DarkYellow
+            Stop-Service -Name Spooler -Force -ErrorAction Stop
+        } else {
+            Write-Host "`tSpooler no está en 'Running' (estado actual: $($spooler.Status))." -ForegroundColor DarkYellow
+        }
+
+        $spooler.Refresh()
+
+        if ($spooler.StartType -eq 'Disabled') {
+            Show-WpfMessageBox `
+                -Message "El servicio 'Cola de impresión (Spooler)' está DESHABILITADO.`nHabilítalo manualmente desde services.msc para poder iniciarlo." `
+                -Title "Spooler deshabilitado" `
+                -Buttons "OK" `
+                -Icon "Warning" | Out-Null
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Spooler deshabilitado." }
+            return $false
+        }
+
+        Write-Host "`tIniciando servicio Spooler..." -ForegroundColor DarkYellow
+        Start-Service -Name Spooler -ErrorAction Stop
+
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Listo: cola de impresión reiniciada." }
+
+        Show-WpfMessageBox `
+            -Message "Los trabajos de impresión han sido eliminados y el servicio de cola de impresión se reinició correctamente." `
+            -Title "Operación exitosa" `
+            -Buttons "OK" `
+            -Icon "Information" | Out-Null
+
+        return $true
+
+    } catch {
+        $err = $_.Exception.Message
+        Write-Host "`n[ERROR Invoke-ClearPrintJobs] $err" -ForegroundColor Red
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: $err" }
+
+        Show-WpfMessageBox `
+            -Message "Ocurrió un error al intentar limpiar impresoras o reiniciar el servicio:`n$err" `
+            -Title "Error" `
+            -Buttons "OK" `
+            -Icon "Error" | Out-Null
+
+        return $false
+    }
+}
 
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
@@ -2156,5 +2725,11 @@ Export-ModuleMember -Function @(
     'Show-LZMADialog',
     'Show-InstallerExtractorDialog',
     'Show-SQLselector',
-    'Show-IPConfigDialog'
+    'Show-IPConfigDialog',
+    'Invoke-CambiarOTMConfig',
+    'Invoke-CreateApk',
+    'get-NSApplicationsIniReport',
+    'Show-NSApplicationsIniReport',
+    'show-NSPrinters',
+    'Invoke-ClearPrintJobs'
 )

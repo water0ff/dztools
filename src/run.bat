@@ -1,7 +1,7 @@
-@echo off
-echo ==============================================
-echo        Daniel Tools - Suite de Utilidades
-echo ==============================================
+﻿@echo off
+echo ========================================================
+echo    Running... Gerardo Zermeño - Suite de Utilidades
+echo ========================================================
 echo.
 
 if not exist "C:\Temp" (

@@ -83,7 +83,7 @@ function New-MainForm {
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Daniel Tools $global:version" Height="600" Width="1000"
+        Title="Gerardo Zermeño Tools $global:version" Height="600" Width="1000"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
     <Grid>
         <TabControl Name="tabControl" Margin="5">
@@ -240,11 +240,11 @@ function New-MainForm {
     $global:txt_AdapterStatus = $txt_AdapterStatus
     $lblHostname.Content = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
-    Write-Host "`n=============================================" -ForegroundColor DarkCyan
-    Write-Host "       Daniel Tools - Suite de Utilidades       " -ForegroundColor Green
+    Write-Host "`n==================================================" -ForegroundColor DarkCyan
+    Write-Host "       Gerardo Zermeño Tools - Suite de Utilidades       " -ForegroundColor Green
     Write-Host "              Versión: $($global:version)               " -ForegroundColor Green
-    Write-Host "=============================================" -ForegroundColor DarkCyan
-    Write-Host "`nTodos los derechos reservados para Daniel Tools." -ForegroundColor Cyan
+    Write-Host "==================================================" -ForegroundColor DarkCyan
+    Write-Host "`nTodos los derechos reservados para Gerardo Zermeño Tools." -ForegroundColor Cyan
     Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
     Write-Host "O crea un issue en GitHub. https://github.com/water0ff/dztools/issues/new" -ForegroundColor Cyan
     $script:predefinedQueries = Get-PredefinedQueries
@@ -1340,7 +1340,7 @@ function New-MainForm {
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             try {
                 if (-not (Test-Administrator)) {
-                    [System.Windows.MessageBox]::Show("Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Daniel Tools como administrador.", "Permisos insuficientes", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+                    [System.Windows.MessageBox]::Show("Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador.", "Permisos insuficientes", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
                     return
                 }
                 $spooler = Get-Service -Name Spooler -ErrorAction SilentlyContinue
@@ -1381,7 +1381,7 @@ function New-MainForm {
     $btnCheckPermissions.Add_Click({
             Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
             if (-not (Test-Administrator)) {
-                [System.Windows.MessageBox]::Show("Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Daniel Tools como administrador.", "Permisos insuficientes", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+                [System.Windows.MessageBox]::Show("Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador.", "Permisos insuficientes", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
                 return
             }
             Check-Permissions

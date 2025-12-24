@@ -916,8 +916,6 @@ function Show-SQLselector {
 
 function Show-LZMADialog {
     param([array]$Instaladores)
-
-    # [Contenido original de Show-LZMADialog - mantener igual]
     Write-Host "Show-LZMADialog: Implementación pendiente o usar la original"
 }
 

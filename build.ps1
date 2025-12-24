@@ -10,7 +10,7 @@ param(
     [Parameter(Mandatory = $false)]
     [string]$Version
 )
-Write-Host "=== Daniel Tools Build Script ===" -ForegroundColor Cyan
+Write-Host "=== Gerardo Zermeño Tools Build Script ===" -ForegroundColor Cyan
 Write-Host "Directorio: $PSScriptRoot" -ForegroundColor Yellow
 Write-Host "PowerShell: $($PSVersionTable.PSVersion)" -ForegroundColor Yellow
 $ErrorActionPreference = "Stop"
@@ -119,9 +119,9 @@ if ($Release) {
     }
     @'
 @echo off
-echo ==============================================
-echo        Daniel Tools - Suite de Utilidades
-echo ==============================================
+echo ===================================================
+echo        Gerardo Zermeño Tools - Suite de Utilidades
+echo ===================================================
 echo.
 
 if not exist "C:\Temp" (

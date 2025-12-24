@@ -681,15 +681,238 @@ function Show-IPConfigDialog {
     Write-Host "Show-IPConfigDialog: Implementación pendiente o usar la original"
 }
 
-function Show-SSMSSelectionDialog {
+function Show-SQLselector {
     param(
         [array]$Managers,
         [array]$SSMSVersions
     )
 
-    # [Contenido original de Show-SSMSSelectionDialog - mantener igual]
-    Write-Host "Show-SSMSSelectionDialog: Implementación pendiente o usar la original"
+    # Helper: intenta asignar owner ($window) para modal real
+    function Set-DialogOwner {
+        param([System.Windows.Window]$Dialog)
+
+        try {
+            if (Get-Variable -Name window -Scope Global -ErrorAction SilentlyContinue) {
+                $Dialog.Owner = $Global:window
+                return
+            }
+            if (Get-Variable -Name window -Scope Script -ErrorAction SilentlyContinue) {
+                $Dialog.Owner = $script:window
+                return
+            }
+        } catch { }
+    }
+
+    # Helper: bits para managers
+    function Get-ManagerBits {
+        param([string]$Path)
+
+        # System32 = 64-bit, SysWOW64 = 32-bit
+        if ($Path -match "\\SysWOW64\\") { return "32 bits" }
+        return "64 bits"
+    }
+
+    # Helper: versión del manager (SQLServerManager15.msc => 15)
+    function Get-ManagerVersion {
+        param([string]$Path)
+        if ($Path -match "SQLServerManager(\d+)\.msc") { return $matches[1] }
+        return "?"
+    }
+
+    # Helper: crea items para listbox (Display + Path)
+    function New-SelectorItem {
+        param(
+            [string]$Path,
+            [string]$Display
+        )
+        [PSCustomObject]@{
+            Path    = $Path
+            Display = $Display
+        }
+    }
+
+    # Helper: construye un diálogo genérico de selección
+    function Show-PathSelectionDialog {
+        param(
+            [string]$Title,
+            [string]$Prompt,
+            [array]$Items,               # array de PSCustomObject {Path, Display}
+            [scriptblock]$OnExecute,     # recibe $SelectedPath
+            [string]$ExecuteButtonText = "Ejecutar"
+        )
+
+        $dialog = New-Object System.Windows.Window
+        $dialog.Title = $Title
+        $dialog.Width = 780
+        $dialog.Height = 420
+        $dialog.WindowStartupLocation = "CenterOwner"
+        $dialog.ResizeMode = "NoResize"
+        if ($Global:window -is [System.Windows.Window]) {
+            $dialog.Owner = $Global:window
+        }
+
+        # 2) Centrar respecto al owner
+        $dialog.WindowStartupLocation = "CenterOwner"
+
+        # 3) Fallback: si no hay Owner, centrar en pantalla
+        if (-not $dialog.Owner) {
+            $dialog.WindowStartupLocation = "CenterScreen"
+        }
+        Set-DialogOwner -Dialog $dialog
+
+        $root = New-Object System.Windows.Controls.StackPanel
+        $root.Margin = New-Object System.Windows.Thickness(10)
+
+        $label = New-Object System.Windows.Controls.TextBlock
+        $label.Text = $Prompt
+        $label.Margin = New-Object System.Windows.Thickness(0, 0, 0, 10)
+        $label.FontSize = 13
+        $root.Children.Add($label) | Out-Null
+
+        # ListBox: aquí va lo "legible": version/bits + RUTA COMPLETA
+        $listBox = New-Object System.Windows.Controls.ListBox
+        $listBox.Height = 250
+        $listBox.FontSize = 12
+        $listBox.DisplayMemberPath = "Display"
+        $listBox.SelectedValuePath = "Path"
+        foreach ($it in $Items) { $null = $listBox.Items.Add($it) }
+        $listBox.SelectedIndex = 0
+        $root.Children.Add($listBox) | Out-Null
+
+        # Ruta seleccionada (para copiar fácil)
+        $pathLabelTitle = New-Object System.Windows.Controls.TextBlock
+        $pathLabelTitle.Text = "Ruta seleccionada:"
+        $pathLabelTitle.Margin = New-Object System.Windows.Thickness(0, 10, 0, 2)
+        $pathLabelTitle.FontSize = 11
+        $root.Children.Add($pathLabelTitle) | Out-Null
+
+        $pathLabel = New-Object System.Windows.Controls.TextBlock
+        $pathLabel.Text = ""
+        $pathLabel.FontSize = 11
+        $pathLabel.FontFamily = "Consolas"
+        $pathLabel.TextWrapping = "Wrap"
+        $pathLabel.Margin = New-Object System.Windows.Thickness(0, 0, 0, 10)
+        $root.Children.Add($pathLabel) | Out-Null
+
+        $updatePath = {
+            if ($listBox.SelectedValue) { $pathLabel.Text = $listBox.SelectedValue }
+            else { $pathLabel.Text = "" }
+        }
+        & $updatePath
+        $listBox.Add_SelectionChanged({ & $updatePath })
+
+        $btnPanel = New-Object System.Windows.Controls.StackPanel
+        $btnPanel.Orientation = "Horizontal"
+        $btnPanel.HorizontalAlignment = "Right"
+
+        $cancelButton = New-Object System.Windows.Controls.Button
+        $cancelButton.Content = "Cancelar"
+        $cancelButton.Width = 95
+        $cancelButton.Margin = New-Object System.Windows.Thickness(0, 0, 10, 0)
+        $cancelButton.Add_Click({
+                $dialog.DialogResult = $false
+                $dialog.Close()
+            })
+
+        $okButton = New-Object System.Windows.Controls.Button
+        $okButton.Content = $ExecuteButtonText
+        $okButton.Width = 95
+        $okButton.IsDefault = $true
+        $okButton.Add_Click({
+                if ($listBox.SelectedValue) {
+                    try {
+                        & $OnExecute $listBox.SelectedValue
+                        $dialog.DialogResult = $true
+                        $dialog.Close()
+                    } catch {
+                        [System.Windows.MessageBox]::Show(
+                            "Error al ejecutar:`n$($_.Exception.Message)",
+                            "Error",
+                            [System.Windows.MessageBoxButton]::OK,
+                            [System.Windows.MessageBoxImage]::Error
+                        ) | Out-Null
+                    }
+                }
+            })
+
+        $btnPanel.Children.Add($cancelButton) | Out-Null
+        $btnPanel.Children.Add($okButton) | Out-Null
+        $root.Children.Add($btnPanel) | Out-Null
+
+        $dialog.Content = $root
+        $null = $dialog.ShowDialog()
+    }
+
+    # =========================
+    # 1) MANAGERS (SQLServerManager*.msc)
+    # =========================
+    if ($Managers -and $Managers.Count -gt 0) {
+
+        $items = @()
+
+        $unique = $Managers | Where-Object { $_ } | Select-Object -Unique
+        foreach ($m in $unique) {
+            $ver = Get-ManagerVersion -Path $m
+            $bits = Get-ManagerBits    -Path $m
+
+            # Display legible (incluye RUTA COMPLETA)
+            $display = "SQLServerManager$ver  |  $bits  |  $m"
+            $items += (New-SelectorItem -Path $m -Display $display)
+        }
+
+        Show-PathSelectionDialog `
+            -Title  "Seleccionar Configuration Manager" `
+            -Prompt "Seleccione la versión de SQL Server Configuration Manager a ejecutar:" `
+            -Items  $items `
+            -OnExecute {
+            param($selectedPath)
+            Write-Host "`tEjecutando SQL Server Configuration Manager desde: $selectedPath" -ForegroundColor Green
+            Start-Process -FilePath $selectedPath
+        } `
+            -ExecuteButtonText "Abrir"
+
+        return
+    }
+
+    # =========================
+    # 2) SSMS (Ssms.exe)
+    # =========================
+    if ($SSMSVersions -and $SSMSVersions.Count -gt 0) {
+
+        $items = @()
+        $unique = $SSMSVersions | Where-Object { $_ } | Select-Object -Unique
+
+        foreach ($p in $unique) {
+            # Display legible: producto + versión + ruta completa
+            try {
+                $vi = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($p)
+                $prod = if ($vi.ProductName) { $vi.ProductName } else { "SSMS" }
+                $ver = if ($vi.FileVersion) { $vi.FileVersion }  else { "" }
+
+                $display = "$prod  |  $ver  |  $p"
+                $items += (New-SelectorItem -Path $p -Display $display)
+            } catch {
+                $items += (New-SelectorItem -Path $p -Display "SSMS  |  $p")
+            }
+        }
+
+        Show-PathSelectionDialog `
+            -Title  "Seleccionar SSMS" `
+            -Prompt "Seleccione la versión de SQL Server Management Studio a ejecutar:" `
+            -Items  $items `
+            -OnExecute {
+            param($selectedPath)
+            Write-Host "`tEjecutando: $selectedPath" -ForegroundColor Green
+            Start-Process -FilePath $selectedPath
+        } `
+            -ExecuteButtonText "Ejecutar"
+
+        return
+    }
+
+    Write-Host "Show-SQLselector: No se recibieron rutas para Managers ni para SSMS." -ForegroundColor Yellow
 }
+
 
 function Show-LZMADialog {
     param([array]$Instaladores)
@@ -719,6 +942,6 @@ Export-ModuleMember -Function @(
     'Show-NewIpForm',
     'Show-AddUserDialog',
     'Show-IPConfigDialog',
-    'Show-SSMSSelectionDialog',
+    'Show-SQLselector',
     'Show-LZMADialog'
 )

@@ -1092,30 +1092,37 @@ function New-MainForm {
             }
         })
 
-
     $btnSQLManager.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+
             function Get-SQLServerManagers {
-                $managers = @()
                 $possiblePaths = @(
                     "${env:SystemRoot}\System32\SQLServerManager*.msc",
                     "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc"
                 )
-                foreach ($path in $possiblePaths) {
-                    $foundManagers = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
-                    if ($foundManagers) {
-                        $managers += $foundManagers.FullName
-                    }
+
+                $managers = foreach ($pattern in $possiblePaths) {
+                    Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | ForEach-Object FullName
                 }
-                return $managers
+
+                @($managers) | Where-Object { $_ } | Select-Object -Unique
             }
+
             $managers = Get-SQLServerManagers
-            if ($managers.Count -eq 0) {
-                [System.Windows.MessageBox]::Show("No se encontró ninguna versión de SQL Server Configuration Manager.", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            if (-not $managers -or $managers.Count -eq 0) {
+                [System.Windows.MessageBox]::Show(
+                    "No se encontró ninguna versión de SQL Server Configuration Manager.",
+                    "Error",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Error
+                ) | Out-Null
                 return
             }
-            Show-SSMSSelectionDialog -Managers $managers
+
+            Show-SQLselector -Managers $managers
         })
+
+
     $btnSQLManagement.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             Write-DzDebug "`t[DEBUG]`t[DEBUG] Iniciando búsqueda de SSMS instalados" -Color DarkGray
@@ -1123,68 +1130,42 @@ function New-MainForm {
             function Get-SSMSVersions {
                 $ssmsPaths = @()
 
-                # Rutas fijas para SSMS
                 $fixedPaths = @(
-                    # Instalaciones clásicas (SSMS 2008-2017)
                     "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",
-
-                    # Instalaciones standalone (SSMS 2016+)
                     "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe",
 
-                    # SSMS 2019-2022 (x86)
                     "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 19\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 20\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 21\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio 22\Common7\IDE\Ssms.exe",
 
-                    # SSMS 2019-2022 (x64) - versión completa
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio 19\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio 20\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio 21\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio 22\Common7\IDE\Ssms.exe",
 
-                    # SSMS 2022+ en carpeta Release
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio 22\Release\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio 21\Release\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio 20\Release\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio 19\Release\Common7\IDE\Ssms.exe",
 
-                    # Búsquedas genéricas
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio *\Release\Common7\IDE\Ssms.exe"
                 )
 
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Buscando en $($fixedPaths.Count) rutas fijas" -Color DarkGray
-
-                foreach ($path in $fixedPaths) {
-                    Write-DzDebug "`t[DEBUG]`t[DEBUG] Buscando patrón: $path" -Color DarkGray
-                    $foundPaths = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
-
-                    if ($foundPaths) {
-                        foreach ($foundPath in $foundPaths) {
-                            if ($ssmsPaths -notcontains $foundPath.FullName) {
-                                $ssmsPaths += $foundPath.FullName
-                                Write-DzDebug "`t[DEBUG]`t[DEBUG] ✓ Encontrado: $($foundPath.FullName)" -Color Green
-
-                                try {
-                                    $versionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($foundPath.FullName)
-                                    Write-DzDebug "`t[DEBUG]`t[DEBUG]   Versión: $($versionInfo.FileVersion)" -Color Cyan
-                                    Write-DzDebug "`t[DEBUG]`t[DEBUG]   Producto: $($versionInfo.ProductName)" -Color Cyan
-                                } catch {
-                                    Write-DzDebug "`t[DEBUG]`t[DEBUG]   No se pudo obtener info de versión" -Color Yellow
-                                }
-                            } else {
-                                Write-DzDebug "`t[DEBUG]`t[DEBUG] - Duplicado (ignorado): $($foundPath.FullName)" -Color DarkGray
-                            }
+                foreach ($pattern in $fixedPaths) {
+                    $found = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue
+                    foreach ($f in $found) {
+                        if ($ssmsPaths -notcontains $f.FullName) {
+                            $ssmsPaths += $f.FullName
+                            Write-DzDebug "`t[DEBUG]`t[DEBUG] ✓ Encontrado: $($f.FullName)" -Color Green
                         }
                     }
                 }
 
-                # Búsqueda en el registro solo si no encontramos en las rutas fijas
                 if ($ssmsPaths.Count -eq 0) {
                     Write-DzDebug "`t[DEBUG]`t[DEBUG] No se encontró en rutas fijas. Buscando en registro..." -Color DarkGray
 
-                    # Buscar en el registro de manera más específica
                     $registryPaths = @(
                         "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
                         "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
@@ -1200,25 +1181,15 @@ function New-MainForm {
 
                         foreach ($entry in $entries) {
                             $installPath = $entry.InstallLocation.Trim()
+                            if (-not $installPath.EndsWith('\')) { $installPath += '\' }
 
-                            # Asegurar que la ruta termine con \
-                            if (-not $installPath.EndsWith('\')) {
-                                $installPath += '\'
-                            }
-
-                            # Verificar si Ssms.exe existe en las subcarpetas comunes
-                            $possibleSubPaths = @(
-                                "Common7\IDE\Ssms.exe",
-                                "Release\Common7\IDE\Ssms.exe"
-                            )
-
-                            foreach ($subPath in $possibleSubPaths) {
-                                $fullPath = Join-Path $installPath $subPath
-                                if (Test-Path $fullPath) {
-                                    $resolvedPath = Resolve-Path $fullPath
-                                    if ($ssmsPaths -notcontains $resolvedPath.Path) {
-                                        $ssmsPaths += $resolvedPath.Path
-                                        Write-DzDebug "`t[DEBUG]`t[DEBUG] ✓ Encontrado (registro): $($resolvedPath.Path)" -Color Green
+                            foreach ($sub in @("Common7\IDE\Ssms.exe", "Release\Common7\IDE\Ssms.exe")) {
+                                $full = Join-Path $installPath $sub
+                                if (Test-Path $full) {
+                                    $resolved = (Resolve-Path $full).Path
+                                    if ($ssmsPaths -notcontains $resolved) {
+                                        $ssmsPaths += $resolved
+                                        Write-DzDebug "`t[DEBUG]`t[DEBUG] ✓ Encontrado (registro): $resolved" -Color Green
                                     }
                                 }
                             }
@@ -1226,26 +1197,18 @@ function New-MainForm {
                     }
                 }
 
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Total de SSMS encontrados: $($ssmsPaths.Count)" -Color $(if ($ssmsPaths.Count -gt 0) { "Green" } else { "Red" })
-
-                return $ssmsPaths | Sort-Object -Descending
+                $ssmsPaths | Sort-Object -Descending
             }
 
             $ssmsVersions = Get-SSMSVersions
 
-            # Filtrar solo los archivos Ssms.exe reales (no carpetas u otros archivos)
-            $filteredVersions = @()
-            foreach ($path in $ssmsVersions) {
-                $fileName = Split-Path $path -Leaf
-                if ($fileName -eq "Ssms.exe" -and (Test-Path $path -PathType Leaf)) {
-                    $filteredVersions += $path
-                }
+            $filteredVersions = foreach ($p in $ssmsVersions) {
+                if ((Split-Path $p -Leaf) -eq "Ssms.exe" -and (Test-Path $p -PathType Leaf)) { $p }
             }
 
-            if ($filteredVersions.Count -eq 0) {
+            if (-not $filteredVersions -or $filteredVersions.Count -eq 0) {
                 Write-Host "`tNo se encontró ninguna versión de SSMS instalada." -ForegroundColor Red
 
-                # Ofrecer opción para buscar manualmente
                 $result = [System.Windows.MessageBox]::Show(
                     "No se encontró SQL Server Management Studio. ¿Desea buscar manualmente?",
                     "SSMS no encontrado",
@@ -1263,11 +1226,15 @@ function New-MainForm {
                             Start-Process -FilePath $openFileDialog.FileName
                             Write-Host "`tEjecutando: $($openFileDialog.FileName)" -ForegroundColor Green
                         } catch {
-                            [System.Windows.MessageBox]::Show("Error al ejecutar SSMS: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                            [System.Windows.MessageBox]::Show(
+                                "Error al ejecutar SSMS: $($_.Exception.Message)",
+                                "Error",
+                                [System.Windows.MessageBoxButton]::OK,
+                                [System.Windows.MessageBoxImage]::Error
+                            ) | Out-Null
                         }
                     }
                 } else {
-                    # Ofrecer descarga
                     $downloadResult = [System.Windows.MessageBox]::Show(
                         "¿Desea descargar la última versión de SSMS?",
                         "Descargar SSMS",
@@ -1279,92 +1246,16 @@ function New-MainForm {
                         Start-Process "https://aka.ms/ssmsfullsetup"
                     }
                 }
+
                 return
             }
 
             Write-Host "`t✓ Se encontraron $($filteredVersions.Count) instalación(es) de SSMS" -ForegroundColor Green
 
-            # SIEMPRE mostrar diálogo de selección, incluso si solo hay una versión
-            $dialog = New-Object System.Windows.Window
-            $dialog.Title = "Seleccionar versión de SSMS"
-            $dialog.Width = 500
-            $dialog.Height = 300
-            $dialog.WindowStartupLocation = "CenterOwner"
-            $dialog.ResizeMode = "NoResize"
-            $dialog.Owner = $window  # ¡IMPORTANTE! Establecer el owner para que sea modal
-
-            $stackPanel = New-Object System.Windows.Controls.StackPanel
-            $stackPanel.Margin = New-Object System.Windows.Thickness(10)
-
-            $label = New-Object System.Windows.Controls.TextBlock
-            $label.Text = "Selecciona la versión de SQL Server Management Studio a ejecutar:"
-            $label.Margin = New-Object System.Windows.Thickness(0, 0, 0, 10)
-            $label.FontSize = 12
-            $stackPanel.Children.Add($label) | Out-Null
-
-            $listBox = New-Object System.Windows.Controls.ListBox
-            $listBox.Height = 150
-            $listBox.FontSize = 11
-
-            foreach ($version in $filteredVersions) {
-                # Obtener información de versión para mostrar
-                try {
-                    $versionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($version)
-                    $displayText = "$($versionInfo.ProductName) - $($versionInfo.FileVersion)"
-                    $listBox.Items.Add([PSCustomObject]@{Path = $version; Display = $displayText }) | Out-Null
-                } catch {
-                    $listBox.Items.Add([PSCustomObject]@{Path = $version; Display = $version }) | Out-Null
-                }
-            }
-
-            # Configurar cómo se muestra el texto
-            $listBox.DisplayMemberPath = "Display"
-            $listBox.SelectedValuePath = "Path"
-            $listBox.SelectedIndex = 0
-            $stackPanel.Children.Add($listBox) | Out-Null
-
-            $buttonPanel = New-Object System.Windows.Controls.StackPanel
-            $buttonPanel.Orientation = "Horizontal"
-            $buttonPanel.HorizontalAlignment = "Right"
-            $buttonPanel.Margin = New-Object System.Windows.Thickness(0, 10, 0, 0)
-
-            $cancelButton = New-Object System.Windows.Controls.Button
-            $cancelButton.Content = "Cancelar"
-            $cancelButton.Width = 80
-            $cancelButton.Margin = New-Object System.Windows.Thickness(0, 0, 10, 0)
-            $cancelButton.Add_Click({
-                    $dialog.DialogResult = $false
-                    $dialog.Close()
-                })
-
-            $okButton = New-Object System.Windows.Controls.Button
-            $okButton.Content = "Ejecutar"
-            $okButton.Width = 80
-            $okButton.IsDefault = $true
-            $okButton.Add_Click({
-                    if ($listBox.SelectedValue) {
-                        try {
-                            Write-Host "`tEjecutando: $($listBox.SelectedValue)" -ForegroundColor Green
-                            Start-Process -FilePath $listBox.SelectedValue
-                            $dialog.DialogResult = $true
-                            $dialog.Close()
-                        } catch {
-                            [System.Windows.MessageBox]::Show("Error al ejecutar SSMS: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-                        }
-                    }
-                })
-
-            $buttonPanel.Children.Add($cancelButton) | Out-Null
-            $buttonPanel.Children.Add($okButton) | Out-Null
-            $stackPanel.Children.Add($buttonPanel) | Out-Null
-
-            $dialog.Content = $stackPanel
-
-            # Mostrar el diálogo de forma modal
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Mostrando diálogo de selección de SSMS" -Color DarkGray
-            $dialog.ShowDialog() | Out-Null
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Diálogo de SSMS cerrado" -Color DarkGray
+            # ✅ Aquí ya usamos el mismo selector
+            Show-SQLselector -SSMSVersions $filteredVersions
         })
+
     $btnForzarActualizacion.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             Show-SystemComponents

@@ -6,6 +6,61 @@ Add-Type -AssemblyName WindowsBase
 
 #region Funciones Base WPF
 
+function Get-DzUiTheme {
+    $iniMode = "dark"
+    if (Get-Command Get-DzUiMode -ErrorAction SilentlyContinue) {
+        $iniMode = Get-DzUiMode
+    }
+
+    $themes = @{
+        Light = @{
+            FormBackground            = "#000000"
+            FormForeground            = "#FFFFFF"
+            InfoBackground            = "#1E1E1E"
+            InfoForeground            = "#FFFFFF"
+            InfoHoverBackground       = "#FF8C00"
+            ButtonGeneralBackground   = "#2F2F2F"
+            ButtonGeneralForeground   = "#FFFFFF"
+            ButtonSystemBackground    = "#96C8FF"
+            ButtonSystemForeground    = "#000000"
+            ButtonNationalBackground  = "#FFC896"
+            ButtonNationalForeground  = "#000000"
+            ConsoleBackground         = "#012456"
+            ConsoleForeground         = "#FFFFFF"
+            BorderColor               = "#4C4C4C"
+            AccentPrimary             = "#2196F3"
+            AccentSecondary           = "#4CAF50"
+            AccentMuted               = "#757575"
+            ControlBackground         = "#1C1C1C"
+            ControlForeground         = "#FFFFFF"
+        }
+        Dark  = @{
+            FormBackground            = "#000000"
+            FormForeground            = "#FFFFFF"
+            InfoBackground            = "#1E1E1E"
+            InfoForeground            = "#FFFFFF"
+            InfoHoverBackground       = "#FF8C00"
+            ButtonGeneralBackground   = "#2F2F2F"
+            ButtonGeneralForeground   = "#FFFFFF"
+            ButtonSystemBackground    = "#96C8FF"
+            ButtonSystemForeground    = "#000000"
+            ButtonNationalBackground  = "#FFC896"
+            ButtonNationalForeground  = "#000000"
+            ConsoleBackground         = "#012456"
+            ConsoleForeground         = "#FFFFFF"
+            BorderColor               = "#4C4C4C"
+            AccentPrimary             = "#2196F3"
+            AccentSecondary           = "#4CAF50"
+            AccentMuted               = "#757575"
+            ControlBackground         = "#1C1C1C"
+            ControlForeground         = "#FFFFFF"
+        }
+    }
+
+    $selectedMode = "Light"
+    return $themes[$selectedMode]
+}
+
 function New-WpfWindow {
     param(
         [Parameter(Mandatory = $true)]
@@ -79,6 +134,8 @@ function Show-WpfProgressBar {
         [string]$Message = "Por favor espere..."
     )
 
+    $theme = Get-DzUiTheme
+
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         Title="$Title"
@@ -90,9 +147,9 @@ function Show-WpfProgressBar {
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False">
-    <Border Background="White"
+    <Border Background="$($theme.FormBackground)"
             CornerRadius="8"
-            BorderBrush="#2196F3"
+            BorderBrush="$($theme.AccentPrimary)"
             BorderThickness="2"
             Padding="20">
         <Border.Effect>
@@ -102,14 +159,14 @@ function Show-WpfProgressBar {
             <TextBlock Text="$Title"
                        FontSize="18"
                        FontWeight="Bold"
-                       Foreground="#2196F3"
+                       Foreground="$($theme.AccentPrimary)"
                        HorizontalAlignment="Center"
                        Margin="0,0,0,20"/>
 
             <TextBlock Name="lblMessage"
                        Text="$Message"
                        FontSize="12"
-                       Foreground="#757575"
+                       Foreground="$($theme.FormForeground)"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
                        Margin="0,0,0,15"
@@ -120,15 +177,15 @@ function Show-WpfProgressBar {
                          Minimum="0"
                          Maximum="100"
                          Value="0"
-                         Foreground="#4CAF50"
-                         Background="#E0E0E0"
+                         Foreground="$($theme.AccentSecondary)"
+                         Background="$($theme.ControlBackground)"
                          Margin="0,0,0,10"/>
 
             <TextBlock Name="lblPercent"
                        Text="0%"
                        FontSize="14"
                        FontWeight="Bold"
-                       Foreground="#2196F3"
+                       Foreground="$($theme.AccentPrimary)"
                        HorizontalAlignment="Center"/>
         </StackPanel>
     </Border>
@@ -291,19 +348,30 @@ function New-WpfInputDialog {
         [string]$DefaultValue = ""
     )
 
+    $theme = Get-DzUiTheme
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         Title="$Title"
         Height="180" Width="400"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
-    <StackPanel Margin="20">
+        ShowInTaskbar="False"
+        Background="$($theme.FormBackground)">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        </Style>
+    </Window.Resources>
+    <StackPanel Margin="20" Background="$($theme.FormBackground)">
         <TextBlock Text="$Prompt" FontSize="12" Margin="0,0,0,10"/>
         <TextBox Name="txtInput" Text="$DefaultValue" FontSize="12" Padding="5" Margin="0,0,0,20"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Name="btnOK" Content="Aceptar" Width="80" Margin="0,0,10,0" IsDefault="True"/>
-            <Button Name="btnCancel" Content="Cancelar" Width="80" IsCancel="True"/>
+            <Button Name="btnOK" Content="Aceptar" Width="80" Margin="0,0,10,0" IsDefault="True" Style="{StaticResource SystemButtonStyle}"/>
+            <Button Name="btnCancel" Content="Cancelar" Width="80" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
         </StackPanel>
     </StackPanel>
 </Window>
@@ -365,6 +433,7 @@ function Show-WpfFolderDialog {
 }
 
 Export-ModuleMember -Function @(
+    'Get-DzUiTheme',
     'New-WpfWindow',
     'Show-WpfMessageBox',
     'New-WpfInputDialog',

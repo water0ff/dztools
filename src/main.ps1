@@ -133,69 +133,100 @@ $global:isHighlightingQuery = $false
 function New-MainForm {
 
     Write-Host "`nCreando formulario principal WPF..." -ForegroundColor Yellow
+    $theme = Get-DzUiTheme
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Gerardo Zermeño Tools $global:version" Height="600" Width="1000"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
-    <Grid>
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="$($theme.FormBackground)">
+    <Window.Resources>
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style x:Key="InfoTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="$($theme.InfoBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.InfoForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+        </Style>
+        <Style x:Key="GeneralButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonGeneralBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonGeneralForeground)"/>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        </Style>
+        <Style x:Key="NationalSoftButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonNationalBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonNationalForeground)"/>
+        </Style>
+        <Style x:Key="ConsoleTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="$($theme.ConsoleBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ConsoleForeground)"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="$($theme.FormBackground)">
         <TabControl Name="tabControl" Margin="5">
             <TabItem Header="Aplicaciones" Name="tabAplicaciones">
                 <Grid>
                     <Label Content="" Name="lblHostname" HorizontalAlignment="Left" VerticalAlignment="Top"
-                           Width="220" Height="40" Margin="10,1,0,0" Background="Black" Foreground="White"
+                           Width="220" Height="40" Margin="10,1,0,0" Background="$($theme.InfoBackground)" Foreground="$($theme.InfoForeground)"
                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                           BorderBrush="Gray" BorderThickness="1" Cursor="Hand"/>
+                           BorderBrush="$($theme.BorderColor)" BorderThickness="1" Cursor="Hand"/>
                     <TextBox Name="lblPort" HorizontalAlignment="Left" VerticalAlignment="Top"
-                            Width="220" Height="40" Margin="250,1,0,0" Background="Black" Foreground="White"
+                            Width="220" Height="40" Margin="250,1,0,0" Style="{StaticResource InfoTextBoxStyle}"
                             Text="Puerto: No disponible"
                             IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Cursor="Hand"/>
                     <TextBox Name="txt_IpAdress" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="220" Height="40" Margin="490,1,0,0" Background="Black" Foreground="White"
+                             Width="220" Height="40" Margin="490,1,0,0" Style="{StaticResource InfoTextBoxStyle}"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Cursor="Hand"/>
                     <TextBox Name="txt_AdapterStatus" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="220" Height="40" Margin="730,1,0,0" Background="Black" Foreground="White"
+                             Width="220" Height="40" Margin="730,1,0,0" Style="{StaticResource InfoTextBoxStyle}"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Cursor="Hand"/>
                     <Button Content="Instalar Herramientas" Name="btnInstalarHerramientas" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Ejecutar ExpressProfiler" Name="btnProfiler" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,90,0,0" Background="#E0E0E0"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,90,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Ejecutar Database4" Name="btnDatabase" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,130,0,0" Background="#E0E0E0"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,130,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Ejecutar Manager" Name="btnSQLManager" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,170,0,0" Background="#E0E0E0"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,170,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Ejecutar Management" Name="btnSQLManagement" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,210,0,0" Background="#E0E0E0"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,210,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Printer Tools" Name="btnPrinterTool" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,250,0,0" Background="#E0E0E0"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,250,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Lector DP - Permisos" Name="btnLectorDPicacls" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,290,0,0" Background="#96C8FF"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,290,0,0" Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Buscar Instalador LZMA" Name="LZMAbtnBuscarCarpeta" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,330,0,0" Background="#96C8FF"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,330,0,0" Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Agregar IPs" Name="btnConfigurarIPs" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,370,0,0" Background="#96C8FF"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,370,0,0" Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Agregar usuario de Windows" Name="btnAddUser" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,410,0,0" Background="#96C8FF"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,410,0,0" Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,450,0,0" Background="#96C8FF"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,450,0,0" Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Clear AnyDesk" Name="btnClearAnyDesk" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,50,0,0" Background="#FF4C4C"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,50,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Mostrar Impresoras" Name="btnShowPrinters" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,90,0,0"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,90,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Limpia y Reinicia Cola de Impresión" Name="btnClearPrintJobs" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,130,0,0"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,130,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Aplicaciones National Soft" Name="btnAplicacionesNS" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,50,0,0" Background="#FFC896"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,50,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Cambiar OTM a SQL/DBF" Name="btnCambiarOTM" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,90,0,0" Background="#FFC896"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,90,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Permisos C:\NationalSoft" Name="btnCheckPermissions" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,130,0,0" Background="#FFC896"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,130,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Creación de SRM APK" Name="btnCreateAPK" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,170,0,0" Background="#FFC896"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,170,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Extractor de Instalador" Name="btnExtractInstaller" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Background="#FFC896"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="220" Height="400" Margin="730,50,0,0" Background="#012456" Foreground="White"
+                             Width="220" Height="400" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                              FontFamily="Courier New" FontSize="10"/>
                 </Grid>
@@ -215,15 +246,15 @@ function New-MainForm {
                     <ComboBox Name="cmbDatabases" HorizontalAlignment="Left" VerticalAlignment="Top"
                               Width="180" Margin="10,180,0,0" IsEnabled="False"/>
                     <Button Content="Conectar a BDD" Name="btnConnectDb" Width="180" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,220,0,0" Background="#96C8FF"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,220,0,0" Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Desconectar de BDD" Name="btnDisconnectDb" Width="180" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,260,0,0" Background="#96C8FF" IsEnabled="False"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,260,0,0" Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
                     <Button Content="Backup BDD" Name="btnBackup" Width="180" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,300,0,0" Background="#00C000"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,300,0,0" Style="{StaticResource SystemButtonStyle}"/>
                     <Label Name="lblConnectionStatus" Content="Conectado a BDD: Ninguna" HorizontalAlignment="Left"
                            VerticalAlignment="Top" Width="180" Height="80" Margin="10,400,0,0"/>
                     <Button Content="Ejecutar" Name="btnExecute" Width="100" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="220,20,0,0" IsEnabled="False"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="220,20,0,0" Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
                     <ComboBox Name="cmbQueries" HorizontalAlignment="Left" VerticalAlignment="Top"
                               Width="350" Margin="330,25,0,0" IsEnabled="False"/>
                     <RichTextBox Name="rtbQuery" HorizontalAlignment="Left" VerticalAlignment="Top"
@@ -237,7 +268,7 @@ function New-MainForm {
             </TabItem>
         </TabControl>
         <Button Content="Salir" Name="btnExit" Width="500" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="350,0,0,10" Background="#A9A9A9"/>
+                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="350,0,0,10" Style="{StaticResource GeneralButtonStyle}"/>
     </Grid>
 </Window>
 "@
@@ -338,13 +369,16 @@ function New-MainForm {
     }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
+    $brushConverter = New-Object System.Windows.Media.BrushConverter
+    $infoHoverBrush = $brushConverter.ConvertFromString($theme.InfoHoverBackground)
+    $infoBaseBrush = $brushConverter.ConvertFromString($theme.InfoBackground)
     $changeColorOnHover = {
         param($sender, $e)
-        $sender.Background = [System.Windows.Media.Brushes]::Orange
+        $sender.Background = $infoHoverBrush
     }
     $restoreColorOnLeave = {
         param($sender, $e)
-        $sender.Background = [System.Windows.Media.Brushes]::Black
+        $sender.Background = $infoBaseBrush
     }
     $lblHostname.Add_MouseEnter($changeColorOnHover)
     $lblHostname.Add_MouseLeave($restoreColorOnLeave)

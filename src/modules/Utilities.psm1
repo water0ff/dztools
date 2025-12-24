@@ -38,6 +38,92 @@ function Get-DzDebugPreference {
     }
     return $false
 }
+function Ensure-DzUiConfig {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ConfigPath
+    )
+
+    if (-not (Test-Path -LiteralPath $ConfigPath)) {
+        return
+    }
+
+    $content = Get-Content -LiteralPath $ConfigPath -ErrorAction SilentlyContinue
+    if ($null -eq $content) { $content = @() }
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    $uiFound = $false
+    $modeFound = $false
+    $inUiSection = $false
+
+    foreach ($line in $content) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^\s*;') {
+            $lines.Add($line)
+            continue
+        }
+        if ($trimmed -match '^\[UI\]\s*$') {
+            $uiFound = $true
+            $inUiSection = $true
+            $lines.Add($line)
+            continue
+        }
+        if ($inUiSection -and $trimmed -match '^\[') {
+            if (-not $modeFound) {
+                $lines.Add("mode=dark")
+                $modeFound = $true
+            }
+            $inUiSection = $false
+        }
+        if ($inUiSection -and $trimmed -match '^\s*mode\s*=\s*(.+)\s*$') {
+            $modeFound = $true
+        }
+        $lines.Add($line)
+    }
+
+    if ($uiFound -and -not $modeFound) {
+        $lines.Add("mode=dark")
+    }
+    if (-not $uiFound) {
+        if ($lines.Count -gt 0 -and $lines[$lines.Count - 1] -ne "") {
+            $lines.Add("")
+        }
+        $lines.Add("[UI]")
+        $lines.Add("mode=dark")
+    }
+
+    Set-Content -LiteralPath $ConfigPath -Value $lines -Encoding UTF8
+}
+
+function Get-DzUiMode {
+    <#
+    .SYNOPSIS
+    Obtiene el modo de UI desde el archivo de configuración
+    #>
+    $configPath = Get-DzToolsConfigPath
+
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        return "dark"
+    }
+    $content = Get-Content -LiteralPath $configPath -ErrorAction SilentlyContinue
+    $inUiSection = $false
+    foreach ($line in $content) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^\s*;') { continue }
+        if ($trimmed -match '^\[UI\]\s*$') {
+            $inUiSection = $true
+            continue
+        }
+        if ($inUiSection -and $trimmed -match '^\[') {
+            break
+        }
+        if ($inUiSection -and $trimmed -match '^\s*mode\s*=\s*(.+)\s*$') {
+            return $matches[1].ToLower()
+        }
+    }
+    return "dark"
+}
+
 function Initialize-DzToolsConfig {
     <#
     .SYNOPSIS
@@ -49,8 +135,9 @@ function Initialize-DzToolsConfig {
         New-Item -ItemType Directory -Path $configDir -Force | Out-Null
     }
     if (-not (Test-Path -LiteralPath $configPath)) {
-        "[desarrollo]`ndebug=false" | Out-File -FilePath $configPath -Encoding UTF8 -Force
+        "[desarrollo]`ndebug=false`n`n[UI]`nmode=dark" | Out-File -FilePath $configPath -Encoding UTF8 -Force
     }
+    Ensure-DzUiConfig -ConfigPath $configPath
     $script:DzDebugEnabled = Get-DzDebugPreference
     return $script:DzDebugEnabled
 }
@@ -1294,6 +1381,7 @@ function Download-FileWithProgressWpfStream {
 function Show-InstallerExtractorDialog {
     Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] INICIO"
 
+    $theme = Get-DzUiTheme
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         Title="Extractor de instalador"
@@ -1304,7 +1392,20 @@ function Show-InstallerExtractorDialog {
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent">
-    <Border Background="White"
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style x:Key="GeneralButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonGeneralBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonGeneralForeground)"/>
+        </Style>
+        <Style x:Key="NationalSoftButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonNationalBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonNationalForeground)"/>
+        </Style>
+    </Window.Resources>
+    <Border Background="$($theme.FormBackground)"
             CornerRadius="10"
             BorderBrush="#FFC896"
             BorderThickness="2"
@@ -1334,8 +1435,7 @@ function Show-InstallerExtractorDialog {
                 <TextBlock Text="Extractor de instalador"
                            VerticalAlignment="Center"
                            FontSize="13"
-                           FontWeight="SemiBold"
-                           Foreground="#333333"/>
+                           FontWeight="SemiBold"/>
 
                 <Button Name="btnClose"
                         Grid.Column="1"
@@ -1351,10 +1451,9 @@ function Show-InstallerExtractorDialog {
                        Text="Seleccione el instalador y el destino de extracción."
                        FontSize="13"
                        FontWeight="SemiBold"
-                       Foreground="#333333"
                        Margin="0,0,0,12"/>
 
-            <TextBlock Grid.Row="2" Text="Instalador (.exe)" FontSize="12" Foreground="#555555" Margin="0,0,0,6"/>
+            <TextBlock Grid.Row="2" Text="Instalador (.exe)" FontSize="12" Margin="0,0,0,6"/>
             <Grid Grid.Row="3" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -1364,7 +1463,8 @@ function Show-InstallerExtractorDialog {
                         Content="📁"
                         Width="36" Height="32"
                         Margin="0,0,8,0"
-                        ToolTip="Seleccionar instalador"/>
+                        ToolTip="Seleccionar instalador"
+                        Style="{StaticResource GeneralButtonStyle}"/>
                 <TextBox Name="txtInstallerPath"
                          Grid.Column="1"
                          Height="32"
@@ -1374,11 +1474,11 @@ function Show-InstallerExtractorDialog {
             </Grid>
 
             <StackPanel Grid.Row="4" Margin="0,0,0,12">
-                <TextBlock Name="lblVersionInfo" Text="Versión: -" FontSize="12" Foreground="#444444"/>
-                <TextBlock Name="lblLastWrite" Text="Última modificación: -" FontSize="12" Foreground="#444444" Margin="0,4,0,0"/>
+                <TextBlock Name="lblVersionInfo" Text="Versión: -" FontSize="12"/>
+                <TextBlock Name="lblLastWrite" Text="Última modificación: -" FontSize="12" Margin="0,4,0,0"/>
             </StackPanel>
 
-            <TextBlock Grid.Row="5" Text="Destino" FontSize="12" Foreground="#555555" Margin="0,0,0,6"/>
+            <TextBlock Grid.Row="5" Text="Destino" FontSize="12" Margin="0,0,0,6"/>
             <Grid Grid.Row="6" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -1388,7 +1488,8 @@ function Show-InstallerExtractorDialog {
                         Content="📁"
                         Width="36" Height="32"
                         Margin="0,0,8,0"
-                        ToolTip="Seleccionar destino"/>
+                        ToolTip="Seleccionar destino"
+                        Style="{StaticResource GeneralButtonStyle}"/>
                 <TextBox Name="txtDestinationPath"
                          Grid.Column="1"
                          Height="32"
@@ -1398,8 +1499,8 @@ function Show-InstallerExtractorDialog {
             </Grid>
 
             <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True"/>
-                <Button Name="btnExtract" Content="Extraer" Width="110" Height="30" Background="#FFC896"/>
+                <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True" Style="{StaticResource GeneralButtonStyle}"/>
+                <Button Name="btnExtract" Content="Extraer" Width="110" Height="30" Style="{StaticResource NationalSoftButtonStyle}"/>
             </StackPanel>
         </Grid>
     </Border>
@@ -1680,6 +1781,8 @@ function Show-IPConfigDialog {
 
     Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
 
+    $theme = Get-DzUiTheme
+
     # Helper: validar IPv4
     function Test-IPv4 {
         param([string]$Ip)
@@ -1706,8 +1809,18 @@ function Show-IPConfigDialog {
         Height="250" Width="560"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
-    <Grid Margin="12">
+        ShowInTaskbar="False"
+        Background="$($theme.FormBackground)">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="12" Background="$($theme.FormBackground)">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -1735,9 +1848,9 @@ function Show-IPConfigDialog {
                    MinHeight="36"/>
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Name="btnAssignIp" Content="Asignar Nueva IP" Width="140" Height="32" Margin="0,0,10,0" IsEnabled="False"/>
-            <Button Name="btnDhcp"     Content="Cambiar a DHCP"  Width="140" Height="32" Margin="0,0,10,0" IsEnabled="False"/>
-            <Button Name="btnClose"    Content="Cerrar"         Width="110" Height="32" IsCancel="True"/>
+            <Button Name="btnAssignIp" Content="Asignar Nueva IP" Width="140" Height="32" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
+            <Button Name="btnDhcp"     Content="Cambiar a DHCP"  Width="140" Height="32" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
+            <Button Name="btnClose"    Content="Cerrar"         Width="110" Height="32" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
         </StackPanel>
     </Grid>
 </Window>
@@ -2445,6 +2558,7 @@ function Show-WpfPathSelectionDialog {
         [string]$ExecuteButtonText = "Ejecutar"
     )
 
+    $theme = Get-DzUiTheme
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         Title="$Title"
@@ -2455,7 +2569,16 @@ function Show-WpfPathSelectionDialog {
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent">
-    <Border Background="White"
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        </Style>
+    </Window.Resources>
+    <Border Background="$($theme.FormBackground)"
             CornerRadius="10"
             BorderBrush="#FFC896"
             BorderThickness="2"
@@ -2483,8 +2606,7 @@ function Show-WpfPathSelectionDialog {
                            Text="$Title"
                            VerticalAlignment="Center"
                            FontSize="13"
-                           FontWeight="SemiBold"
-                           Foreground="#333333"/>
+                           FontWeight="SemiBold"/>
 
                 <Button Name="btnClose"
                         Grid.Column="1"
@@ -2501,7 +2623,6 @@ function Show-WpfPathSelectionDialog {
                        Text="$Prompt"
                        FontSize="13"
                        FontWeight="SemiBold"
-                       Foreground="#333333"
                        Margin="0,0,0,10"/>
 
             <ListBox Grid.Row="2"
@@ -2518,19 +2639,18 @@ function Show-WpfPathSelectionDialog {
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="Versión seleccionada:" FontSize="11" Foreground="#555555" Margin="0,0,0,2"/>
+                    <TextBlock Text="Versión seleccionada:" FontSize="11" Margin="0,0,0,2"/>
                     <TextBlock Name="lblSelectedDisplay"
                             Text=""
                             FontSize="11"
                             FontFamily="Consolas"
                             TextWrapping="NoWrap"
-                            TextTrimming="CharacterEllipsis"
-                            Foreground="#333333"/>
+                            TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
-                    <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True"/>
-                    <Button Name="btnExecute" Content="$ExecuteButtonText" Width="110" Height="30" Background="#FFC896" IsDefault="True"/>
+                    <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
+                    <Button Name="btnExecute" Content="$ExecuteButtonText" Width="110" Height="30" Style="{StaticResource SystemButtonStyle}" IsDefault="True"/>
                 </StackPanel>
             </Grid>
         </Grid>
@@ -2598,6 +2718,7 @@ function Show-LZMADialog {
     )
 
     Write-DzDebug "`t[DEBUG][Show-LZMADialog] INICIO"
+    $theme = Get-DzUiTheme
 
     if (-not $Instaladores -or $Instaladores.Count -eq 0) {
         $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
@@ -2665,7 +2786,16 @@ function Show-LZMADialog {
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent">
-    <Border Background="White"
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        </Style>
+    </Window.Resources>
+    <Border Background="$($theme.FormBackground)"
             CornerRadius="10"
             BorderBrush="#FFC896"
             BorderThickness="2"
@@ -2693,8 +2823,7 @@ function Show-LZMADialog {
                 <TextBlock Text="Carpetas LZMA"
                            VerticalAlignment="Center"
                            FontSize="13"
-                           FontWeight="SemiBold"
-                           Foreground="#333333"/>
+                           FontWeight="SemiBold"/>
 
                 <Button Name="btnClose"
                         Grid.Column="1"
@@ -2710,7 +2839,6 @@ function Show-LZMADialog {
                        Text="Seleccione el instalador (registro) que desea renombrar."
                        FontSize="13"
                        FontWeight="SemiBold"
-                       Foreground="#333333"
                        Margin="0,0,0,10"/>
 
             <ComboBox Name="cmbInstallers"
@@ -2723,7 +2851,7 @@ function Show-LZMADialog {
 
             <!-- AI_ExePath -->
             <Border Grid.Row="3"
-                    Background="#FFF7F0"
+                    Background="$($theme.ControlBackground)"
                     CornerRadius="8"
                     Padding="10"
                     Margin="0,0,0,8"
@@ -2731,7 +2859,6 @@ function Show-LZMADialog {
                 <StackPanel>
                     <TextBlock Text="AI_ExePath:"
                                FontSize="11"
-                               Foreground="#555555"
                                Margin="0,0,0,4"/>
                     <TextBlock Name="lblExePath"
                                Text="-"
@@ -2748,8 +2875,8 @@ function Show-LZMADialog {
                         Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         Margin="0,0,0,0">
-                <Button Name="btnRename" Content="Renombrar" Width="110" Height="30" Margin="0,0,10,0" IsEnabled="False"/>
-                <Button Name="btnExit" Content="Salir" Width="110" Height="30" IsCancel="True"/>
+                <Button Name="btnRename" Content="Renombrar" Width="110" Height="30" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
+                <Button Name="btnExit" Content="Salir" Width="110" Height="30" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
             </StackPanel>
 
         </Grid>
@@ -2853,9 +2980,22 @@ function Show-LZMADialog {
 
 function Show-AddUserDialog {
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] INICIO"
+    $theme = Get-DzUiTheme
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Title="Crear Usuario de Windows" Height="420" Width="640" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False" WindowStyle="None" AllowsTransparency="True" Background="Transparent">
-  <Border Background="White" CornerRadius="10" BorderBrush="#FFC896" BorderThickness="2" Padding="0">
+  <Window.Resources>
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+    </Style>
+    <Style TargetType="RadioButton">
+      <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+    </Style>
+    <Style x:Key="SystemButtonStyle" TargetType="Button">
+      <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+      <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+    </Style>
+  </Window.Resources>
+  <Border Background="$($theme.FormBackground)" CornerRadius="10" BorderBrush="#FFC896" BorderThickness="2" Padding="0">
     <Border.Effect><DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/></Border.Effect>
     <Grid Margin="16">
       <Grid.RowDefinitions>
@@ -2867,43 +3007,43 @@ function Show-AddUserDialog {
       </Grid.RowDefinitions>
       <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <TextBlock Text="Crear Usuario de Windows" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Foreground="#333333"/>
+        <TextBlock Text="Crear Usuario de Windows" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"/>
         <Button Name="btnClose" Grid.Column="1" Content="✕" Width="34" Height="26" Margin="8,0,0,0" ToolTip="Cerrar" Background="Transparent" BorderBrush="Transparent"/>
       </Grid>
-      <TextBlock Grid.Row="1" Text="Crea un usuario local y asígnalo al grupo correspondiente." FontSize="13" FontWeight="SemiBold" Foreground="#333333" Margin="0,0,0,12"/>
+      <TextBlock Grid.Row="1" Text="Crea un usuario local y asígnalo al grupo correspondiente." FontSize="13" FontWeight="SemiBold" Margin="0,0,0,12"/>
       <Grid Grid.Row="2" Margin="0,0,0,12">
         <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Nombre de usuario" FontSize="12" Foreground="#555555" VerticalAlignment="Center" Margin="0,0,10,8"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Nombre de usuario" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,8"/>
         <TextBox Name="txtUsername" Grid.Row="0" Grid.Column="1" Height="32" FontSize="12" VerticalContentAlignment="Center" Margin="0,0,0,8"/>
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Contraseña" FontSize="12" Foreground="#555555" VerticalAlignment="Center" Margin="0,0,10,8"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Contraseña" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,8"/>
         <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <PasswordBox Name="pwdPassword" Grid.Column="0" Height="32" FontSize="12" Padding="6,0,6,0"/>
           <TextBox Name="txtPasswordVisible" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Visibility="Collapsed"/>
           <ToggleButton Name="tglShowPassword" Grid.Column="1" Content="👁" Width="40" Height="32" Margin="8,0,0,0" ToolTip="Mostrar/Ocultar contraseña"/>
         </Grid>
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="Tipo de usuario" FontSize="12" Foreground="#555555" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Tipo de usuario" FontSize="12" VerticalAlignment="Center"/>
         <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
           <RadioButton Name="rbStandard" Content="Usuario estándar" IsChecked="True" Margin="0,0,12,0"/>
           <RadioButton Name="rbAdmin" Content="Administrador"/>
         </StackPanel>
-        <Button Name="btnShowUsers" Grid.Row="2" Grid.Column="2" Content="Ver usuarios" Width="110" Height="30" Margin="12,0,0,0"/>
+        <Button Name="btnShowUsers" Grid.Row="2" Grid.Column="2" Content="Ver usuarios" Width="110" Height="30" Margin="12,0,0,0" Style="{StaticResource SystemButtonStyle}"/>
       </Grid>
-      <Border Grid.Row="3" Background="#F5F5F5" CornerRadius="8" Padding="12">
+      <Border Grid.Row="3" Background="$($theme.ControlBackground)" CornerRadius="8" Padding="12">
         <StackPanel>
-          <TextBlock Text="Requisitos:" FontSize="12" FontWeight="SemiBold" Foreground="#333333" Margin="0,0,0,6"/>
-          <TextBlock Text="• Nombre: sin espacios (ej. soporte01)" FontSize="12" Foreground="#444444" Margin="0,0,0,2"/>
-          <TextBlock Text="• Contraseña: mínimo 8 caracteres" FontSize="12" Foreground="#444444" Margin="0,0,0,2"/>
-          <TextBlock Text="• Administrador: úsalo solo si es necesario" FontSize="12" Foreground="#444444"/>
+          <TextBlock Text="Requisitos:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <TextBlock Text="• Nombre: sin espacios (ej. soporte01)" FontSize="12" Margin="0,0,0,2"/>
+          <TextBlock Text="• Contraseña: mínimo 8 caracteres" FontSize="12" Margin="0,0,0,2"/>
+          <TextBlock Text="• Administrador: úsalo solo si es necesario" FontSize="12"/>
         </StackPanel>
       </Border>
       <Grid Grid.Row="4" Margin="0,12,0,0">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <TextBlock Name="lblStatus" Grid.Column="0" Text="Listo." FontSize="12" Foreground="#2E7D32" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,10,0"/>
         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-          <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True"/>
-          <Button Name="btnCreate" Content="Crear usuario" Width="130" Height="30" Background="#FFC896" IsEnabled="False" IsDefault="True"/>
+          <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
+          <Button Name="btnCreate" Content="Crear usuario" Width="130" Height="30" Style="{StaticResource SystemButtonStyle}" IsEnabled="False" IsDefault="True"/>
         </StackPanel>
       </Grid>
     </Grid>
@@ -2995,6 +3135,7 @@ function Show-AddUserDialog {
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
+    'Get-DzUiMode',
     'Initialize-DzToolsConfig',
     'Write-DzDebug',
     'Test-Administrator',

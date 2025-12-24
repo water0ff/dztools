@@ -1279,6 +1279,567 @@ function Download-FileWithProgressWpfStream {
     }
 }
 
+function Show-LZMADialog {
+    param(
+        [array]$Instaladores
+    )
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    if (-not $Instaladores -or $Instaladores.Count -eq 0) {
+        $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
+        if (-not (Test-Path $LZMAregistryPath)) {
+            Write-Host "`tNo existe la clave LZMA: $LZMAregistryPath" -ForegroundColor Yellow
+            Show-WpfMessageBox -Message "No se encontró Advanced Installer (LZMA) en este equipo.`n`nRuta no existe:`n$LZMAregistryPath" `
+                -Title "Sin instaladores" -Buttons OK -Icon Information | Out-Null
+            return
+        }
+        try {
+            $carpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
+            if (-not $carpetasPrincipales -or $carpetasPrincipales.Count -lt 1) {
+                Write-Host "`tNo se encontraron carpetas principales." -ForegroundColor Yellow
+                Show-WpfMessageBox -Message "No se encontraron carpetas principales en la ruta del registro." `
+                    -Title "Sin resultados" -Buttons OK -Icon Information | Out-Null
+                return
+            }
+            $tmp = @()
+            foreach ($carpeta in $carpetasPrincipales) {
+                $subdirs = Get-ChildItem -Path $carpeta.PSPath -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer }
+                foreach ($sd in $subdirs) {
+                    $tmp += [PSCustomObject]@{
+                        Name = $sd.PSChildName
+                        Path = $sd.PSPath
+                    }
+                }
+            }
+            if (-not $tmp -or $tmp.Count -lt 1) {
+                Write-Host "`tNo se encontraron subcarpetas." -ForegroundColor Yellow
+                Show-WpfMessageBox -Message "No se encontraron instaladores (subcarpetas) en la ruta del registro." `
+                    -Title "Sin resultados" -Buttons OK -Icon Information | Out-Null
+                return
+            }
+            $Instaladores = $tmp | Sort-Object Name -Descending
+        } catch {
+            Write-Host "`tError accediendo al registro: $($_.Exception.Message)" -ForegroundColor Red
+            Show-WpfMessageBox -Message "Error accediendo al registro:`n$($_.Exception.Message)" `
+                -Title "Error" -Buttons OK -Icon Error | Out-Null
+            return
+        }
+    }
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Carpetas LZMA"
+        Height="240" Width="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <ComboBox Name="cmbInstallers" Grid.Row="0" Height="28" FontSize="12" Margin="0,0,0,10"/>
+        <TextBlock Name="lblExePath" Grid.Row="1" Text="AI_ExePath: -" FontSize="12" Foreground="Red" TextWrapping="Wrap" Margin="0,0,0,12" MinHeight="40"/>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Name="btnRename" Content="Renombrar" Width="110" Height="30" Margin="0,0,10,0" IsEnabled="False"/>
+            <Button Name="btnExit" Content="Salir" Width="110" Height="30" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>
+"@
+
+    $ui = New-WpfWindow -Xaml $xaml -PassThru
+    $window = $ui.Window
+    $c = $ui.Controls
+    try {
+        if ($Global:window -is [System.Windows.Window]) {
+            $window.Owner = $Global:window
+            $window.WindowStartupLocation = "CenterOwner"
+        } else {
+            $window.WindowStartupLocation = "CenterScreen"
+        }
+    } catch {
+        $window.WindowStartupLocation = "CenterScreen"
+    }
+    $c['cmbInstallers'].Items.Clear()
+    $c['cmbInstallers'].Items.Add("Selecciona instalador a renombrar") | Out-Null
+    foreach ($i in $Instaladores) {
+        $c['cmbInstallers'].Items.Add($i.Name) | Out-Null
+    }
+    $c['cmbInstallers'].SelectedIndex = 0
+    $updateUi = {
+        $idx = $c['cmbInstallers'].SelectedIndex
+        $c['btnRename'].IsEnabled = ($idx -gt 0)
+        if ($idx -gt 0) {
+            $selectedName = $c['cmbInstallers'].SelectedItem
+            $item = $Instaladores | Where-Object Name -eq $selectedName | Select-Object -First 1
+            if ($item -and $item.Path) {
+                $prop = Get-ItemProperty -Path $item.Path -Name "AI_ExePath" -ErrorAction SilentlyContinue
+                if ($prop -and $prop.AI_ExePath) {
+                    $c['lblExePath'].Text = "AI_ExePath: $($prop.AI_ExePath)"
+                } else {
+                    $c['lblExePath'].Text = "AI_ExePath: No encontrado"
+                }
+            } else {
+                $c['lblExePath'].Text = "AI_ExePath: No encontrado"
+            }
+        } else {
+            $c['lblExePath'].Text = "AI_ExePath: -"
+        }
+    }
+    $c['cmbInstallers'].Add_SelectionChanged({ & $updateUi })
+    & $updateUi
+    $c['btnRename'].Add_Click({
+            $idx = $c['cmbInstallers'].SelectedIndex
+            if ($idx -le 0) { return }
+            $nombre = [string]$c['cmbInstallers'].SelectedItem
+            $item = $Instaladores | Where-Object Name -eq $nombre | Select-Object -First 1
+            if (-not $item) { return }
+            $rutaVieja = $item.Path
+            $nuevoNombre = "$nombre.backup"
+            $msg = "¿Está seguro de renombrar:`n$rutaVieja`n`na:`n$nuevoNombre ?"
+            $conf = Show-WpfMessageBox -Message $msg -Title "Confirmar renombrado" -Buttons YesNo -Icon Warning
+            if ($conf -eq [System.Windows.MessageBoxResult]::Yes) {
+                try {
+                    Rename-Item -Path $rutaVieja -NewName $nuevoNombre -ErrorAction Stop
+                    Show-WpfMessageBox -Message "Registro renombrado correctamente." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+                    $window.Close()
+                } catch {
+                    Show-WpfMessageBox -Message "Error al renombrar:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+                }
+            }
+        })
+    $c['btnExit'].Add_Click({
+            Write-Host "`tCancelado por el usuario." -ForegroundColor Yellow
+            $window.Close()
+        })
+    $window.ShowDialog() | Out-Null
+}
+
+function Show-SQLselector {
+    param(
+        [array]$Managers,
+        [array]$SSMSVersions
+    )
+
+    # Helper: intenta asignar owner ($window) para modal real
+    function Set-DialogOwner {
+        param([System.Windows.Window]$Dialog)
+
+        try {
+            if (Get-Variable -Name window -Scope Global -ErrorAction SilentlyContinue) {
+                $Dialog.Owner = $Global:window
+                return
+            }
+            if (Get-Variable -Name window -Scope Script -ErrorAction SilentlyContinue) {
+                $Dialog.Owner = $script:window
+                return
+            }
+        } catch { }
+    }
+
+    # Helper: bits para managers
+    function Get-ManagerBits {
+        param([string]$Path)
+
+        # System32 = 64-bit, SysWOW64 = 32-bit
+        if ($Path -match "\\SysWOW64\\") { return "32 bits" }
+        return "64 bits"
+    }
+
+    # Helper: versión del manager (SQLServerManager15.msc => 15)
+    function Get-ManagerVersion {
+        param([string]$Path)
+        if ($Path -match "SQLServerManager(\d+)\.msc") { return $matches[1] }
+        return "?"
+    }
+
+    # Helper: crea items para listbox (Display + Path)
+    function New-SelectorItem {
+        param(
+            [string]$Path,
+            [string]$Display
+        )
+        [PSCustomObject]@{
+            Path    = $Path
+            Display = $Display
+        }
+    }
+
+    # Helper: construye un diálogo genérico de selección
+    function Show-PathSelectionDialog {
+        param(
+            [string]$Title,
+            [string]$Prompt,
+            [array]$Items,               # array de PSCustomObject {Path, Display}
+            [scriptblock]$OnExecute,     # recibe $SelectedPath
+            [string]$ExecuteButtonText = "Ejecutar"
+        )
+
+        $dialog = New-Object System.Windows.Window
+        $dialog.Title = $Title
+        $dialog.Width = 780
+        $dialog.Height = 420
+        $dialog.WindowStartupLocation = "CenterOwner"
+        $dialog.ResizeMode = "NoResize"
+        if ($Global:window -is [System.Windows.Window]) {
+            $dialog.Owner = $Global:window
+        }
+
+        # 2) Centrar respecto al owner
+        $dialog.WindowStartupLocation = "CenterOwner"
+
+        # 3) Fallback: si no hay Owner, centrar en pantalla
+        if (-not $dialog.Owner) {
+            $dialog.WindowStartupLocation = "CenterScreen"
+        }
+        Set-DialogOwner -Dialog $dialog
+
+        $root = New-Object System.Windows.Controls.StackPanel
+        $root.Margin = New-Object System.Windows.Thickness(10)
+
+        $label = New-Object System.Windows.Controls.TextBlock
+        $label.Text = $Prompt
+        $label.Margin = New-Object System.Windows.Thickness(0, 0, 0, 10)
+        $label.FontSize = 13
+        $root.Children.Add($label) | Out-Null
+
+        # ListBox: aquí va lo "legible": version/bits + RUTA COMPLETA
+        $listBox = New-Object System.Windows.Controls.ListBox
+        $listBox.Height = 250
+        $listBox.FontSize = 12
+        $listBox.DisplayMemberPath = "Display"
+        $listBox.SelectedValuePath = "Path"
+        foreach ($it in $Items) { $null = $listBox.Items.Add($it) }
+        $listBox.SelectedIndex = 0
+        $root.Children.Add($listBox) | Out-Null
+
+        # Ruta seleccionada (para copiar fácil)
+        $pathLabelTitle = New-Object System.Windows.Controls.TextBlock
+        $pathLabelTitle.Text = "Ruta seleccionada:"
+        $pathLabelTitle.Margin = New-Object System.Windows.Thickness(0, 10, 0, 2)
+        $pathLabelTitle.FontSize = 11
+        $root.Children.Add($pathLabelTitle) | Out-Null
+
+        $pathLabel = New-Object System.Windows.Controls.TextBlock
+        $pathLabel.Text = ""
+        $pathLabel.FontSize = 11
+        $pathLabel.FontFamily = "Consolas"
+        $pathLabel.TextWrapping = "Wrap"
+        $pathLabel.Margin = New-Object System.Windows.Thickness(0, 0, 0, 10)
+        $root.Children.Add($pathLabel) | Out-Null
+
+        $updatePath = {
+            if ($listBox.SelectedValue) { $pathLabel.Text = $listBox.SelectedValue }
+            else { $pathLabel.Text = "" }
+        }
+        & $updatePath
+        $listBox.Add_SelectionChanged({ & $updatePath })
+
+        $btnPanel = New-Object System.Windows.Controls.StackPanel
+        $btnPanel.Orientation = "Horizontal"
+        $btnPanel.HorizontalAlignment = "Right"
+
+        $cancelButton = New-Object System.Windows.Controls.Button
+        $cancelButton.Content = "Cancelar"
+        $cancelButton.Width = 95
+        $cancelButton.Margin = New-Object System.Windows.Thickness(0, 0, 10, 0)
+        $cancelButton.Add_Click({
+                $dialog.DialogResult = $false
+                $dialog.Close()
+            })
+
+        $okButton = New-Object System.Windows.Controls.Button
+        $okButton.Content = $ExecuteButtonText
+        $okButton.Width = 95
+        $okButton.IsDefault = $true
+        $okButton.Add_Click({
+                if ($listBox.SelectedValue) {
+                    try {
+                        & $OnExecute $listBox.SelectedValue
+                        $dialog.DialogResult = $true
+                        $dialog.Close()
+                    } catch {
+                        [System.Windows.MessageBox]::Show(
+                            "Error al ejecutar:`n$($_.Exception.Message)",
+                            "Error",
+                            [System.Windows.MessageBoxButton]::OK,
+                            [System.Windows.MessageBoxImage]::Error
+                        ) | Out-Null
+                    }
+                }
+            })
+
+        $btnPanel.Children.Add($cancelButton) | Out-Null
+        $btnPanel.Children.Add($okButton) | Out-Null
+        $root.Children.Add($btnPanel) | Out-Null
+
+        $dialog.Content = $root
+        $null = $dialog.ShowDialog()
+    }
+
+    # =========================
+    # 1) MANAGERS (SQLServerManager*.msc)
+    # =========================
+    if ($Managers -and $Managers.Count -gt 0) {
+
+        $items = @()
+
+        $unique = $Managers | Where-Object { $_ } | Select-Object -Unique
+        foreach ($m in $unique) {
+            $ver = Get-ManagerVersion -Path $m
+            $bits = Get-ManagerBits    -Path $m
+
+            # Display legible (incluye RUTA COMPLETA)
+            $display = "SQLServerManager$ver  |  $bits  |  $m"
+            $items += (New-SelectorItem -Path $m -Display $display)
+        }
+
+        Show-PathSelectionDialog `
+            -Title  "Seleccionar Configuration Manager" `
+            -Prompt "Seleccione la versión de SQL Server Configuration Manager a ejecutar:" `
+            -Items  $items `
+            -OnExecute {
+            param($selectedPath)
+            Write-Host "`tEjecutando SQL Server Configuration Manager desde: $selectedPath" -ForegroundColor Green
+            Start-Process -FilePath $selectedPath
+        } `
+            -ExecuteButtonText "Abrir"
+
+        return
+    }
+
+    # =========================
+    # 2) SSMS (Ssms.exe)
+    # =========================
+    if ($SSMSVersions -and $SSMSVersions.Count -gt 0) {
+
+        $items = @()
+        $unique = $SSMSVersions | Where-Object { $_ } | Select-Object -Unique
+
+        foreach ($p in $unique) {
+            # Display legible: producto + versión + ruta completa
+            try {
+                $vi = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($p)
+                $prod = if ($vi.ProductName) { $vi.ProductName } else { "SSMS" }
+                $ver = if ($vi.FileVersion) { $vi.FileVersion }  else { "" }
+
+                $display = "$prod  |  $ver  |  $p"
+                $items += (New-SelectorItem -Path $p -Display $display)
+            } catch {
+                $items += (New-SelectorItem -Path $p -Display "SSMS  |  $p")
+            }
+        }
+
+        Show-PathSelectionDialog `
+            -Title  "Seleccionar SSMS" `
+            -Prompt "Seleccione la versión de SQL Server Management Studio a ejecutar:" `
+            -Items  $items `
+            -OnExecute {
+            param($selectedPath)
+            Write-Host "`tEjecutando: $selectedPath" -ForegroundColor Green
+            Start-Process -FilePath $selectedPath
+        } `
+            -ExecuteButtonText "Ejecutar"
+
+        return
+    }
+
+    Write-Host "Show-SQLselector: No se recibieron rutas para Managers ni para SSMS." -ForegroundColor Yellow
+}
+function Show-IPConfigDialog {
+
+    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+
+    # Helper: validar IPv4
+    function Test-IPv4 {
+        param([string]$Ip)
+        if ([string]::IsNullOrWhiteSpace($Ip)) { return $false }
+        $Ip = $Ip.Trim()
+        return [System.Net.IPAddress]::TryParse($Ip, [ref]([System.Net.IPAddress]$null)) -and ($Ip -match '^\d{1,3}(\.\d{1,3}){3}$')
+    }
+
+    # Helper: refrescar texto de IPs
+    function Get-AdapterIpsText {
+        param([string]$Alias)
+        try {
+            $ips = Get-NetIPAddress -InterfaceAlias $Alias -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty IPAddress
+            if ($ips) { return "IPs asignadas: " + ($ips -join ", ") }
+        } catch { }
+        return "IPs asignadas: -"
+    }
+
+    # XAML
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Asignación de IPs"
+        Height="250" Width="560"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Seleccione el adaptador de red:"
+                   FontSize="13"
+                   Margin="0,0,0,8"/>
+
+        <ComboBox Name="cmbAdapters"
+                  Grid.Row="1"
+                  Height="28"
+                  FontSize="12"
+                  Margin="0,0,0,10"/>
+
+        <TextBlock Name="lblIps"
+                   Grid.Row="2"
+                   Text="IPs asignadas: -"
+                   FontSize="12"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,12"
+                   MinHeight="36"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Name="btnAssignIp" Content="Asignar Nueva IP" Width="140" Height="32" Margin="0,0,10,0" IsEnabled="False"/>
+            <Button Name="btnDhcp"     Content="Cambiar a DHCP"  Width="140" Height="32" Margin="0,0,10,0" IsEnabled="False"/>
+            <Button Name="btnClose"    Content="Cerrar"         Width="110" Height="32" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>
+"@
+
+    $ui = New-WpfWindow -Xaml $xaml -PassThru
+    $window = $ui.Window
+    $c = $ui.Controls
+
+    # CenterOwner real
+    try {
+        if ($Global:window -is [System.Windows.Window]) {
+            $window.Owner = $Global:window
+            $window.WindowStartupLocation = "CenterOwner"
+        } else {
+            $window.WindowStartupLocation = "CenterScreen"
+        }
+    } catch {
+        $window.WindowStartupLocation = "CenterScreen"
+    }
+
+    # Cargar adaptadores Up
+    $adapters = @(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" })
+    $c['cmbAdapters'].Items.Clear()
+    $c['cmbAdapters'].Items.Add("Selecciona 1 adaptador de red") | Out-Null
+    foreach ($a in $adapters) { $c['cmbAdapters'].Items.Add($a.Name) | Out-Null }
+    $c['cmbAdapters'].SelectedIndex = 0
+
+    # Actualizar UI según selección
+    $updateUi = {
+        $sel = [string]$c['cmbAdapters'].SelectedItem
+        $valid = ($sel -and $sel -ne "Selecciona 1 adaptador de red")
+
+        $c['btnAssignIp'].IsEnabled = $valid
+        $c['btnDhcp'].IsEnabled = $valid
+
+        if ($valid) {
+            $c['lblIps'].Text = (Get-AdapterIpsText -Alias $sel)
+        } else {
+            $c['lblIps'].Text = "IPs asignadas: -"
+        }
+    }
+
+    $c['cmbAdapters'].Add_SelectionChanged({ & $updateUi })
+    & $updateUi
+
+    # Botón: Asignar nueva IP
+    $c['btnAssignIp'].Add_Click({
+            $alias = [string]$c['cmbAdapters'].SelectedItem
+            if (-not $alias -or $alias -eq "Selecciona 1 adaptador de red") {
+                Show-WpfMessageBox -Message "Por favor, selecciona un adaptador de red." -Title "Error" -Buttons OK -Icon Error | Out-Null
+                return
+            }
+
+            # Config actual
+            $current = Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $current) {
+                Show-WpfMessageBox -Message "No se pudo obtener la configuración IPv4 del adaptador." -Title "Error" -Buttons OK -Icon Error | Out-Null
+                return
+            }
+
+            $prefixLen = $current.PrefixLength
+
+            # Pedir IP
+            $newIp = New-WpfInputDialog -Title "Nueva IP" -Prompt "Ingrese la nueva dirección IP IPv4:" -DefaultValue ""
+            if ([string]::IsNullOrWhiteSpace($newIp)) { return }
+
+            if (-not (Test-IPv4 -Ip $newIp)) {
+                Show-WpfMessageBox -Message "La IP '$newIp' no es válida." -Title "Error" -Buttons OK -Icon Error | Out-Null
+                return
+            }
+
+            # Evitar duplicado
+            $exists = Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPAddress -eq $newIp.Trim() }
+            if ($exists) {
+                Show-WpfMessageBox -Message "La IP $newIp ya está asignada a $alias." -Title "Error" -Buttons OK -Icon Error | Out-Null
+                return
+            }
+
+            try {
+                New-NetIPAddress -IPAddress $newIp.Trim() -PrefixLength $prefixLen -InterfaceAlias $alias -ErrorAction Stop | Out-Null
+                Show-WpfMessageBox -Message "Se agregó la IP $newIp al adaptador $alias." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+                $c['lblIps'].Text = (Get-AdapterIpsText -Alias $alias)
+            } catch {
+                Show-WpfMessageBox -Message "Error al agregar IP:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+            }
+        })
+
+    # Botón: Cambiar a DHCP
+    $c['btnDhcp'].Add_Click({
+            $alias = [string]$c['cmbAdapters'].SelectedItem
+            if (-not $alias -or $alias -eq "Selecciona 1 adaptador de red") {
+                Show-WpfMessageBox -Message "Por favor, selecciona un adaptador de red." -Title "Error" -Buttons OK -Icon Error | Out-Null
+                return
+            }
+
+            # Ver si ya es DHCP
+            $any = Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($any -and $any.PrefixOrigin -eq "Dhcp") {
+                Show-WpfMessageBox -Message "El adaptador ya está en DHCP." -Title "Información" -Buttons OK -Icon Information | Out-Null
+                return
+            }
+
+            $conf = Show-WpfMessageBox -Message "¿Está seguro de que desea cambiar a DHCP?" -Title "Confirmación" -Buttons YesNo -Icon Question
+            if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { return }
+
+            try {
+                # Quitar IPs manuales
+                $manualIps = Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object { $_.PrefixOrigin -eq "Manual" }
+                foreach ($ip in $manualIps) {
+                    Remove-NetIPAddress -IPAddress $ip.IPAddress -PrefixLength $ip.PrefixLength -InterfaceAlias $alias -Confirm:$false -ErrorAction SilentlyContinue
+                }
+
+                # Habilitar DHCP y reset DNS
+                Set-NetIPInterface -InterfaceAlias $alias -Dhcp Enabled -ErrorAction Stop | Out-Null
+                Set-DnsClientServerAddress -InterfaceAlias $alias -ResetServerAddresses -ErrorAction SilentlyContinue | Out-Null
+
+                Show-WpfMessageBox -Message "Se cambió a DHCP en el adaptador $alias." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+                $c['lblIps'].Text = "Generando IP por DHCP. Seleccione de nuevo."
+            } catch {
+                Show-WpfMessageBox -Message "Error al cambiar a DHCP:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+            }
+        })
+
+    $c['btnClose'].Add_Click({ $window.Close() })
+
+    $window.ShowDialog() | Out-Null
+}
+
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
@@ -1307,5 +1868,8 @@ Export-ModuleMember -Function @(
     'Show-InfoDialog',
     'Show-WarnDialog',
     'Get-7ZipPath',
-    'Install-7ZipWithChoco'
+    'Install-7ZipWithChoco',
+    'Show-LZMADialog',
+    'Show-SQLselector',
+    'Show-IPConfigDialog'
 )

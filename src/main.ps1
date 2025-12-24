@@ -15,15 +15,12 @@ try {
     pause
     exit 1
 }
-
 if (Get-Command Set-ExecutionPolicy -ErrorAction SilentlyContinue) {
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 }
-
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
 $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "Queries.psm1", "Installers.psm1")
-
 foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
@@ -58,7 +55,6 @@ $global:defaultInstructions = @"
 - - Tabla en consola
 - - Obtener columnas en consola
 "@
-
 function Initialize-Environment {
     if (!(Test-Path -Path "C:\Temp")) {
         try {
@@ -325,31 +321,19 @@ function New-MainForm {
         DetailedText = $null
         DisplayText  = $null
     }
-
-    # Generar textos formateados
     if ($portsArray.Count -gt 0) {
-        # Ordenar por instancia
         $sortedPorts = $portsArray | Sort-Object -Property Instance
-
-        # Formatear para mostrar en un solo renglón
         $displayParts = @()
         foreach ($port in $sortedPorts) {
             $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
             $displayParts += "$instanceName : $($port.Port)"
         }
-
-        # Unir todo en una sola línea con separador
         $global:sqlPortsData.DisplayText = $displayParts -join " | "
-
-        # Texto detallado para copiar (formato original)
         $global:sqlPortsData.DetailedText = $sortedPorts | ForEach-Object {
             $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
             "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
         } | Out-String
-
         $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
-
-        # Configurar el TextBlock
         $lblPort.Text = $global:sqlPortsData.DisplayText
         $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
         $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) {
@@ -357,12 +341,9 @@ function New-MainForm {
         } else {
             "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles"
         }
-
-        # Mostrar resumen en consola CON COLORES
         Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
         Write-Host $global:sqlPortsData.Summary -ForegroundColor White
         Write-Host "Puertos: " -ForegroundColor White -NoNewline
-
         foreach ($port in $sortedPorts) {
             $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
             Write-Host "$instanceName : " -ForegroundColor White -NoNewline
@@ -1584,42 +1565,7 @@ function New-MainForm {
             }
         })
     $LZMAbtnBuscarCarpeta.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
-            if (-not (Test-Path $LZMAregistryPath)) {
-                Write-Host "`nLa ruta del registro no existe: $LZMAregistryPath" -ForegroundColor Yellow
-                [System.Windows.MessageBox]::Show("La ruta del registro no existe:`n$LZMAregistryPath", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-                return
-            }
-            try {
-                Write-Host "`tLeyendo subcarpetas de LZMA…" -ForegroundColor Gray
-                $LZMcarpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
-                if ($LZMcarpetasPrincipales.Count -lt 1) {
-                    Write-Host "`tNo se encontraron carpetas principales." -ForegroundColor Yellow
-                    [System.Windows.MessageBox]::Show("No se encontraron carpetas principales en la ruta del registro.", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-                    return
-                }
-                $instaladores = @()
-                foreach ($carpeta in $LZMcarpetasPrincipales) {
-                    $subdirs = Get-ChildItem -Path $carpeta.PSPath | Where-Object { $_.PSIsContainer }
-                    foreach ($sd in $subdirs) {
-                        $instaladores += [PSCustomObject]@{
-                            Name = $sd.PSChildName
-                            Path = $sd.PSPath
-                        }
-                    }
-                }
-                if ($instaladores.Count -lt 1) {
-                    Write-Host "`tNo se encontraron subcarpetas." -ForegroundColor Yellow
-                    [System.Windows.MessageBox]::Show("No se encontraron subcarpetas en la ruta del registro.", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-                    return
-                }
-                $instaladores = $instaladores | Sort-Object -Property Name -Descending
-                Show-LZMADialog -Instaladores $instaladores
-            } catch {
-                Write-Host "`tError accediendo al registro: $_" -ForegroundColor Red
-                [System.Windows.MessageBox]::Show("Error accediendo al registro:`n$_", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-            }
+            Show-LZMADialog
         })
     $btnConfigurarIPs.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray

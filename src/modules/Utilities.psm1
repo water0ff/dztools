@@ -2852,341 +2852,145 @@ function Show-LZMADialog {
 }
 
 function Show-AddUserDialog {
-
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] INICIO"
-
     [xml]$xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="Crear Usuario de Windows"
-        Height="420" Width="640"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        ShowInTaskbar="False"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent">
-    <Border Background="White"
-            CornerRadius="10"
-            BorderBrush="#FFC896"
-            BorderThickness="2"
-            Padding="0">
-        <Border.Effect>
-            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
-        </Border.Effect>
-
-        <Grid Margin="16">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="36"/>   <!-- Header -->
-                <RowDefinition Height="Auto"/> <!-- Intro -->
-                <RowDefinition Height="Auto"/> <!-- Form -->
-                <RowDefinition Height="*"/>    <!-- Tips -->
-                <RowDefinition Height="Auto"/> <!-- Status + buttons -->
-            </Grid.RowDefinitions>
-
-            <!-- Header -->
-            <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Text="Crear Usuario de Windows"
-                           VerticalAlignment="Center"
-                           FontSize="13"
-                           FontWeight="SemiBold"
-                           Foreground="#333333"/>
-
-                <Button Name="btnClose"
-                        Grid.Column="1"
-                        Content="✕"
-                        Width="34" Height="26"
-                        Margin="8,0,0,0"
-                        ToolTip="Cerrar"
-                        Background="Transparent"
-                        BorderBrush="Transparent"/>
-            </Grid>
-
-            <TextBlock Grid.Row="1"
-                       Text="Crea un usuario local y asígnalo al grupo correspondiente."
-                       FontSize="13"
-                       FontWeight="SemiBold"
-                       Foreground="#333333"
-                       Margin="0,0,0,12"/>
-
-            <!-- Form -->
-            <Grid Grid.Row="2" Margin="0,0,0,12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="170"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Nombre de usuario" FontSize="12" Foreground="#555555" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                <TextBox Name="txtUsername" Grid.Row="0" Grid.Column="1" Height="32" FontSize="12" VerticalContentAlignment="Center" Margin="0,0,0,8"/>
-
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Contraseña" FontSize="12" Foreground="#555555" VerticalAlignment="Center" Margin="0,0,10,8"/>
-
-                <!-- PasswordBox + TextBox (toggle show/hide) -->
-                <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <PasswordBox Name="pwdPassword" Grid.Column="0" Height="32" FontSize="12" Padding="6,0,6,0"/>
-                    <TextBox Name="txtPasswordVisible" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Visibility="Collapsed"/>
-
-                    <ToggleButton Name="tglShowPassword"
-                                  Grid.Column="1"
-                                  Content="👁"
-                                  Width="40" Height="32"
-                                  Margin="8,0,0,0"
-                                  ToolTip="Mostrar/Ocultar contraseña"/>
-                </Grid>
-
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Tipo de usuario" FontSize="12" Foreground="#555555" VerticalAlignment="Center"/>
-                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <RadioButton Name="rbStandard" Content="Usuario estándar" IsChecked="True" Margin="0,0,12,0"/>
-                    <RadioButton Name="rbAdmin" Content="Administrador"/>
-                </StackPanel>
-
-                <Button Name="btnShowUsers"
-                        Grid.Row="2"
-                        Grid.Column="2"
-                        Content="Ver usuarios"
-                        Width="110"
-                        Height="30"
-                        Margin="12,0,0,0"/>
-            </Grid>
-
-            <!-- Tips -->
-            <Border Grid.Row="3" Background="#F5F5F5" CornerRadius="8" Padding="12">
-                <StackPanel>
-                    <TextBlock Text="Requisitos:"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="#333333"
-                               Margin="0,0,0,6"/>
-                    <TextBlock Text="• Nombre: sin espacios (ej. soporte01)" FontSize="12" Foreground="#444444" Margin="0,0,0,2"/>
-                    <TextBlock Text="• Contraseña: mínimo 8 caracteres" FontSize="12" Foreground="#444444" Margin="0,0,0,2"/>
-                    <TextBlock Text="• Administrador: úsalo solo si es necesario" FontSize="12" Foreground="#444444"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Status + Buttons -->
-            <Grid Grid.Row="4" Margin="0,12,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Name="lblStatus"
-                           Grid.Column="0"
-                           Text="Listo."
-                           FontSize="12"
-                           Foreground="#2E7D32"
-                           VerticalAlignment="Center"
-                           TextWrapping="Wrap"
-                           Margin="0,0,10,0"/>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True"/>
-                    <Button Name="btnCreate" Content="Crear usuario" Width="130" Height="30" Background="#FFC896" IsEnabled="False" IsDefault="True"/>
-                </StackPanel>
-            </Grid>
-
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Title="Crear Usuario de Windows" Height="420" Width="640" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False" WindowStyle="None" AllowsTransparency="True" Background="Transparent">
+  <Border Background="White" CornerRadius="10" BorderBrush="#FFC896" BorderThickness="2" Padding="0">
+    <Border.Effect><DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/></Border.Effect>
+    <Grid Margin="16">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="36"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <TextBlock Text="Crear Usuario de Windows" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Foreground="#333333"/>
+        <Button Name="btnClose" Grid.Column="1" Content="✕" Width="34" Height="26" Margin="8,0,0,0" ToolTip="Cerrar" Background="Transparent" BorderBrush="Transparent"/>
+      </Grid>
+      <TextBlock Grid.Row="1" Text="Crea un usuario local y asígnalo al grupo correspondiente." FontSize="13" FontWeight="SemiBold" Foreground="#333333" Margin="0,0,0,12"/>
+      <Grid Grid.Row="2" Margin="0,0,0,12">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Nombre de usuario" FontSize="12" Foreground="#555555" VerticalAlignment="Center" Margin="0,0,10,8"/>
+        <TextBox Name="txtUsername" Grid.Row="0" Grid.Column="1" Height="32" FontSize="12" VerticalContentAlignment="Center" Margin="0,0,0,8"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Contraseña" FontSize="12" Foreground="#555555" VerticalAlignment="Center" Margin="0,0,10,8"/>
+        <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <PasswordBox Name="pwdPassword" Grid.Column="0" Height="32" FontSize="12" Padding="6,0,6,0"/>
+          <TextBox Name="txtPasswordVisible" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Visibility="Collapsed"/>
+          <ToggleButton Name="tglShowPassword" Grid.Column="1" Content="👁" Width="40" Height="32" Margin="8,0,0,0" ToolTip="Mostrar/Ocultar contraseña"/>
         </Grid>
-    </Border>
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Tipo de usuario" FontSize="12" Foreground="#555555" VerticalAlignment="Center"/>
+        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <RadioButton Name="rbStandard" Content="Usuario estándar" IsChecked="True" Margin="0,0,12,0"/>
+          <RadioButton Name="rbAdmin" Content="Administrador"/>
+        </StackPanel>
+        <Button Name="btnShowUsers" Grid.Row="2" Grid.Column="2" Content="Ver usuarios" Width="110" Height="30" Margin="12,0,0,0"/>
+      </Grid>
+      <Border Grid.Row="3" Background="#F5F5F5" CornerRadius="8" Padding="12">
+        <StackPanel>
+          <TextBlock Text="Requisitos:" FontSize="12" FontWeight="SemiBold" Foreground="#333333" Margin="0,0,0,6"/>
+          <TextBlock Text="• Nombre: sin espacios (ej. soporte01)" FontSize="12" Foreground="#444444" Margin="0,0,0,2"/>
+          <TextBlock Text="• Contraseña: mínimo 8 caracteres" FontSize="12" Foreground="#444444" Margin="0,0,0,2"/>
+          <TextBlock Text="• Administrador: úsalo solo si es necesario" FontSize="12" Foreground="#444444"/>
+        </StackPanel>
+      </Border>
+      <Grid Grid.Row="4" Margin="0,12,0,0">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <TextBlock Name="lblStatus" Grid.Column="0" Text="Listo." FontSize="12" Foreground="#2E7D32" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,10,0"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+          <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True"/>
+          <Button Name="btnCreate" Content="Crear usuario" Width="130" Height="30" Background="#FFC896" IsEnabled="False" IsDefault="True"/>
+        </StackPanel>
+      </Grid>
+    </Grid>
+  </Border>
 </Window>
 "@
-
-    try {
-        $ui = New-WpfWindow -Xaml $xaml -PassThru
-    } catch {
-        Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando ventana: $($_.Exception.Message)" Red
-        Show-WpfMessageBox -Message "No se pudo crear la ventana de usuario." -Title "Error" -Buttons OK -Icon Error | Out-Null
-        return
-    }
-
-    $w = $ui.Window
-    $c = $ui.Controls
-
-    # Owner / centrado
-    try { Set-WpfDialogOwner -Dialog $w } catch {}
+    try { $ui = New-WpfWindow -Xaml $xaml -PassThru }catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando ventana: $($_.Exception.Message)" Red; Show-WpfMessageBox -Message "No se pudo crear la ventana de usuario." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
+    $w = $ui.Window; $c = $ui.Controls
+    try { Set-WpfDialogOwner -Dialog $w }catch {}
     if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
-
-    # Header drag + close
     $c['btnClose'].Add_Click({ $w.DialogResult = $false; $w.Close() })
-    $c['HeaderBar'].Add_MouseLeftButtonDown({
-            if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() }
-        })
-
-    # Grupos
-    try {
-        $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name
-        $userGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name
-    } catch {
-        Show-WpfMessageBox -Message "No se pudieron obtener los grupos locales (requiere permisos).`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
-        $w.Close()
-        return
-    }
-
-    function Set-Status {
-        param(
-            [string]$Text,
-            [string]$Level = "Ok" # Ok | Warn | Error
-        )
-        switch ($Level) {
-            "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen }
-            "Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod }
-            "Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick }
-        }
-        $c['lblStatus'].Text = $Text
-    }
-
-    function Get-PasswordText {
-        if ($c['txtPasswordVisible'].Visibility -eq 'Visible') {
-            return [string]$c['txtPasswordVisible'].Text
-        }
-        # PasswordBox no expone .Text, usamos .Password
-        return [string]$c['pwdPassword'].Password
-    }
-
+    $c['HeaderBar'].Add_MouseLeftButtonDown({ if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() } })
+    try { $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name; $userGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name }catch { Show-WpfMessageBox -Message "No se pudieron obtener los grupos locales (requiere permisos).`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null; $w.Close(); return }
+    function Set-Status { param([string]$Text, [string]$Level = "Ok"); switch ($Level) { "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen }"Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod }"Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick } }; $c['lblStatus'].Text = $Text }
+    function Get-PasswordText { if ($c['txtPasswordVisible'].Visibility -eq 'Visible') { return [string]$c['txtPasswordVisible'].Text }; return [string]$c['pwdPassword'].Password }
     function Validate-Form {
-        $username = [string]$c['txtUsername'].Text
-        $username = $username.Trim()
-
-        $pass = Get-PasswordText
-        $pass = $pass.Trim()
-
-        if ([string]::IsNullOrWhiteSpace($username)) {
-            Set-Status -Text "Escriba un nombre de usuario." -Level "Warn"
-            $c['btnCreate'].IsEnabled = $false
-            return
-        }
-
-        if ($username -match "\s") {
-            Set-Status -Text "El nombre no debe contener espacios." -Level "Warn"
-            $c['btnCreate'].IsEnabled = $false
-            return
-        }
-
-        if ([string]::IsNullOrWhiteSpace($pass)) {
-            Set-Status -Text "Escriba una contraseña." -Level "Warn"
-            $c['btnCreate'].IsEnabled = $false
-            return
-        }
-
-        if ($pass.Length -lt 8) {
-            Set-Status -Text "La contraseña debe tener al menos 8 caracteres." -Level "Warn"
-            $c['btnCreate'].IsEnabled = $false
-            return
-        }
-
-        # chequeo de existencia (ligero)
+        $username = ([string]$c['txtUsername'].Text).Trim()
+        $pass = (Get-PasswordText).Trim()
+        Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Validate username='$username' passLen=$($pass.Length)"
+        if ([string]::IsNullOrWhiteSpace($username)) { Set-Status "Escriba un nombre de usuario." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        if ($username -match "\s") { Set-Status "El nombre no debe contener espacios." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        if ([string]::IsNullOrWhiteSpace($pass)) { Set-Status "Escriba una contraseña." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        if ($pass.Length -lt 8) { Set-Status "La contraseña debe tener al menos 8 caracteres." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
         try {
-            if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
-                Set-Status -Text "El usuario '$username' ya existe." -Level "Error"
-                $c['btnCreate'].IsEnabled = $false
-                return
-            }
+            $exists = Get-LocalUser -Name $username -ErrorAction SilentlyContinue
+            if ($exists) { Set-Status "El usuario '$username' ya existe." "Error"; $c['btnCreate'].IsEnabled = $false; return }
         } catch {
-            # si falla por permisos, no bloqueamos la UI, solo avisamos
-            Set-Status -Text "Aviso: no se pudo validar si el usuario ya existe (permisos)." -Level "Warn"
+            Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Validate existencia falló: $($_.Exception.Message)" Yellow
+            Set-Status "Aviso: no se pudo validar si el usuario ya existe (permisos)." "Warn"
         }
-
-        Set-Status -Text "Listo para crear usuario." -Level "Ok"
+        Set-Status "Listo para crear usuario." "Ok"
         $c['btnCreate'].IsEnabled = $true
     }
-
-    # Toggle show/hide password
-    $c['tglShowPassword'].Add_Checked({
-            $c['txtPasswordVisible'].Text = [string]$c['pwdPassword'].Password
-            $c['pwdPassword'].Visibility = 'Collapsed'
-            $c['txtPasswordVisible'].Visibility = 'Visible'
-            Validate-Form
-        })
-    $c['tglShowPassword'].Add_Unchecked({
-            $c['pwdPassword'].Password = [string]$c['txtPasswordVisible'].Text
-            $c['txtPasswordVisible'].Visibility = 'Collapsed'
-            $c['pwdPassword'].Visibility = 'Visible'
-            Validate-Form
-        })
-
-    # eventos de validación
-    $c['txtUsername'].Add_TextChanged({ Validate-Form })
-    $c['pwdPassword'].Add_PasswordChanged({ Validate-Form })
-    $c['txtPasswordVisible'].Add_TextChanged({ Validate-Form })
-    $c['rbStandard'].Add_Checked({ Validate-Form })
-    $c['rbAdmin'].Add_Checked({ Validate-Form })
-
-    # Ver usuarios (dialog WPF simple)
+    $c['tglShowPassword'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword ON"; $c['txtPasswordVisible'].Text = [string]$c['pwdPassword'].Password; $c['pwdPassword'].Visibility = 'Collapsed'; $c['txtPasswordVisible'].Visibility = 'Visible'; Validate-Form })
+    $c['tglShowPassword'].Add_Unchecked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword OFF"; $c['pwdPassword'].Password = [string]$c['txtPasswordVisible'].Text; $c['txtPasswordVisible'].Visibility = 'Collapsed'; $c['pwdPassword'].Visibility = 'Visible'; Validate-Form })
+    $c['txtUsername'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtUsername changed"; Validate-Form })
+    $c['pwdPassword'].Add_PasswordChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] pwdPassword changed"; Validate-Form })
+    $c['txtPasswordVisible'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtPasswordVisible changed"; Validate-Form })
+    $c['rbStandard'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Standard"; Validate-Form })
+    $c['rbAdmin'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Admin"; Validate-Form })
     $c['btnShowUsers'].Add_Click({
+            Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnShowUsers click"
             try {
                 $users = Get-LocalUser | Select-Object Name, Enabled
-
+                Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Usuarios obtenidos: $($users.Count)"
                 $lines = foreach ($u in $users) {
-                    $estado = if ($u.Enabled) { "Habilitado" } else { "Deshabilitado" }
+                    $estado = if ($u.Enabled) { "Habilitado" }else { "Deshabilitado" }
                     "{0,-20}  {1}" -f $u.Name, $estado
                 }
-
                 $msg = $lines -join "`n"
+                if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "(Sin resultados)" }
                 Show-WpfMessageBox -Message $msg -Title "Usuarios locales" -Buttons OK -Icon Information | Out-Null
+                Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnShowUsers mostrado OK"
             } catch {
+                Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR btnShowUsers: $($_.Exception.Message)" Red
                 Show-WpfMessageBox -Message "No se pudieron listar usuarios:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
             }
         })
-
-
-    # Crear
     $c['btnCreate'].Add_Click({
-            $username = [string]$c['txtUsername'].Text.Trim()
+            Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnCreate click"
+            $username = ([string]$c['txtUsername'].Text).Trim()
             $password = Get-PasswordText
-
-            $isAdmin = $false
-            try { $isAdmin = [bool]$c['rbAdmin'].IsChecked } catch {}
-
-            $group = if ($isAdmin) { $adminGroup } else { $userGroup }
-
-            $confirmMsg = "Se creará el usuario:`n`n$username`n`nTipo: " + (if ($isAdmin) { "Administrador" } else { "Usuario estándar" }) + "`nGrupo: $group"
+            $isAdmin = $false; try { $isAdmin = [bool]$c['rbAdmin'].IsChecked }catch {}
+            $tipo = if ($isAdmin) { "Administrador" }else { "Usuario estándar" }
+            $group = if ($isAdmin) { $adminGroup }else { $userGroup }
+            $confirmMsg = "Se creará el usuario:`n`n$username`n`nTipo: $tipo`nGrupo: $group"
             $conf = Show-WpfMessageBox -Message $confirmMsg -Title "Confirmar" -Buttons YesNo -Icon Question
-            if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { return }
-
+            if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Creación cancelada"; return }
             try {
-                if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
-                    Set-Status -Text "El usuario '$username' ya existe." -Level "Error"
-                    return
-                }
-
+                if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) { Set-Status "El usuario '$username' ya existe." "Error"; Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Ya existe: $username" Yellow; return }
                 $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
                 New-LocalUser -Name $username -Password $securePassword -AccountNeverExpires -PasswordNeverExpires | Out-Null
                 Add-LocalGroupMember -Group $group -Member $username
-
+                Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Usuario creado: $username Grupo: $group"
                 Show-WpfMessageBox -Message "Usuario '$username' creado y agregado al grupo '$group'." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
-                $w.DialogResult = $true
-                $w.Close()
+                $w.DialogResult = $true; $w.Close()
             } catch {
-                Set-Status -Text "Error: $($_.Exception.Message)" -Level "Error"
+                Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando usuario: $($_.Exception.Message)" Red
+                Set-Status "Error: $($_.Exception.Message)" "Error"
                 Show-WpfMessageBox -Message "Error al crear usuario:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
             }
         })
-
-    # Cancelar
-    $c['btnCancel'].Add_Click({ $w.DialogResult = $false; $w.Close() })
-
-    # estado inicial
+    $c['btnCancel'].Add_Click({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnCancel"; $w.DialogResult = $false; $w.Close() })
     Validate-Form
-
-    $w.ShowDialog() | Out-Null
+    try { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowDialog()"; $w.ShowDialog() | Out-Null }catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR ShowDialog: $($_.Exception.Message)" Red; throw }
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] FIN"
 }
-
-
 
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',

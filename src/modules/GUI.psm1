@@ -328,23 +328,25 @@ function Get-WpfPasswordBoxText {
     )
     return $PasswordBox.Password
 }
-
 function Show-WpfFolderDialog {
     param(
         [string]$Description = "Seleccione una carpeta",
         [string]$InitialDirectory = [Environment]::GetFolderPath('Desktop')
     )
-
+    if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
+        Write-Warning "Show-WpfFolderDialog requiere STA. Ejecuta PowerShell con -STA."
+        return $null
+    }
     $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $dialog.Description = $Description
     $dialog.SelectedPath = $InitialDirectory
+    $dialog.ShowNewFolderButton = $true
 
     $result = $dialog.ShowDialog()
 
     if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         return $dialog.SelectedPath
     }
-
     return $null
 }
 function Show-AddUserDialog {

@@ -207,6 +207,39 @@ function Show-BackupDialog {
     param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database)
     $script:BackupRunning = $false
     $script:BackupDone = $false
+    $script:EnableThreadJob = $false
+    function Initialize-ThreadJob {
+        [CmdletBinding()]
+        param()
+
+        Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Verificando módulo ThreadJob"
+
+        # Verificar si el módulo está disponible
+        if (Get-Module -ListAvailable -Name ThreadJob) {
+            Import-Module ThreadJob -Force
+            Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob importado"
+            return $true
+        } else {
+            Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob no encontrado, intentando instalar"
+
+            try {
+                # Intentar instalar desde PSGallery
+                Install-Module -Name ThreadJob -Force -Scope CurrentUser -ErrorAction Stop
+                Import-Module ThreadJob -Force
+                Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob instalado e importado"
+                return $true
+            } catch {
+                Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Error instalando ThreadJob: $_"
+                return $false
+            }
+        }
+    }
+
+    if ($script:EnableThreadJob) {
+        if (-not (Initialize-ThreadJob)) {
+            Write-Host "Advertencia: No se pudo cargar ThreadJob..." -ForegroundColor Yellow
+        }
+    }
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] INICIO"
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Server='$Server' Database='$Database' User='$User'"
 

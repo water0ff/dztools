@@ -78,7 +78,6 @@ try {
     if (-not (Test-Path $releasePath)) {
         New-Item -ItemType Directory -Path $releasePath | Out-Null
     }
-
     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $releasePath)
 } catch {

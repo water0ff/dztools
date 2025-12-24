@@ -1415,7 +1415,291 @@ function Show-LZMADialog {
         })
     $window.ShowDialog() | Out-Null
 }
+function Show-InstallerExtractorDialog {
+    Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] INICIO"
 
+    [xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Extractor de instalador"
+        Height="360" Width="640"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+    <Border Background="White"
+            CornerRadius="10"
+            BorderBrush="#FFC896"
+            BorderThickness="2"
+            Padding="0">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
+        </Border.Effect>
+
+        <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="36"/>   <!-- Header -->
+            <RowDefinition Height="Auto"/> <!-- Instrucción -->
+            <RowDefinition Height="Auto"/> <!-- Label instalador -->
+            <RowDefinition Height="Auto"/> <!-- picker instalador -->
+            <RowDefinition Height="Auto"/> <!-- info instalador -->
+            <RowDefinition Height="Auto"/> <!-- label destino -->
+            <RowDefinition Height="Auto"/> <!-- picker destino -->
+            <RowDefinition Height="Auto"/> <!-- botones -->
+        </Grid.RowDefinitions>
+            <!-- Header custom (arrastrable) -->
+            <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="Extractor de instalador"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="#333333"/>
+
+                <Button Name="btnClose"
+                        Grid.Column="1"
+                        Content="✕"
+                        Width="34" Height="26"
+                        Margin="8,0,0,0"
+                        ToolTip="Cerrar"
+                        Background="Transparent"
+                        BorderBrush="Transparent"/>
+            </Grid>
+
+            <TextBlock Grid.Row="1"
+                       Text="Seleccione el instalador y el destino de extracción."
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="#333333"
+                       Margin="0,0,0,12"/>
+
+            <TextBlock Grid.Row="2" Text="Instalador (.exe)" FontSize="12" Foreground="#555555" Margin="0,0,0,6"/>
+            <Grid Grid.Row="3" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button Name="btnPickInstaller"
+                        Content="📁"
+                        Width="36" Height="32"
+                        Margin="0,0,8,0"
+                        ToolTip="Seleccionar instalador"/>
+                <TextBox Name="txtInstallerPath"
+                         Grid.Column="1"
+                         Height="32"
+                         IsReadOnly="True"
+                         VerticalContentAlignment="Center"
+                         Text=""/>
+            </Grid>
+
+            <StackPanel Grid.Row="4" Margin="0,0,0,12">
+                <TextBlock Name="lblVersionInfo" Text="Versión: -" FontSize="12" Foreground="#444444"/>
+                <TextBlock Name="lblLastWrite" Text="Última modificación: -" FontSize="12" Foreground="#444444" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <TextBlock Grid.Row="5" Text="Destino" FontSize="12" Foreground="#555555" Margin="0,0,0,6"/>
+            <Grid Grid.Row="6" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button Name="btnPickDestination"
+                        Content="📁"
+                        Width="36" Height="32"
+                        Margin="0,0,8,0"
+                        ToolTip="Seleccionar destino"/>
+                <TextBox Name="txtDestinationPath"
+                         Grid.Column="1"
+                         Height="32"
+                         IsReadOnly="False"
+                         VerticalContentAlignment="Center"
+                         Text=""/>
+            </Grid>
+
+            <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True"/>
+                <Button Name="btnExtract" Content="Extraer" Width="110" Height="30" Background="#FFC896"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
+"@
+
+    try {
+        $ui = New-WpfWindow -Xaml $xaml -PassThru
+    } catch {
+        Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] ERROR creando ventana: $($_.Exception.Message)" Red
+        Show-WpfMessageBox -Message "No se pudo crear la ventana del extractor." -Title "Error" -Buttons OK -Icon Error | Out-Null
+        return
+    }
+
+    $window = $ui.Window
+    $c = $ui.Controls
+    if ($c.ContainsKey('btnClose') -and $c['btnClose']) {
+        $c['btnClose'].Add_Click({ $window.Close() })
+    }
+    if ($c.ContainsKey('HeaderBar') -and $c['HeaderBar']) {
+        $c['HeaderBar'].Add_MouseLeftButtonDown({
+                if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
+                    $window.DragMove()
+                }
+            })
+    }
+    try {
+        if ($Global:window -is [System.Windows.Window]) {
+            $window.Owner = $Global:window
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] No se pudo asignar owner: $($_.Exception.Message)" Yellow
+    }
+
+    $installerPath = $null
+    $defaultFolderName = $null
+    $destinationManuallySet = $false
+
+    $updateInstallerInfo = {
+        param([string]$path)
+
+        $c['lblVersionInfo'].Text = "Versión: -"
+        $c['lblLastWrite'].Text = "Última modificación: -"
+        Set-Variable -Name defaultFolderName -Value $null -Scope 1
+
+        if ([string]::IsNullOrWhiteSpace($path)) { return }
+
+        try {
+            $file = Get-Item -Path $path -ErrorAction Stop
+            $fileInfo = (Get-ItemProperty $file.FullName).VersionInfo
+            $creationDate = $file.LastWriteTime
+            $formattedDate = $creationDate.ToString("yyMMdd")
+
+            $versionText = if ($fileInfo.FileVersion) { $fileInfo.FileVersion } else { "N/D" }
+            $c['lblVersionInfo'].Text = "Versión: $versionText"
+            $c['lblLastWrite'].Text = "Última modificación: $($creationDate.ToString('dd/MM/yyyy HH:mm')) ($formattedDate)"
+
+            $computedDefault = if ($versionText -ne "N/D") {
+                "$versionText`_$formattedDate"
+            } else {
+                $formattedDate
+            }
+
+            Set-Variable -Name defaultFolderName -Value $computedDefault -Scope 1
+
+            if (-not $destinationManuallySet) {
+                $c['txtDestinationPath'].Text = Join-Path "C:\Temp" $computedDefault
+            }
+        } catch {
+            Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] ERROR leyendo info del instalador: $($_.Exception.Message)" Red
+            Show-WpfMessageBox -Message "No se pudo leer la información del instalador." -Title "Error" -Buttons OK -Icon Error | Out-Null
+        }
+    }
+
+    $c['btnPickInstaller'].Add_Click({
+            try {
+                $dialog = New-Object Microsoft.Win32.OpenFileDialog
+                $dialog.Filter = "Instalador (*.exe)|*.exe"
+                $dialog.Title = "Seleccionar instalador"
+                $dialog.Multiselect = $false
+
+                if ($dialog.ShowDialog() -ne $true) { return }
+
+                $selectedPath = $dialog.FileName
+                if ([System.IO.Path]::GetExtension($selectedPath).ToLowerInvariant() -ne ".exe") {
+                    Show-WpfMessageBox -Message "El instalador debe ser un archivo .EXE." -Title "Formato inválido" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+
+                # IMPORTANTE: guardar en el scope del function
+                Set-Variable -Name installerPath -Value $selectedPath -Scope 1
+
+                $c['txtInstallerPath'].Text = $selectedPath
+                & $updateInstallerInfo $selectedPath
+            } catch {
+                Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] ERROR seleccionando instalador: $($_.Exception.Message)" Red
+                Show-WpfMessageBox -Message "Error al seleccionar el instalador." -Title "Error" -Buttons OK -Icon Error | Out-Null
+            }
+        })
+    $c['btnPickDestination'].Add_Click({
+            try {
+                $initialDir = "C:\Temp"
+                if (-not [string]::IsNullOrWhiteSpace($c['txtDestinationPath'].Text)) {
+                    $initialDir = Split-Path -Path $c['txtDestinationPath'].Text -Parent
+                }
+
+                $selectedFolder = Show-WpfFolderDialog -Description "Seleccionar destino de extracción" -InitialDirectory $initialDir
+                if (-not $selectedFolder) { return }
+
+                Set-Variable -Name destinationManuallySet -Value $true -Scope 1
+
+                if ($defaultFolderName) {
+                    $c['txtDestinationPath'].Text = Join-Path $selectedFolder $defaultFolderName
+                } else {
+                    $c['txtDestinationPath'].Text = $selectedFolder
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] ERROR seleccionando destino: $($_.Exception.Message)" Red
+                Show-WpfMessageBox -Message "Error al seleccionar el destino." -Title "Error" -Buttons OK -Icon Error | Out-Null
+            }
+        })
+    $c['btnExtract'].Add_Click({
+            try {
+                if (-not $installerPath) {
+                    Show-WpfMessageBox -Message "Seleccione un instalador primero." -Title "Falta instalador" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+
+                if ([System.IO.Path]::GetExtension($installerPath).ToLowerInvariant() -ne ".exe") {
+                    Show-WpfMessageBox -Message "El instalador debe ser un archivo .EXE." -Title "Formato inválido" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+
+                $destinationPath = $c['txtDestinationPath'].Text.Trim()
+                if ([string]::IsNullOrWhiteSpace($destinationPath)) {
+                    Show-WpfMessageBox -Message "Seleccione un destino válido." -Title "Falta destino" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+
+                if (-not (Test-Path -Path $destinationPath)) {
+                    New-Item -ItemType Directory -Path $destinationPath -Force | Out-Null
+                }
+
+                $arguments = "/extract `"$destinationPath`""
+                Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] Ejecutando: '$installerPath' $arguments"
+                $proc = Start-Process -FilePath $installerPath -ArgumentList $arguments -Wait -PassThru -ErrorAction Stop
+
+                if ($proc.ExitCode -ne 0) {
+                    Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] ExitCode: $($proc.ExitCode)" Yellow
+                    Show-WpfMessageBox -Message "El instalador devolvió código de salida $($proc.ExitCode)." -Title "Atención" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+                Show-WpfMessageBox -Message "Extracción completada en:`n$destinationPath" -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+                # Abrir la carpeta destino en el explorador
+                try {
+                    if (Test-Path -Path $destinationPath) {
+                        Start-Process -FilePath "explorer.exe" -ArgumentList "`"$destinationPath`""
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] No se pudo abrir Explorer: $($_.Exception.Message)" Yellow
+                }
+                $window.Close()
+            } catch {
+                Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] ERROR extracción: $($_.Exception.Message)" Red
+                Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] Stack: $($_.ScriptStackTrace)" Red
+                Show-WpfMessageBox -Message "Error al extraer el instalador." -Title "Error" -Buttons OK -Icon Error | Out-Null
+            }
+        })
+
+    $c['btnCancel'].Add_Click({
+            $window.Close()
+        })
+
+    $window.ShowDialog() | Out-Null
+    Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] FIN"
+}
 function Show-SQLselector {
     param(
         [array]$Managers,
@@ -1870,6 +2154,7 @@ Export-ModuleMember -Function @(
     'Get-7ZipPath',
     'Install-7ZipWithChoco',
     'Show-LZMADialog',
+    'Show-InstallerExtractorDialog',
     'Show-SQLselector',
     'Show-IPConfigDialog'
 )

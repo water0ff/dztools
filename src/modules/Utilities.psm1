@@ -95,6 +95,78 @@ function Ensure-DzUiConfig {
     Set-Content -LiteralPath $ConfigPath -Value $lines -Encoding UTF8
 }
 
+function Update-DzIniSetting {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Section,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Key,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Value
+    )
+
+    $configPath = Get-DzToolsConfigPath
+
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        Initialize-DzToolsConfig | Out-Null
+    }
+
+    $content = Get-Content -LiteralPath $configPath -ErrorAction SilentlyContinue
+    if ($null -eq $content) { $content = @() }
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    $sectionFound = $false
+    $keyUpdated = $false
+    $inTargetSection = $false
+
+    foreach ($line in $content) {
+        $trimmed = $line.Trim()
+
+        if ($trimmed -match '^\s*;') {
+            $lines.Add($line)
+            continue
+        }
+
+        if ($trimmed -match '^\[(.+)\]\s*$') {
+            if ($inTargetSection -and -not $keyUpdated) {
+                $lines.Add("$Key=$Value")
+                $keyUpdated = $true
+            }
+
+            $currentSection = $matches[1].Trim()
+            $inTargetSection = ($currentSection.ToLower() -eq $Section.ToLower())
+            if ($inTargetSection) { $sectionFound = $true }
+
+            $lines.Add($line)
+            continue
+        }
+
+        if ($inTargetSection -and $trimmed -match "^\s*${Key}\s*=") {
+            $lines.Add("$Key=$Value")
+            $keyUpdated = $true
+            continue
+        }
+
+        $lines.Add($line)
+    }
+
+    if ($sectionFound) {
+        if (-not $keyUpdated) {
+            $lines.Add("$Key=$Value")
+        }
+    } else {
+        if ($lines.Count -gt 0 -and $lines[$lines.Count - 1] -ne "") {
+            $lines.Add("")
+        }
+        $lines.Add("[$Section]")
+        $lines.Add("$Key=$Value")
+    }
+
+    Set-Content -LiteralPath $configPath -Value $lines -Encoding UTF8
+}
+
 function Get-DzUiMode {
     <#
     .SYNOPSIS
@@ -122,6 +194,35 @@ function Get-DzUiMode {
         }
     }
     return "dark"
+}
+
+function Set-DzUiMode {
+    <#
+    .SYNOPSIS
+    Actualiza el modo de UI en el archivo de configuración
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('dark', 'light')]
+        [string]$Mode
+    )
+
+    Update-DzIniSetting -Section "UI" -Key "mode" -Value $Mode
+}
+
+function Set-DzDebugPreference {
+    <#
+    .SYNOPSIS
+    Actualiza la preferencia de debug en el archivo de configuración
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [bool]$Enabled
+    )
+
+    $value = if ($Enabled) { 'true' } else { 'false' }
+    Update-DzIniSetting -Section "desarrollo" -Key "debug" -Value $value
+    $script:DzDebugEnabled = $Enabled
 }
 
 function Initialize-DzToolsConfig {
@@ -3206,6 +3307,8 @@ Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
     'Get-DzUiMode',
+    'Set-DzUiMode',
+    'Set-DzDebugPreference',
     'Initialize-DzToolsConfig',
     'Write-DzDebug',
     'Test-Administrator',

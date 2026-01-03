@@ -208,14 +208,123 @@ function New-MainForm {
             <Setter Property="Padding" Value="6,4"/>
         </Style>
 
-        <!-- ComboBox -->
-        <Style TargetType="{x:Type ComboBox}">
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
+        <!-- Items del ComboBox (dropdown) -->
+        <Style TargetType="{x:Type ComboBoxItem}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+            <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                <Border x:Name="Bd"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="4"
+                        SnapsToDevicePixels="True">
+                <ContentPresenter Margin="{TemplateBinding Padding}"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.55"/>
+                </Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+            </Setter.Value>
+        </Setter>
         </Style>
 
+        <!-- ComboBox (control + popup) -->
+        <Style TargetType="{x:Type ComboBox}">
+        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+
+        <Setter Property="Template">
+            <Setter.Value>
+            <ControlTemplate TargetType="{x:Type ComboBox}">
+                <Grid>
+                <Border x:Name="Outer"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="6"
+                        SnapsToDevicePixels="True"/>
+
+                <!-- Flecha -->
+                <ToggleButton x:Name="ToggleButton"
+                                Focusable="False"
+                                IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                ClickMode="Press"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                HorizontalAlignment="Right"
+                                Width="34">
+                    <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                        Fill="{DynamicResource ControlFg}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                </ToggleButton>
+
+                <!-- Contenido seleccionado -->
+                <ContentPresenter x:Name="ContentSite"
+                                    Margin="10,2,44,2"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Left"
+                                    Content="{TemplateBinding SelectionBoxItem}"
+                                    ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                    ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                    RecognizesAccessKey="True"/>
+
+                <!-- Popup dropdown -->
+                <Popup x:Name="Popup"
+                        Placement="Bottom"
+                        IsOpen="{TemplateBinding IsDropDownOpen}"
+                        AllowsTransparency="True"
+                        Focusable="False"
+                        PopupAnimation="Fade">
+                    <Border x:Name="DropDownBorder"
+                            Background="{DynamicResource PanelBg}"
+                            BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            SnapsToDevicePixels="True"
+                            Padding="6"
+                            MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                    <ScrollViewer SnapsToDevicePixels="True">
+                        <ItemsPresenter/>
+                    </ScrollViewer>
+                    </Border>
+                </Popup>
+                </Grid>
+
+                <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Outer" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter TargetName="Outer" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.55"/>
+                </Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        </Style>
         <Style TargetType="{x:Type CheckBox}">
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>

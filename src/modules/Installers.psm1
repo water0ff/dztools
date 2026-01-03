@@ -303,8 +303,9 @@ function Show-SSMSInstallerDialog {
     #>
 
     $theme = Get-DzUiTheme
-    [xml]$xaml = @"
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Instalar SSMS"
         Height="200" Width="380"
         WindowStartupLocation="CenterScreen"
@@ -387,8 +388,10 @@ function Show-SSMSInstallerDialog {
 "@
 
     try {
+        [xml]$xaml = $stringXaml
         $reader = New-Object System.Xml.XmlNodeReader $xaml
         $window = [Windows.Markup.XamlReader]::Load($reader)
+
 
         # Obtener controles
         $cmbVersion = $window.FindName("cmbVersion")
@@ -658,8 +661,9 @@ function Show-ChocolateyInstallerMenu {
     #>
 
     $theme = Get-DzUiTheme
-    [xml]$xaml = @"
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Instaladores Choco" Height="420" Width="520"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="$($theme.FormBackground)">
@@ -715,7 +719,7 @@ function Show-ChocolateyInstallerMenu {
 "@
 
     try {
-        $result = New-WpfWindow -Xaml $xaml -PassThru
+        $result = New-WpfWindow -Xaml $stringXaml -PassThru
         $window = $result.Window
     } catch {
         Write-Host "Error creando ventana: $_" -ForegroundColor Red

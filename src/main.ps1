@@ -134,59 +134,144 @@ function New-MainForm {
 
     Write-Host "`nCreando formulario principal WPF..." -ForegroundColor Yellow
     $theme = Get-DzUiTheme
-    [xml]$xaml = @"
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Gerardo Zermeño Tools $global:version" Height="600" Width="1000"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="$($theme.FormBackground)">
+        Title="Gerardo Zermeño Tools"
+        Height="650" Width="1050"
+        WindowStartupLocation="CenterScreen">
+
     <Window.Resources>
-        <Style TargetType="Label">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+
+        <!-- TabControl -->
+        <Style TargetType="{x:Type TabControl}">
+            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
         </Style>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+
+        <!-- TabItem -->
+        <Style TargetType="{x:Type TabItem}">
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabItem}">
+                        <Border Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6,6,0,0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PanelBg}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-        <Style x:Key="InfoTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Background" Value="$($theme.InfoBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.InfoForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+
+        <!-- TextBox base -->
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
         </Style>
-        <Style x:Key="GeneralButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonGeneralBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonGeneralForeground)"/>
+
+        <!-- ComboBox -->
+        <Style TargetType="{x:Type ComboBox}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
         </Style>
-        <Style x:Key="SystemButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+
+        <!-- ====== Styles faltantes ====== -->
+
+        <Style x:Key="InfoHeaderTextBoxStyle"
+               TargetType="{x:Type TextBox}"
+               BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
-        <Style x:Key="NationalSoftButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonNationalBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonNationalForeground)"/>
+
+        <Style x:Key="ConsoleTextBoxStyle"
+               TargetType="{x:Type TextBox}"
+               BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
         </Style>
-        <Style x:Key="ConsoleTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Background" Value="$($theme.ConsoleBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ConsoleForeground)"/>
+
+        <Style x:Key="GeneralButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
         </Style>
+
+        <Style x:Key="SystemButtonStyle"
+               TargetType="{x:Type Button}"
+               BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Style>
+
+        <Style x:Key="NationalSoftButtonStyle"
+               TargetType="{x:Type Button}"
+               BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Style>
+
     </Window.Resources>
-    <Grid Background="$($theme.FormBackground)">
+    <Grid Background="{DynamicResource FormBg}">
         <TabControl Name="tabControl" Margin="5">
+
             <TabItem Header="Aplicaciones" Name="tabAplicaciones">
-                <Grid>
-                    <Label Content="" Name="lblHostname" HorizontalAlignment="Left" VerticalAlignment="Top"
-                           Width="220" Height="40" Margin="10,1,0,0" Background="$($theme.InfoBackground)" Foreground="$($theme.InfoForeground)"
-                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                           BorderBrush="$($theme.BorderColor)" BorderThickness="1" Cursor="Hand"/>
-                    <TextBox Name="lblPort" HorizontalAlignment="Left" VerticalAlignment="Top"
-                            Width="220" Height="40" Margin="250,1,0,0" Style="{StaticResource InfoTextBoxStyle}"
-                            Text="Puerto: No disponible"
-                            IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Cursor="Hand"/>
-                    <TextBox Name="txt_IpAdress" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="220" Height="40" Margin="490,1,0,0" Style="{StaticResource InfoTextBoxStyle}"
-                             IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Cursor="Hand"/>
-                    <TextBox Name="txt_AdapterStatus" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="220" Height="40" Margin="730,1,0,0" Style="{StaticResource InfoTextBoxStyle}"
-                             IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Cursor="Hand"/>
+                  <Grid Background="{DynamicResource PanelBg}">
+
+                    <TextBox Name="lblHostname" HorizontalAlignment="Left" VerticalAlignment="Top"
+                           Width="220" Height="40" Margin="10,1,0,0" Background="{DynamicResource ControlBg}"
+                            Foreground="{DynamicResource ControlFg}"
+                            BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="1" Cursor="Hand"/>
+                <TextBox Name="lblPort"
+                            Width="220" Height="40" Margin="250,1,0,0"
+                            VerticalAlignment="Top" HorizontalAlignment="Left"
+                            Style="{StaticResource InfoHeaderTextBoxStyle}"
+                            Text="Puerto: No disponible"/>
+                    <TextBox Name="txt_IpAdress"
+                            Width="220" Height="40" Margin="490,1,0,0"
+                            VerticalAlignment="Top" HorizontalAlignment="Left"
+                            Style="{StaticResource InfoHeaderTextBoxStyle}"/>
+                    <TextBox Name="txt_AdapterStatus"
+                            Width="220" Height="40" Margin="730,1,0,0"
+                            VerticalAlignment="Top" HorizontalAlignment="Left"
+                            Style="{StaticResource InfoHeaderTextBoxStyle}"/>
                     <Button Content="Instalar Herramientas" Name="btnInstalarHerramientas" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Ejecutar ExpressProfiler" Name="btnProfiler" Width="220" Height="30"
@@ -232,7 +317,8 @@ function New-MainForm {
                 </Grid>
             </TabItem>
             <TabItem Header="Base de datos" Name="tabProSql">
-                <Grid>
+                  <Grid Background="{DynamicResource PanelBg}">
+
                     <Label Content="Instancia SQL:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,10,0,0"/>
                     <ComboBox Name="txtServer" HorizontalAlignment="Left" VerticalAlignment="Top"
                               Width="180" Margin="10,30,0,0" IsEditable="True" Text=".\NationalSoft"/>
@@ -273,8 +359,29 @@ function New-MainForm {
 </Window>
 "@
 
+    [xml]$xaml = $stringXaml
     $reader = New-Object System.Xml.XmlNodeReader $xaml
-    $window = [Windows.Markup.XamlReader]::Load($reader)
+    try {
+        $window = [Windows.Markup.XamlReader]::Load($reader)
+        $theme = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $window -Theme $theme
+
+    } catch {
+        Write-Host "`n[XAML ERROR] $($_.Exception.Message)" -ForegroundColor Red
+
+        # XamlParseException suele traer LineNumber/LinePosition
+        if ($_.Exception -and ($_.Exception.PSObject.Properties.Name -contains "LineNumber")) {
+            Write-Host "Linea: $($_.Exception.LineNumber)  Col: $($_.Exception.LinePosition)" -ForegroundColor Yellow
+        }
+
+        if ($_.Exception.InnerException) {
+            Write-Host "Inner: $($_.Exception.InnerException.Message)" -ForegroundColor Yellow
+        }
+
+        throw
+    }
+
+
     $lblHostname = $window.FindName("lblHostname")
     $lblPort = $window.FindName("lblPort")
     $txt_IpAdress = $window.FindName("txt_IpAdress")
@@ -327,7 +434,7 @@ function New-MainForm {
     $global:lblConnectionStatus = $lblConnectionStatus
     $global:dgvResults = $dgvResults
     $global:txt_AdapterStatus = $txt_AdapterStatus
-    $lblHostname.Content = [System.Net.Dns]::GetHostName()
+    $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
     Write-Host "`n==================================================" -ForegroundColor DarkCyan
     Write-Host "       Gerardo Zermeño Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -369,25 +476,6 @@ function New-MainForm {
     }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
-    $brushConverter = New-Object System.Windows.Media.BrushConverter
-    $infoHoverBrush = $brushConverter.ConvertFromString($theme.InfoHoverBackground)
-    $infoBaseBrush = $brushConverter.ConvertFromString($theme.InfoBackground)
-    $changeColorOnHover = {
-        param($sender, $e)
-        $sender.Background = $infoHoverBrush
-    }
-    $restoreColorOnLeave = {
-        param($sender, $e)
-        $sender.Background = $infoBaseBrush
-    }
-    $lblHostname.Add_MouseEnter($changeColorOnHover)
-    $lblHostname.Add_MouseLeave($restoreColorOnLeave)
-    $lblPort.Add_MouseEnter($changeColorOnHover)
-    $lblPort.Add_MouseLeave($restoreColorOnLeave)
-    $txt_IpAdress.Add_MouseEnter($changeColorOnHover)
-    $txt_IpAdress.Add_MouseLeave($restoreColorOnLeave)
-    $txt_AdapterStatus.Add_MouseEnter($changeColorOnHover)
-    $txt_AdapterStatus.Add_MouseLeave($restoreColorOnLeave)
     $buttonsToUpdate = @(
         $LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler,
         $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool,
@@ -512,7 +600,7 @@ function New-MainForm {
                 [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
             }
         })
-    $lblHostname.Add_MouseLeftButtonDown({
+    $lblHostname.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG]`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
             try {

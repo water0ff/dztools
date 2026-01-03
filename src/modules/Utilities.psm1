@@ -1382,8 +1382,9 @@ function Show-InstallerExtractorDialog {
     Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] INICIO"
 
     $theme = Get-DzUiTheme
-    [xml]$xaml = @"
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Extractor de instalador"
         Height="360" Width="640"
         WindowStartupLocation="CenterOwner"
@@ -1508,7 +1509,7 @@ function Show-InstallerExtractorDialog {
 "@
 
     try {
-        $ui = New-WpfWindow -Xaml $xaml -PassThru
+        $ui = New-WpfWindow -Xaml $stringXaml -PassThru
     } catch {
         Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] ERROR creando ventana: $($_.Exception.Message)" Red
         Show-WpfMessageBox -Message "No se pudo crear la ventana del extractor." -Title "Error" -Buttons OK -Icon Error | Out-Null
@@ -1803,8 +1804,9 @@ function Show-IPConfigDialog {
     }
 
     # XAML
-    [xml]$xaml = @"
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Asignación de IPs"
         Height="250" Width="560"
         WindowStartupLocation="CenterOwner"
@@ -1856,7 +1858,7 @@ function Show-IPConfigDialog {
 </Window>
 "@
 
-    $ui = New-WpfWindow -Xaml $xaml -PassThru
+    $ui = New-WpfWindow -Xaml $stringXaml -PassThru
     $window = $ui.Window
     $c = $ui.Controls
 
@@ -2559,8 +2561,9 @@ function Show-WpfPathSelectionDialog {
     )
 
     $theme = Get-DzUiTheme
-    [xml]$xaml = @"
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="$Title"
         Height="420" Width="780"
         WindowStartupLocation="CenterOwner"
@@ -2659,7 +2662,7 @@ function Show-WpfPathSelectionDialog {
 "@
 
 
-    $ui = New-WpfWindow -Xaml $xaml -PassThru
+    $ui = New-WpfWindow -Xaml $stringXaml -PassThru
     $w = $ui.Window
     $c = $ui.Controls
 
@@ -2776,8 +2779,9 @@ function Show-LZMADialog {
         }
     }
 
-    [xml]$xaml = @"
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Carpetas LZMA"
         Height="290" Width="760"
         WindowStartupLocation="CenterOwner"
@@ -2885,7 +2889,7 @@ function Show-LZMADialog {
 "@
 
     try {
-        $ui = New-WpfWindow -Xaml $xaml -PassThru
+        $ui = New-WpfWindow -Xaml $stringXaml -PassThru
     } catch {
         Write-DzDebug "`t[DEBUG][Show-LZMADialog] ERROR creando ventana: $($_.Exception.Message)" Red
         Show-WpfMessageBox -Message "No se pudo crear la ventana LZMA." -Title "Error" -Buttons OK -Icon Error | Out-Null
@@ -2981,8 +2985,17 @@ function Show-LZMADialog {
 function Show-AddUserDialog {
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] INICIO"
     $theme = Get-DzUiTheme
-    [xml]$xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Title="Crear Usuario de Windows" Height="420" Width="640" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False" WindowStyle="None" AllowsTransparency="True" Background="Transparent">
+    $stringXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Crear Usuario de Windows"
+        Height="420" Width="640"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
   <Window.Resources>
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -3050,7 +3063,7 @@ function Show-AddUserDialog {
   </Border>
 </Window>
 "@
-    try { $ui = New-WpfWindow -Xaml $xaml -PassThru }catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando ventana: $($_.Exception.Message)" Red; Show-WpfMessageBox -Message "No se pudo crear la ventana de usuario." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
+    try { $ui = New-WpfWindow -Xaml $stringXaml -PassThru }catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando ventana: $($_.Exception.Message)" Red; Show-WpfMessageBox -Message "No se pudo crear la ventana de usuario." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
     $w = $ui.Window; $c = $ui.Controls
     try { Set-WpfDialogOwner -Dialog $w }catch {}
     if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }

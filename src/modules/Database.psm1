@@ -275,7 +275,8 @@ function Show-BackupDialog {
     </Grid.ColumnDefinitions><PasswordBox x:Name="txtPassword" Grid.Column="0" Height="25"/>
     <Button x:Name="btnTogglePassword" Grid.Column="1" Content="👁" Width="30" Margin="5,0,0,0"/>
     </Grid><CheckBox x:Name="chkSubir" Grid.Row="6" Margin="0,0,0,20" IsEnabled="False">
-    <TextBlock Text="Subir a Mega.nz (opción deshabilitada)" FontWeight="Bold" Foreground="$($theme.AccentMuted)"/></CheckBox>
+    <TextBlock Text="Subir a Mega.nz (opción deshabilitada)" FontWeight="Bold" Foreground="$($theme.FormForeground)"/>
+    </CheckBox>
     <GroupBox Grid.Row="7" Header="Progreso" Margin="0,0,0,10">
     <StackPanel><ProgressBar x:Name="pbBackup" Height="20" Margin="5" Minimum="0" Maximum="100" Value="0"/>
     <TextBlock x:Name="txtProgress" Text="Esperando..." Margin="5,5,5,10" TextWrapping="Wrap"/>

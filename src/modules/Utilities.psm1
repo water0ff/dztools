@@ -1397,6 +1397,12 @@ function Show-InstallerExtractorDialog {
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
         </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
         <Style x:Key="GeneralButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="$($theme.ButtonGeneralBackground)"/>
             <Setter Property="Foreground" Value="$($theme.ButtonGeneralForeground)"/>
@@ -1408,7 +1414,7 @@ function Show-InstallerExtractorDialog {
     </Window.Resources>
     <Border Background="$($theme.FormBackground)"
             CornerRadius="10"
-            BorderBrush="#FFC896"
+            BorderBrush="$($theme.ButtonNationalBackground)"
             BorderThickness="2"
             Padding="0">
         <Border.Effect>
@@ -1816,6 +1822,12 @@ function Show-IPConfigDialog {
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
         </Style>
         <Style x:Key="SystemButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
@@ -2576,6 +2588,21 @@ function Show-WpfPathSelectionDialog {
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
         </Style>
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="$($theme.AccentPrimary)"/>
+                    <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="SystemButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
             <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
@@ -2583,7 +2610,7 @@ function Show-WpfPathSelectionDialog {
     </Window.Resources>
     <Border Background="$($theme.FormBackground)"
             CornerRadius="10"
-            BorderBrush="#FFC896"
+            BorderBrush="$($theme.ButtonNationalBackground)"
             BorderThickness="2"
             Padding="0">
         <Border.Effect>
@@ -2794,6 +2821,12 @@ function Show-LZMADialog {
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
         </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
         <Style x:Key="SystemButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
             <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
@@ -2801,7 +2834,7 @@ function Show-LZMADialog {
     </Window.Resources>
     <Border Background="$($theme.FormBackground)"
             CornerRadius="10"
-            BorderBrush="#FFC896"
+            BorderBrush="$($theme.ButtonNationalBackground)"
             BorderThickness="2"
             Padding="0">
         <Border.Effect>
@@ -3000,15 +3033,39 @@ function Show-AddUserDialog {
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
     </Style>
+    <Style TargetType="TextBox">
+      <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+      <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style TargetType="PasswordBox">
+      <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+      <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
     <Style TargetType="RadioButton">
       <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+    </Style>
+    <Style TargetType="ToggleButton">
+      <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+      <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Style.Triggers>
+        <Trigger Property="IsChecked" Value="True">
+          <Setter Property="Background" Value="$($theme.AccentPrimary)"/>
+          <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Trigger>
+      </Style.Triggers>
     </Style>
     <Style x:Key="SystemButtonStyle" TargetType="Button">
       <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
       <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
     </Style>
   </Window.Resources>
-  <Border Background="$($theme.FormBackground)" CornerRadius="10" BorderBrush="#FFC896" BorderThickness="2" Padding="0">
+  <Border Background="$($theme.FormBackground)" CornerRadius="10" BorderBrush="$($theme.ButtonNationalBackground)" BorderThickness="2" Padding="0">
     <Border.Effect><DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/></Border.Effect>
     <Grid Margin="16">
       <Grid.RowDefinitions>

@@ -196,6 +196,27 @@ function Get-TextPointerFromOffset {
     return $RichTextBox.Document.ContentEnd
 }
 
+function Get-DzThemeBrush {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Hex,
+        [Parameter(Mandatory = $true)]
+        [System.Windows.Media.Brush]$Fallback
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Hex)) {
+        return $Fallback
+    }
+
+    try {
+        $brush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($Hex)
+        if ($brush -is [System.Windows.Freezable] -and $brush.CanFreeze) { $brush.Freeze() }
+        return $brush
+    } catch {
+        return $Fallback
+    }
+}
+
 function Set-WpfSqlHighlighting {
     param(
         [Parameter(Mandatory = $true)]
@@ -209,8 +230,13 @@ function Set-WpfSqlHighlighting {
     }
 
     $script:isHighlightingQuery = $true
+    $theme = Get-DzUiTheme
+    $defaultBrush = Get-DzThemeBrush -Hex $theme.ControlForeground -Fallback ([System.Windows.Media.Brushes]::Black)
+    $commentBrush = Get-DzThemeBrush -Hex $theme.AccentMuted -Fallback ([System.Windows.Media.Brushes]::DarkGreen)
+    $keywordBrush = Get-DzThemeBrush -Hex $theme.AccentPrimary -Fallback ([System.Windows.Media.Brushes]::Blue)
+
     $textRange = New-Object System.Windows.Documents.TextRange($RichTextBox.Document.ContentStart, $RichTextBox.Document.ContentEnd)
-    $textRange.ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, [System.Windows.Media.Brushes]::Black)
+    $textRange.ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $defaultBrush)
     $text = $textRange.Text
 
     $commentRanges = @()
@@ -219,7 +245,7 @@ function Set-WpfSqlHighlighting {
         $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($c.Index + $c.Length)
         (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
             [System.Windows.Documents.TextElement]::ForegroundProperty,
-            [System.Windows.Media.Brushes]::Green
+            $commentBrush
         )
         $commentRanges += [PSCustomObject]@{ Start = $c.Index; End = $c.Index + $c.Length }
     }
@@ -229,7 +255,7 @@ function Set-WpfSqlHighlighting {
         $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($b.Index + $b.Length)
         (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
             [System.Windows.Documents.TextElement]::ForegroundProperty,
-            [System.Windows.Media.Brushes]::Green
+            $commentBrush
         )
         $commentRanges += [PSCustomObject]@{ Start = $b.Index; End = $b.Index + $b.Length }
     }
@@ -241,7 +267,7 @@ function Set-WpfSqlHighlighting {
             $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($m.Index + $m.Length)
             (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
                 [System.Windows.Documents.TextElement]::ForegroundProperty,
-                [System.Windows.Media.Brushes]::Blue
+                $keywordBrush
             )
         }
     }
@@ -372,13 +398,18 @@ function Set-WpfSqlHighlighting {
 
     $script:isHighlightingQuery = $true
     try {
+        $theme = Get-DzUiTheme
+        $defaultBrush = Get-DzThemeBrush -Hex $theme.ControlForeground -Fallback ([System.Windows.Media.Brushes]::Black)
+        $commentBrush = Get-DzThemeBrush -Hex $theme.AccentMuted -Fallback ([System.Windows.Media.Brushes]::DarkGreen)
+        $keywordBrush = Get-DzThemeBrush -Hex $theme.AccentPrimary -Fallback ([System.Windows.Media.Brushes]::Blue)
+
         $textRange = New-Object System.Windows.Documents.TextRange(
             $RichTextBox.Document.ContentStart,
             $RichTextBox.Document.ContentEnd
         )
         $textRange.ApplyPropertyValue(
             [System.Windows.Documents.TextElement]::ForegroundProperty,
-            [System.Windows.Media.Brushes]::Black
+            $defaultBrush
         )
 
         $text = $textRange.Text
@@ -391,7 +422,7 @@ function Set-WpfSqlHighlighting {
             if ($start -ne $null -and $end -ne $null) {
                 (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
                     [System.Windows.Documents.TextElement]::ForegroundProperty,
-                    [System.Windows.Media.Brushes]::Green
+                    $commentBrush
                 )
                 $commentRanges += [PSCustomObject]@{ Start = $c.Index; End = $c.Index + $c.Length }
             }
@@ -404,7 +435,7 @@ function Set-WpfSqlHighlighting {
             if ($start -ne $null -and $end -ne $null) {
                 (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
                     [System.Windows.Documents.TextElement]::ForegroundProperty,
-                    [System.Windows.Media.Brushes]::Green
+                    $commentBrush
                 )
                 $commentRanges += [PSCustomObject]@{ Start = $b.Index; End = $b.Index + $b.Length }
             }
@@ -419,7 +450,7 @@ function Set-WpfSqlHighlighting {
                 if ($start -ne $null -and $end -ne $null) {
                     (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
                         [System.Windows.Documents.TextElement]::ForegroundProperty,
-                        [System.Windows.Media.Brushes]::Blue
+                        $keywordBrush
                     )
                 }
             }

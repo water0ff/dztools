@@ -316,6 +316,12 @@ function Show-SSMSInstallerDialog {
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
         </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
         <Style TargetType="Button">
             <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
             <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
@@ -674,6 +680,45 @@ function Show-ChocolateyInstallerMenu {
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
         </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="RowBackground" Value="$($theme.ControlBackground)"/>
+            <Setter Property="AlternatingRowBackground" Value="$($theme.InfoBackground)"/>
+        </Style>
+        <Style TargetType="DataGridRow">
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="$($theme.AccentPrimary)"/>
+                    <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+        </Style>
+        <Style TargetType="DataGridCell">
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+        </Style>
+        <Style x:Key="PresetLabelStyle" TargetType="Label">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
         <Style x:Key="GeneralButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="$($theme.ButtonGeneralBackground)"/>
             <Setter Property="Foreground" Value="$($theme.ButtonGeneralForeground)"/>
@@ -690,12 +735,10 @@ function Show-ChocolateyInstallerMenu {
 
         <Label Content="SSMS" Name="lblPresetSSMS" Width="70" Height="25"
                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,65,0,0"
-               Background="#C8E6FF" Foreground="Black" HorizontalContentAlignment="Center"
-               VerticalContentAlignment="Center" BorderBrush="Black" BorderThickness="1" Cursor="Hand"/>
+               Style="{StaticResource PresetLabelStyle}"/>
         <Label Content="Heidi" Name="lblPresetHeidi" Width="70" Height="25"
                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="80,65,0,0"
-               Background="#C8E6FF" Foreground="Black" HorizontalContentAlignment="Center"
-               VerticalContentAlignment="Center" BorderBrush="Black" BorderThickness="1" Cursor="Hand"/>
+               Style="{StaticResource PresetLabelStyle}"/>
 
         <Button Content="Mostrar instalados" Name="btnShowInstalledChoco" Width="150" Height="32"
                 HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,100,0,0" Style="{StaticResource GeneralButtonStyle}"/>

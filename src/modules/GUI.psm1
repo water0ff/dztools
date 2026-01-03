@@ -6,30 +6,127 @@ Add-Type -AssemblyName WindowsBase
 
 #region Funciones Base WPF
 
+function Get-DzUiTheme {
+    $iniMode = "dark"
+    if (Get-Command Get-DzUiMode -ErrorAction SilentlyContinue) {
+        $iniMode = Get-DzUiMode
+    }
+
+    $themes = @{
+        Light = @{
+            FormBackground           = "#F4F6F8"
+            FormForeground           = "#111111"
+
+            InfoBackground           = "#FFFFFF"
+            InfoForeground           = "#111111"
+            InfoHoverBackground      = "#FF8C00"
+            InfoHoverForeground      = "#111111"   # <- importante
+
+            ControlBackground        = "#FFFFFF"
+            ControlForeground        = "#111111"
+
+            BorderColor              = "#CFCFCF"
+
+            ButtonGeneralBackground  = "#E6E6E6"
+            ButtonGeneralForeground  = "#111111"
+            ButtonSystemBackground   = "#96C8FF"
+            ButtonSystemForeground   = "#111111"
+            ButtonNationalBackground = "#FFC896"
+            ButtonNationalForeground = "#111111"
+
+            ConsoleBackground        = "#FFFFFF"
+            ConsoleForeground        = "#111111"
+
+            AccentPrimary            = "#1976D2"
+            AccentSecondary          = "#2E7D32"
+
+            AccentMuted              = "#6B7280"
+        }
+        Dark  = @{
+            FormBackground           = "#000000"
+            FormForeground           = "#FFFFFF"
+
+            InfoBackground           = "#1E1E1E"
+            InfoForeground           = "#FFFFFF"
+            InfoHoverBackground      = "#FF8C00"
+            InfoHoverForeground      = "#000000"   # <- importante (naranja + negro = legible)
+
+            ControlBackground        = "#1C1C1C"
+            ControlForeground        = "#FFFFFF"
+
+            BorderColor              = "#4C4C4C"
+
+            ButtonGeneralBackground  = "#2F2F2F"
+            ButtonGeneralForeground  = "#FFFFFF"
+            ButtonSystemBackground   = "#96C8FF"
+            ButtonSystemForeground   = "#000000"
+            ButtonNationalBackground = "#FFC896"
+            ButtonNationalForeground = "#000000"
+
+            ConsoleBackground        = "#012456"
+            ConsoleForeground        = "#FFFFFF"
+
+            AccentPrimary            = "#2196F3"
+            AccentSecondary          = "#4CAF50"
+            AccentMuted              = "#9CA3AF"
+        }
+    }
+
+    $selectedMode = if ($iniMode -match '^(dark|light)$') {
+        ($iniMode.Substring(0, 1).ToUpper() + $iniMode.Substring(1).ToLower())
+    } else { 'Dark' }
+
+    return $themes[$selectedMode]
+}
+
+
 function New-WpfWindow {
     param(
-        [Parameter(Mandatory = $true)]
-        [xml]$Xaml,
+        [Parameter(Mandatory)]
+        [object]$Xaml,
         [switch]$PassThru
     )
+
     try {
-        $reader = New-Object System.Xml.XmlNodeReader $Xaml
-        $window = [Windows.Markup.XamlReader]::Load($reader)
+        # 1) Convertir a string XAML
+        $xamlText = switch ($Xaml.GetType().FullName) {
+            'System.String' { $Xaml }
+            'System.Xml.XmlDocument' { $Xaml.OuterXml }
+            default { [string]$Xaml }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($xamlText)) {
+            throw "XAML vacío o nulo."
+        }
+
+        # 2) Crear XmlReader desde string (evita problemas con XmlNodeReader)
+        $stringReader = New-Object System.IO.StringReader($xamlText)
+        $xmlReaderSettings = New-Object System.Xml.XmlReaderSettings
+        $xmlReaderSettings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
+        $xmlReaderSettings.XmlResolver = $null
+        $xmlReader = [System.Xml.XmlReader]::Create($stringReader, $xmlReaderSettings)
+
+        # 3) Cargar ventana WPF
+        $window = [Windows.Markup.XamlReader]::Load($xmlReader)
 
         if ($PassThru) {
+            # Para mapear controles por Name necesitamos un XmlDocument (pero SOLO para SelectNodes)
+            [xml]$xmlDoc = $xamlText
+
             $controls = @{}
-            $Xaml.SelectNodes("//*[@Name]") | ForEach-Object {
+            $xmlDoc.SelectNodes("//*[@Name]") | ForEach-Object {
                 $controls[$_.Name] = $window.FindName($_.Name)
             }
-            return @{
-                Window   = $window
-                Controls = $controls
-            }
+            return @{ Window = $window; Controls = $controls }
         }
+
         return $window
     } catch {
-        Write-Error "Error cargando XAML: $_"
+        Write-Error "Error cargando XAML: $($_.Exception.Message)"
         throw
+    } finally {
+        if ($xmlReader) { $xmlReader.Close() }
+        if ($stringReader) { $stringReader.Close() }
     }
 }
 
@@ -79,8 +176,11 @@ function Show-WpfProgressBar {
         [string]$Message = "Por favor espere..."
     )
 
-    [xml]$xaml = @"
+    $theme = Get-DzUiTheme
+
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="$Title"
         Height="220" Width="500"
         WindowStartupLocation="CenterScreen"
@@ -90,9 +190,9 @@ function Show-WpfProgressBar {
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False">
-    <Border Background="White"
+    <Border Background="$($theme.FormBackground)"
             CornerRadius="8"
-            BorderBrush="#2196F3"
+            BorderBrush="$($theme.AccentPrimary)"
             BorderThickness="2"
             Padding="20">
         <Border.Effect>
@@ -102,14 +202,14 @@ function Show-WpfProgressBar {
             <TextBlock Text="$Title"
                        FontSize="18"
                        FontWeight="Bold"
-                       Foreground="#2196F3"
+                       Foreground="$($theme.AccentPrimary)"
                        HorizontalAlignment="Center"
                        Margin="0,0,0,20"/>
 
             <TextBlock Name="lblMessage"
                        Text="$Message"
                        FontSize="12"
-                       Foreground="#757575"
+                       Foreground="$($theme.FormForeground)"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
                        Margin="0,0,0,15"
@@ -120,15 +220,15 @@ function Show-WpfProgressBar {
                          Minimum="0"
                          Maximum="100"
                          Value="0"
-                         Foreground="#4CAF50"
-                         Background="#E0E0E0"
+                         Foreground="$($theme.AccentSecondary)"
+                         Background="$($theme.ControlBackground)"
                          Margin="0,0,0,10"/>
 
             <TextBlock Name="lblPercent"
                        Text="0%"
                        FontSize="14"
                        FontWeight="Bold"
-                       Foreground="#2196F3"
+                       Foreground="$($theme.AccentPrimary)"
                        HorizontalAlignment="Center"/>
         </StackPanel>
     </Border>
@@ -136,157 +236,129 @@ function Show-WpfProgressBar {
 "@
 
     try {
-        $result = New-WpfWindow -Xaml $xaml -PassThru
+        $result = New-WpfWindow -Xaml $stringXaml -PassThru
         $window = $result.Window
 
-        # Agregar propiedades personalizadas
-        $window | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $result.Controls['progressBar']
-        $window | Add-Member -MemberType NoteProperty -Name MessageLabel -Value $result.Controls['lblMessage']
-        $window | Add-Member -MemberType NoteProperty -Name PercentLabel -Value $result.Controls['lblPercent']
-        $window | Add-Member -MemberType NoteProperty -Name IsClosed -Value $false
-
-        # Manejador para cuando se cierra la ventana
+        $window | Add-Member -MemberType NoteProperty -Name ProgressBar   -Value $result.Controls['progressBar'] | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name MessageLabel  -Value $result.Controls['lblMessage']  | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name PercentLabel  -Value $result.Controls['lblPercent']  | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name IsClosed      -Value $false                          | Out-Null
         $window.Add_Closed({
-                param($sender, $e)
-                $sender.IsClosed = $true
+                $window.IsClosed = $true
             })
-
-        # Mostrar de forma no modal
         $window.Show()
 
-        # Forzar render inicial
-        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke(
+        # Forzar render inicial (siempre con el dispatcher de la misma ventana)
+        $window.Dispatcher.Invoke(
             [System.Windows.Threading.DispatcherPriority]::Background,
             [action] {}
-        )
-
+        ) | Out-Null
         return $window
     } catch {
         Write-Error "Error al crear barra de progreso: $_"
         return $null
     }
 }
+function Set-WpfDialogOwner {
+    param(
+        [Parameter(Mandatory)]
+        [System.Windows.Window]$Dialog
+    )
+
+    try {
+        if ($Global:window -is [System.Windows.Window]) { $Dialog.Owner = $Global:window; return }
+    } catch {}
+
+    try {
+        if ($script:window -is [System.Windows.Window]) { $Dialog.Owner = $script:window; return }
+    } catch {}
+}
 
 function Update-WpfProgressBar {
-    <#
-    .SYNOPSIS
-        Actualiza una barra de progreso WPF de forma segura.
-    #>
     param(
-        [Parameter(Mandatory = $true)]
-        $Window,
-        [Parameter(Mandatory = $true)]
-        [ValidateRange(0, 100)]
-        [int]$Percent,
-        [string]$Message = $null
+        [Parameter(Mandatory = $true)] $Window,
+        [Parameter(Mandatory = $true)][ValidateRange(0, 100)][int] $Percent,
+        [string] $Message = $null
     )
 
-    if ($null -eq $Window) {
-        Write-Warning "Ventana de progreso es null. No se puede actualizar."
-        return
-    }
+    if ($null -eq $Window) { return }
+    if (-not ($Window -is [System.Windows.Window])) { return }
+    if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) { return }
 
-    if ($Window.IsClosed) {
-        Write-Warning "Ventana de progreso ya está cerrada. No se puede actualizar."
-        return
-    }
+    # Capturar valores (sin cambiar variables externas para compatibilidad)
+    $pLocal = [Math]::Min($Percent, 100)
+    $mLocal = $Message
 
-    try {
-        $Window.Dispatcher.Invoke([action] {
-                $Window.ProgressBar.Value = [Math]::Min($Percent, 100)
-                $Window.PercentLabel.Text = "$Percent%"
-
-                if (-not [string]::IsNullOrWhiteSpace($Message)) {
-                    $Window.MessageLabel.Text = $Message
-                }
-            }, [System.Windows.Threading.DispatcherPriority]::Normal)
-
-        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke(
-            [System.Windows.Threading.DispatcherPriority]::Background,
-            [action] {}
-        )
-    } catch {
-        Write-Warning "Error actualizando barra de progreso: $_"
-    }
-}
-
-function Close-WpfProgressBar {
-    <#
-    .SYNOPSIS
-        Cierra una barra de progreso WPF de forma segura.
-    #>
-    param(
-        [Parameter(Mandatory = $true)]
-        $Window
-    )
-
-    if ($null -eq $Window) {
-        Write-Warning "Ventana de progreso es null. No se puede cerrar."
-        return
-    }
-
-    if ($Window.IsClosed) {
-        Write-Verbose "Ventana de progreso ya está cerrada."
-        return
-    }
+    # Copia local del window para pasarla como argumento al delegate
+    $wLocal = $Window
 
     try {
-        $Window.Dispatcher.Invoke([action] {
-                if (-not $Window.IsClosed) {
-                    $Window.Close()
-                }
-            }, [System.Windows.Threading.DispatcherPriority]::Normal)
-    } catch {
-        Write-Warning "Error cerrando barra de progreso: $_"
-    }
-}
+        # Tipado del delegate para poder pasar parámetros (evita closures raros en PS5)
+        $action = [Action[object, int, string]] {
+            param($w, $p, $m)
 
-#endregion
+            if ($null -eq $w) { return }
+            if ($w.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $w.IsClosed) { return }
 
-#region Funciones Helper de Progreso (Compatibilidad)
+            # ProgressBar
+            if ($w.PSObject.Properties.Match('ProgressBar').Count -gt 0 -and $w.ProgressBar) {
+                $w.ProgressBar.IsIndeterminate = $false
+                $w.ProgressBar.Value = $p
+            }
 
-function Show-ProgressBar {
-    return Show-WpfProgressBar -Title "Progreso de Actualización" -Message "Iniciando proceso..."
-}
+            # Porcentaje
+            if ($w.PSObject.Properties.Match('PercentLabel').Count -gt 0 -and $w.PercentLabel) {
+                $w.PercentLabel.Text = "$p%"
+            }
 
-function Update-ProgressBar {
-    param(
-        $ProgressForm,
-        $CurrentStep,
-        $TotalSteps,
-        [string]$Status = ""
-    )
+            # Mensaje
+            if (-not [string]::IsNullOrWhiteSpace($m) -and
+                $w.PSObject.Properties.Match('MessageLabel').Count -gt 0 -and $w.MessageLabel) {
+                $w.MessageLabel.Text = $m
+            }
 
-    if ($null -eq $ProgressForm -or $ProgressForm.IsClosed) {
-        return
-    }
+            $w.UpdateLayout()
+        }
 
-    try {
-        $percent = [math]::Round(($CurrentStep / $TotalSteps) * 100)
-        Update-WpfProgressBar -Window $ProgressForm -Percent $percent -Message $Status
+        # Invoke con prioridad de render, pasando args en lugar de capturar variables
+        $wLocal.Dispatcher.Invoke(
+            $action,
+            [System.Windows.Threading.DispatcherPriority]::Render,
+            $wLocal, $pLocal, $mLocal
+        ) | Out-Null
+
     } catch {
         Write-Warning "Error actualizando barra de progreso: $($_.Exception.Message)"
     }
 }
 
-function Close-ProgressBar {
-    param($ProgressForm)
+function Close-WpfProgressBar {
+    param([Parameter(Mandatory = $true)] $Window)
 
-    if ($null -eq $ProgressForm) {
+    if ($null -eq $Window) { return }
+
+    if (-not ($Window -is [System.Windows.Window])) {
+        Write-Warning "Close-WpfProgressBar: El objeto recibido NO es WPF Window. Tipo: $($Window.GetType().FullName)"
         return
     }
 
+    if ($Window.IsClosed) { return }
+
+    if ($null -eq $Window.Dispatcher -or
+        $Window.Dispatcher.HasShutdownStarted -or
+        $Window.Dispatcher.HasShutdownFinished) { return }
+
     try {
-        Close-WpfProgressBar -Window $ProgressForm
+        $Window.Dispatcher.Invoke([action] {
+                if (-not $Window.IsClosed) { $Window.Close() }
+            }, [System.Windows.Threading.DispatcherPriority]::Normal)
     } catch {
         Write-Warning "Error cerrando barra de progreso: $($_.Exception.Message)"
     }
 }
-
-#endregion
-
-#region Utilidades WPF
-
+function Show-ProgressBar {
+    return Show-WpfProgressBar -Title "Progreso de Actualización" -Message "Iniciando proceso..."
+}
 function Set-WpfControlEnabled {
     param(
         [Parameter(Mandatory = $true)]
@@ -312,26 +384,6 @@ function Set-WpfControlEnabled {
         Write-Warning "Error cambiando estado del control: $_"
     }
 }
-
-function Set-ControlEnabled {
-    param(
-        [object]$Control,
-        [bool]$Enabled,
-        [string]$Name
-    )
-
-    if ($null -eq $Control) {
-        Write-Warning "Control $Name es NULL"
-        return
-    }
-
-    Set-WpfControlEnabled -Control $Control -Enabled $Enabled
-}
-
-#endregion
-
-#region Diálogos de Entrada
-
 function New-WpfInputDialog {
     param(
         [string]$Title = "Entrada",
@@ -339,25 +391,43 @@ function New-WpfInputDialog {
         [string]$DefaultValue = ""
     )
 
-    [xml]$xaml = @"
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="$Title"
         Height="180" Width="400"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
-    <StackPanel Margin="20">
+        ShowInTaskbar="False"
+        Background="$($theme.FormBackground)">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        </Style>
+    </Window.Resources>
+    <StackPanel Margin="20" Background="$($theme.FormBackground)">
         <TextBlock Text="$Prompt" FontSize="12" Margin="0,0,0,10"/>
         <TextBox Name="txtInput" Text="$DefaultValue" FontSize="12" Padding="5" Margin="0,0,0,20"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Name="btnOK" Content="Aceptar" Width="80" Margin="0,0,10,0" IsDefault="True"/>
-            <Button Name="btnCancel" Content="Cancelar" Width="80" IsCancel="True"/>
+            <Button Name="btnOK" Content="Aceptar" Width="80" Margin="0,0,10,0" IsDefault="True" Style="{StaticResource SystemButtonStyle}"/>
+            <Button Name="btnCancel" Content="Cancelar" Width="80" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
         </StackPanel>
     </StackPanel>
 </Window>
 "@
 
-    $result = New-WpfWindow -Xaml $xaml -PassThru
+    $result = New-WpfWindow -Xaml $stringXaml -PassThru
     $window = $result.Window
     $controls = $result.Controls
 
@@ -390,645 +460,86 @@ function Get-WpfPasswordBoxText {
     )
     return $PasswordBox.Password
 }
-
-function Add-WpfComboBoxItems {
-    param(
-        [Parameter(Mandatory = $true)]
-        [System.Windows.Controls.ComboBox]$ComboBox,
-        [Parameter(Mandatory = $true)]
-        [string[]]$Items,
-        [int]$SelectedIndex = -1
-    )
-
-    $ComboBox.Items.Clear()
-    foreach ($item in $Items) {
-        $ComboBox.Items.Add($item) | Out-Null
-    }
-
-    if ($SelectedIndex -ge 0 -and $SelectedIndex -lt $Items.Count) {
-        $ComboBox.SelectedIndex = $SelectedIndex
-    }
-}
-
-#endregion
-
-#region Diálogos de Archivos
-
-function Show-WpfFileDialog {
-    param(
-        [ValidateSet("Open", "Save")]
-        [string]$Type = "Open",
-        [string]$Filter = "Todos los archivos (*.*)|*.*",
-        [string]$InitialDirectory = [Environment]::GetFolderPath('Desktop'),
-        [string]$DefaultFileName = ""
-    )
-
-    Add-Type -AssemblyName Microsoft.Win32
-
-    if ($Type -eq "Open") {
-        $dialog = New-Object Microsoft.Win32.OpenFileDialog
-    } else {
-        $dialog = New-Object Microsoft.Win32.SaveFileDialog
-        $dialog.FileName = $DefaultFileName
-    }
-
-    $dialog.Filter = $Filter
-    $dialog.InitialDirectory = $InitialDirectory
-
-    $result = $dialog.ShowDialog()
-
-    if ($result) {
-        return $dialog.FileName
-    }
-
-    return $null
-}
-
 function Show-WpfFolderDialog {
     param(
         [string]$Description = "Seleccione una carpeta",
         [string]$InitialDirectory = [Environment]::GetFolderPath('Desktop')
     )
-
-    Add-Type -AssemblyName System.Windows.Forms
-
+    if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
+        Write-Warning "Show-WpfFolderDialog requiere STA. Ejecuta PowerShell con -STA."
+        return $null
+    }
     $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $dialog.Description = $Description
     $dialog.SelectedPath = $InitialDirectory
+    $dialog.ShowNewFolderButton = $true
 
     $result = $dialog.ShowDialog()
 
     if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         return $dialog.SelectedPath
     }
-
     return $null
 }
 
-#endregion
 
-#region Diálogos Específicos de la Aplicación
-
-function Show-NewIpForm {
-    [xml]$xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="Agregar IP Adicional"
-        Height="180" Width="350"
-        WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize"
-        Background="#F5F5F5">
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Text="Ingrese la nueva dirección IP:" FontSize="12" Margin="0,0,0,15"/>
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
-            <TextBox Name="txt1" Width="50" MaxLength="3" FontSize="12" Padding="5" Margin="0,0,5,0"/>
-            <TextBlock Text="." FontSize="16" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Name="txt2" Width="50" MaxLength="3" FontSize="12" Padding="5" Margin="0,0,5,0"/>
-            <TextBlock Text="." FontSize="16" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Name="txt3" Width="50" MaxLength="3" FontSize="12" Padding="5" Margin="0,0,5,0"/>
-            <TextBlock Text="." FontSize="16" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Name="txt4" Width="50" MaxLength="3" FontSize="12" Padding="5"/>
-        </StackPanel>
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center">
-            <Button Name="btnOK" Content="Aceptar" Width="100" Margin="0,0,10,0" Padding="8"/>
-            <Button Name="btnCancel" Content="Cancelar" Width="100" Padding="8"/>
-        </StackPanel>
-    </Grid>
-</Window>
-"@
-    $result = New-WpfWindow -Xaml $xaml -PassThru
-    $window = $result.Window
-    $controls = $result.Controls
-    $script:newIpValue = $null
-
-    # Validación de entrada numérica
-    $numericValidation = {
-        param($sender, $e)
-        if (-not [char]::IsDigit($e.Text[0])) {
-            $e.Handled = $true
-        }
-    }
-
-    $controls['txt1'].Add_PreviewTextInput($numericValidation)
-    $controls['txt2'].Add_PreviewTextInput($numericValidation)
-    $controls['txt3'].Add_PreviewTextInput($numericValidation)
-    $controls['txt4'].Add_PreviewTextInput($numericValidation)
-
-    # Auto-focus al siguiente campo
-    $controls['txt1'].Add_TextChanged({
-            if ($controls['txt1'].Text.Length -eq 3) { $controls['txt2'].Focus() }
-        })
-    $controls['txt2'].Add_TextChanged({
-            if ($controls['txt2'].Text.Length -eq 3) { $controls['txt3'].Focus() }
-        })
-    $controls['txt3'].Add_TextChanged({
-            if ($controls['txt3'].Text.Length -eq 3) { $controls['txt4'].Focus() }
-        })
-
-    $controls['btnOK'].Add_Click({
-            try {
-                $octet1 = [int]$controls['txt1'].Text
-                $octet2 = [int]$controls['txt2'].Text
-                $octet3 = [int]$controls['txt3'].Text
-                $octet4 = [int]$controls['txt4'].Text
-
-                if ($octet1 -ge 0 -and $octet1 -le 255 -and
-                    $octet2 -ge 0 -and $octet2 -le 255 -and
-                    $octet3 -ge 0 -and $octet3 -le 255 -and
-                    $octet4 -ge 0 -and $octet4 -le 255) {
-
-                    $newIp = "$octet1.$octet2.$octet3.$octet4"
-
-                    if ($newIp -eq "0.0.0.0") {
-                        [System.Windows.MessageBox]::Show("La dirección IP no puede ser 0.0.0.0.", "Error")
-                        return
-                    }
-
-                    $script:newIpValue = $newIp
-                    $window.DialogResult = $true
-                    $window.Close()
-                } else {
-                    [System.Windows.MessageBox]::Show("Octetos fuera del rango válido (0-255).", "Error")
-                }
-            } catch {
-                [System.Windows.MessageBox]::Show("Complete todos los campos con valores numéricos.", "Error")
-            }
-        })
-
-    $controls['btnCancel'].Add_Click({
-            $window.DialogResult = $false
-            $window.Close()
-        })
-
-    $dialogResult = $window.ShowDialog()
-
-    if ($dialogResult) {
-        return $script:newIpValue
-    }
-
-    return $null
-}
-
-function Show-AddUserDialog {
-    [xml]$xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="Crear Usuario de Windows" Height="250" Width="450"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
-    <Grid Margin="10">
-        <Label Content="Nombre:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,0,0,0"/>
-        <TextBox Name="txtUsername" HorizontalAlignment="Left" VerticalAlignment="Top"
-                 Width="290" Height="25" Margin="110,0,0,0"/>
-
-        <Label Content="Contraseña:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,40,0,0"/>
-        <PasswordBox Name="txtPassword" HorizontalAlignment="Left" VerticalAlignment="Top"
-                     Width="290" Height="25" Margin="110,40,0,0"/>
-
-        <Label Content="Tipo:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,80,0,0"/>
-        <ComboBox Name="cmbType" HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Width="290" Height="25" Margin="110,80,0,0">
-            <ComboBoxItem Content="Usuario estándar"/>
-            <ComboBoxItem Content="Administrador"/>
-        </ComboBox>
-
-        <Button Content="Crear" Name="btnCreate" Width="130" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,130,0,0"/>
-        <Button Content="Cancelar" Name="btnCancel" Width="130" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="140,130,0,0"/>
-        <Button Content="Mostrar usuarios" Name="btnShow" Width="130" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="280,130,0,0"/>
-    </Grid>
-</Window>
-"@
-
-    $reader = New-Object System.Xml.XmlNodeReader $xaml
-    $window = [Windows.Markup.XamlReader]::Load($reader)
-
-    $txtUsername = $window.FindName("txtUsername")
-    $txtPassword = $window.FindName("txtPassword")
-    $cmbType = $window.FindName("cmbType")
-    $btnCreate = $window.FindName("btnCreate")
-    $btnCancel = $window.FindName("btnCancel")
-    $btnShow = $window.FindName("btnShow")
-
-    $cmbType.SelectedIndex = 0
-
-    $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name
-    $userGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name
-
-    $btnShow.Add_Click({
-            Write-Host "`nUsuarios actuales:" -ForegroundColor Cyan
-            $users = Get-LocalUser
-            $usersTable = $users | ForEach-Object {
-                $user = $_
-                $estado = if ($user.Enabled) { "Habilitado" } else { "Deshabilitado" }
-                $tipoUsuario = "Usuario estándar"
-                try {
-                    $adminMembers = Get-LocalGroupMember -Group $adminGroup -ErrorAction Stop
-                    if ($adminMembers | Where-Object { $_.SID -eq $user.SID }) {
-                        $tipoUsuario = "Administrador"
-                    }
-                } catch { }
-                [PSCustomObject]@{
-                    Nombre = $user.Name
-                    Tipo   = $tipoUsuario
-                    Estado = $estado
-                }
-            }
-            $usersTable | Format-Table -AutoSize | Out-String | Write-Host
-        })
-
-    $btnCreate.Add_Click({
-            $username = $txtUsername.Text.Trim()
-            $password = $txtPassword.Password
-            $type = $cmbType.Text
-
-            if (-not $username -or -not $password) {
-                Write-Host "Error: Nombre y contraseña requeridos" -ForegroundColor Red
-                return
-            }
-
-            if ($password.Length -lt 8) {
-                Write-Host "Error: Contraseña debe tener al menos 8 caracteres" -ForegroundColor Red
-                return
-            }
-
-            try {
-                if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
-                    Write-Host "Error: Usuario '$username' ya existe" -ForegroundColor Red
-                    return
-                }
-
-                $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
-                New-LocalUser -Name $username -Password $securePassword -AccountNeverExpires -PasswordNeverExpires
-                Write-Host "Usuario '$username' creado exitosamente" -ForegroundColor Green
-
-                $group = if ($type -eq 'Administrador') { $adminGroup } else { $userGroup }
-                Add-LocalGroupMember -Group $group -Member $username
-                Write-Host "Usuario agregado al grupo $group" -ForegroundColor Cyan
-
-                $window.Close()
-            } catch {
-                Write-Host "Error: $_" -ForegroundColor Red
-            }
-        })
-
-    $btnCancel.Add_Click({
-            Write-Host "Operación cancelada" -ForegroundColor Yellow
-            $window.Close()
-        })
-
-    $window.ShowDialog() | Out-Null
-}
-
-function Show-IPConfigDialog {
-    # [Contenido original de Show-IPConfigDialog - mantener igual]
-    Write-Host "Show-IPConfigDialog: Implementación pendiente o usar la original"
-}
-
-function Show-SSMSSelectionDialog {
+function Set-BrushResource {
     param(
-        [array]$Managers,
-        [array]$SSMSVersions
+        [Parameter(Mandatory)]
+        [System.Windows.ResourceDictionary]$Resources,
+
+        [Parameter(Mandatory)]
+        [string]$Key,
+
+        [Parameter(Mandatory)]
+        [string]$Hex
     )
 
-    # [Contenido original de Show-SSMSSelectionDialog - mantener igual]
-    Write-Host "Show-SSMSSelectionDialog: Implementación pendiente o usar la original"
-}
-
-function Show-LZMADialog {
-    param([array]$Instaladores)
-
-    # [Contenido original de Show-LZMADialog - mantener igual]
-    Write-Host "Show-LZMADialog: Implementación pendiente o usar la original"
-}
-
-function Show-ChocolateyInstallerMenu {
-    <#
-    .SYNOPSIS
-        Menú de instalación de paquetes Chocolatey con búsqueda mejorada.
-    #>
-
-    [xml]$xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        Title="Instaladores Choco" Height="420" Width="520"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
-    <Grid Margin="10" Background="#505055">
-        <Label Content="Buscar en Chocolatey:" HorizontalAlignment="Left" VerticalAlignment="Top"
-               Margin="0,0,0,0" Foreground="White"/>
-        <TextBox Name="txtChocoSearch" HorizontalAlignment="Left" VerticalAlignment="Top"
-                 Width="360" Height="25" Margin="0,25,0,0"/>
-        <Button Content="Buscar" Name="btnBuscarChoco" Width="120" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="370,23,0,0"
-                Background="#4CAF50" Foreground="White"/>
-
-        <Label Content="SSMS" Name="lblPresetSSMS" Width="70" Height="25"
-               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,65,0,0"
-               Background="#C8E6FF" HorizontalContentAlignment="Center"
-               VerticalContentAlignment="Center" BorderBrush="Black" BorderThickness="1" Cursor="Hand"/>
-        <Label Content="Heidi" Name="lblPresetHeidi" Width="70" Height="25"
-               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="80,65,0,0"
-               Background="#C8E6FF" HorizontalContentAlignment="Center"
-               VerticalContentAlignment="Center" BorderBrush="Black" BorderThickness="1" Cursor="Hand"/>
-
-        <Button Content="Mostrar instalados" Name="btnShowInstalledChoco" Width="150" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,100,0,0"/>
-        <Button Content="Instalar seleccionado" Name="btnInstallSelectedChoco" Width="170" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="160,100,0,0" IsEnabled="False"/>
-        <Button Content="Desinstalar seleccionado" Name="btnUninstallSelectedChoco" Width="150" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="340,100,0,0" IsEnabled="False"/>
-
-        <DataGrid Name="dgvChocoResults" HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Width="490" Height="200" Margin="0,145,0,0" IsReadOnly="True"
-                  AutoGenerateColumns="False" SelectionMode="Single" CanUserAddRows="False">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Paquete" Binding="{Binding Name}" Width="170"/>
-                <DataGridTextColumn Header="Versión" Binding="{Binding Version}" Width="100"/>
-                <DataGridTextColumn Header="Descripción" Binding="{Binding Description}" Width="200"/>
-            </DataGrid.Columns>
-        </DataGrid>
-
-        <Button Content="Salir" Name="btnExitInstaladores" Width="490" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,355,0,0"/>
-    </Grid>
-</Window>
-"@
-
-    try {
-        $result = New-WpfWindow -Xaml $xaml -PassThru
-        $window = $result.Window
-    } catch {
-        Write-Host "Error creando ventana: $_" -ForegroundColor Red
-        return
+    if ([string]::IsNullOrWhiteSpace($Hex)) {
+        throw "Theme error: el color para '$Key' llegó vacío/nulo."
     }
 
-    # Obtener controles
-    $txtChocoSearch = $window.FindName("txtChocoSearch")
-    $btnBuscarChoco = $window.FindName("btnBuscarChoco")
-    $lblPresetSSMS = $window.FindName("lblPresetSSMS")
-    $lblPresetHeidi = $window.FindName("lblPresetHeidi")
-    $btnShowInstalledChoco = $window.FindName("btnShowInstalledChoco")
-    $btnInstallSelectedChoco = $window.FindName("btnInstallSelectedChoco")
-    $btnUninstallSelectedChoco = $window.FindName("btnUninstallSelectedChoco")
-    $dgvChocoResults = $window.FindName("dgvChocoResults")
-    $btnExitInstaladores = $window.FindName("btnExitInstaladores")
-
-    # Colección observable
-    $chocoResultsCollection = New-Object System.Collections.ObjectModel.ObservableCollection[PSObject]
-    $dgvChocoResults.ItemsSource = $chocoResultsCollection
-
-    # Función auxiliar para agregar resultados
-    $addChocoResult = {
-        param($line)
-        if ([string]::IsNullOrWhiteSpace($line)) { return }
-        if ($line -match '^Chocolatey') { return }
-        if ($line -match 'packages?\s+found' -or $line -match 'page size') { return }
-
-        if ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+(?<version>[0-9][A-Za-z0-9\.\-]*)\s+(?<description>.+)$') {
-            $window.Dispatcher.Invoke([action] {
-                    $chocoResultsCollection.Add([PSCustomObject]@{
-                            Name        = $Matches['name']
-                            Version     = $Matches['version']
-                            Description = $Matches['description'].Trim()
-                        })
-                })
-        } elseif ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+\|\s+(?<version>[0-9][A-Za-z0-9\.\-]*)$') {
-            $window.Dispatcher.Invoke([action] {
-                    $chocoResultsCollection.Add([PSCustomObject]@{
-                            Name        = $Matches['name']
-                            Version     = $Matches['version']
-                            Description = "Paquete instalado"
-                        })
-                })
-        }
+    # Acepta #RRGGBB o #AARRGGBB
+    if ($Hex -notmatch '^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$') {
+        throw "Theme error: el color para '$Key' no es HEX válido: '$Hex' (usa #RRGGBB o #AARRGGBB)."
     }
 
-    # Actualizar botones de acción
-    $updateActionButtons = {
-        $hasValidSelection = $false
-        if ($dgvChocoResults.SelectedItem) {
-            $selectedItem = $dgvChocoResults.SelectedItem
-            if ($selectedItem.Name -and $selectedItem.Version -match '^[0-9]') {
-                $hasValidSelection = $true
-            }
-        }
-        $btnInstallSelectedChoco.IsEnabled = $hasValidSelection
-        $btnUninstallSelectedChoco.IsEnabled = $hasValidSelection
-    }
+    # ✅ Esto regresa un Brush (SolidColorBrush) listo para Background/Foreground/BorderBrush
+    $brush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($Hex)
 
-    $dgvChocoResults.Add_SelectionChanged({ & $updateActionButtons })
+    # Congelar si se puede (mejor rendimiento)
+    if ($brush -is [System.Windows.Freezable] -and $brush.CanFreeze) { $brush.Freeze() }
 
-    # Botón Buscar - MEJORADO CON BARRA DE PROGRESO
-    $btnBuscarChoco.Add_Click({
-            $chocoResultsCollection.Clear()
-            & $updateActionButtons
-
-            $query = $txtChocoSearch.Text.Trim()
-
-            if ([string]::IsNullOrWhiteSpace($query)) {
-                [System.Windows.MessageBox]::Show("Ingresa un término para buscar", "Búsqueda")
-                return
-            }
-
-            if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-                [System.Windows.MessageBox]::Show("Chocolatey no está instalado", "Error")
-                return
-            }
-
-            $btnBuscarChoco.IsEnabled = $false
-
-            # USAR BARRA DE PROGRESO MEJORADA
-            $progress = Show-WpfProgressBar -Title "Buscando paquetes" -Message "Iniciando búsqueda..."
-
-            try {
-                Update-WpfProgressBar -Window $progress -Percent 20 -Message "Verificando Chocolatey..."
-                Start-Sleep -Milliseconds 300
-
-                Update-WpfProgressBar -Window $progress -Percent 40 -Message "Buscando '$query'..."
-                $searchOutput = & choco search $query --page-size=20 2>&1
-
-                Update-WpfProgressBar -Window $progress -Percent 70 -Message "Procesando resultados..."
-
-                foreach ($line in $searchOutput) {
-                    & $addChocoResult $line
-                }
-
-                Update-WpfProgressBar -Window $progress -Percent 100 -Message "Búsqueda completada"
-                Start-Sleep -Milliseconds 300
-
-                if ($chocoResultsCollection.Count -eq 0) {
-                    [System.Windows.MessageBox]::Show("No se encontraron paquetes", "Sin resultados")
-                }
-            } catch {
-                Write-Error "Error: $_"
-                [System.Windows.MessageBox]::Show("Error durante la búsqueda: $_", "Error")
-            } finally {
-                Close-WpfProgressBar -Window $progress
-                $btnBuscarChoco.IsEnabled = $true
-            }
-        })
-
-    # Presets
-    $lblPresetSSMS.Add_MouseLeftButtonDown({
-            $txtChocoSearch.Text = "ssms"
-            $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent)))
-        })
-
-    $lblPresetHeidi.Add_MouseLeftButtonDown({
-            $txtChocoSearch.Text = "heidi"
-            $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent)))
-        })
-
-    # Mostrar instalados - MEJORADO
-    $btnShowInstalledChoco.Add_Click({
-            $chocoResultsCollection.Clear()
-            & $updateActionButtons
-
-            if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-                [System.Windows.MessageBox]::Show("Chocolatey no está instalado", "Error")
-                return
-            }
-
-            $btnShowInstalledChoco.IsEnabled = $false
-            $progress = Show-WpfProgressBar -Title "Listando instalados" -Message "Recuperando paquetes..."
-
-            try {
-                Update-WpfProgressBar -Window $progress -Percent 30 -Message "Consultando paquetes instalados..."
-                $installedOutput = & choco list --local-only --limit-output 2>&1
-
-                Update-WpfProgressBar -Window $progress -Percent 70 -Message "Procesando resultados..."
-
-                foreach ($line in $installedOutput) {
-                    & $addChocoResult $line
-                }
-
-                Update-WpfProgressBar -Window $progress -Percent 100 -Message "Completado"
-                Start-Sleep -Milliseconds 300
-
-                if ($chocoResultsCollection.Count -eq 0) {
-                    [System.Windows.MessageBox]::Show("No hay paquetes instalados", "Sin resultados")
-                }
-            } catch {
-                Write-Error "Error: $_"
-                [System.Windows.MessageBox]::Show("Error consultando paquetes: $_", "Error")
-            } finally {
-                Close-WpfProgressBar -Window $progress
-                $btnShowInstalledChoco.IsEnabled = $true
-            }
-        })
-
-    # Instalar - MEJORADO
-    $btnInstallSelectedChoco.Add_Click({
-            if (-not $dgvChocoResults.SelectedItem) {
-                [System.Windows.MessageBox]::Show("Seleccione un paquete", "Instalación")
-                return
-            }
-
-            $packageName = $dgvChocoResults.SelectedItem.Name
-
-            $result = [System.Windows.MessageBox]::Show(
-                "¿Instalar $packageName?",
-                "Confirmar",
-                [System.Windows.MessageBoxButton]::YesNo,
-                [System.Windows.MessageBoxImage]::Question
-            )
-
-            if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
-                return
-            }
-
-            $progress = Show-WpfProgressBar -Title "Instalando" -Message "Preparando instalación..."
-
-            try {
-                Update-WpfProgressBar -Window $progress -Percent 20 -Message "Verificando paquete..."
-                Start-Sleep -Milliseconds 300
-
-                Update-WpfProgressBar -Window $progress -Percent 40 -Message "Instalando $packageName..."
-
-                $installProcess = Start-Process -FilePath "choco" `
-                    -ArgumentList "install", $packageName, "-y" `
-                    -NoNewWindow -PassThru -Wait
-
-                Update-WpfProgressBar -Window $progress -Percent 90 -Message "Verificando instalación..."
-                Start-Sleep -Milliseconds 500
-
-                if ($installProcess.ExitCode -eq 0) {
-                    Update-WpfProgressBar -Window $progress -Percent 100 -Message "Instalación completada"
-                    Start-Sleep -Milliseconds 500
-                    [System.Windows.MessageBox]::Show("Paquete instalado exitosamente", "Éxito")
-                } else {
-                    throw "Error de instalación: código $($installProcess.ExitCode)"
-                }
-            } catch {
-                Write-Error $_
-                [System.Windows.MessageBox]::Show("Error: $_", "Error")
-            } finally {
-                Close-WpfProgressBar -Window $progress
-            }
-        })
-
-    # Desinstalar - MEJORADO
-    $btnUninstallSelectedChoco.Add_Click({
-            if (-not $dgvChocoResults.SelectedItem) {
-                [System.Windows.MessageBox]::Show("Seleccione un paquete", "Desinstalación")
-                return
-            }
-
-            $packageName = $dgvChocoResults.SelectedItem.Name
-
-            $result = [System.Windows.MessageBox]::Show(
-                "¿Desinstalar $packageName?",
-                "Confirmar",
-                [System.Windows.MessageBoxButton]::YesNo,
-                [System.Windows.MessageBoxImage]::Warning
-            )
-
-            if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
-                return
-            }
-
-            $progress = Show-WpfProgressBar -Title "Desinstalando" -Message "Preparando desinstalación..."
-
-            try {
-                Update-WpfProgressBar -Window $progress -Percent 30 -Message "Desinstalando $packageName..."
-
-                $uninstallProcess = Start-Process -FilePath "choco" `
-                    -ArgumentList "uninstall", $packageName, "-y" `
-                    -NoNewWindow -PassThru -Wait
-
-                Update-WpfProgressBar -Window $progress -Percent 90 -Message "Verificando desinstalación..."
-                Start-Sleep -Milliseconds 500
-
-                if ($uninstallProcess.ExitCode -eq 0) {
-                    Update-WpfProgressBar -Window $progress -Percent 100 -Message "Desinstalación completada"
-                    Start-Sleep -Milliseconds 500
-                    [System.Windows.MessageBox]::Show("Paquete desinstalado exitosamente", "Éxito")
-                } else {
-                    throw "Error: código $($uninstallProcess.ExitCode)"
-                }
-            } catch {
-                Write-Error $_
-                [System.Windows.MessageBox]::Show("Error: $_", "Error")
-            } finally {
-                Close-WpfProgressBar -Window $progress
-            }
-        })
-
-    # Salir
-    $btnExitInstaladores.Add_Click({ $window.Close() })
-
-    # Mostrar ventana
-    $window.ShowDialog() | Out-Null
+    $Resources[$Key] = $brush
 }
 
-#endregion
 
-# Exportar todas las funciones
+function Set-DzWpfThemeResources {
+    param(
+        [Parameter(Mandatory)] [System.Windows.Window]$Window,
+        [Parameter(Mandatory)] $Theme
+    )
+
+    # Mapeo: keys WPF (FormBg, PanelBg...) -> propiedades reales del Theme
+    Set-BrushResource -Resources $Window.Resources -Key "FormBg"           -Hex $Theme.FormBackground
+    Set-BrushResource -Resources $Window.Resources -Key "FormFg"           -Hex $Theme.FormForeground
+
+    # PanelBg/PanelFg: puedes usar InfoBackground/InfoForeground para paneles
+    Set-BrushResource -Resources $Window.Resources -Key "PanelBg"          -Hex $Theme.InfoBackground
+    Set-BrushResource -Resources $Window.Resources -Key "PanelFg"          -Hex $Theme.InfoForeground
+
+    Set-BrushResource -Resources $Window.Resources -Key "ControlBg"        -Hex $Theme.ControlBackground
+    Set-BrushResource -Resources $Window.Resources -Key "ControlFg"        -Hex $Theme.ControlForeground
+
+    Set-BrushResource -Resources $Window.Resources -Key "BorderBrushColor" -Hex $Theme.BorderColor
+
+    Set-BrushResource -Resources $Window.Resources -Key "AccentPrimary"    -Hex $Theme.AccentPrimary
+    Set-BrushResource -Resources $Window.Resources -Key "AccentSecondary"  -Hex $Theme.AccentSecondary
+}
+
+
 Export-ModuleMember -Function @(
+    'Get-DzUiTheme',
     'New-WpfWindow',
     'Show-WpfMessageBox',
     'New-WpfInputDialog',
@@ -1037,17 +548,8 @@ Export-ModuleMember -Function @(
     'Close-WpfProgressBar',
     'Set-WpfControlEnabled',
     'Get-WpfPasswordBoxText',
-    'Add-WpfComboBoxItems',
-    'Show-WpfFileDialog',
     'Show-WpfFolderDialog',
     'Show-ProgressBar',
-    'Update-ProgressBar',
-    'Close-ProgressBar',
-    'Set-ControlEnabled',
-    'Show-NewIpForm',
-    'Show-AddUserDialog',
-    'Show-IPConfigDialog',
-    'Show-SSMSSelectionDialog',
-    'Show-LZMADialog',
-    'Show-ChocolateyInstallerMenu'
+    'Set-WpfDialogOwner',
+    'Set-DzWpfThemeResources'
 )

@@ -207,15 +207,84 @@ function Show-BackupDialog {
     param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database)
     $script:BackupRunning = $false
     $script:BackupDone = $false
+    $script:EnableThreadJob = $false
+    function Initialize-ThreadJob {
+        [CmdletBinding()]
+        param()
+
+        Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Verificando módulo ThreadJob"
+
+        # Verificar si el módulo está disponible
+        if (Get-Module -ListAvailable -Name ThreadJob) {
+            Import-Module ThreadJob -Force
+            Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob importado"
+            return $true
+        } else {
+            Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob no encontrado, intentando instalar"
+
+            try {
+                # Intentar instalar desde PSGallery
+                Install-Module -Name ThreadJob -Force -Scope CurrentUser -ErrorAction Stop
+                Import-Module ThreadJob -Force
+                Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob instalado e importado"
+                return $true
+            } catch {
+                Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Error instalando ThreadJob: $_"
+                return $false
+            }
+        }
+    }
+
+    if ($script:EnableThreadJob) {
+        if (-not (Initialize-ThreadJob)) {
+            Write-Host "Advertencia: No se pudo cargar ThreadJob..." -ForegroundColor Yellow
+        }
+    }
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] INICIO"
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Server='$Server' Database='$Database' User='$User'"
 
     Add-Type -AssemblyName PresentationFramework
     Add-Type -AssemblyName System.Windows.Forms
 
+    $theme = Get-DzUiTheme
     $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Respaldo" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
-    <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="Auto"/>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Respaldo" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)">
+    <Window.Resources>
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="ProgressBar">
+            <Setter Property="Foreground" Value="$($theme.AccentSecondary)"/>
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="20" Background="$($theme.FormBackground)"><Grid.RowDefinitions><RowDefinition Height="Auto"/>
     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <CheckBox x:Name="chkRespaldo" Grid.Row="0" IsChecked="True" IsEnabled="False" Margin="0,0,0,10"><TextBlock Text="Respaldar" FontWeight="Bold"/>
@@ -224,17 +293,18 @@ function Show-BackupDialog {
     </CheckBox><Label x:Name="lblPassword" Grid.Row="4" Content="Contraseña (opcional) para ZIP:"/><Grid Grid.Row="5" Margin="0,5,0,10">
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
     </Grid.ColumnDefinitions><PasswordBox x:Name="txtPassword" Grid.Column="0" Height="25"/>
-    <Button x:Name="btnTogglePassword" Grid.Column="1" Content="👁" Width="30" Margin="5,0,0,0"/>
+    <Button x:Name="btnTogglePassword" Grid.Column="1" Content="👁" Width="30" Margin="5,0,0,0" Style="{StaticResource SystemButtonStyle}"/>
     </Grid><CheckBox x:Name="chkSubir" Grid.Row="6" Margin="0,0,0,20" IsEnabled="False">
-    <TextBlock Text="Subir a Mega.nz (opción deshabilitada)" FontWeight="Bold" Foreground="Gray"/></CheckBox>
+    <TextBlock Text="Subir a Mega.nz (opción deshabilitada)" FontWeight="Bold" Foreground="$($theme.FormForeground)"/>
+    </CheckBox>
     <GroupBox Grid.Row="7" Header="Progreso" Margin="0,0,0,10">
     <StackPanel><ProgressBar x:Name="pbBackup" Height="20" Margin="5" Minimum="0" Maximum="100" Value="0"/>
     <TextBlock x:Name="txtProgress" Text="Esperando..." Margin="5,5,5,10" TextWrapping="Wrap"/>
     </StackPanel></GroupBox><GroupBox Grid.Row="8" Header="Log">
     <TextBox x:Name="txtLog" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="160"/>
-    </GroupBox><StackPanel Grid.Row="9" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0"><Button x:Name="btnAceptar" Content="Iniciar Respaldo" Width="120" Height="30" Margin="5,0"/>
-    <Button x:Name="btnAbrirCarpeta" Content="Abrir Carpeta" Width="100" Height="30" Margin="5,0"/>
-    <Button x:Name="btnCerrar" Content="Cerrar" Width="80" Height="30" Margin="5,0"/></StackPanel></Grid>
+    </GroupBox><StackPanel Grid.Row="9" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0"><Button x:Name="btnAceptar" Content="Iniciar Respaldo" Width="120" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/>
+    <Button x:Name="btnAbrirCarpeta" Content="Abrir Carpeta" Width="100" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/>
+    <Button x:Name="btnCerrar" Content="Cerrar" Width="80" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/></StackPanel></Grid>
 </Window>
 "@
 
@@ -336,41 +406,91 @@ function Show-BackupDialog {
                     param([string]$Message)
                     $m = ($Message -replace '\s+', ' ').Trim()
                     if ($m) { EnqLog ("[SQL] {0}" -f $m) }
+                    # Reserva de barra si hay compresión
+                    $backupMax = 100
+                    if ($DoCompress) { $backupMax = 90 }  # 0..90 backup, 90..99 zip, 100 solo al final (__DONE__)
+
                     if ($Message -match '(?i)\b(\d{1,3})\s*(percent|porcentaje|por\s+ciento)\b') {
                         $p = [int]$Matches[1]
                         if ($p -gt 100) { $p = 100 }
                         if ($p -lt 0) { $p = 0 }
-                        EnqProg $p ("Progreso: {0}%" -f $p)
+                        # Escalar el progreso del backup al rango 0..$backupMax
+                        $scaled = [int][math]::Floor(($p * $backupMax) / 100)
+                        # Si hay compresión, evita que el BACKUP alcance 100 visualmente
+                        if ($DoCompress -and $scaled -ge 100) { $scaled = 90 }
+                        EnqProg $scaled ("Progreso backup: {0}%" -f $p)
                         EnqLog  ("Progreso backup: {0}%" -f $p)
                         return
                     }
                     if ($Message -match '(?i)\b(successfully processed|procesad[oa]\s+correctamente|completad[oa])\b') {
-                        EnqProg 100 "¡Backup completado!"
+                        if ($DoCompress) {
+                            EnqProg 90 "Backup listo. Iniciando compresión..."
+                        } else {
+                            EnqProg 100 "¡Backup completado!"
+                        }
                         EnqLog "✅ Backup completado (mensaje SQL)"
                         return
                     }
                 }
                 $r = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $BackupQuery -Credential $Credential -InfoMessageCallback $progressCb
                 if (-not $r.Success) { EnqProg 0 "Error en backup"; EnqLog ("❌ Error de SQL: {0}" -f $r.ErrorMessage); EnqLog "__DONE__"; return }
-                EnqProg 100 "Backup terminado, verificando archivo..."
+                if ($DoCompress) {
+                    EnqProg 90 "Backup terminado. Iniciando compresión..."
+                } else {
+                    EnqProg 100 "Backup terminado."
+                }
                 EnqLog  "✅ Comando BACKUP finalizó (ExecuteNonQuery)"
                 Start-Sleep -Milliseconds 500
                 if (Test-Path $ScriptBackupPath)
                 { $sizeMB = [math]::Round((Get-Item $ScriptBackupPath).Length / 1MB, 2); EnqLog ("📊 Tamaño del archivo: {0} MB" -f $sizeMB); EnqLog ("📁 Ubicación: {0}" -f $ScriptBackupPath) }
                 else { EnqLog ("⚠️ No se encontró el archivo en: {0}" -f $ScriptBackupPath) }
                 if ($DoCompress) {
+                    EnqProg 90 "Backup listo. Preparando compresión..."
                     EnqLog "🗜️ Iniciando compresión ZIP..."
+
                     $inputBak = $ScriptBackupPath
                     $zipPath = "$ScriptBackupPath.zip"
-                    if (-not (Test-Path $inputBak)) { EnqLog ("⚠️ No existe el BAK accesible: {0}" -f $inputBak); EnqLog "__DONE__"; return }
+
+                    if (-not (Test-Path $inputBak)) {
+                        EnqProg 0 "Error: no existe BAK"
+                        EnqLog ("⚠️ No existe el BAK accesible: {0}" -f $inputBak)
+                        EnqLog "__DONE__"
+                        return
+                    }
+
                     $sevenZip = Get-7ZipPath
-                    if (-not $sevenZip -or -not (Test-Path $sevenZip)) { EnqLog "❌ No se encontró 7z.exe. No se puede comprimir."; EnqLog "__DONE__"; return }
+                    if (-not $sevenZip -or -not (Test-Path $sevenZip)) {
+                        EnqProg 0 "Error: no se encontró 7-Zip"
+                        EnqLog "❌ No se encontró 7z.exe. No se puede comprimir."
+                        EnqLog "__DONE__"
+                        return
+                    }
+
                     try {
                         if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
-                        if ($ZipPassword -and $ZipPassword.Trim().Length -gt 0) { & $sevenZip a -tzip -p"$($ZipPassword.Trim())" -mem=AES256 $zipPath $inputBak | Out-Null } else { & $sevenZip a -tzip $zipPath $inputBak | Out-Null }
+
+                        EnqProg 92 "Comprimiendo (ZIP)..."
+                        if ($ZipPassword -and $ZipPassword.Trim().Length -gt 0) {
+                            & $sevenZip a -tzip -p"$($ZipPassword.Trim())" -mem=AES256 $zipPath $inputBak | Out-Null
+                        } else {
+                            & $sevenZip a -tzip $zipPath $inputBak | Out-Null
+                        }
+
+                        EnqProg 97 "Finalizando compresión..."
                         Start-Sleep -Milliseconds 300
-                        if (Test-Path $zipPath) { $zipMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2); EnqLog ("✅ ZIP creado ({0} MB): {1}" -f $zipMB, $zipPath) } else { EnqLog ("❌ Se ejecutó 7-Zip pero NO se generó el ZIP: {0}" -f $zipPath) }
-                    } catch { EnqLog ("❌ Error al comprimir: {0}" -f $_.Exception.Message) }
+
+                        if (Test-Path $zipPath) {
+                            $zipMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
+                            EnqProg 99 "ZIP creado. Cerrando..."
+                            EnqLog ("✅ ZIP creado ({0} MB): {1}" -f $zipMB, $zipPath)
+                        } else {
+                            EnqProg 0 "Error: ZIP no generado"
+                            EnqLog ("❌ Se ejecutó 7-Zip pero NO se generó el ZIP: {0}" -f $zipPath)
+                        }
+                    } catch {
+                        EnqProg 0 "Error al comprimir"
+                        EnqLog ("❌ Error al comprimir: {0}" -f $_.Exception.Message)
+                    }
                 }
                 EnqLog "__DONE__"
             } catch {
@@ -399,12 +519,18 @@ function Show-BackupDialog {
     $logTimer.Add_Tick({
             try {
                 $count = 0
+                $doneThisTick = $false
+
                 while ($count -lt 50) {
                     $line = $null
                     if (-not $logQueue.TryDequeue([ref]$line)) { break }
+
                     $txtLog.Text = "$line`n" + $txtLog.Text
+
                     if ($line -like "*__DONE__*") {
                         Write-DzDebug "`t[DEBUG][UI] Señal DONE recibida"
+                        $doneThisTick = $true
+
                         $script:BackupRunning = $false
                         $btnAceptar.IsEnabled = $true
                         $btnAceptar.Content = "Iniciar Respaldo"
@@ -412,28 +538,36 @@ function Show-BackupDialog {
                         $chkComprimir.IsEnabled = $true
                         if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true }
                         $btnAbrirCarpeta.IsEnabled = $true
-                        if ($pbBackup.Value -lt 100) {
-                            Paint-Progress -Percent 100 -Message "Completado"
-                        }
+
+                        # Limpia progreso pendiente para que no pise el 100
+                        $tmp = $null
+                        while ($progressQueue.TryDequeue([ref]$tmp)) { }
+
+                        Paint-Progress -Percent 100 -Message "Completado"
                         $script:BackupDone = $true
                     }
+
                     $count++
                 }
+
                 if ($count -gt 0) { $txtLog.ScrollToLine(0) }
-                $last = $null
-                while ($true) {
-                    $p = $null
-                    if (-not $progressQueue.TryDequeue([ref]$p)) { break }
-                    $last = $p
+
+                # Solo si NO llegó DONE en este tick, aplicamos el último progreso
+                if (-not $doneThisTick) {
+                    $last = $null
+                    while ($true) {
+                        $p = $null
+                        if (-not $progressQueue.TryDequeue([ref]$p)) { break }
+                        $last = $p
+                    }
+                    if ($last) { Paint-Progress -Percent $last.Percent -Message $last.Message }
                 }
-                if ($last) {
-                    Paint-Progress -Percent $last.Percent -Message $last.Message
-                }
+
             } catch {
                 Write-DzDebug "`t[DEBUG][UI][logTimer] ERROR: $($_.Exception.Message)"
             }
+
             if ($script:BackupDone) {
-                # si ya no queda nada por mostrar, ahora sí detenemos
                 $tmpLine = $null
                 $tmpProg = $null
                 if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) {
@@ -442,6 +576,7 @@ function Show-BackupDialog {
                 }
             }
         })
+
     $logTimer.Start()
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] logTimer iniciado"
 

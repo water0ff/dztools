@@ -576,6 +576,7 @@ function New-MainForm {
 
         throw
     }
+    $global:DzUiOwnerWindow = $window
     function Ui-Info([string]$m, [string]$t = "Información") {
         Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $window | Out-Null
     }
@@ -588,6 +589,10 @@ function New-MainForm {
     function Ui-Confirm([string]$m, [string]$t = "Confirmar") {
         (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $window) -eq [System.Windows.MessageBoxResult]::Yes
     }
+    Set-Item -Path function:\global:Ui-Info    -Value ${function:Ui-Info}
+    Set-Item -Path function:\global:Ui-Warn    -Value ${function:Ui-Warn}
+    Set-Item -Path function:\global:Ui-Error   -Value ${function:Ui-Error}
+    Set-Item -Path function:\global:Ui-Confirm -Value ${function:Ui-Confirm}
     $lblHostname = $window.FindName("lblHostname")
     $lblPort = $window.FindName("lblPort")
     $txt_IpAdress = $window.FindName("txt_IpAdress")

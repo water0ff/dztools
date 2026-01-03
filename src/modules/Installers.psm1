@@ -1,32 +1,19 @@
 ﻿#requires -Version 5.0
-
-# ============================================
-# Installers.psm1 - Versión WPF
-# Módulo de instalación de software
-# ============================================
-
-# ============================================
-# FUNCIÓN: Check-Chocolatey
-# ============================================
 function Check-Chocolatey {
     <#
     .SYNOPSIS
     Verifica si Chocolatey está instalado y ofrece instalarlo
-
     .DESCRIPTION
     Comprueba la existencia de Chocolatey y solicita instalación si no existe
-
     .OUTPUTS
     Boolean - True si está instalado o instalación exitosa, False en caso contrario
     #>
-
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-        $result = [System.Windows.MessageBox]::Show(
-            "Chocolatey no está instalado. ¿Desea instalarlo ahora?",
-            "Chocolatey no encontrado",
-            [System.Windows.MessageBoxButton]::YesNo,
-            [System.Windows.MessageBoxImage]::Question
-        )
+        $result = Show-WpfMessageBox `
+            -Message "Chocolatey no está instalado. ¿Desea instalarlo ahora?" `
+            -Title "Chocolatey no encontrado" `
+            -Buttons "YesNo" `
+            -Icon "Question"
 
         if ($result -eq [System.Windows.MessageBoxResult]::No) {
             Write-Host "`nEl usuario canceló la instalación de Chocolatey." -ForegroundColor Red
@@ -38,32 +25,26 @@ function Check-Chocolatey {
             Set-ExecutionPolicy Bypass -Scope Process -Force
             [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
             iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-
             Write-Host "`nChocolatey se instaló correctamente." -ForegroundColor Green
-
             # Configurar cacheLocation
             Write-Host "`nConfigurando Chocolatey..." -ForegroundColor Yellow
             choco config set cacheLocation C:\Choco\cache
-
-            [System.Windows.MessageBox]::Show(
-                "Chocolatey se instaló correctamente y ha sido configurado. Por favor, reinicie PowerShell antes de continuar.",
-                "Reinicio requerido",
-                [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Information
-            )
-
+            Show-WpfMessageBox `
+                -Message "Chocolatey se instaló correctamente y ha sido configurado. Por favor, reinicie PowerShell antes de continuar." `
+                -Title "Reinicio requerido" `
+                -Buttons "OK" `
+                -Icon "Information" | Out-Null
             # Cerrar el programa automáticamente
             Write-Host "`nCerrando la aplicación para permitir reinicio de PowerShell..." -ForegroundColor Red
             Stop-Process -Id $PID -Force
             return $false
         } catch {
             Write-Host "`nError al instalar Chocolatey: $_" -ForegroundColor Red
-            [System.Windows.MessageBox]::Show(
-                "Error al instalar Chocolatey. Por favor, inténtelo manualmente.",
-                "Error de instalación",
-                [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Error
-            )
+            Show-WpfMessageBox `
+                -Message "Error al instalar Chocolatey. Por favor, inténtelo manualmente.`n`nDetalle: $($_.Exception.Message)" `
+                -Title "Error de instalación" `
+                -Buttons "OK" `
+                -Icon "Error" | Out-Null
             return $false
         }
     } else {
@@ -71,40 +52,27 @@ function Check-Chocolatey {
         return $true
     }
 }
-
-# ============================================
-# FUNCIÓN: Test-ChocolateyInstalled
-# ============================================
 function Test-ChocolateyInstalled {
     <#
     .SYNOPSIS
     Verifica si Chocolatey está instalado sin solicitar instalación
-
     .OUTPUTS
     Boolean - True si está instalado, False en caso contrario
     #>
 
     return $null -ne (Get-Command choco -ErrorAction SilentlyContinue)
 }
-
-# ============================================
-# FUNCIÓN: Install-Software
-# ============================================
 function Install-Software {
     <#
     .SYNOPSIS
     Instala software mediante Chocolatey
-
     .PARAMETER Software
     Nombre del software a instalar (SQL2014, SQL2019, SSMS, 7Zip, MegaTools)
-
     .PARAMETER Force
     Forzar reinstalación si ya existe
-
     .OUTPUTS
     Boolean - True si la instalación fue exitosa, False en caso contrario
     #>
-
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -114,13 +82,10 @@ function Install-Software {
         [Parameter(Mandatory = $false)]
         [switch]$Force
     )
-
-    # Verificar Chocolatey
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
         Write-Error "Chocolatey no está instalado. Use Check-Chocolatey primero."
         return $false
     }
-
     switch ($Software) {
         'SQL2014' {
             Write-Host "Instalando SQL Server 2014 Express..." -ForegroundColor Cyan
@@ -131,7 +96,6 @@ function Install-Software {
                 '--params', '"/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:NationalSoft /FEATURES:SQL"'
             )
         }
-
         'SQL2019' {
             Write-Host "Instalando SQL Server 2019 Express..." -ForegroundColor Cyan
             $arguments = @(
@@ -141,17 +105,14 @@ function Install-Software {
                 '--params', '"/SQLUSER:sa /SQLPASSWORD:National09 /INSTANCENAME:SQL2019 /FEATURES:SQL"'
             )
         }
-
         'SSMS' {
             Write-Host "Instalando SQL Server Management Studio..." -ForegroundColor Cyan
             $arguments = @('install', 'sql-server-management-studio', '-y')
         }
-
         '7Zip' {
             Write-Host "Instalando 7-Zip..." -ForegroundColor Cyan
             $arguments = @('install', '7zip', '-y')
         }
-
         'MegaTools' {
             Write-Host "Instalando MegaTools..." -ForegroundColor Cyan
             $arguments = @('install', 'megatools', '-y')
@@ -168,24 +129,16 @@ function Install-Software {
         return $false
     }
 }
-
-# ============================================
-# FUNCIÓN: Download-File
-# ============================================
 function Download-File {
     <#
     .SYNOPSIS
     Descarga un archivo desde una URL
-
     .PARAMETER Url
     URL del archivo a descargar
-
     .PARAMETER OutputPath
     Ruta de destino del archivo
-
     .PARAMETER ShowProgress
     Mostrar barra de progreso durante la descarga
-
     .OUTPUTS
     Boolean - True si la descarga fue exitosa, False en caso contrario
     #>
@@ -194,10 +147,8 @@ function Download-File {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Url,
-
         [Parameter(Mandatory = $true)]
         [string]$OutputPath,
-
         [Parameter(Mandatory = $false)]
         [switch]$ShowProgress
     )
@@ -236,24 +187,16 @@ function Download-File {
         return $false
     }
 }
-
-# ============================================
-# FUNCIÓN: Expand-ArchiveFile
-# ============================================
 function Expand-ArchiveFile {
     <#
     .SYNOPSIS
     Extrae un archivo comprimido
-
     .PARAMETER ArchivePath
     Ruta del archivo comprimido
-
     .PARAMETER DestinationPath
     Ruta de destino para extraer
-
     .PARAMETER Force
     Forzar extracción sobrescribiendo archivos existentes
-
     .OUTPUTS
     Boolean - True si la extracción fue exitosa, False en caso contrario
     #>
@@ -262,10 +205,8 @@ function Expand-ArchiveFile {
     param(
         [Parameter(Mandatory = $true)]
         [string]$ArchivePath,
-
         [Parameter(Mandatory = $true)]
         [string]$DestinationPath,
-
         [Parameter(Mandatory = $false)]
         [switch]$Force
     )
@@ -275,13 +216,10 @@ function Expand-ArchiveFile {
         if ($Force -and (Test-Path $DestinationPath)) {
             Remove-Item $DestinationPath -Recurse -Force
         }
-
         if (-not (Test-Path $DestinationPath)) {
             New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
         }
-
         Expand-Archive -Path $ArchivePath -DestinationPath $DestinationPath -Force
-
         Write-Verbose "Archivo extraído a: $DestinationPath"
         return $true
     } catch {
@@ -312,42 +250,138 @@ function Show-SSMSInstallerDialog {
         ResizeMode="NoResize"
         Background="$($theme.FormBackground)">
 
-    <Window.Resources>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-        </Style>
-        <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+<Window.Resources>
+
+    <!-- Texto por defecto -->
+    <Style TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+    </Style>
+
+    <!-- TextBox por defecto -->
+    <Style TargetType="TextBox">
+        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <!-- Botón base: SIEMPRE define Disabled -->
+    <Style x:Key="BaseButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Opacity" Value="1"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+
+        <!-- Aquí está el FIX: disabled legible -->
+        <Style.Triggers>
+            <Trigger Property="IsEnabled" Value="False">
+                <!-- no dejes que WPF “lave” los colores -->
+                <Setter Property="Opacity" Value="1"/>
+                <Setter Property="Cursor" Value="Arrow"/>
+                <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Acción (botones verdes/azules) -->
+    <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+        <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <!-- disabled coherente también aquí -->
+                <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+        <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="15,8"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="$($theme.AccentPrimary)"/>
+                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                    <Setter Property="BorderThickness" Value="0"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
-    </Window.Resources>
+
+    <!-- ========================= -->
+    <!-- DataGrid: estilos completos -->
+    <!-- ========================= -->
+
+    <Style TargetType="DataGrid">
+        <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="RowBackground" Value="{DynamicResource PanelBg}"/>
+        <Setter Property="AlternatingRowBackground" Value="{DynamicResource ControlBg}"/>
+        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BorderBrushColor}"/>
+        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource BorderBrushColor}"/>
+    </Style>
+
+    <Style TargetType="DataGridColumnHeader">
+        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <Style TargetType="DataGridRow">
+        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="DataGridCell">
+        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+</Window.Resources>
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -397,16 +431,12 @@ function Show-SSMSInstallerDialog {
         [xml]$xaml = $stringXaml
         $reader = New-Object System.Xml.XmlNodeReader $xaml
         $window = [Windows.Markup.XamlReader]::Load($reader)
-
-
         # Obtener controles
         $cmbVersion = $window.FindName("cmbVersion")
         $btnOK = $window.FindName("btnOK")
         $btnCancel = $window.FindName("btnCancel")
-
         # Variable para almacenar resultado
         $script:selectedVersion = $null
-
         # Eventos
         $btnOK.Add_Click({
                 $selectedIndex = $cmbVersion.SelectedIndex
@@ -424,10 +454,8 @@ function Show-SSMSInstallerDialog {
                 $window.DialogResult = $false
                 $window.Close()
             })
-
         # Mostrar diálogo
         $result = $window.ShowDialog()
-
         if ($result) {
             return $script:selectedVersion
         }
@@ -517,18 +545,12 @@ function Get-InstalledChocoPackages {
         return @()
     }
 }
-
-# ============================================
-# FUNCIÓN: Search-ChocoPackages
-# ============================================
 function Search-ChocoPackages {
     <#
     .SYNOPSIS
     Busca paquetes en el repositorio de Chocolatey
-
     .PARAMETER Query
     Término de búsqueda
-
     .OUTPUTS
     Array de objetos con Name, Version y Description
     #>
@@ -665,98 +687,301 @@ function Show-ChocolateyInstallerMenu {
     .SYNOPSIS
         Menú de instalación de paquetes Chocolatey con búsqueda mejorada.
     #>
-
     $theme = Get-DzUiTheme
     $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Instaladores Choco" Height="420" Width="520"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="$($theme.FormBackground)">
+        Title="Instaladores (Chocolatey)"
+        Height="520" Width="720"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+
+    <!-- ✅ ESTO ES LO QUE TE FALTA -->
     <Window.Resources>
-        <Style TargetType="Label">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-        </Style>
+
+        <!-- Texto por defecto -->
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
         </Style>
+
+        <!-- TextBox por defecto -->
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
-        <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-            <Setter Property="RowBackground" Value="$($theme.ControlBackground)"/>
-            <Setter Property="AlternatingRowBackground" Value="$($theme.InfoBackground)"/>
-        </Style>
-        <Style TargetType="DataGridRow">
-            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Style x:Key="BaseButtonStyle" TargetType="Button">
+                <Setter Property="OverridesDefaultStyle" Value="True"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+
+                <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Padding" Value="12,6"/>
+
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+
+                <Style.Triggers>
+                    <Trigger Property="IsEnabled" Value="False">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="Cursor" Value="Arrow"/>
+                        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="$($theme.AccentPrimary)"/>
-                    <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-        </Style>
-        <Style TargetType="DataGridCell">
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-        </Style>
-        <Style x:Key="PresetLabelStyle" TargetType="Label">
-            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+        <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
-        <Style x:Key="GeneralButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonGeneralBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonGeneralForeground)"/>
+        <!-- ✅ DataGrid -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="RowBackground" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource BorderBrushColor}"/>
         </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
     </Window.Resources>
-    <Grid Margin="10" Background="$($theme.FormBackground)">
-        <Label Content="Buscar en Chocolatey:" HorizontalAlignment="Left" VerticalAlignment="Top"
-               Margin="0,0,0,0"/>
-        <TextBox Name="txtChocoSearch" HorizontalAlignment="Left" VerticalAlignment="Top"
-                 Width="360" Height="25" Margin="0,25,0,0"/>
-        <Button Content="Buscar" Name="btnBuscarChoco" Width="120" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="370,23,0,0"
-                Style="{StaticResource GeneralButtonStyle}"/>
+    <!-- ✅ FIN DE RESOURCES -->
 
-        <Label Content="SSMS" Name="lblPresetSSMS" Width="70" Height="25"
-               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,65,0,0"
-               Style="{StaticResource PresetLabelStyle}"/>
-        <Label Content="Heidi" Name="lblPresetHeidi" Width="70" Height="25"
-               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="80,65,0,0"
-               Style="{StaticResource PresetLabelStyle}"/>
+    <Grid Background="{DynamicResource FormBg}" Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-        <Button Content="Mostrar instalados" Name="btnShowInstalledChoco" Width="150" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,100,0,0" Style="{StaticResource GeneralButtonStyle}"/>
-        <Button Content="Instalar seleccionado" Name="btnInstallSelectedChoco" Width="170" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="160,100,0,0" IsEnabled="False" Style="{StaticResource GeneralButtonStyle}"/>
-        <Button Content="Desinstalar seleccionado" Name="btnUninstallSelectedChoco" Width="150" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="340,100,0,0" IsEnabled="False" Style="{StaticResource GeneralButtonStyle}"/>
-        <DataGrid Name="dgvChocoResults" HorizontalAlignment="Left" VerticalAlignment="Top"
-                Width="490" Height="200" Margin="0,145,0,0" IsReadOnly="True"
-                AutoGenerateColumns="False" SelectionMode="Single" CanUserAddRows="False">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Paquete" Binding="{Binding Name}" Width="170"/>
-                <DataGridTextColumn Header="Versión" Binding="{Binding Version}" Width="100"/>
-                <DataGridTextColumn Header="Descripción" Binding="{Binding Description}" Width="*"/>
-            </DataGrid.Columns>
-        </DataGrid>
-        <Button Content="Salir" Name="btnExitInstaladores" Width="490" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,355,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+        <!-- Header -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12"
+                Margin="0,0,0,10">
+            <DockPanel>
+                <Button DockPanel.Dock="Left"
+                        Name="btnExitInstaladores"
+                        Content="Salir"
+                        Width="120"
+                        Height="34"
+                        Margin="0,0,12,0"
+                        Style="{StaticResource OutlineButtonStyle}"/>
+
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock Text="Chocolatey Installer"
+                               Foreground="{DynamicResource FormFg}"
+                               FontSize="16"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="Busca, instala y desinstala paquetes"
+                               Foreground="{DynamicResource PanelFg}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Search + presets + actions -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox Name="txtChocoSearch"
+                             Height="34"
+                             Padding="10,6"
+                             VerticalContentAlignment="Center"/>
+
+                    <Button Grid.Column="1"
+                            Name="btnBuscarChoco"
+                            Content="Buscar"
+                            Width="140"
+                            Height="34"
+                            Margin="10,0,0,0"
+                            Style="{StaticResource ActionButtonStyle}"/>
+                </Grid>
+
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                    <TextBlock Text="Presets:"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"/>
+
+                    <Button Name="btnPresetSSMS"
+                            Content="SSMS"
+                            Width="90"
+                            Height="30"
+                            Margin="0,0,10,0"
+                            Background="{DynamicResource AccentMuted}"
+                            Foreground="{DynamicResource FormFg}"
+                            BorderThickness="0"
+                            Cursor="Hand"/>
+
+                    <Button Name="btnPresetHeidi"
+                            Content="Heidi"
+                            Width="90"
+                            Height="30"
+                            Background="{DynamicResource AccentMuted}"
+                            Foreground="{DynamicResource FormFg}"
+                            BorderThickness="0"
+                            Cursor="Hand"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button Name="btnShowInstalledChoco"
+                            Content="Mostrar instalados"
+                            Width="170"
+                            Height="34"
+                            Style="{StaticResource OutlineButtonStyle}"/>
+
+                    <Button Name="btnInstallSelectedChoco"
+                            Content="Instalar seleccionado"
+                            Width="190"
+                            Height="34"
+                            Margin="10,0,0,0"
+                            IsEnabled="False"
+                            Style="{StaticResource ActionButtonStyle}"/>
+
+                    <Button Name="btnUninstallSelectedChoco"
+                            Content="Desinstalar seleccionado"
+                            Width="200"
+                            Height="34"
+                            Margin="10,0,0,0"
+                            IsEnabled="False"
+                            Style="{StaticResource OutlineButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Results -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10">
+            <Grid>
+                <DataGrid Name="dgvChocoResults"
+                          IsReadOnly="True"
+                          AutoGenerateColumns="False"
+                          SelectionMode="Single"
+                          CanUserAddRows="False">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Paquete" Binding="{Binding Name}" Width="220"/>
+                        <DataGridTextColumn Header="Versión" Binding="{Binding Version}" Width="140"/>
+                        <DataGridTextColumn Header="Descripción" Binding="{Binding Description}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+        <!-- Status -->
+        <Border Grid.Row="3"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10"
+                Margin="0,10,0,0">
+            <DockPanel>
+                <TextBlock Name="txtStatus"
+                           Text="Listo."
+                           VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
     </Grid>
 </Window>
 "@
@@ -764,33 +989,41 @@ function Show-ChocolateyInstallerMenu {
     try {
         $result = New-WpfWindow -Xaml $stringXaml -PassThru
         $window = $result.Window
+        $theme = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $window -Theme $theme
     } catch {
         Write-Host "Error creando ventana: $_" -ForegroundColor Red
         return
     }
-
-    # Obtener controles
     $txtChocoSearch = $window.FindName("txtChocoSearch")
     $btnBuscarChoco = $window.FindName("btnBuscarChoco")
-    $lblPresetSSMS = $window.FindName("lblPresetSSMS")
-    $lblPresetHeidi = $window.FindName("lblPresetHeidi")
+    $btnPresetSSMS = $window.FindName("btnPresetSSMS")
+    $btnPresetHeidi = $window.FindName("btnPresetHeidi")
     $btnShowInstalledChoco = $window.FindName("btnShowInstalledChoco")
     $btnInstallSelectedChoco = $window.FindName("btnInstallSelectedChoco")
     $btnUninstallSelectedChoco = $window.FindName("btnUninstallSelectedChoco")
     $dgvChocoResults = $window.FindName("dgvChocoResults")
     $btnExitInstaladores = $window.FindName("btnExitInstaladores")
-
+    $txtStatus = $window.FindName("txtStatus")
     # Colección observable
     $chocoResultsCollection = New-Object System.Collections.ObjectModel.ObservableCollection[PSObject]
+    $resetChocoUi = {
+        $window.Dispatcher.Invoke([action] {
+                $chocoResultsCollection.Clear()
+                $dgvChocoResults.SelectedItem = $null
+                $txtChocoSearch.Text = ""
+                $txtStatus.Text = "Listo."
+                $btnInstallSelectedChoco.IsEnabled = $false
+                $btnUninstallSelectedChoco.IsEnabled = $false
+            }) | Out-Null
+    }
     $dgvChocoResults.ItemsSource = $chocoResultsCollection
-
     # Función auxiliar para agregar resultados (SEARCH)
     $addChocoResult = {
         param($line)
         if ([string]::IsNullOrWhiteSpace($line)) { return }
         if ($line -match '^Chocolatey') { return }
         if ($line -match 'packages?\s+found' -or $line -match 'page size') { return }
-
         if ($line -match '^(?<name>[A-Za-z0-9\.\+\-_]+)\s+(?<version>[0-9][A-Za-z0-9\.\-]*)\s+(?<description>.+)$') {
             $window.Dispatcher.Invoke([action] {
                     $chocoResultsCollection.Add([PSCustomObject]@{
@@ -809,19 +1042,13 @@ function Show-ChocolateyInstallerMenu {
                 }) | Out-Null
         }
     }
-
-    # Función auxiliar para agregar resultados (INSTALADOS)  ✅ NUEVA
-    # Formato esperado con --limit-output: paquete|version
     $addChocoInstalled = {
         param($line)
-
         if ([string]::IsNullOrWhiteSpace($line)) { return }
         if ($line -match '^Chocolatey') { return }
-
         if ($line -match '^(?<name>[^|]+)\|(?<version>.+)$') {
             $name = $Matches['name'].Trim()
             $ver = $Matches['version'].Trim()
-
             $window.Dispatcher.Invoke([action] {
                     $chocoResultsCollection.Add([PSCustomObject]@{
                             Name        = $name
@@ -831,7 +1058,6 @@ function Show-ChocolateyInstallerMenu {
                 }) | Out-Null
         }
     }
-
     # Actualizar botones de acción
     $updateActionButtons = {
         $hasValidSelection = $false
@@ -844,155 +1070,121 @@ function Show-ChocolateyInstallerMenu {
         $btnInstallSelectedChoco.IsEnabled = $hasValidSelection
         $btnUninstallSelectedChoco.IsEnabled = $hasValidSelection
     }
-
     $dgvChocoResults.Add_SelectionChanged({ & $updateActionButtons })
-
     # Botón Buscar - MEJORADO CON BARRA DE PROGRESO
     $btnBuscarChoco.Add_Click({
             $chocoResultsCollection.Clear()
             & $updateActionButtons
-
             $query = $txtChocoSearch.Text.Trim()
-
             if ([string]::IsNullOrWhiteSpace($query)) {
-                [System.Windows.MessageBox]::Show("Ingresa un término para buscar", "Búsqueda")
+                Show-WpfMessageBox -Message "Ingresa un término para buscar" -Title "Búsqueda" -Buttons "OK" -Icon "Information" -Owner $window | Out-Null
                 return
             }
 
             if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-                [System.Windows.MessageBox]::Show("Chocolatey no está instalado", "Error")
+                Show-WpfMessageBox -Message "Chocolatey no está instalado." -Title "Error" -Buttons "OK" -Icon "Error" -Owner $window | Out-Null
                 return
             }
-
             $btnBuscarChoco.IsEnabled = $false
-
-            # USAR BARRA DE PROGRESO MEJORADA
             $progress = Show-WpfProgressBar -Title "Buscando paquetes" -Message "Iniciando búsqueda..."
-
             try {
                 Update-WpfProgressBar -Window $progress -Percent 20 -Message "Verificando Chocolatey..."
                 Start-Sleep -Milliseconds 300
-
                 Update-WpfProgressBar -Window $progress -Percent 40 -Message "Buscando '$query'..."
                 $searchOutput = & choco search $query --page-size=20 2>&1
-
                 Update-WpfProgressBar -Window $progress -Percent 70 -Message "Procesando resultados..."
-
                 foreach ($line in $searchOutput) {
                     & $addChocoResult $line
                 }
-
                 Update-WpfProgressBar -Window $progress -Percent 100 -Message "Búsqueda completada"
                 Start-Sleep -Milliseconds 300
-
                 if ($chocoResultsCollection.Count -eq 0) {
-                    [System.Windows.MessageBox]::Show("No se encontraron paquetes", "Sin resultados")
+                    Show-WpfMessageBox -Message "No se encontraron paquetes." -Title "Sin resultados" -Buttons "OK" -Icon "Information" -Owner $window | Out-Null
                 }
             } catch {
                 Write-Error "Error: $_"
-                [System.Windows.MessageBox]::Show("Error durante la búsqueda: $_", "Error")
+                Show-WpfMessageBox -Message "Error durante la búsqueda:`n`n$($_.Exception.Message)" -Title "Error" -Buttons "OK" -Icon "Error" -Owner $window | Out-Null
             } finally {
                 Close-WpfProgressBar -Window $progress
                 $btnBuscarChoco.IsEnabled = $true
             }
         })
-
-    # Presets
-    $lblPresetSSMS.Add_MouseLeftButtonDown({
+    $btnPresetSSMS.Add_Click({
             $txtChocoSearch.Text = "ssms"
-            $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent)))
+            $btnBuscarChoco.RaiseEvent(
+                (New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent))
+            )
         })
 
-    $lblPresetHeidi.Add_MouseLeftButtonDown({
+    $btnPresetHeidi.Add_Click({
             $txtChocoSearch.Text = "heidi"
-            $btnBuscarChoco.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent)))
+            $btnBuscarChoco.RaiseEvent(
+                (New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent))
+            )
         })
-
-    # Mostrar instalados - FIX (parse correcto de choco list)
     $btnShowInstalledChoco.Add_Click({
             $chocoResultsCollection.Clear()
             & $updateActionButtons
 
             if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-                [System.Windows.MessageBox]::Show("Chocolatey no está instalado", "Error")
+                Show-WpfMessageBox -Message "Chocolatey no está instalado." -Title "Error" -Buttons "OK" -Icon "Error" -Owner $window | Out-Null
                 return
             }
-
             $btnShowInstalledChoco.IsEnabled = $false
             $progress = Show-WpfProgressBar -Title "Listando instalados" -Message "Recuperando paquetes..."
-
             try {
                 Update-WpfProgressBar -Window $progress -Percent 30 -Message "Consultando paquetes instalados..."
-
-                # ✅ Este formato es el más fácil de parsear:
-                # choco list --local-only --limit-output  => paquete|version
                 $installedOutput = & choco list --local-only --limit-output 2>&1
-
                 Update-WpfProgressBar -Window $progress -Percent 70 -Message "Procesando resultados..."
 
                 foreach ($line in $installedOutput) {
                     & $addChocoInstalled $line
                 }
-
                 Update-WpfProgressBar -Window $progress -Percent 100 -Message "Completado"
                 Start-Sleep -Milliseconds 200
 
                 if ($chocoResultsCollection.Count -eq 0) {
-                    [System.Windows.MessageBox]::Show("No hay paquetes instalados (o no se pudo leer la salida).", "Sin resultados")
+                    Show-WpfMessageBox -Message "No hay paquetes instalados (o no se pudo leer la salida)." -Title "Sin resultados" -Buttons "OK" -Icon "Information" -Owner $window | Out-Null
                 }
             } catch {
                 Write-Error "Error: $_"
-                [System.Windows.MessageBox]::Show("Error consultando paquetes: $_", "Error")
+                Show-WpfMessageBox -Message "Error consultando paquetes:`n`n$($_.Exception.Message)" -Title "Error" -Buttons "OK" -Icon "Error" -Owner $window | Out-Null
             } finally {
                 Close-WpfProgressBar -Window $progress
                 $btnShowInstalledChoco.IsEnabled = $true
             }
         })
-
     $btnInstallSelectedChoco.Add_Click({
+            Write-DzDebug "`t[DEBUG] [Install-ChocoPackage] Iniciando instalación del paquete seleccionado."
             if (-not $dgvChocoResults.SelectedItem) {
-                [System.Windows.MessageBox]::Show("Seleccione un paquete", "Instalación")
+                Show-WpfMessageBox -Message "Seleccione un paquete." -Title "Instalación" -Buttons "OK" -Icon "Information" -Owner $window | Out-Null
                 return
             }
-
             $packageName = $dgvChocoResults.SelectedItem.Name
-
-            $result = [System.Windows.MessageBox]::Show(
-                "¿Instalar $packageName?",
-                "Confirmar",
-                [System.Windows.MessageBoxButton]::YesNo,
-                [System.Windows.MessageBoxImage]::Question
-            )
-
-            if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
-                return
-            }
-
+            $result = Show-WpfMessageBoxSafe -Message "¿Instalar $packageName?" -Title "Confirmar" -Buttons "YesNo" -Icon "Question" -Owner $window
+            Write-DzDebug "`t[DEBUG][Install-ChocoPackage] User response: $result"
+            if ($result -ne [System.Windows.MessageBoxResult]::Yes) { return }
             $progress = Show-WpfProgressBar -Title "Instalando" -Message "Preparando instalación..."
-
             try {
                 Update-WpfProgressBar -Window $progress -Percent 20 -Message "Verificando paquete..."
                 Start-Sleep -Milliseconds 300
-
                 Update-WpfProgressBar -Window $progress -Percent 40 -Message "Instalando $packageName..."
-
                 $installProcess = Start-Process -FilePath "choco" `
                     -ArgumentList "install", $packageName, "-y" `
                     -NoNewWindow -PassThru -Wait
-
                 Update-WpfProgressBar -Window $progress -Percent 90 -Message "Verificando instalación..."
                 Start-Sleep -Milliseconds 500
-
                 if ($installProcess.ExitCode -eq 0) {
                     Update-WpfProgressBar -Window $progress -Percent 100 -Message "Instalación completada"
                     Start-Sleep -Milliseconds 500
-                    [System.Windows.MessageBox]::Show("Paquete instalado exitosamente", "Éxito")
+                    Show-WpfMessageBox -Message "Paquete instalado exitosamente." -Title "Éxito" -Buttons "OK" -Icon "Information" -Owner $window | Out-Null
+                    try { $resetChocoUi.Invoke() } catch { }
                 } else {
                     throw "Error de instalación: código $($installProcess.ExitCode)"
                 }
             } catch {
                 Write-Error $_
-                [System.Windows.MessageBox]::Show("Error: $_", "Error")
+                Show-WpfMessageBox -Message "Error: $($_.Exception.Message)" -Title "Error" -Buttons "OK" -Icon "Error" -Owner $window | Out-Null
             } finally {
                 Close-WpfProgressBar -Window $progress
             }
@@ -1000,16 +1192,11 @@ function Show-ChocolateyInstallerMenu {
     # Desinstalar - MEJORADO
     $btnUninstallSelectedChoco.Add_Click({
             if (-not $dgvChocoResults.SelectedItem) {
-                [System.Windows.MessageBox]::Show("Seleccione un paquete", "Desinstalación")
+                Show-WpfMessageBox -Message "Seleccione un paquete." -Title "Desinstalación" -Buttons "OK" -Icon "Information" -Owner $window | Out-Null
                 return
             }
             $packageName = $dgvChocoResults.SelectedItem.Name
-            $result = [System.Windows.MessageBox]::Show(
-                "¿Desinstalar $packageName?",
-                "Confirmar",
-                [System.Windows.MessageBoxButton]::YesNo,
-                [System.Windows.MessageBoxImage]::Warning
-            )
+            $result = Show-WpfMessageBox -Message "¿Desinstalar $packageName?" -Title "Confirmar" -Buttons "YesNo" -Icon "Warning" -Owner $window
             if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
                 return
             }
@@ -1025,20 +1212,22 @@ function Show-ChocolateyInstallerMenu {
                 if ($uninstallProcess.ExitCode -eq 0) {
                     Update-WpfProgressBar -Window $progress -Percent 100 -Message "Desinstalación completada"
                     Start-Sleep -Milliseconds 500
-                    [System.Windows.MessageBox]::Show("Paquete desinstalado exitosamente", "Éxito")
+                    Show-WpfMessageBox -Message "Paquete desinstalado exitosamente." -Title "Éxito" -Buttons "OK" -Icon "Information" -Owner $window | Out-Null
+                    try { $resetChocoUi.Invoke() } catch { }
                 } else {
                     throw "Error: código $($uninstallProcess.ExitCode)"
                 }
             } catch {
                 Write-Error $_
-                [System.Windows.MessageBox]::Show("Error: $_", "Error")
+                Show-WpfMessageBox -Message "Error:`n`n$($_.Exception.Message)" -Title "Error" -Buttons "OK" -Icon "Error" -Owner $window | Out-Null
             } finally {
                 Close-WpfProgressBar -Window $progress
             }
         })
-    # Salir
-    $btnExitInstaladores.Add_Click({ $window.Close() })
-    # Mostrar ventana
+    $btnExitInstaladores.Add_Click({
+            & $resetChocoUi
+            $window.Close()
+        })
     $window.ShowDialog() | Out-Null
 }
 function Invoke-PortableTool {
@@ -1069,7 +1258,7 @@ function Invoke-PortableTool {
         # 1) ¿Ya existe?
         if (Test-Path -LiteralPath $exePath) {
             $msg = "$ToolName ya existe en:`n$exePath`n`nSí = Abrir local`nNo = Volver a descargar`nCancelar = Cancelar operación"
-            $rExist = Show-WpfMessageBox -Message $msg -Title "Ya existe" -Buttons "YesNoCancel" -Icon "Question"
+            $rExist = Show-WpfMessageBox -Message $msg -Title "Ya existe" -Buttons "YesNoCancel" -Icon "Question" -Owner $OwnerWindow
             Write-DzDebug "`t[DEBUG][Invoke-PortableTool] rExist=$rExist" ([System.ConsoleColor]::Cyan)
             if ($rExist -eq [System.Windows.MessageBoxResult]::Yes) {
                 Start-Process $exePath
@@ -1083,7 +1272,7 @@ function Invoke-PortableTool {
 
             # No => sigue a descargar
         } else {
-            $r = Show-WpfMessageBox -Message "¿Deseas descargar $ToolName?" -Title "Confirmar descarga" -Buttons "YesNo" -Icon "Question"
+            $r = Show-WpfMessageBox -Message "¿Deseas descargar $ToolName?" -Title "Confirmar descarga" -Buttons "YesNo" -Icon "Question" -Owner $OwnerWindow
             Write-DzDebug "`t[DEBUG][Invoke-PortableTool] confirm=$r" ([System.ConsoleColor]::Cyan)
 
             if ($r -ne [System.Windows.MessageBoxResult]::Yes) {

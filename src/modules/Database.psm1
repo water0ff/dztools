@@ -208,6 +208,18 @@ function Show-BackupDialog {
     $script:BackupRunning = $false
     $script:BackupDone = $false
     $script:EnableThreadJob = $false
+    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null
+    }
+    function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null
+    }
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null
+    }
+    function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) {
+        (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes
+    }
     function Initialize-ThreadJob {
         [CmdletBinding()]
         param()
@@ -567,22 +579,38 @@ Chocolatey es necesario SOLAMENTE si deseas:
 Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
 ¿Deseas instalar Chocolatey ahora?
 "@
-                    $wantChoco = Show-ConfirmDialog -Message $msg -Title "Chocolatey requerido"
-                    if (-not $wantChoco) { Show-WarnDialog -Message "Compresión deshabilitada (Chocolatey no instalado)." -Title "Atención"; Disable-CompressionUI; return }
+                    $wantChoco = Ui-Confirm $msg "Chocolatey requerido" $window
+                    if (-not $wantChoco) {
+                        Ui-Warn "Compresión deshabilitada (Chocolatey no instalado)." "Atención" $window
+                        Disable-CompressionUI
+                        return
+                    }
                     $okChoco = Install-Chocolatey
-                    if (-not $okChoco -or -not (Test-ChocolateyInstalled)) { Show-WarnDialog -Message "No se pudo instalar Chocolatey. Compresión deshabilitada." -Title "Atención"; Disable-CompressionUI; return }
+                    if (-not $okChoco -or -not (Test-ChocolateyInstalled)) {
+                        Ui-Warn "No se pudo instalar Chocolatey. Compresión deshabilitada." "Atención" $window
+                        Disable-CompressionUI
+                        return
+                    }
                 }
                 if (-not (Test-7ZipInstalled)) {
-                    $want7z = Show-ConfirmDialog -Message "Para comprimir se requiere 7-Zip. ¿Deseas instalarlo ahora con Chocolatey?" -Title "7-Zip requerido"
-                    if (-not $want7z) { Show-WarnDialog -Message "Compresión deshabilitada (7-Zip no instalado)." -Title "Atención"; Disable-CompressionUI; return }
+                    $want7z = Ui-Confirm "Para comprimir se requiere 7-Zip. ¿Deseas instalarlo ahora con Chocolatey?" "7-Zip requerido" $window
+                    if (-not $want7z) {
+                        Ui-Warn "Compresión deshabilitada (7-Zip no instalado)." "Atención" $window
+                        Disable-CompressionUI
+                        return
+                    }
                     $ok7z = Install-7ZipWithChoco
-                    if (-not $ok7z) { Show-WarnDialog -Message "No se pudo instalar 7-Zip. Compresión deshabilitada." -Title "Atención"; Disable-CompressionUI; return }
+                    if (-not $ok7z) {
+                        Ui-Warn "No se pudo instalar 7-Zip. Compresión deshabilitada." "Atención" $window
+                        Disable-CompressionUI
+                        return
+                    }
                 }
                 $txtPassword.IsEnabled = $true
                 $lblPassword.IsEnabled = $true
             } catch {
                 Write-DzDebug "`t[DEBUG][UI] Error chkComprimir CHECKED: $($_.Exception.Message)"
-                Show-WarnDialog -Message "Error validando requisitos de compresión: $($_.Exception.Message)" -Title "Error"
+                Ui-Error "Error validando requisitos de compresión: $($_.Exception.Message)" "Error" $window
                 Disable-CompressionUI
             }
         })
@@ -628,12 +656,12 @@ Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
                 # 2) caracteres inválidos en nombre de archivo
                 $invalid = [System.IO.Path]::GetInvalidFileNameChars()
                 if ($backupFileName.IndexOfAny($invalid) -ge 0) {
-                    Show-WarnDialog -Message "El nombre contiene caracteres no válidos..." -Title "Nombre inválido"
+                    Ui-Warn "El nombre contiene caracteres no válidos..." "Nombre inválido" $window
                     Reset-BackupUI -ProgressText "Nombre inválido"
                     return
                 }
                 if (Test-Path $scriptBackupPath) {
-                    $choice = Show-ConfirmDialog -Message "Ya existe un respaldo con ese nombre en:`n$scriptBackupPath`n`n¿Deseas sobrescribirlo?" -Title "Archivo existente"
+                    $choice = Ui-Confirm "Ya existe un respaldo con ese nombre en:`n$scriptBackupPath`n`n¿Deseas sobrescribirlo?" "Archivo existente" $window
                     if (-not $choice) {
                         $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'
                         $txtNombre.Text = "$Database-$timestampsDefault.bak"
@@ -675,7 +703,7 @@ WITH CHECKSUM, STATS = 1, FORMAT, INIT
             $machineName = $machinePart.Split(',')[0]
             if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
             $backupFolder = "\\$machineName\C$\Temp\SQLBackups"
-            if (Test-Path $backupFolder) { Start-Process explorer.exe $backupFolder } else { [System.Windows.MessageBox]::Show("La carpeta de respaldos no existe todavía.`n`nRuta: $backupFolder", "Atención", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning) }
+            if (Test-Path $backupFolder) { Start-Process explorer.exe $backupFolder } else { Ui-Warn "La carpeta de respaldos no existe todavía.`n`nRuta: $backupFolder" "Atención" $window }
         })
     $btnCerrar.Add_Click({
             Write-DzDebug "`t[DEBUG][UI] btnCerrar Click"

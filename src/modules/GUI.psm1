@@ -99,33 +99,245 @@ function New-WpfWindow {
     }
 }
 function Show-WpfMessageBox {
+    [CmdletBinding()]
     param(
-        [string]$Message,
+        [Parameter(Mandatory)] [string]$Message,
         [string]$Title = "Mensaje",
         [ValidateSet("OK", "OKCancel", "YesNo", "YesNoCancel")]
         [string]$Buttons = "OK",
         [ValidateSet("Information", "Warning", "Error", "Question")]
-        [string]$Icon = "Information"
+        [string]$Icon = "Information",
+        [System.Windows.Window]$Owner
     )
-    $buttonMap = @{
-        "OK"          = [System.Windows.MessageBoxButton]::OK
-        "OKCancel"    = [System.Windows.MessageBoxButton]::OKCancel
-        "YesNo"       = [System.Windows.MessageBoxButton]::YesNo
-        "YesNoCancel" = [System.Windows.MessageBoxButton]::YesNoCancel
+
+    $safeTitle = [Security.SecurityElement]::Escape($Title)
+    $safeMsg = [Security.SecurityElement]::Escape($Message)
+
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="$safeTitle"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True">
+
+    <Border Background="{DynamicResource FormBg}"
+            BorderBrush="{DynamicResource BorderBrushColor}"
+            BorderThickness="1"
+            CornerRadius="14"
+            Padding="16">
+
+        <Grid Width="430">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <DockPanel Grid.Row="0" Margin="0,0,0,10">
+                <TextBlock Text="$safeTitle"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource FormFg}"
+                           DockPanel.Dock="Left"/>
+
+                <Button Name="btnClose"
+                        Content="✕"
+                        Width="34"
+                        Height="28"
+                        Margin="10,0,0,0"
+                        DockPanel.Dock="Right"
+                        Background="{DynamicResource ControlBg}"
+                        Foreground="{DynamicResource ControlFg}"
+                        BorderBrush="{DynamicResource BorderBrushColor}"
+                        BorderThickness="1"
+                        Cursor="Hand"/>
+            </DockPanel>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Width="40" Height="40"
+                        CornerRadius="10"
+                        Background="{DynamicResource PanelBg}"
+                        BorderBrush="{DynamicResource BorderBrushColor}"
+                        BorderThickness="1"
+                        VerticalAlignment="Top">
+                    <TextBlock Name="txtIcon"
+                               Text="i"
+                               FontSize="20"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource AccentPrimary}"/>
+                </Border>
+
+                <TextBlock Grid.Column="1"
+                           Name="txtMessage"
+                           Text="$safeMsg"
+                           TextWrapping="Wrap"
+                           Margin="12,2,0,0"
+                           Foreground="{DynamicResource PanelFg}"/>
+            </Grid>
+
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,16,0,0">
+                <Button Name="btn1" Width="120" Height="34" Margin="0,0,10,0"/>
+                <Button Name="btn2" Width="120" Height="34" Margin="0,0,10,0"/>
+                <Button Name="btn3" Width="140" Height="34"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
+"@
+
+    $result = New-WpfWindow -Xaml $xaml -PassThru
+    $w = $result.Window
+
+    if (-not ($w -is [System.Windows.Window])) {
+        return [System.Windows.MessageBoxResult]::None
     }
-    $iconMap = @{
-        "Information" = [System.Windows.MessageBoxImage]::Information
-        "Warning"     = [System.Windows.MessageBoxImage]::Warning
-        "Error"       = [System.Windows.MessageBoxImage]::Error
-        "Question"    = [System.Windows.MessageBoxImage]::Question
+
+    $w | Add-Member -MemberType NoteProperty -Name DzResult -Value ([System.Windows.MessageBoxResult]::None) -Force | Out-Null
+
+    if ($Owner) {
+        $w.Owner = $Owner
+        $w.WindowStartupLocation = "CenterOwner"
+    } else {
+        $w.WindowStartupLocation = "CenterScreen"
     }
-    return [System.Windows.MessageBox]::Show(
-        $Message,
-        $Title,
-        $buttonMap[$Buttons],
-        $iconMap[$Icon]
-    )
+
+    $theme = Get-DzUiTheme
+    Set-DzWpfThemeResources -Window $w -Theme $theme
+
+    $btnClose = $w.FindName("btnClose")
+    $btn1 = $w.FindName("btn1")
+    $btn2 = $w.FindName("btn2")
+    $btn3 = $w.FindName("btn3")
+    $txtIcon = $w.FindName("txtIcon")
+
+    if ($txtIcon) {
+        switch ($Icon) {
+            "Information" { $txtIcon.Text = "i" }
+            "Warning" { $txtIcon.Text = "!" }
+            "Error" { $txtIcon.Text = "×" }
+            "Question" { $txtIcon.Text = "?" }
+        }
+    }
+
+    foreach ($b in @($btn1, $btn2, $btn3)) {
+        if ($null -eq $b) { continue }
+        $b.Background = $w.FindResource("ControlBg")
+        $b.Foreground = $w.FindResource("ControlFg")
+        $b.BorderBrush = $w.FindResource("BorderBrushColor")
+        $b.BorderThickness = [System.Windows.Thickness]::new(1)
+        $b.Cursor = "Hand"
+        $b.Visibility = "Collapsed"
+    }
+
+    if ($btn3) {
+        $btn3.Background = $w.FindResource("AccentPrimary")
+        $btn3.Foreground = $w.FindResource("FormFg")
+        $btn3.BorderThickness = [System.Windows.Thickness]::new(0)
+    }
+
+    $setBtn = {
+        param(
+            [Parameter(Mandatory)] $btn,
+            [Parameter(Mandatory)] [string]$text,
+            [Parameter(Mandatory)] [System.Windows.MessageBoxResult]$resultValue,
+            [Parameter(Mandatory)] [bool]$isPrimary,
+            [Parameter(Mandatory)] [System.Windows.Window]$win
+        )
+
+        $btn.Content = $text
+        $btn.Visibility = "Visible"
+
+        if ($isPrimary) {
+            $btn.Background = $win.FindResource("AccentPrimary")
+            $btn.Foreground = $win.FindResource("FormFg")
+            $btn.BorderThickness = [System.Windows.Thickness]::new(0)
+        } else {
+            $btn.Background = $win.FindResource("ControlBg")
+            $btn.Foreground = $win.FindResource("ControlFg")
+            $btn.BorderBrush = $win.FindResource("BorderBrushColor")
+            $btn.BorderThickness = [System.Windows.Thickness]::new(1)
+        }
+
+        $localResult = $resultValue
+        $btn.Add_Click({
+                param($sender, $e)
+                $win.DzResult = $localResult
+                try { $win.DialogResult = $true } catch {}
+                $win.Close()
+            }.GetNewClosure())
+    }
+
+    switch ($Buttons) {
+        "OK" {
+            & $setBtn $btn3 "OK" ([System.Windows.MessageBoxResult]::OK) $true $w
+        }
+        "OKCancel" {
+            & $setBtn $btn2 "Cancelar" ([System.Windows.MessageBoxResult]::Cancel) $false $w
+            & $setBtn $btn3 "OK"       ([System.Windows.MessageBoxResult]::OK)     $true  $w
+        }
+        "YesNo" {
+            & $setBtn $btn2 "No" ([System.Windows.MessageBoxResult]::No)  $false $w
+            & $setBtn $btn3 "Sí" ([System.Windows.MessageBoxResult]::Yes) $true  $w
+        }
+        "YesNoCancel" {
+            & $setBtn $btn1 "Cancelar" ([System.Windows.MessageBoxResult]::Cancel) $false $w
+            & $setBtn $btn2 "No"       ([System.Windows.MessageBoxResult]::No)     $false $w
+            & $setBtn $btn3 "Sí"       ([System.Windows.MessageBoxResult]::Yes)    $true  $w
+        }
+    }
+
+    if ($btnClose) {
+        $btnClose.Add_Click({
+                param($sender, $e)
+                $w.DzResult = [System.Windows.MessageBoxResult]::Cancel
+                try { $w.DialogResult = $false } catch {}
+                $w.Close()
+            })
+    }
+
+    $w.Add_Closing({
+            param($sender, $e)
+            if ($sender -is [System.Windows.Window]) {
+                if ($null -eq $sender.DzResult -or $sender.DzResult -eq [System.Windows.MessageBoxResult]::None) {
+                    switch ($Buttons) {
+                        "YesNo" { $sender.DzResult = [System.Windows.MessageBoxResult]::No }
+                        "YesNoCancel" { $sender.DzResult = [System.Windows.MessageBoxResult]::Cancel }
+                        "OKCancel" { $sender.DzResult = [System.Windows.MessageBoxResult]::Cancel }
+                        default { $sender.DzResult = [System.Windows.MessageBoxResult]::OK }
+                    }
+                }
+            }
+        })
+
+    $w.Add_MouseLeftButtonDown({
+            param($sender, $e)
+            try { $w.DragMove() } catch {}
+        })
+
+    try {
+        $null = $w.ShowDialog()
+    } catch {
+        return [System.Windows.MessageBoxResult]::None
+    }
+
+    return $w.DzResult
 }
+
 function Show-WpfProgressBar {
     <#
     .SYNOPSIS
@@ -209,6 +421,54 @@ function Show-WpfProgressBar {
     } catch {
         Write-Error "Error al crear barra de progreso: $_"
         return $null
+    }
+}
+function ConvertTo-MessageBoxResult {
+    param([object]$Value)
+
+    if ($null -eq $Value) { return [System.Windows.MessageBoxResult]::None }
+
+    # Si ya viene bien
+    if ($Value -is [System.Windows.MessageBoxResult]) { return $Value }
+
+    # Si viene numérico (WPF: Yes=6 No=7 OK=1 Cancel=2)
+    if ($Value -is [int]) {
+        switch ($Value) {
+            6 { return [System.Windows.MessageBoxResult]::Yes }
+            7 { return [System.Windows.MessageBoxResult]::No }
+            2 { return [System.Windows.MessageBoxResult]::Cancel }
+            1 { return [System.Windows.MessageBoxResult]::OK }
+            default { return [System.Windows.MessageBoxResult]::None }
+        }
+    }
+
+    # Si viene string
+    $s = ($Value.ToString()).Trim().ToLowerInvariant()
+    switch ($s) {
+        'yes' { return [System.Windows.MessageBoxResult]::Yes }
+        'no' { return [System.Windows.MessageBoxResult]::No }
+        'cancel' { return [System.Windows.MessageBoxResult]::Cancel }
+        'ok' { return [System.Windows.MessageBoxResult]::OK }
+        'true' { return [System.Windows.MessageBoxResult]::Yes }
+        'false' { return [System.Windows.MessageBoxResult]::No }
+        default { return [System.Windows.MessageBoxResult]::None }
+    }
+}
+
+function Show-WpfMessageBoxSafe {
+    param(
+        [Parameter(Mandatory)] [string]$Message,
+        [Parameter(Mandatory)] [string]$Title,
+        [Parameter(Mandatory)] [ValidateSet("OK", "OKCancel", "YesNo", "YesNoCancel")] [string]$Buttons,
+        [Parameter(Mandatory)] [ValidateSet("Information", "Warning", "Error", "Question")] [string]$Icon,
+        [System.Windows.Window]$Owner
+    )
+    try {
+        $raw = Show-WpfMessageBox -Message $Message -Title $Title -Buttons $Buttons -Icon $Icon -Owner $Owner
+        $norm = ConvertTo-MessageBoxResult $raw
+        return $norm
+    } catch {
+        return [System.Windows.MessageBoxResult]::None
     }
 }
 function Set-WpfDialogOwner {
@@ -444,5 +704,7 @@ Export-ModuleMember -Function @(
     'Show-WpfFolderDialog',
     'Show-ProgressBar',
     'Set-WpfDialogOwner',
-    'Set-DzWpfThemeResources'
+    'Set-DzWpfThemeResources',
+    'Show-WpfMessageBoxSafe',
+    'ConvertTo-MessageBoxResult'
 )

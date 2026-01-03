@@ -576,8 +576,18 @@ function New-MainForm {
 
         throw
     }
-
-
+    function Ui-Info([string]$m, [string]$t = "Información") {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $window | Out-Null
+    }
+    function Ui-Warn([string]$m, [string]$t = "Atención") {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $window | Out-Null
+    }
+    function Ui-Error([string]$m, [string]$t = "Error") {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $window | Out-Null
+    }
+    function Ui-Confirm([string]$m, [string]$t = "Confirmar") {
+        (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $window) -eq [System.Windows.MessageBoxResult]::Yes
+    }
     $lblHostname = $window.FindName("lblHostname")
     $lblPort = $window.FindName("lblPort")
     $txt_IpAdress = $window.FindName("txt_IpAdress")
@@ -773,7 +783,7 @@ function New-MainForm {
                         $retryCount++
                         if ($retryCount -ge $maxRetries) {
                             Write-Host "`n[ERROR] No se pudo copiar al portapapeles: $($_.Exception.Message)" -ForegroundColor Red
-                            [System.Windows.MessageBox]::Show("Error al copiar al portapapeles: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                            Ui-Error "Error al copiar al portapapeles: $($_.Exception.Message)"
                         } else {
                             Start-Sleep -Milliseconds 100
                         }
@@ -793,7 +803,7 @@ function New-MainForm {
 
             } catch {
                 Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                Ui-Error "Error: $($_.Exception.Message)"
             }
         })
     $lblHostname.Add_PreviewMouseLeftButtonDown({
@@ -812,7 +822,7 @@ function New-MainForm {
 
             } catch {
                 Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                Ui-Error "Error: $($_.Exception.Message)"
             }
         })
     $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
@@ -836,7 +846,7 @@ function New-MainForm {
 
             } catch {
                 Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                Ui-Error "Error: $($_.Exception.Message)"
             }
         }.GetNewClosure())
     $txt_AdapterStatus.Add_PreviewMouseLeftButtonDown({
@@ -1122,12 +1132,7 @@ function New-MainForm {
             }
             $managers = Get-SQLServerManagers
             if (-not $managers -or $managers.Count -eq 0) {
-                [System.Windows.MessageBox]::Show(
-                    "No se encontró ninguna versión de SQL Server Configuration Manager.",
-                    "Error",
-                    [System.Windows.MessageBoxButton]::OK,
-                    [System.Windows.MessageBoxImage]::Error
-                ) | Out-Null
+                Ui-Error "No se encontró ninguna versión de SQL Server Configuration Manager."
                 return
             }
             Show-SQLselector -Managers $managers
@@ -1209,15 +1214,8 @@ function New-MainForm {
 
             if (-not $filteredVersions -or $filteredVersions.Count -eq 0) {
                 Write-Host "`tNo se encontró ninguna versión de SSMS instalada." -ForegroundColor Red
-
-                $result = [System.Windows.MessageBox]::Show(
-                    "No se encontró SQL Server Management Studio. ¿Desea buscar manualmente?",
-                    "SSMS no encontrado",
-                    [System.Windows.MessageBoxButton]::YesNo,
-                    [System.Windows.MessageBoxImage]::Question
-                )
-
-                if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+                $wantManual = Ui-Confirm "No se encontró SQL Server Management Studio. ¿Desea buscar manualmente?" "SSMS no encontrado"
+                if ($wantManual) {
                     $openFileDialog = New-Object Microsoft.Win32.OpenFileDialog
                     $openFileDialog.Filter = "SSMS Executable (Ssms.exe)|Ssms.exe"
                     $openFileDialog.Title = "Seleccione Ssms.exe"
@@ -1227,23 +1225,12 @@ function New-MainForm {
                             Start-Process -FilePath $openFileDialog.FileName
                             Write-Host "`tEjecutando: $($openFileDialog.FileName)" -ForegroundColor Green
                         } catch {
-                            [System.Windows.MessageBox]::Show(
-                                "Error al ejecutar SSMS: $($_.Exception.Message)",
-                                "Error",
-                                [System.Windows.MessageBoxButton]::OK,
-                                [System.Windows.MessageBoxImage]::Error
-                            ) | Out-Null
+                            Ui-Error "Error al ejecutar SSMS: $($_.Exception.Message)"
                         }
                     }
                 } else {
-                    $downloadResult = [System.Windows.MessageBox]::Show(
-                        "¿Desea descargar la última versión de SSMS?",
-                        "Descargar SSMS",
-                        [System.Windows.MessageBoxButton]::YesNo,
-                        [System.Windows.MessageBoxImage]::Information
-                    )
-
-                    if ($downloadResult -eq [System.Windows.MessageBoxResult]::Yes) {
+                    $wantDownload = Ui-Confirm "¿Desea descargar la última versión de SSMS?" "Descargar SSMS"
+                    if ($wantDownload) {
                         Start-Process "https://aka.ms/ssmsfullsetup"
                     }
                 }
@@ -1258,18 +1245,18 @@ function New-MainForm {
     $btnForzarActualizacion.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             Show-SystemComponents
-            $resultado = [System.Windows.MessageBox]::Show("¿Desea forzar la actualización de datos?", "Confirmación", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
-            if ($resultado -eq [System.Windows.MessageBoxResult]::Yes) {
+            $ok = Ui-Confirm "¿Desea forzar la actualización de datos?" "Confirmación"
+            if ($ok) {
                 Start-SystemUpdate
-                [System.Windows.MessageBox]::Show("Actualización completada", "Éxito", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+                Ui-Info "Actualización completada" "Éxito"
             } else {
                 Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red
             }
         })
     $btnClearAnyDesk.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            $confirmationResult = [System.Windows.MessageBox]::Show("¿Estás seguro de renovar AnyDesk?", "Confirmar Renovación", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
-            if ($confirmationResult -eq [System.Windows.MessageBoxResult]::Yes) {
+            $ok = Ui-Confirm "¿Estás seguro de renovar AnyDesk?" "Confirmar renovación"
+            if ($ok) {
                 $filesToDelete = @(
                     "C:\ProgramData\AnyDesk\system.conf",
                     "C:\ProgramData\AnyDesk\service.conf",
@@ -1300,9 +1287,9 @@ function New-MainForm {
                     }
                 }
                 if ($errors.Count -eq 0) {
-                    [System.Windows.MessageBox]::Show("$deletedFilesCount archivo(s) eliminado(s) correctamente.", "Éxito", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+                    Ui-Info "$deletedFilesCount archivo(s) eliminado(s) correctamente." "Éxito"
                 } else {
-                    [System.Windows.MessageBox]::Show("Se encontraron errores. Revisa la consola para más detalles.", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                    Ui-Error "Se encontraron errores. Revisa la consola para más detalles."
                 }
             } else {
                 Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red
@@ -1320,7 +1307,8 @@ function New-MainForm {
     $btnCheckPermissions.Add_Click({
             Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
             if (-not (Test-Administrator)) {
-                [System.Windows.MessageBox]::Show("Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador.", "Permisos insuficientes", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+                Ui-Warn "Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador." "Permisos insuficientes"
+
                 return
             }
             Check-Permissions
@@ -1424,16 +1412,11 @@ Base de datos: $($global:database)
                         }
                     })
             } catch {
-                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] CATCH: ((
-(_.Exception.Message)"
-                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] Tipo: ((
-(_.Exception.GetType().FullName)"
-                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] Stack: ((
-(_.ScriptStackTrace)"
-                [System.Windows.MessageBox]::Show("Error de conexión: ((
-(_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-                Write-Host "Error | Error de conexión: ((
-(_.Exception.Message)" -ForegroundColor Red
+                Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: $($_.Exception.Message)"
+                Write-DzDebug "`t[DEBUG][btnConnectDb] Tipo: $($_.Exception.GetType().FullName)"
+                Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: $($_.ScriptStackTrace)"
+                Ui-Error "Error de conexión: $($_.Exception.Message)"
+                Write-Log "Error de conexión: $($_.Exception.Message)" ([ConsoleColor]::Red)
             }
         })
     $btnDisconnectDb.Add_Click({

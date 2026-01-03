@@ -302,18 +302,23 @@ function Show-SSMSInstallerDialog {
     String - "latest" o "ssms14", $null si se cancela
     #>
 
-    [xml]$xaml = @"
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Instalar SSMS"
         Height="200" Width="380"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        Background="#F5F5F5">
+        Background="$($theme.FormBackground)">
 
     <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#2196F3"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="15,8"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -332,7 +337,7 @@ function Show-SSMSInstallerDialog {
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#1976D2"/>
+                    <Setter Property="Background" Value="$($theme.AccentPrimary)"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -376,17 +381,17 @@ function Show-SSMSInstallerDialog {
                    Margin="0,0,10,0"/>
             <Button Name="btnCancel"
                    Content="Cancelar"
-                   Width="140"
-                   Background="#E0E0E0"
-                   Foreground="#424242"/>
+                   Width="140"/>
         </StackPanel>
     </Grid>
 </Window>
 "@
 
     try {
+        [xml]$xaml = $stringXaml
         $reader = New-Object System.Xml.XmlNodeReader $xaml
         $window = [Windows.Markup.XamlReader]::Load($reader)
+
 
         # Obtener controles
         $cmbVersion = $window.FindName("cmbVersion")
@@ -655,34 +660,49 @@ function Show-ChocolateyInstallerMenu {
         Menú de instalación de paquetes Chocolatey con búsqueda mejorada.
     #>
 
-    [xml]$xaml = @"
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Instaladores Choco" Height="420" Width="520"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
-    <Grid Margin="10" Background="#505055">
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="$($theme.FormBackground)">
+    <Window.Resources>
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style x:Key="GeneralButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonGeneralBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonGeneralForeground)"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="10" Background="$($theme.FormBackground)">
         <Label Content="Buscar en Chocolatey:" HorizontalAlignment="Left" VerticalAlignment="Top"
-               Margin="0,0,0,0" Foreground="White"/>
+               Margin="0,0,0,0"/>
         <TextBox Name="txtChocoSearch" HorizontalAlignment="Left" VerticalAlignment="Top"
                  Width="360" Height="25" Margin="0,25,0,0"/>
         <Button Content="Buscar" Name="btnBuscarChoco" Width="120" Height="32"
                 HorizontalAlignment="Left" VerticalAlignment="Top" Margin="370,23,0,0"
-                Background="#4CAF50" Foreground="White"/>
+                Style="{StaticResource GeneralButtonStyle}"/>
 
         <Label Content="SSMS" Name="lblPresetSSMS" Width="70" Height="25"
                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,65,0,0"
-               Background="#C8E6FF" HorizontalContentAlignment="Center"
+               Background="#C8E6FF" Foreground="Black" HorizontalContentAlignment="Center"
                VerticalContentAlignment="Center" BorderBrush="Black" BorderThickness="1" Cursor="Hand"/>
         <Label Content="Heidi" Name="lblPresetHeidi" Width="70" Height="25"
                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="80,65,0,0"
-               Background="#C8E6FF" HorizontalContentAlignment="Center"
+               Background="#C8E6FF" Foreground="Black" HorizontalContentAlignment="Center"
                VerticalContentAlignment="Center" BorderBrush="Black" BorderThickness="1" Cursor="Hand"/>
 
         <Button Content="Mostrar instalados" Name="btnShowInstalledChoco" Width="150" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,100,0,0"/>
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,100,0,0" Style="{StaticResource GeneralButtonStyle}"/>
         <Button Content="Instalar seleccionado" Name="btnInstallSelectedChoco" Width="170" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="160,100,0,0" IsEnabled="False"/>
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="160,100,0,0" IsEnabled="False" Style="{StaticResource GeneralButtonStyle}"/>
         <Button Content="Desinstalar seleccionado" Name="btnUninstallSelectedChoco" Width="150" Height="32"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="340,100,0,0" IsEnabled="False"/>
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="340,100,0,0" IsEnabled="False" Style="{StaticResource GeneralButtonStyle}"/>
         <DataGrid Name="dgvChocoResults" HorizontalAlignment="Left" VerticalAlignment="Top"
                 Width="490" Height="200" Margin="0,145,0,0" IsReadOnly="True"
                 AutoGenerateColumns="False" SelectionMode="Single" CanUserAddRows="False">
@@ -693,13 +713,13 @@ function Show-ChocolateyInstallerMenu {
             </DataGrid.Columns>
         </DataGrid>
         <Button Content="Salir" Name="btnExitInstaladores" Width="490" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,355,0,0"/>
+                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,355,0,0" Style="{StaticResource GeneralButtonStyle}"/>
     </Grid>
 </Window>
 "@
 
     try {
-        $result = New-WpfWindow -Xaml $xaml -PassThru
+        $result = New-WpfWindow -Xaml $stringXaml -PassThru
         $window = $result.Window
     } catch {
         Write-Host "Error creando ventana: $_" -ForegroundColor Red

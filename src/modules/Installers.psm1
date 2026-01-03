@@ -997,39 +997,31 @@ function Show-ChocolateyInstallerMenu {
                 Close-WpfProgressBar -Window $progress
             }
         })
-
     # Desinstalar - MEJORADO
     $btnUninstallSelectedChoco.Add_Click({
             if (-not $dgvChocoResults.SelectedItem) {
                 [System.Windows.MessageBox]::Show("Seleccione un paquete", "Desinstalación")
                 return
             }
-
             $packageName = $dgvChocoResults.SelectedItem.Name
-
             $result = [System.Windows.MessageBox]::Show(
                 "¿Desinstalar $packageName?",
                 "Confirmar",
                 [System.Windows.MessageBoxButton]::YesNo,
                 [System.Windows.MessageBoxImage]::Warning
             )
-
             if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
                 return
             }
-
             $progress = Show-WpfProgressBar -Title "Desinstalando" -Message "Preparando desinstalación..."
-
             try {
                 Update-WpfProgressBar -Window $progress -Percent 30 -Message "Desinstalando $packageName..."
-
                 $uninstallProcess = Start-Process -FilePath "choco" `
                     -ArgumentList "uninstall", $packageName, "-y" `
                     -NoNewWindow -PassThru -Wait
 
                 Update-WpfProgressBar -Window $progress -Percent 90 -Message "Verificando desinstalación..."
                 Start-Sleep -Milliseconds 500
-
                 if ($uninstallProcess.ExitCode -eq 0) {
                     Update-WpfProgressBar -Window $progress -Percent 100 -Message "Desinstalación completada"
                     Start-Sleep -Milliseconds 500
@@ -1044,10 +1036,8 @@ function Show-ChocolateyInstallerMenu {
                 Close-WpfProgressBar -Window $progress
             }
         })
-
     # Salir
     $btnExitInstaladores.Add_Click({ $window.Close() })
-
     # Mostrar ventana
     $window.ShowDialog() | Out-Null
 }
@@ -1056,49 +1046,36 @@ function Invoke-PortableTool {
     param(
         [Parameter(Mandatory)]
         [string]$ToolName,
-
         [Parameter(Mandatory)]
         [string]$Url,
-
         [Parameter(Mandatory)]
         [string]$ZipPath,
-
         [Parameter(Mandatory)]
         [string]$ExtractPath,
-
         [Parameter(Mandatory)]
         [string]$ExeName,
-
         # UI opcional
         [System.Windows.Controls.TextBlock]$InfoTextBlock,
-
         # Si tuvieras un Owner WPF para MessageBox (opcional)
         [System.Windows.Window]$OwnerWindow
     )
-
     try {
         $exePath = Join-Path $ExtractPath $ExeName
-
         Write-DzDebug "`t[DEBUG][Invoke-PortableTool] ToolName=$ToolName" ([System.ConsoleColor]::DarkGray)
         Write-DzDebug "`t[DEBUG][Invoke-PortableTool] Url=$Url" ([System.ConsoleColor]::DarkGray)
         Write-DzDebug "`t[DEBUG][Invoke-PortableTool] Zip=$ZipPath" ([System.ConsoleColor]::DarkGray)
         Write-DzDebug "`t[DEBUG][Invoke-PortableTool] Extract=$ExtractPath" ([System.ConsoleColor]::DarkGray)
         Write-DzDebug "`t[DEBUG][Invoke-PortableTool] ExePath=$exePath" ([System.ConsoleColor]::DarkGray)
-
         # 1) ¿Ya existe?
         if (Test-Path -LiteralPath $exePath) {
-
             $msg = "$ToolName ya existe en:`n$exePath`n`nSí = Abrir local`nNo = Volver a descargar`nCancelar = Cancelar operación"
             $rExist = Show-WpfMessageBox -Message $msg -Title "Ya existe" -Buttons "YesNoCancel" -Icon "Question"
-
             Write-DzDebug "`t[DEBUG][Invoke-PortableTool] rExist=$rExist" ([System.ConsoleColor]::Cyan)
-
             if ($rExist -eq [System.Windows.MessageBoxResult]::Yes) {
                 Start-Process $exePath
                 if ($InfoTextBlock) { $InfoTextBlock.Text = "Abriendo $ToolName existente..." }
                 return $true
             }
-
             if ($rExist -eq [System.Windows.MessageBoxResult]::Cancel) {
                 if ($InfoTextBlock) { $InfoTextBlock.Text = "Operación cancelada." }
                 return $false
@@ -1114,23 +1091,19 @@ function Invoke-PortableTool {
                 return $false
             }
         }
-
         # 2) Progress
         $pw = Show-WpfProgressBar -Title "Descargando $ToolName" -Message "Iniciando..."
         if ($null -eq $pw -or $null -eq $pw.ProgressBar) {
             Write-DzDebug "`t[DEBUG][Invoke-PortableTool] ERROR: No progress window" ([System.ConsoleColor]::Red)
             return $false
         }
-
         try {
             # Limpia zip anterior
             if (Test-Path -LiteralPath $ZipPath) {
                 Remove-Item -LiteralPath $ZipPath -Force -ErrorAction SilentlyContinue
             }
-
             Update-WpfProgressBar -Window $pw -Percent 0 -Message "Preparando descarga..."
             if ($InfoTextBlock) { $InfoTextBlock.Text = "Preparando descarga..." }
-
             # 3) Descargar (tu función existente)
             $ok = Download-FileWithProgressWpfStream -Url $Url -OutFile $ZipPath -Window $pw -OnStatus {
                 param($p, $m)
@@ -1138,13 +1111,10 @@ function Invoke-PortableTool {
                 if ($InfoTextBlock) { $InfoTextBlock.Text = $m }
             }
             if (-not $ok) { throw "Descarga fallida." }
-
             Update-WpfProgressBar -Window $pw -Percent 100 -Message "Extrayendo..."
             if ($InfoTextBlock) { $InfoTextBlock.Text = "Extrayendo..." }
-
             # 4) Si el exe está corriendo, no borres su carpeta
             $exeRunning = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path -ieq $exePath }
-
             if (-not $exeRunning) {
                 if (Test-Path -LiteralPath $ExtractPath) {
                     Remove-Item -LiteralPath $ExtractPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -1152,22 +1122,16 @@ function Invoke-PortableTool {
             } else {
                 Write-DzDebug "`t[DEBUG][Invoke-PortableTool] WARN: $ExeName está en ejecución, no se limpia carpeta" ([System.ConsoleColor]::Yellow)
             }
-
             Expand-Archive -Path $ZipPath -DestinationPath $ExtractPath -Force
-
             if (-not (Test-Path -LiteralPath $exePath)) {
                 throw "No se encontró el ejecutable: $exePath"
             }
-
             Update-WpfProgressBar -Window $pw -Percent 100 -Message "Ejecutando..."
             if ($InfoTextBlock) { $InfoTextBlock.Text = "Ejecutando..." }
-
             Start-Process $exePath
             if ($InfoTextBlock) { $InfoTextBlock.Text = "Listo: Ejecutado $ToolName" }
-
             Write-DzDebug "`t[DEBUG][Invoke-PortableTool] OK: Ejecutado $ToolName" ([System.ConsoleColor]::Cyan)
             return $true
-
         } catch {
             $err = $_.Exception.Message
             Write-DzDebug "`t[DEBUG][Invoke-PortableTool] ERROR: $err" ([System.ConsoleColor]::Red)
@@ -1182,7 +1146,6 @@ function Invoke-PortableTool {
         return $false
     }
 }
-
 Export-ModuleMember -Function @(
     'Check-Chocolatey',
     'Test-ChocolateyInstalled',

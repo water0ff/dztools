@@ -240,91 +240,126 @@ function New-MainForm {
             </Setter.Value>
         </Setter>
         </Style>
+            <Style TargetType="{x:Type ComboBox}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
 
-        <!-- ComboBox (control + popup) -->
-        <Style TargetType="{x:Type ComboBox}">
-        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-        <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="6,4"/>
-        <Setter Property="SnapsToDevicePixels" Value="True"/>
-        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
-        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ComboBox}">
+                    <Grid>
+                    <Border x:Name="Outer"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6"
+                            SnapsToDevicePixels="True"/>
 
-        <Setter Property="Template">
-            <Setter.Value>
-            <ControlTemplate TargetType="{x:Type ComboBox}">
-                <Grid>
-                <Border x:Name="Outer"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="6"
-                        SnapsToDevicePixels="True"/>
+                    <!-- ✅ 1) Toggle para click en TODO el control (solo NO editable) -->
+                    <ToggleButton x:Name="FullToggle"
+                                    Focusable="False"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    ClickMode="Press"
+                                    IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
 
-                <!-- Flecha -->
-                <ToggleButton x:Name="ToggleButton"
-                                Focusable="False"
-                                IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                ClickMode="Press"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                HorizontalAlignment="Right"
-                                Width="34">
-                    <Path Data="M 0 0 L 4 4 L 8 0 Z"
-                        Fill="{DynamicResource ControlFg}"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"/>
-                </ToggleButton>
+                    <!-- ✅ 2) Botón de flecha REAL (clickeable siempre) -->
+                    <ToggleButton x:Name="ArrowToggle"
+                                    Focusable="False"
+                                    Width="34"
+                                    HorizontalAlignment="Right"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    ClickMode="Press"
+                                    IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
 
-                <!-- Contenido seleccionado -->
-                <ContentPresenter x:Name="ContentSite"
-                                    Margin="10,2,44,2"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Left"
-                                    Content="{TemplateBinding SelectionBoxItem}"
-                                    ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                    ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
-                                    RecognizesAccessKey="True"/>
+                        <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                            Fill="{DynamicResource ControlFg}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
+                    </ToggleButton>
 
-                <!-- Popup dropdown -->
-                <Popup x:Name="Popup"
-                        Placement="Bottom"
-                        IsOpen="{TemplateBinding IsDropDownOpen}"
-                        AllowsTransparency="True"
-                        Focusable="False"
-                        PopupAnimation="Fade">
-                    <Border x:Name="DropDownBorder"
-                            Background="{DynamicResource PanelBg}"
-                            BorderBrush="{DynamicResource BorderBrushColor}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            SnapsToDevicePixels="True"
-                            Padding="6"
-                            MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
-                    <ScrollViewer SnapsToDevicePixels="True">
-                        <ItemsPresenter/>
-                    </ScrollViewer>
-                    </Border>
-                </Popup>
-                </Grid>
+                    <!-- Texto/selección NO editable -->
+                    <ContentPresenter x:Name="ContentSite"
+                                        Margin="10,2,44,2"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Left"
+                                        Content="{TemplateBinding SelectionBoxItem}"
+                                        ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                        ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                        RecognizesAccessKey="True"/>
 
-                <ControlTemplate.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Outer" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
-                </Trigger>
-                <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                    <Setter TargetName="Outer" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.55"/>
-                </Trigger>
-                </ControlTemplate.Triggers>
-            </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-        </Style>
+                    <!-- Texto editable -->
+                    <TextBox x:Name="PART_EditableTextBox"
+                            Margin="10,2,44,2"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Stretch"
+                            Background="{DynamicResource ControlBg}"
+                            Foreground="{DynamicResource ControlFg}"
+                            BorderThickness="0"
+                            Padding="0"
+                            Visibility="Hidden"
+                            IsReadOnly="{TemplateBinding IsReadOnly}"/>
+
+                    <!-- Popup dropdown -->
+                    <Popup x:Name="Popup"
+                            Placement="Bottom"
+                            IsOpen="{TemplateBinding IsDropDownOpen}"
+                            AllowsTransparency="True"
+                            Focusable="False"
+                            PopupAnimation="Fade">
+                        <Border x:Name="DropDownBorder"
+                                Background="{DynamicResource PanelBg}"
+                                BorderBrush="{DynamicResource BorderBrushColor}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                SnapsToDevicePixels="True"
+                                Padding="6"
+                                MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                        <ScrollViewer SnapsToDevicePixels="True">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                        </Border>
+                    </Popup>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="Outer" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                    </Trigger>
+
+                    <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                        <Setter TargetName="Outer" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                    </Trigger>
+
+                    <!-- ✅ Editable: se muestra TextBox, se oculta ContentPresenter
+                        y se DESACTIVA FullToggle para no comerse el click (pero flecha sigue funcionando) -->
+                    <Trigger Property="IsEditable" Value="True">
+                        <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden"/>
+                        <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                        <Setter TargetName="FullToggle" Property="IsHitTestVisible" Value="False"/>
+                    </Trigger>
+
+                    <!-- ✅ NO editable: FullToggle activo para abrir con click en cualquier parte -->
+                    <Trigger Property="IsEditable" Value="False">
+                        <Setter TargetName="FullToggle" Property="IsHitTestVisible" Value="True"/>
+                    </Trigger>
+
+                    <Trigger Property="IsEnabled" Value="False">
+                        <Setter Property="Opacity" Value="0.55"/>
+                    </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            </Style>
+
         <Style TargetType="{x:Type CheckBox}">
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
@@ -1350,13 +1385,16 @@ function New-MainForm {
                     [void]$global:cmbDatabases.Items.Add($db)
                 }
                 $global:cmbDatabases.IsEnabled = $true
-                $global:cmbDatabases.SelectedIndex = 0
+                # ✅ Guardar la BD seleccionada
+                $global:database = [string]$global:cmbDatabases.SelectedItem
+
+                # ✅ Pintar el label correctamente
                 $global:lblConnectionStatus.Content = @"
 Conectado a:
 Servidor: $serverText
-Base de datos: ((
-(global:database)
+Base de datos: $($global:database)
 "@.Trim()
+
                 $global:lblConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
                 $global:txtServer.IsEnabled = $false
                 $global:txtUser.IsEnabled = $false
@@ -1367,6 +1405,24 @@ Base de datos: ((
                 $global:btnBackup.IsEnabled = $true
                 $global:btnDisconnectDb.IsEnabled = $true
                 $global:rtbQuery.IsEnabled = $true
+                $cmbDatabases.Add_SelectionChanged({
+                        try {
+                            $sel = $global:cmbDatabases.SelectedItem
+                            if (-not $sel) { return }
+
+                            $global:database = [string]$sel
+
+                            $global:lblConnectionStatus.Content = @"
+Conectado a:
+Servidor: $($global:server)
+Base de datos: $($global:database)
+"@.Trim()
+
+                            $global:lblConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                        } catch {
+                            Write-DzDebug "`t[DEBUG][cmbDatabases.SelectionChanged] $($_.Exception.Message)"
+                        }
+                    })
             } catch {
                 Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] CATCH: ((
 (_.Exception.Message)"

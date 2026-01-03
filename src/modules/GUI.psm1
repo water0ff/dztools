@@ -405,6 +405,12 @@ function New-WpfInputDialog {
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
         </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
         <Style x:Key="SystemButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
             <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>

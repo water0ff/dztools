@@ -142,6 +142,9 @@ function New-MainForm {
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
+        <Style TargetType="{x:Type Label}">
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Style>
 
         <!-- TabControl -->
         <Style TargetType="{x:Type TabControl}">
@@ -197,10 +200,59 @@ function New-MainForm {
             <Setter Property="Padding" Value="6,4"/>
         </Style>
 
+        <Style TargetType="{x:Type PasswordBox}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+
         <!-- ComboBox -->
         <Style TargetType="{x:Type ComboBox}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Style>
+
+        <Style TargetType="{x:Type RichTextBox}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style TargetType="{x:Type DataGrid}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="RowBackground" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource PanelBg}"/>
+        </Style>
+
+        <Style TargetType="{x:Type DataGridRow}">
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        </Style>
+
+        <Style TargetType="{x:Type DataGridCell}">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
         </Style>
 
         <!-- ====== Styles faltantes ====== -->

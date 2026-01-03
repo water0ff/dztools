@@ -258,6 +258,26 @@ function Show-BackupDialog {
         </Style>
         <Style TargetType="GroupBox">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="ProgressBar">
+            <Setter Property="Foreground" Value="$($theme.AccentSecondary)"/>
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
         </Style>
         <Style x:Key="SystemButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
@@ -273,7 +293,7 @@ function Show-BackupDialog {
     </CheckBox><Label x:Name="lblPassword" Grid.Row="4" Content="Contraseña (opcional) para ZIP:"/><Grid Grid.Row="5" Margin="0,5,0,10">
     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
     </Grid.ColumnDefinitions><PasswordBox x:Name="txtPassword" Grid.Column="0" Height="25"/>
-    <Button x:Name="btnTogglePassword" Grid.Column="1" Content="👁" Width="30" Margin="5,0,0,0"/>
+    <Button x:Name="btnTogglePassword" Grid.Column="1" Content="👁" Width="30" Margin="5,0,0,0" Style="{StaticResource SystemButtonStyle}"/>
     </Grid><CheckBox x:Name="chkSubir" Grid.Row="6" Margin="0,0,0,20" IsEnabled="False">
     <TextBlock Text="Subir a Mega.nz (opción deshabilitada)" FontWeight="Bold" Foreground="$($theme.FormForeground)"/>
     </CheckBox>

@@ -98,6 +98,91 @@ function New-WpfWindow {
         if ($stringReader) { $stringReader.Close() }
     }
 }
+function Show-WpfProgressBar {
+    <#
+    .SYNOPSIS
+        Muestra una barra de progreso WPF no bloqueante.
+    #>
+    param(
+        [string]$Title = "Procesando",
+        [string]$Message = "Por favor espere..."
+    )
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="$Title"
+        Height="220" Width="500"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False">
+    <Border Background="$($theme.FormBackground)"
+            CornerRadius="8"
+            BorderBrush="$($theme.AccentPrimary)"
+            BorderThickness="2"
+            Padding="20">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="5" BlurRadius="15" Opacity="0.3"/>
+        </Border.Effect>
+        <StackPanel>
+            <TextBlock Text="$Title"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="$($theme.AccentPrimary)"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,20"/>
+            <TextBlock Name="lblMessage"
+                       Text="$Message"
+                       FontSize="12"
+                       Foreground="$($theme.FormForeground)"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,15"
+                       MinHeight="30"/>
+            <ProgressBar Name="progressBar"
+                         Height="25"
+                         Minimum="0"
+                         Maximum="100"
+                         Value="0"
+                         Foreground="$($theme.AccentSecondary)"
+                         Background="$($theme.ControlBackground)"
+                         Margin="0,0,0,10"/>
+            <TextBlock Name="lblPercent"
+                       Text="0%"
+                       FontSize="14"
+                       FontWeight="Bold"
+                       Foreground="$($theme.AccentPrimary)"
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+    </Border>
+</Window>
+"@
+
+    try {
+        $result = New-WpfWindow -Xaml $stringXaml -PassThru
+        $window = $result.Window
+        $window | Add-Member -MemberType NoteProperty -Name ProgressBar   -Value $result.Controls['progressBar'] | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name MessageLabel  -Value $result.Controls['lblMessage']  | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name PercentLabel  -Value $result.Controls['lblPercent']  | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name IsClosed      -Value $false                          | Out-Null
+        $window.Add_Closed({
+                $window.IsClosed = $true
+            })
+        $window.Show()
+        $window.Dispatcher.Invoke(
+            [System.Windows.Threading.DispatcherPriority]::Background,
+            [action] {}
+        ) | Out-Null
+        return $window
+    } catch {
+        Write-Error "Error al crear barra de progreso: $_"
+        return $null
+    }
+}
 function Show-WpfMessageBox {
     [CmdletBinding()]
     param(
@@ -336,92 +421,6 @@ function Show-WpfMessageBox {
     }
 
     return $w.DzResult
-}
-
-function Show-WpfProgressBar {
-    <#
-    .SYNOPSIS
-        Muestra una barra de progreso WPF no bloqueante.
-    #>
-    param(
-        [string]$Title = "Procesando",
-        [string]$Message = "Por favor espere..."
-    )
-    $theme = Get-DzUiTheme
-    $stringXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="$Title"
-        Height="220" Width="500"
-        WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
-        Topmost="True"
-        ShowInTaskbar="False">
-    <Border Background="$($theme.FormBackground)"
-            CornerRadius="8"
-            BorderBrush="$($theme.AccentPrimary)"
-            BorderThickness="2"
-            Padding="20">
-        <Border.Effect>
-            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="5" BlurRadius="15" Opacity="0.3"/>
-        </Border.Effect>
-        <StackPanel>
-            <TextBlock Text="$Title"
-                       FontSize="18"
-                       FontWeight="Bold"
-                       Foreground="$($theme.AccentPrimary)"
-                       HorizontalAlignment="Center"
-                       Margin="0,0,0,20"/>
-            <TextBlock Name="lblMessage"
-                       Text="$Message"
-                       FontSize="12"
-                       Foreground="$($theme.FormForeground)"
-                       TextAlignment="Center"
-                       TextWrapping="Wrap"
-                       Margin="0,0,0,15"
-                       MinHeight="30"/>
-            <ProgressBar Name="progressBar"
-                         Height="25"
-                         Minimum="0"
-                         Maximum="100"
-                         Value="0"
-                         Foreground="$($theme.AccentSecondary)"
-                         Background="$($theme.ControlBackground)"
-                         Margin="0,0,0,10"/>
-            <TextBlock Name="lblPercent"
-                       Text="0%"
-                       FontSize="14"
-                       FontWeight="Bold"
-                       Foreground="$($theme.AccentPrimary)"
-                       HorizontalAlignment="Center"/>
-        </StackPanel>
-    </Border>
-</Window>
-"@
-
-    try {
-        $result = New-WpfWindow -Xaml $stringXaml -PassThru
-        $window = $result.Window
-        $window | Add-Member -MemberType NoteProperty -Name ProgressBar   -Value $result.Controls['progressBar'] | Out-Null
-        $window | Add-Member -MemberType NoteProperty -Name MessageLabel  -Value $result.Controls['lblMessage']  | Out-Null
-        $window | Add-Member -MemberType NoteProperty -Name PercentLabel  -Value $result.Controls['lblPercent']  | Out-Null
-        $window | Add-Member -MemberType NoteProperty -Name IsClosed      -Value $false                          | Out-Null
-        $window.Add_Closed({
-                $window.IsClosed = $true
-            })
-        $window.Show()
-        $window.Dispatcher.Invoke(
-            [System.Windows.Threading.DispatcherPriority]::Background,
-            [action] {}
-        ) | Out-Null
-        return $window
-    } catch {
-        Write-Error "Error al crear barra de progreso: $_"
-        return $null
-    }
 }
 function ConvertTo-MessageBoxResult {
     param([object]$Value)

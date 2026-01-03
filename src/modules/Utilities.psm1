@@ -569,25 +569,16 @@ function Check-Permissions {
     )
     if (-not (Test-Path -LiteralPath $folderPath)) {
         Write-Host "La carpeta $folderPath no existe." -ForegroundColor Red
-
-        [System.Windows.MessageBox]::Show(
-            "La carpeta '$folderPath' no existe en este equipo.`r`nCrea la carpeta o corrige la ruta antes de continuar.",
-            "Carpeta no encontrada",
-            [System.Windows.MessageBoxButton]::OK,
-            [System.Windows.MessageBoxImage]::Warning
-        ) | Out-Null
+        Show-WpfMessageBoxSafe -Message "La carpeta '$folderPath' no existe en este equipo.`r`nCrea la carpeta o corrige la ruta antes de continuar." `
+            -Title "Carpeta no encontrada" -Buttons OK -Icon Warning | Out-Null
         return
     }
     try {
         $acl = Get-Acl -LiteralPath $folderPath -ErrorAction Stop
     } catch {
         Write-Host "Error obteniendo ACL de $folderPath : $_" -ForegroundColor Red
-        [System.Windows.MessageBox]::Show(
-            "Error obteniendo permisos de '$folderPath':`r`n$($_.Exception.Message)",
-            "Error al obtener permisos",
-            [System.Windows.MessageBoxButton]::OK,
-            [System.Windows.MessageBoxImage]::Error
-        ) | Out-Null
+        Show-WpfMessageBoxSafe -Message "Error obteniendo permisos de '$folderPath':`r`n$($_.Exception.Message)" `
+            -Title "Error al obtener permisos" -Buttons OK -Icon Error | Out-Null
         return
     }
     $permissions = @()
@@ -628,13 +619,9 @@ function Check-Permissions {
         Write-Host "`tNo hay permisos para 'Everyone'" -ForegroundColor Red
     }
     if (-not $everyoneHasFullControl) {
-        $result = [System.Windows.MessageBox]::Show(
-            "El usuario 'Everyone' no tiene permisos de 'Full Control'. ¿Deseas concederlo?",
-            "Permisos 'Everyone'",
-            [System.Windows.MessageBoxButton]::YesNo,
-            [System.Windows.MessageBoxImage]::Question
-        )
-        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+        $result = Show-WpfMessageBoxSafe -Message "El usuario 'Everyone' no tiene permisos de 'Full Control'. ¿Deseas concederlo?" `
+            -Title "Permisos 'Everyone'" -Buttons YesNo -Icon Question
+        if ((ConvertTo-MessageBoxResult $result) -eq [System.Windows.MessageBoxResult]::Yes) {
             try {
                 $directoryInfo = New-Object System.IO.DirectoryInfo($folderPath)
                 $dirAcl = $directoryInfo.GetAccessControl()
@@ -649,20 +636,12 @@ function Check-Permissions {
                 $dirAcl.SetAccessRuleProtection($false, $true)
                 $directoryInfo.SetAccessControl($dirAcl)
                 Write-Host "Se ha concedido 'Full Control' a 'Everyone'." -ForegroundColor Green
-                [System.Windows.MessageBox]::Show(
-                    "Se ha concedido 'Full Control' a 'Everyone' en '$folderPath'.",
-                    "Permisos actualizados",
-                    [System.Windows.MessageBoxButton]::OK,
-                    [System.Windows.MessageBoxImage]::Information
-                ) | Out-Null
+                Show-WpfMessageBoxSafe -Message "Se ha concedido 'Full Control' a 'Everyone' en '$folderPath'." `
+                    -Title "Permisos actualizados" -Buttons OK -Icon Information | Out-Null
             } catch {
                 Write-Host "Error aplicando permisos: $_" -ForegroundColor Red
-                [System.Windows.MessageBox]::Show(
-                    "Error aplicando permisos a '$folderPath':`r`n$($_.Exception.Message)",
-                    "Error al aplicar permisos",
-                    [System.Windows.MessageBoxButton]::OK,
-                    [System.Windows.MessageBoxImage]::Error
-                ) | Out-Null
+                Show-WpfMessageBoxSafe -Message "Error aplicando permisos a '$folderPath':`r`n$($_.Exception.Message)" `
+                    -Title "Error al aplicar permisos" -Buttons OK -Icon Error | Out-Null
             }
         }
     }
@@ -811,15 +790,11 @@ function Start-SystemUpdate {
         Write-Host "============================================" -ForegroundColor Green
         Write-Host "`nSe recomienda REINICIAR el equipo" -ForegroundColor Yellow
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: Mostrando diálogo de reinicio"
-        $result = [System.Windows.MessageBox]::Show(
-            "El proceso de actualización se completó exitosamente.`n`n" +
+        $result = Show-WpfMessageBoxSafe -Message ("El proceso de actualización se completó exitosamente.`n`n" +
             "Se recomienda REINICIAR el equipo para completar la actualización del sistema WMI.`n`n" +
-            "¿Desea reiniciar ahora?",
-            "Actualización completada",
-            [System.Windows.MessageBoxButton]::YesNo,
-            [System.Windows.MessageBoxImage]::Question
-        )
-        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+            "¿Desea reiniciar ahora?") `
+            -Title "Actualización completada" -Buttons YesNo -Icon Question
+        if ((ConvertTo-MessageBoxResult $result) -eq [System.Windows.MessageBoxResult]::Yes) {
             Write-Host "`n`tReiniciando equipo en 10 segundos..." -ForegroundColor Yellow
             Write-DzDebug "`t[DEBUG]Start-SystemUpdate: Usuario eligió reiniciar"
             Start-Sleep -Seconds 3
@@ -833,13 +808,10 @@ function Start-SystemUpdate {
     } catch {
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: EXCEPCIÓN: $($_.Exception.Message)" Red
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: ScriptStackTrace: $($_.ScriptStackTrace)" Red
-        Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red        [System.Windows.MessageBox]::Show(
-            "Error durante la actualización: $($_.Exception.Message)`n`n" +
-            "Revise los logs y considere reiniciar manualmente el equipo.",
-            "Error en actualización",
-            [System.Windows.MessageBoxButton]::OK,
-            [System.Windows.MessageBoxImage]::Error
-        ) | Out-Null
+        Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
+        Show-WpfMessageBoxSafe -Message ("Error durante la actualización: $($_.Exception.Message)`n`n" +
+            "Revise los logs y considere reiniciar manualmente el equipo.") `
+            -Title "Error en actualización" -Buttons OK -Icon Error | Out-Null
         return $false
     } finally {
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: FINALLY (cerrando progressWindow)"

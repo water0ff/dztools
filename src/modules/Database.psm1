@@ -248,7 +248,7 @@ function Show-BackupDialog {
 
     $theme = Get-DzUiTheme
     $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Respaldo" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Respaldo" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)" FontFamily="$($theme.UiFontFamily)" FontSize="$($theme.UiFontSize)">
     <Window.Resources>
         <Style TargetType="Label">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>

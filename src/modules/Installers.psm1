@@ -310,22 +310,29 @@ function Show-SSMSInstallerDialog {
         Height="200" Width="380"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        Background="$($theme.FormBackground)">
+        Background="$($theme.FormBackground)"
+        FontFamily="$($theme.UiFontFamily)"
+        FontSize="$($theme.UiFontSize)">
 
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+            <Setter Property="FontFamily" Value="$($theme.UiFontFamily)"/>
+            <Setter Property="FontSize" Value="$($theme.UiFontSize)"/>
         </Style>
         <Style TargetType="ComboBox">
             <Setter Property="Background" Value="$($theme.ControlBackground)"/>
             <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
             <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontFamily" Value="$($theme.UiFontFamily)"/>
+            <Setter Property="FontSize" Value="$($theme.UiFontSize)"/>
         </Style>
         <Style TargetType="Button">
             <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
             <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontFamily" Value="$($theme.UiFontFamily)"/>
+            <Setter Property="FontSize" Value="$($theme.UiFontSize)"/>
             <Setter Property="Padding" Value="15,8"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -360,14 +367,12 @@ function Show-SSMSInstallerDialog {
         <!-- Título -->
         <TextBlock Grid.Row="0"
                   Text="Elige la versión a instalar:"
-                  FontSize="13"
                   FontWeight="Bold"
                   Margin="0,0,0,15"/>
 
         <!-- ComboBox -->
         <ComboBox Grid.Row="1"
                  Name="cmbVersion"
-                 FontSize="12"
                  Padding="8"
                  Margin="0,0,0,20">
             <ComboBoxItem Content="Último disponible" IsSelected="True"/>
@@ -672,7 +677,9 @@ function Show-ChocolateyInstallerMenu {
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Instaladores Choco" Height="420" Width="520"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="$($theme.FormBackground)">
+        Background="$($theme.FormBackground)"
+        FontFamily="$($theme.UiFontFamily)"
+        FontSize="$($theme.UiFontSize)">
     <Window.Resources>
         <Style TargetType="Label">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>

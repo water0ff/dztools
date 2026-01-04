@@ -142,6 +142,17 @@ function New-MainForm {
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
+        <Style TargetType="{x:Type Control}">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
+        </Style>
+
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Style>
+
         <Style TargetType="{x:Type Label}">
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
@@ -221,6 +232,8 @@ function New-MainForm {
         </Style>
 
         <Style TargetType="{x:Type RichTextBox}">
+            <Setter Property="FontFamily" Value="{DynamicResource CodeFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource CodeFontSize}"/>
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
@@ -268,8 +281,8 @@ function New-MainForm {
         <Style x:Key="ConsoleTextBoxStyle"
                TargetType="{x:Type TextBox}"
                BasedOn="{StaticResource {x:Type TextBox}}">
-            <Setter Property="FontFamily" Value="Consolas"/>
-            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontFamily" Value="{DynamicResource CodeFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource CodeFontSize}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
             <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
@@ -364,8 +377,7 @@ function New-MainForm {
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
                              Width="220" Height="400" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
-                             IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                             FontFamily="Courier New" FontSize="10"/>
+                             IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
                 </Grid>
             </TabItem>
             <TabItem Header="Base de datos" Name="tabProSql">

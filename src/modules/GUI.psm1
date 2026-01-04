@@ -14,61 +14,71 @@ function Get-DzUiTheme {
 
     $themes = @{
         Light = @{
-            FormBackground           = "#F4F6F8"
-            FormForeground           = "#111111"
+            FormBackground           = "#FFFFFF"
+            FormForeground           = "#333333"
 
-            InfoBackground           = "#FFFFFF"
-            InfoForeground           = "#111111"
-            InfoHoverBackground      = "#FF8C00"
-            InfoHoverForeground      = "#111111"   # <- importante
+            InfoBackground           = "#F3F3F3"
+            InfoForeground           = "#333333"
+            InfoHoverBackground      = "#CCE4FF"
+            InfoHoverForeground      = "#1A1A1A"
 
             ControlBackground        = "#FFFFFF"
-            ControlForeground        = "#111111"
+            ControlForeground        = "#333333"
 
-            BorderColor              = "#CFCFCF"
+            BorderColor              = "#E5E5E5"
 
-            ButtonGeneralBackground  = "#E6E6E6"
-            ButtonGeneralForeground  = "#111111"
-            ButtonSystemBackground   = "#96C8FF"
-            ButtonSystemForeground   = "#111111"
-            ButtonNationalBackground = "#FFC896"
-            ButtonNationalForeground = "#111111"
+            ButtonGeneralBackground  = "#E5E5E5"
+            ButtonGeneralForeground  = "#333333"
+            ButtonSystemBackground   = "#007ACC"
+            ButtonSystemForeground   = "#FFFFFF"
+            ButtonNationalBackground = "#16825D"
+            ButtonNationalForeground = "#FFFFFF"
 
             ConsoleBackground        = "#FFFFFF"
             ConsoleForeground        = "#111111"
 
-            AccentPrimary            = "#1976D2"
-            AccentSecondary          = "#2E7D32"
+            AccentPrimary            = "#007ACC"
+            AccentSecondary          = "#16825D"
 
-            AccentMuted              = "#6B7280"
+            AccentMuted              = "#6A6A6A"
+
+            UiFontFamily             = "Segoe UI"
+            UiFontSize               = 13
+            CodeFontFamily           = "Consolas"
+            CodeFontSize             = 13
         }
         Dark  = @{
-            FormBackground           = "#000000"
-            FormForeground           = "#FFFFFF"
+            FormBackground           = "#1E1E1E"
+            FormForeground           = "#D4D4D4"
 
-            InfoBackground           = "#1E1E1E"
-            InfoForeground           = "#FFFFFF"
-            InfoHoverBackground      = "#FF8C00"
-            InfoHoverForeground      = "#000000"   # <- importante (naranja + negro = legible)
+            InfoBackground           = "#252526"
+            InfoForeground           = "#D4D4D4"
+            InfoHoverBackground      = "#264F78"
+            InfoHoverForeground      = "#FFFFFF"
 
-            ControlBackground        = "#1C1C1C"
-            ControlForeground        = "#FFFFFF"
+            ControlBackground        = "#3C3C3C"
+            ControlForeground        = "#D4D4D4"
 
-            BorderColor              = "#4C4C4C"
+            BorderColor              = "#454545"
 
-            ButtonGeneralBackground  = "#2F2F2F"
-            ButtonGeneralForeground  = "#FFFFFF"
-            ButtonSystemBackground   = "#96C8FF"
-            ButtonSystemForeground   = "#000000"
-            ButtonNationalBackground = "#FFC896"
-            ButtonNationalForeground = "#000000"
+            ButtonGeneralBackground  = "#3C3C3C"
+            ButtonGeneralForeground  = "#D4D4D4"
+            ButtonSystemBackground   = "#0E639C"
+            ButtonSystemForeground   = "#FFFFFF"
+            ButtonNationalBackground = "#16825D"
+            ButtonNationalForeground = "#FFFFFF"
 
             ConsoleBackground        = "#012456"
             ConsoleForeground        = "#FFFFFF"
 
-            AccentPrimary            = "#2196F3"
-            AccentSecondary          = "#4CAF50"
-            AccentMuted              = "#9CA3AF"
+            AccentPrimary            = "#0E639C"
+            AccentSecondary          = "#16825D"
+            AccentMuted              = "#9B9B9B"
+
+            UiFontFamily             = "Segoe UI"
+            UiFontSize               = 13
+            CodeFontFamily           = "Consolas"
+            CodeFontSize             = 13
         }
     }
 
@@ -189,7 +199,9 @@ function Show-WpfProgressBar {
         AllowsTransparency="True"
         Background="Transparent"
         Topmost="True"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        FontFamily="$($theme.UiFontFamily)"
+        FontSize="$($theme.UiFontSize)">
     <Border Background="$($theme.FormBackground)"
             CornerRadius="8"
             BorderBrush="$($theme.AccentPrimary)"
@@ -208,7 +220,7 @@ function Show-WpfProgressBar {
 
             <TextBlock Name="lblMessage"
                        Text="$Message"
-                       FontSize="12"
+                       FontSize="$($theme.UiFontSize)"
                        Foreground="$($theme.FormForeground)"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
@@ -400,7 +412,9 @@ function New-WpfInputDialog {
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        Background="$($theme.FormBackground)">
+        Background="$($theme.FormBackground)"
+        FontFamily="$($theme.UiFontFamily)"
+        FontSize="$($theme.UiFontSize)">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -417,8 +431,8 @@ function New-WpfInputDialog {
         </Style>
     </Window.Resources>
     <StackPanel Margin="20" Background="$($theme.FormBackground)">
-        <TextBlock Text="$Prompt" FontSize="12" Margin="0,0,0,10"/>
-        <TextBox Name="txtInput" Text="$DefaultValue" FontSize="12" Padding="5" Margin="0,0,0,20"/>
+        <TextBlock Text="$Prompt" FontSize="$($theme.UiFontSize)" Margin="0,0,0,10"/>
+        <TextBox Name="txtInput" Text="$DefaultValue" FontSize="$($theme.UiFontSize)" Padding="5" Margin="0,0,0,20"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Name="btnOK" Content="Aceptar" Width="80" Margin="0,0,10,0" IsDefault="True" Style="{StaticResource SystemButtonStyle}"/>
             <Button Name="btnCancel" Content="Cancelar" Width="80" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
@@ -535,6 +549,11 @@ function Set-DzWpfThemeResources {
 
     Set-BrushResource -Resources $Window.Resources -Key "AccentPrimary"    -Hex $Theme.AccentPrimary
     Set-BrushResource -Resources $Window.Resources -Key "AccentSecondary"  -Hex $Theme.AccentSecondary
+
+    $Window.Resources["UiFontFamily"] = [System.Windows.Media.FontFamily]::new($Theme.UiFontFamily)
+    $Window.Resources["UiFontSize"] = [double]$Theme.UiFontSize
+    $Window.Resources["CodeFontFamily"] = [System.Windows.Media.FontFamily]::new($Theme.CodeFontFamily)
+    $Window.Resources["CodeFontSize"] = [double]$Theme.CodeFontSize
 }
 
 

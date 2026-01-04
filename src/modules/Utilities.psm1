@@ -1392,7 +1392,9 @@ function Show-InstallerExtractorDialog {
         ShowInTaskbar="False"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        FontFamily="$($theme.UiFontFamily)"
+        FontSize="$($theme.UiFontSize)">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -1818,7 +1820,9 @@ function Show-IPConfigDialog {
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        Background="$($theme.FormBackground)">
+        Background="$($theme.FormBackground)"
+        FontFamily="$($theme.UiFontFamily)"
+        FontSize="$($theme.UiFontSize)">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -2583,7 +2587,9 @@ function Show-WpfPathSelectionDialog {
         ShowInTaskbar="False"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        FontFamily="$($theme.UiFontFamily)"
+        FontSize="$($theme.UiFontSize)">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -2673,7 +2679,6 @@ function Show-WpfPathSelectionDialog {
                     <TextBlock Name="lblSelectedDisplay"
                             Text=""
                             FontSize="11"
-                            FontFamily="Consolas"
                             TextWrapping="NoWrap"
                             TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
@@ -2816,7 +2821,9 @@ function Show-LZMADialog {
         ShowInTaskbar="False"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        FontFamily="$($theme.UiFontFamily)"
+        FontSize="$($theme.UiFontSize)">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -3028,7 +3035,9 @@ function Show-AddUserDialog {
         ShowInTaskbar="False"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        FontFamily="$($theme.UiFontFamily)"
+        FontSize="$($theme.UiFontSize)">
   <Window.Resources>
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="$($theme.FormForeground)"/>

@@ -139,9 +139,22 @@ function New-MainForm {
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Gerardo Zermeño Tools"
         Height="650" Width="980"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
 
     <Window.Resources>
+        <Style TargetType="{x:Type Control}">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
+        </Style>
+
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Style>
+
         <Style TargetType="{x:Type Label}">
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
@@ -268,8 +281,8 @@ function New-MainForm {
         <Style x:Key="ConsoleTextBoxStyle"
                TargetType="{x:Type TextBox}"
                BasedOn="{StaticResource {x:Type TextBox}}">
-            <Setter Property="FontFamily" Value="Consolas"/>
-            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontFamily" Value="{DynamicResource CodeFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource CodeFontSize}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
             <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
@@ -321,7 +334,6 @@ function New-MainForm {
                             <TextBlock x:Name="SwitchLabel"
                                        Text="OFF"
                                        Foreground="{DynamicResource FormFg}"
-                                       FontSize="10"
                                        FontWeight="Bold"
                                        HorizontalAlignment="Right"
                                        VerticalAlignment="Center"
@@ -413,7 +425,7 @@ function New-MainForm {
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
                              Width="220" Height="300" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                             FontFamily="Courier New" FontSize="10"/>
+                             />
                     <Border Name="cardQuickSettings"
                             Width="220" Height="150"
                             Margin="730,370,0,0"
@@ -463,6 +475,17 @@ function New-MainForm {
                                         Text="🐞 DEBUG"
                                         VerticalAlignment="Center"/>
                             </Grid>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="🌙 Dark Mode" VerticalAlignment="Center"/>
+                                <ToggleButton Name="tglDarkMode" Style="{StaticResource TogglePillStyle}" Margin="10,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="🐞 DEBUG" VerticalAlignment="Center"/>
+                                <ToggleButton Name="tglDebugMode" Style="{StaticResource TogglePillStyle}" Margin="24,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="Al cambiar, reinicia la app para aplicar."
+                                       Foreground="{DynamicResource PanelFg}"
+                                       TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
                 </Grid>

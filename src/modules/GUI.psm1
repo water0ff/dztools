@@ -14,61 +14,71 @@ function Get-DzUiTheme {
 
     $themes = @{
         Light = @{
-            FormBackground           = "#F4F6F8"
-            FormForeground           = "#111111"
+            FormBackground           = "#FFFFFF"
+            FormForeground           = "#333333"
 
-            InfoBackground           = "#FFFFFF"
-            InfoForeground           = "#111111"
+            InfoBackground           = "#F3F3F3"
+            InfoForeground           = "#333333"
             InfoHoverBackground      = "#FF8C00"
-            InfoHoverForeground      = "#111111"   # <- importante
+            InfoHoverForeground      = "#1E1E1E"   # <- importante
 
             ControlBackground        = "#FFFFFF"
-            ControlForeground        = "#111111"
+            ControlForeground        = "#333333"
 
-            BorderColor              = "#CFCFCF"
+            BorderColor              = "#D0D0D0"
 
-            ButtonGeneralBackground  = "#E6E6E6"
-            ButtonGeneralForeground  = "#111111"
-            ButtonSystemBackground   = "#96C8FF"
-            ButtonSystemForeground   = "#111111"
-            ButtonNationalBackground = "#FFC896"
-            ButtonNationalForeground = "#111111"
+            ButtonGeneralBackground  = "#E7E7E7"
+            ButtonGeneralForeground  = "#333333"
+            ButtonSystemBackground   = "#0E639C"
+            ButtonSystemForeground   = "#FFFFFF"
+            ButtonNationalBackground = "#C586C0"
+            ButtonNationalForeground = "#FFFFFF"
 
             ConsoleBackground        = "#FFFFFF"
-            ConsoleForeground        = "#111111"
+            ConsoleForeground        = "#333333"
 
-            AccentPrimary            = "#1976D2"
-            AccentSecondary          = "#2E7D32"
+            AccentPrimary            = "#0E639C"
+            AccentSecondary          = "#2AA198"
 
             AccentMuted              = "#6B7280"
+
+            UiFontFamily             = "Segoe UI"
+            UiFontSize               = 12
+            CodeFontFamily           = "Consolas"
+            CodeFontSize             = 12
         }
         Dark  = @{
-            FormBackground           = "#000000"
-            FormForeground           = "#FFFFFF"
+            FormBackground           = "#1E1E1E"
+            FormForeground           = "#D4D4D4"
 
-            InfoBackground           = "#1E1E1E"
-            InfoForeground           = "#FFFFFF"
+            InfoBackground           = "#252526"
+            InfoForeground           = "#D4D4D4"
             InfoHoverBackground      = "#FF8C00"
-            InfoHoverForeground      = "#000000"   # <- importante (naranja + negro = legible)
+            InfoHoverForeground      = "#1E1E1E"   # <- importante (naranja + negro = legible)
 
-            ControlBackground        = "#1C1C1C"
-            ControlForeground        = "#FFFFFF"
+            ControlBackground        = "#3C3C3C"
+            ControlForeground        = "#D4D4D4"
 
-            BorderColor              = "#4C4C4C"
+            BorderColor              = "#454545"
 
-            ButtonGeneralBackground  = "#2F2F2F"
-            ButtonGeneralForeground  = "#FFFFFF"
-            ButtonSystemBackground   = "#96C8FF"
-            ButtonSystemForeground   = "#000000"
-            ButtonNationalBackground = "#FFC896"
-            ButtonNationalForeground = "#000000"
+            ButtonGeneralBackground  = "#2D2D2D"
+            ButtonGeneralForeground  = "#D4D4D4"
+            ButtonSystemBackground   = "#0E639C"
+            ButtonSystemForeground   = "#FFFFFF"
+            ButtonNationalBackground = "#C586C0"
+            ButtonNationalForeground = "#1E1E1E"
 
-            ConsoleBackground        = "#012456"
-            ConsoleForeground        = "#FFFFFF"
+            ConsoleBackground        = "#1E1E1E"
+            ConsoleForeground        = "#D4D4D4"
 
-            AccentPrimary            = "#2196F3"
-            AccentSecondary          = "#4CAF50"
+            AccentPrimary            = "#0E639C"
+            AccentSecondary          = "#4EC9B0"
             AccentMuted              = "#9CA3AF"
+
+            UiFontFamily             = "Segoe UI"
+            UiFontSize               = 12
+            CodeFontFamily           = "Consolas"
+            CodeFontSize             = 12
         }
     }
 
@@ -186,7 +196,9 @@ function Show-WpfMessageBox {
         ShowInTaskbar="False"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
     <Border Background="$($theme.FormBackground)"
             CornerRadius="10"
             BorderBrush="$($theme.AccentPrimary)"
@@ -213,7 +225,6 @@ function Show-WpfMessageBox {
                 <TextBlock Text="$Title"
                            Foreground="$($theme.FormForeground)"
                            VerticalAlignment="Center"
-                           FontSize="13"
                            FontWeight="SemiBold"/>
 
                 <Button Name="btnClose"
@@ -241,7 +252,6 @@ function Show-WpfMessageBox {
                         BorderThickness="1"
                         VerticalAlignment="Top">
                     <TextBlock Text="$iconGlyph"
-                               FontSize="18"
                                Foreground="$($theme.AccentPrimary)"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"/>
@@ -250,7 +260,6 @@ function Show-WpfMessageBox {
                 <TextBlock Grid.Column="1"
                            Text="$Message"
                            Foreground="$($theme.FormForeground)"
-                           FontSize="12"
                            TextWrapping="Wrap"
                            VerticalAlignment="Top"/>
             </Grid>
@@ -308,6 +317,7 @@ function Show-WpfMessageBox {
     $ui = New-WpfWindow -Xaml $xaml -PassThru
     $w = $ui.Window
     $c = $ui.Controls
+    Set-DzWpfThemeResources -Window $w -Theme $theme
 
     try { Set-WpfDialogOwner -Dialog $w } catch {}
 
@@ -367,7 +377,9 @@ function Show-WpfProgressBar {
         AllowsTransparency="True"
         Background="Transparent"
         Topmost="True"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
     <Border Background="$($theme.FormBackground)"
             CornerRadius="8"
             BorderBrush="$($theme.AccentPrimary)"
@@ -378,7 +390,6 @@ function Show-WpfProgressBar {
         </Border.Effect>
         <StackPanel>
             <TextBlock Text="$Title"
-                       FontSize="18"
                        FontWeight="Bold"
                        Foreground="$($theme.AccentPrimary)"
                        HorizontalAlignment="Center"
@@ -386,7 +397,6 @@ function Show-WpfProgressBar {
 
             <TextBlock Name="lblMessage"
                        Text="$Message"
-                       FontSize="12"
                        Foreground="$($theme.FormForeground)"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
@@ -404,7 +414,6 @@ function Show-WpfProgressBar {
 
             <TextBlock Name="lblPercent"
                        Text="0%"
-                       FontSize="14"
                        FontWeight="Bold"
                        Foreground="$($theme.AccentPrimary)"
                        HorizontalAlignment="Center"/>
@@ -416,6 +425,7 @@ function Show-WpfProgressBar {
     try {
         $result = New-WpfWindow -Xaml $stringXaml -PassThru
         $window = $result.Window
+        Set-DzWpfThemeResources -Window $window -Theme $theme
 
         $window | Add-Member -MemberType NoteProperty -Name ProgressBar   -Value $result.Controls['progressBar'] | Out-Null
         $window | Add-Member -MemberType NoteProperty -Name MessageLabel  -Value $result.Controls['lblMessage']  | Out-Null
@@ -578,7 +588,9 @@ function New-WpfInputDialog {
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        Background="$($theme.FormBackground)">
+        Background="$($theme.FormBackground)"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -595,8 +607,8 @@ function New-WpfInputDialog {
         </Style>
     </Window.Resources>
     <StackPanel Margin="20" Background="$($theme.FormBackground)">
-        <TextBlock Text="$Prompt" FontSize="12" Margin="0,0,0,10"/>
-        <TextBox Name="txtInput" Text="$DefaultValue" FontSize="12" Padding="5" Margin="0,0,0,20"/>
+        <TextBlock Text="$Prompt" Margin="0,0,0,10"/>
+        <TextBox Name="txtInput" Text="$DefaultValue" Padding="5" Margin="0,0,0,20"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Name="btnOK" Content="Aceptar" Width="80" Margin="0,0,10,0" IsDefault="True" Style="{StaticResource SystemButtonStyle}"/>
             <Button Name="btnCancel" Content="Cancelar" Width="80" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
@@ -607,6 +619,7 @@ function New-WpfInputDialog {
 
     $result = New-WpfWindow -Xaml $stringXaml -PassThru
     $window = $result.Window
+    Set-DzWpfThemeResources -Window $window -Theme $theme
     $controls = $result.Controls
 
     $script:inputValue = $null
@@ -713,6 +726,11 @@ function Set-DzWpfThemeResources {
 
     Set-BrushResource -Resources $Window.Resources -Key "AccentPrimary"    -Hex $Theme.AccentPrimary
     Set-BrushResource -Resources $Window.Resources -Key "AccentSecondary"  -Hex $Theme.AccentSecondary
+
+    $Window.Resources["UiFontFamily"] = [System.Windows.Media.FontFamily]::new($Theme.UiFontFamily)
+    $Window.Resources["UiFontSize"] = [double]$Theme.UiFontSize
+    $Window.Resources["CodeFontFamily"] = [System.Windows.Media.FontFamily]::new($Theme.CodeFontFamily)
+    $Window.Resources["CodeFontSize"] = [double]$Theme.CodeFontSize
 }
 
 

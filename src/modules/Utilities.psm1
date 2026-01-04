@@ -95,6 +95,78 @@ function Ensure-DzUiConfig {
     Set-Content -LiteralPath $ConfigPath -Value $lines -Encoding UTF8
 }
 
+function Update-DzIniSetting {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Section,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Key,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Value
+    )
+
+    $configPath = Get-DzToolsConfigPath
+
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        Initialize-DzToolsConfig | Out-Null
+    }
+
+    $content = Get-Content -LiteralPath $configPath -ErrorAction SilentlyContinue
+    if ($null -eq $content) { $content = @() }
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    $sectionFound = $false
+    $keyUpdated = $false
+    $inTargetSection = $false
+
+    foreach ($line in $content) {
+        $trimmed = $line.Trim()
+
+        if ($trimmed -match '^\s*;') {
+            $lines.Add($line)
+            continue
+        }
+
+        if ($trimmed -match '^\[(.+)\]\s*$') {
+            if ($inTargetSection -and -not $keyUpdated) {
+                $lines.Add("$Key=$Value")
+                $keyUpdated = $true
+            }
+
+            $currentSection = $matches[1].Trim()
+            $inTargetSection = ($currentSection.ToLower() -eq $Section.ToLower())
+            if ($inTargetSection) { $sectionFound = $true }
+
+            $lines.Add($line)
+            continue
+        }
+
+        if ($inTargetSection -and $trimmed -match "^\s*${Key}\s*=") {
+            $lines.Add("$Key=$Value")
+            $keyUpdated = $true
+            continue
+        }
+
+        $lines.Add($line)
+    }
+
+    if ($sectionFound) {
+        if (-not $keyUpdated) {
+            $lines.Add("$Key=$Value")
+        }
+    } else {
+        if ($lines.Count -gt 0 -and $lines[$lines.Count - 1] -ne "") {
+            $lines.Add("")
+        }
+        $lines.Add("[$Section]")
+        $lines.Add("$Key=$Value")
+    }
+
+    Set-Content -LiteralPath $configPath -Value $lines -Encoding UTF8
+}
+
 function Get-DzUiMode {
     <#
     .SYNOPSIS
@@ -122,6 +194,35 @@ function Get-DzUiMode {
         }
     }
     return "dark"
+}
+
+function Set-DzUiMode {
+    <#
+    .SYNOPSIS
+    Actualiza el modo de UI en el archivo de configuración
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('dark', 'light')]
+        [string]$Mode
+    )
+
+    Update-DzIniSetting -Section "UI" -Key "mode" -Value $Mode
+}
+
+function Set-DzDebugPreference {
+    <#
+    .SYNOPSIS
+    Actualiza la preferencia de debug en el archivo de configuración
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [bool]$Enabled
+    )
+
+    $value = if ($Enabled) { 'true' } else { 'false' }
+    Update-DzIniSetting -Section "desarrollo" -Key "debug" -Value $value
+    $script:DzDebugEnabled = $Enabled
 }
 
 function Initialize-DzToolsConfig {
@@ -1259,7 +1360,7 @@ function Install-7ZipWithChoco {
     param()
 
     if (-not (Test-ChocolateyInstalled)) {
-        Write-DzDebug "[Install-7ZipWithChoco] Chocolatey no está instalado"
+        Write-DzDebug "`t[DEBUG] [Install-7ZipWithChoco] Chocolatey no está instalado"
         return $false
     }
 
@@ -1392,7 +1493,9 @@ function Show-InstallerExtractorDialog {
         ShowInTaskbar="False"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -1441,7 +1544,6 @@ function Show-InstallerExtractorDialog {
 
                 <TextBlock Text="Extractor de instalador"
                            VerticalAlignment="Center"
-                           FontSize="13"
                            FontWeight="SemiBold"/>
 
                 <Button Name="btnClose"
@@ -1456,11 +1558,10 @@ function Show-InstallerExtractorDialog {
 
             <TextBlock Grid.Row="1"
                        Text="Seleccione el instalador y el destino de extracción."
-                       FontSize="13"
                        FontWeight="SemiBold"
                        Margin="0,0,0,12"/>
 
-            <TextBlock Grid.Row="2" Text="Instalador (.exe)" FontSize="12" Margin="0,0,0,6"/>
+            <TextBlock Grid.Row="2" Text="Instalador (.exe)" Margin="0,0,0,6"/>
             <Grid Grid.Row="3" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -1481,11 +1582,11 @@ function Show-InstallerExtractorDialog {
             </Grid>
 
             <StackPanel Grid.Row="4" Margin="0,0,0,12">
-                <TextBlock Name="lblVersionInfo" Text="Versión: -" FontSize="12"/>
-                <TextBlock Name="lblLastWrite" Text="Última modificación: -" FontSize="12" Margin="0,4,0,0"/>
+                <TextBlock Name="lblVersionInfo" Text="Versión: -"/>
+                <TextBlock Name="lblLastWrite" Text="Última modificación: -" Margin="0,4,0,0"/>
             </StackPanel>
 
-            <TextBlock Grid.Row="5" Text="Destino" FontSize="12" Margin="0,0,0,6"/>
+            <TextBlock Grid.Row="5" Text="Destino" Margin="0,0,0,6"/>
             <Grid Grid.Row="6" Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -1516,6 +1617,7 @@ function Show-InstallerExtractorDialog {
 
     try {
         $ui = New-WpfWindow -Xaml $stringXaml -PassThru
+        Set-DzWpfThemeResources -Window $ui.Window -Theme $theme
     } catch {
         Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] ERROR creando ventana: $($_.Exception.Message)" Red
         Show-WpfMessageBox -Message "No se pudo crear la ventana del extractor." -Title "Error" -Buttons OK -Icon Error | Out-Null
@@ -1818,7 +1920,9 @@ function Show-IPConfigDialog {
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        Background="$($theme.FormBackground)">
+        Background="$($theme.FormBackground)"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -1844,19 +1948,16 @@ function Show-IPConfigDialog {
 
         <TextBlock Grid.Row="0"
                    Text="Seleccione el adaptador de red:"
-                   FontSize="13"
                    Margin="0,0,0,8"/>
 
         <ComboBox Name="cmbAdapters"
                   Grid.Row="1"
                   Height="28"
-                  FontSize="12"
                   Margin="0,0,0,10"/>
 
         <TextBlock Name="lblIps"
                    Grid.Row="2"
                    Text="IPs asignadas: -"
-                   FontSize="12"
                    TextWrapping="Wrap"
                    Margin="0,0,0,12"
                    MinHeight="36"/>
@@ -1873,6 +1974,7 @@ function Show-IPConfigDialog {
     $ui = New-WpfWindow -Xaml $stringXaml -PassThru
     $window = $ui.Window
     $c = $ui.Controls
+    Set-DzWpfThemeResources -Window $window -Theme $theme
 
     # CenterOwner real
     try {
@@ -2583,7 +2685,9 @@ function Show-WpfPathSelectionDialog {
         ShowInTaskbar="False"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -2635,7 +2739,6 @@ function Show-WpfPathSelectionDialog {
                 <TextBlock Name="txtHeader"
                            Text="$Title"
                            VerticalAlignment="Center"
-                           FontSize="13"
                            FontWeight="SemiBold"/>
 
                 <Button Name="btnClose"
@@ -2651,13 +2754,11 @@ function Show-WpfPathSelectionDialog {
             <TextBlock Grid.Row="1"
                        Name="lblPrompt"
                        Text="$Prompt"
-                       FontSize="13"
                        FontWeight="SemiBold"
                        Margin="0,0,0,10"/>
 
             <ListBox Grid.Row="2"
                      Name="lstItems"
-                     FontSize="12"
                      DisplayMemberPath="Display"
                      SelectedValuePath="Path" />
 
@@ -2669,11 +2770,10 @@ function Show-WpfPathSelectionDialog {
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="Versión seleccionada:" FontSize="11" Margin="0,0,0,2"/>
+                    <TextBlock Text="Versión seleccionada:" Margin="0,0,0,2"/>
                     <TextBlock Name="lblSelectedDisplay"
                             Text=""
-                            FontSize="11"
-                            FontFamily="Consolas"
+                            FontFamily="{DynamicResource CodeFontFamily}"
                             TextWrapping="NoWrap"
                             TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
@@ -2692,6 +2792,7 @@ function Show-WpfPathSelectionDialog {
     $ui = New-WpfWindow -Xaml $stringXaml -PassThru
     $w = $ui.Window
     $c = $ui.Controls
+    Set-DzWpfThemeResources -Window $w -Theme $theme
 
     # Owner / centrado
     try { if (Get-Command Set-WpfDialogOwner -ErrorAction SilentlyContinue) { Set-WpfDialogOwner -Dialog $w } } catch {}
@@ -2816,7 +2917,9 @@ function Show-LZMADialog {
         ShowInTaskbar="False"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -2859,7 +2962,6 @@ function Show-LZMADialog {
 
                 <TextBlock Text="Carpetas LZMA"
                            VerticalAlignment="Center"
-                           FontSize="13"
                            FontWeight="SemiBold"/>
 
                 <Button Name="btnClose"
@@ -2874,14 +2976,12 @@ function Show-LZMADialog {
 
             <TextBlock Grid.Row="1"
                        Text="Seleccione el instalador (registro) que desea renombrar."
-                       FontSize="13"
                        FontWeight="SemiBold"
                        Margin="0,0,0,10"/>
 
             <ComboBox Name="cmbInstallers"
                       Grid.Row="2"
                       Height="30"
-                      FontSize="12"
                       Margin="0,0,0,10"
                       DisplayMemberPath="Display"
                       SelectedValuePath="Path"/>
@@ -2895,11 +2995,9 @@ function Show-LZMADialog {
                     MinHeight="78">
                 <StackPanel>
                     <TextBlock Text="AI_ExePath:"
-                               FontSize="11"
                                Margin="0,0,0,4"/>
                     <TextBlock Name="lblExePath"
                                Text="-"
-                               FontSize="12"
                                Foreground="#B00020"
                                TextWrapping="Wrap"
                                TextTrimming="None"
@@ -2931,6 +3029,7 @@ function Show-LZMADialog {
 
     $w = $ui.Window
     $c = $ui.Controls
+    Set-DzWpfThemeResources -Window $w -Theme $theme
 
     # Owner / centrado
     try { Set-WpfDialogOwner -Dialog $w } catch {}
@@ -3028,7 +3127,9 @@ function Show-AddUserDialog {
         ShowInTaskbar="False"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
   <Window.Resources>
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -3077,23 +3178,23 @@ function Show-AddUserDialog {
       </Grid.RowDefinitions>
       <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <TextBlock Text="Crear Usuario de Windows" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"/>
+        <TextBlock Text="Crear Usuario de Windows" VerticalAlignment="Center" FontWeight="SemiBold"/>
         <Button Name="btnClose" Grid.Column="1" Content="✕" Width="34" Height="26" Margin="8,0,0,0" ToolTip="Cerrar" Background="Transparent" BorderBrush="Transparent"/>
       </Grid>
-      <TextBlock Grid.Row="1" Text="Crea un usuario local y asígnalo al grupo correspondiente." FontSize="13" FontWeight="SemiBold" Margin="0,0,0,12"/>
+      <TextBlock Grid.Row="1" Text="Crea un usuario local y asígnalo al grupo correspondiente." FontWeight="SemiBold" Margin="0,0,0,12"/>
       <Grid Grid.Row="2" Margin="0,0,0,12">
         <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Nombre de usuario" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,8"/>
-        <TextBox Name="txtUsername" Grid.Row="0" Grid.Column="1" Height="32" FontSize="12" VerticalContentAlignment="Center" Margin="0,0,0,8"/>
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Contraseña" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,8"/>
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Nombre de usuario" VerticalAlignment="Center" Margin="0,0,10,8"/>
+        <TextBox Name="txtUsername" Grid.Row="0" Grid.Column="1" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,8"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Contraseña" VerticalAlignment="Center" Margin="0,0,10,8"/>
         <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-          <PasswordBox Name="pwdPassword" Grid.Column="0" Height="32" FontSize="12" Padding="6,0,6,0"/>
-          <TextBox Name="txtPasswordVisible" Grid.Column="0" Height="32" FontSize="12" VerticalContentAlignment="Center" Visibility="Collapsed"/>
+          <PasswordBox Name="pwdPassword" Grid.Column="0" Height="32" Padding="6,0,6,0"/>
+          <TextBox Name="txtPasswordVisible" Grid.Column="0" Height="32" VerticalContentAlignment="Center" Visibility="Collapsed"/>
           <ToggleButton Name="tglShowPassword" Grid.Column="1" Content="👁" Width="40" Height="32" Margin="8,0,0,0" ToolTip="Mostrar/Ocultar contraseña"/>
         </Grid>
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="Tipo de usuario" FontSize="12" VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Tipo de usuario" VerticalAlignment="Center"/>
         <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
           <RadioButton Name="rbStandard" Content="Usuario estándar" IsChecked="True" Margin="0,0,12,0"/>
           <RadioButton Name="rbAdmin" Content="Administrador"/>
@@ -3102,15 +3203,15 @@ function Show-AddUserDialog {
       </Grid>
       <Border Grid.Row="3" Background="$($theme.ControlBackground)" CornerRadius="8" Padding="12">
         <StackPanel>
-          <TextBlock Text="Requisitos:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
-          <TextBlock Text="• Nombre: sin espacios (ej. soporte01)" FontSize="12" Margin="0,0,0,2"/>
-          <TextBlock Text="• Contraseña: mínimo 8 caracteres" FontSize="12" Margin="0,0,0,2"/>
-          <TextBlock Text="• Administrador: úsalo solo si es necesario" FontSize="12"/>
+          <TextBlock Text="Requisitos:" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <TextBlock Text="• Nombre: sin espacios (ej. soporte01)" Margin="0,0,0,2"/>
+          <TextBlock Text="• Contraseña: mínimo 8 caracteres" Margin="0,0,0,2"/>
+          <TextBlock Text="• Administrador: úsalo solo si es necesario"/>
         </StackPanel>
       </Border>
       <Grid Grid.Row="4" Margin="0,12,0,0">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <TextBlock Name="lblStatus" Grid.Column="0" Text="Listo." FontSize="12" Foreground="#2E7D32" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,10,0"/>
+        <TextBlock Name="lblStatus" Grid.Column="0" Text="Listo." Foreground="#2E7D32" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,10,0"/>
         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
           <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
           <Button Name="btnCreate" Content="Crear usuario" Width="130" Height="30" Style="{StaticResource SystemButtonStyle}" IsEnabled="False" IsDefault="True"/>
@@ -3122,6 +3223,7 @@ function Show-AddUserDialog {
 "@
     try { $ui = New-WpfWindow -Xaml $stringXaml -PassThru }catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando ventana: $($_.Exception.Message)" Red; Show-WpfMessageBox -Message "No se pudo crear la ventana de usuario." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
     $w = $ui.Window; $c = $ui.Controls
+    Set-DzWpfThemeResources -Window $w -Theme $theme
     try { Set-WpfDialogOwner -Dialog $w }catch {}
     if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
     $c['btnClose'].Add_Click({ $w.DialogResult = $false; $w.Close() })
@@ -3206,6 +3308,8 @@ Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
     'Get-DzUiMode',
+    'Set-DzUiMode',
+    'Set-DzDebugPreference',
     'Initialize-DzToolsConfig',
     'Write-DzDebug',
     'Test-Administrator',

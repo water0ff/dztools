@@ -96,6 +96,10 @@ foreach ($module in $modules) {
 }
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
+- Nueva interfaz WPF
+    * Fuentes y colores actualizados.
+- Switch para modo oscuro
+- Switch para modo debug
 - Se agregó una mejor busqueda para SQL Server Management Studio.
 - Migración completa a WPF
 - Carga de INIS en la conexión a BDD.
@@ -111,6 +115,21 @@ $global:defaultInstructions = @"
 - - Ahora se pueden agregar comentarios con "-" y entre "/* */"
 - - Tabla en consola
 - - Obtener columnas en consola
+- Se agregó botón para limpiar AnyDesk
+- Se agregó botón para mostrar impresoras instaladas
+- Se agregó botón para limpiar y reiniciar cola de impresión
+- Se agregó botón para agregar usuario de Windows
+- Se agregó botón para forzar actualización de datos del sistema
+- Se agregó botón para buscar instalador LZMA
+- Se agregó botón para agregar IPs a adaptadores de red
+- Se agregó botón para cambiar OTM a SQL/DBF
+- Se agregó botón para permisos en C:\NationalSoft
+- Se agregó botón para creación de SRM APK
+- Se agregó botón para extractor de instalador
+- Se agregó botón para ejecutar SQL Server Management Studio
+- Se agregó botón para ejecutar Database4
+- Se agregó botón para ejecutar SQL Server Manager
+- Se agregó botón para ejecutar ExpressProfiler
 "@
 function Initialize-Environment {
     if (!(Test-Path -Path "C:\Temp")) {
@@ -123,7 +142,7 @@ function Initialize-Environment {
     }
     try {
         $debugEnabled = Initialize-DzToolsConfig
-        Write-DzDebug "`t[DEBUG]`t[DEBUG]Configuración de debug cargada (debug=$debugEnabled)" -Color DarkGray
+        Write-DzDebug "`t[DEBUG]Configuración de debug cargada (debug=$debugEnabled)" -Color DarkGray
     } catch {
         Write-Host "Advertencia: No se pudo inicializar la configuración de debug. $_" -ForegroundColor Yellow
     }
@@ -138,10 +157,23 @@ function New-MainForm {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Gerardo Zermeño Tools"
-        Height="650" Width="1050"
-        WindowStartupLocation="CenterScreen">
+        Height="650" Width="980"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
 
     <Window.Resources>
+        <Style TargetType="{x:Type Control}">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
+        </Style>
+
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Style>
+
         <Style TargetType="{x:Type Label}">
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
@@ -268,14 +300,13 @@ function New-MainForm {
         <Style x:Key="ConsoleTextBoxStyle"
                TargetType="{x:Type TextBox}"
                BasedOn="{StaticResource {x:Type TextBox}}">
-            <Setter Property="FontFamily" Value="Consolas"/>
-            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontFamily" Value="{DynamicResource CodeFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource CodeFontSize}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
             <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
         </Style>
-
         <Style x:Key="GeneralButtonStyle" TargetType="{x:Type Button}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
@@ -283,20 +314,117 @@ function New-MainForm {
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,6"/>
             <Setter Property="Cursor" Value="Hand"/>
-        </Style>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
 
+            <!-- ✅ Evita el estilo/hover del tema de Windows -->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                RecognizesAccessKey="True"
+                                TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <!-- Hover global -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <!-- azul cielo -->
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                                <!-- ✅ texto negro legible -->
+                                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                            </Trigger>
+
+                            <!-- Click -->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+                            </Trigger>
+
+                            <!-- Disabled -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="SystemButtonStyle"
                TargetType="{x:Type Button}"
                BasedOn="{StaticResource GeneralButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
-
         <Style x:Key="NationalSoftButtonStyle"
-               TargetType="{x:Type Button}"
-               BasedOn="{StaticResource GeneralButtonStyle}">
+            TargetType="{x:Type Button}"
+            BasedOn="{StaticResource GeneralButtonStyle}">
+
             <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <!-- tu azul cielo -->
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <!-- ✅ FUERZA NEGRO en hover -->
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="TogglePillStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Width" Value="84"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Grid Width="{TemplateBinding Width}" Height="{TemplateBinding Height}">
+                            <Border x:Name="SwitchBorder"
+                                    Background="{DynamicResource BorderBrushColor}"
+                                    BorderBrush="{DynamicResource BorderBrushColor}"
+                                    BorderThickness="1"
+                                    CornerRadius="15"/>
+                            <Border x:Name="SwitchThumb"
+                                    Width="22" Height="22"
+                                    Background="{DynamicResource FormBg}"
+                                    CornerRadius="11"
+                                    HorizontalAlignment="Left"
+                                    Margin="4,4,0,4"/>
+                            <TextBlock x:Name="SwitchLabel"
+                                       Text="OFF"
+                                       Foreground="{DynamicResource FormFg}"
+                                       FontWeight="Bold"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="SwitchBorder" Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                                <Setter TargetName="SwitchBorder" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                                <Setter TargetName="SwitchThumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="SwitchThumb" Property="Margin" Value="0,4,4,4"/>
+                                <Setter TargetName="SwitchLabel" Property="Text" Value="ON"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SwitchBorder" Property="BorderBrush" Value="{DynamicResource AccentSecondary}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
     </Window.Resources>
@@ -305,12 +433,19 @@ function New-MainForm {
 
             <TabItem Header="Aplicaciones" Name="tabAplicaciones">
                   <Grid Background="{DynamicResource PanelBg}">
-
-                    <TextBox Name="lblHostname" HorizontalAlignment="Left" VerticalAlignment="Top"
-                           Width="220" Height="40" Margin="10,1,0,0" Background="{DynamicResource ControlBg}"
-                            Foreground="{DynamicResource ControlFg}"
-                            BorderBrush="{DynamicResource BorderBrushColor}"
-                            BorderThickness="1" Cursor="Hand"/>
+                <TextBox Name="lblHostname"
+                        Width="220" Height="40" Margin="10,1,0,0"
+                        VerticalAlignment="Top" HorizontalAlignment="Left"
+                        Style="{StaticResource InfoHeaderTextBoxStyle}"
+                        Text="HOSTNAME"
+                        Cursor="Hand"
+                        IsReadOnly="True"
+                        IsReadOnlyCaretVisible="False"
+                        TextAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Focusable="False"
+                        IsTabStop="False"/>
                 <TextBox Name="lblPort"
                             Width="220" Height="40" Margin="250,1,0,0"
                             VerticalAlignment="Top" HorizontalAlignment="Left"
@@ -363,9 +498,68 @@ function New-MainForm {
                     <Button Content="Extractor de Instalador" Name="btnExtractInstaller" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="220" Height="400" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
+                             Width="220" Height="300" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                             FontFamily="Courier New" FontSize="10"/>
+                             />
+                    <Border Name="cardQuickSettings"
+                            Width="220" Height="150"
+                            Margin="730,370,0,0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Background="{DynamicResource ControlBg}"
+                            BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="10">
+                        <Border.Effect>
+                            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <TextBlock Text="Ajustes rápidos"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentPrimary}"
+                                       Margin="0,0,0,8"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                            </Grid>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <ToggleButton Name="tglDarkMode"
+                                        Grid.Column="0"
+                                        Style="{StaticResource TogglePillStyle}"/>
+
+                            <TextBlock Grid.Column="2"
+                                    Text="🌙 Dark Mode"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <ToggleButton Name="tglDebugMode"
+                                        Grid.Column="0"
+                                        Style="{StaticResource TogglePillStyle}"/>
+
+                            <TextBlock Grid.Column="2"
+                                    Text="🐞 DEBUG"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </TabItem>
             <TabItem Header="Base de datos" Name="tabProSql">
@@ -405,8 +599,8 @@ function New-MainForm {
                 </Grid>
             </TabItem>
         </TabControl>
-        <Button Content="Salir" Name="btnExit" Width="500" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="350,0,0,10" Style="{StaticResource GeneralButtonStyle}"/>
+        <Button Content="Salir" Name="btnExit" Width="400" Height="30"
+                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="300,0,0,10" Style="{StaticResource GeneralButtonStyle}"/>
     </Grid>
 </Window>
 "@
@@ -469,6 +663,8 @@ function New-MainForm {
     $btnExecute = $window.FindName("btnExecute")
     $cmbQueries = $window.FindName("cmbQueries")
     $rtbQuery = $window.FindName("rtbQuery")
+    $tglDarkMode = $window.FindName("tglDarkMode")
+    $tglDebugMode = $window.FindName("tglDebugMode")
     $script:predefinedQueries = Get-PredefinedQueries
     Initialize-PredefinedQueries -ComboQueries $cmbQueries -RichTextBox $rtbQuery -Queries $script:predefinedQueries -Window $window
     $dgvResults = $window.FindName("dgvResults")
@@ -488,6 +684,14 @@ function New-MainForm {
     $global:txt_AdapterStatus = $txt_AdapterStatus
     $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
+    $script:initializingToggles = $true
+    if ($tglDarkMode) {
+        $tglDarkMode.IsChecked = ((Get-DzUiMode) -eq 'dark')
+    }
+    if ($tglDebugMode) {
+        $tglDebugMode.IsChecked = (Get-DzDebugPreference)
+    }
+    $script:initializingToggles = $false
     Write-Host "`n==================================================" -ForegroundColor DarkCyan
     Write-Host "       Gerardo Zermeño Tools - Suite de Utilidades       " -ForegroundColor Green
     Write-Host "              Versión: $($global:version)               " -ForegroundColor Green
@@ -504,6 +708,42 @@ function New-MainForm {
                 })
         }
     }.GetNewClosure()
+    $script:showRestartNotice = {
+        param([string]$settingLabel)
+
+        Show-WpfMessageBox -Message "Se guardó $settingLabel en dztools.ini.`nReinicia la aplicación para aplicar los cambios." -Title "Reinicio requerido" -Buttons "OK" -Icon "Information" | Out-Null
+    }.GetNewClosure()
+    if ($tglDarkMode) {
+        $tglDarkMode.Add_Checked({
+                Write-DzDebug "`t[DEBUG]Toggle Dark Mode activado"
+                if ($script:initializingToggles) { return }
+                Set-DzUiMode -Mode "dark"
+                if ($script:showRestartNotice -is [scriptblock]) {
+                    $script:showRestartNotice.Invoke("el modo Dark")
+                }
+            })
+        $tglDarkMode.Add_Unchecked({
+                Write-DzDebug "`t[DEBUG]Toggle Dark Mode desactivado"
+                if ($script:initializingToggles) { return }
+                Set-DzUiMode -Mode "light"
+                if ($script:showRestartNotice -is [scriptblock]) {
+                    $script:showRestartNotice.Invoke("el modo Light")
+                }
+            })
+    }
+    if ($tglDebugMode) {
+        $tglDebugMode.Add_Checked({
+                if ($script:initializingToggles) { return }
+                Set-DzDebugPreference -Enabled $true
+                Write-Host "[DEBUG] Activado" -ForegroundColor Yellow
+            })
+        $tglDebugMode.Add_Unchecked({
+                Write-DzDebug "`t[DEBUG]Toggle DEBUG desactivado"
+                if ($script:initializingToggles) { return }
+                Set-DzDebugPreference -Enabled $false
+                Write-Host "[DEBUG] Desactivado" -ForegroundColor DarkGray
+            })
+    }
     $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
     Where-Object { $_.OperationalStatus -eq 'Up' } |
     ForEach-Object {
@@ -520,11 +760,11 @@ function New-MainForm {
     if ($ipsWithAdapters.Count -gt 0) {
         $ipsTextForLabel = $ipsWithAdapters | ForEach-Object { "- $($_.AdapterName) - IP: $($_.IPAddress)" } | Out-String
         $txt_IpAdress.Text = $ipsTextForLabel
-        Write-DzDebug "`t[DEBUG]`t[DEBUG] txt_IpAdress poblado con: '$($txt_IpAdress.Text)'"
-        Write-DzDebug "`t[DEBUG]`t[DEBUG] txt_IpAdress.Text.Length: $($txt_IpAdress.Text.Length)"
+        Write-DzDebug "`t[DEBUG] txt_IpAdress poblado con: '$($txt_IpAdress.Text)'"
+        Write-DzDebug "`t[DEBUG] txt_IpAdress.Text.Length: $($txt_IpAdress.Text.Length)"
     } else {
         $txt_IpAdress.Text = "No se encontraron direcciones IP"
-        Write-DzDebug "`t[DEBUG]`t[DEBUG] No se encontraron IPs" -Color Yellow
+        Write-DzDebug "`t[DEBUG] No se encontraron IPs" -Color Yellow
     }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
@@ -598,11 +838,11 @@ function New-MainForm {
     }
     $lblPort.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
+            Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
 
             try {
                 $textToCopy = $global:sqlPortsData.DetailedText.Trim()
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Contenido a copiar: '$textToCopy'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Contenido a copiar: '$textToCopy'" -Color DarkGray
 
                 # Mostrar en consola
                 Write-Host "`n=== INFORMACIÓN DE PUERTOS SQL ===" -ForegroundColor Cyan
@@ -654,7 +894,7 @@ function New-MainForm {
         })
     $lblHostname.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
+            Write-DzDebug "`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
             try {
                 $hostname = [System.Net.Dns]::GetHostName()
 
@@ -673,14 +913,14 @@ function New-MainForm {
         })
     $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
+            Write-DzDebug "`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
             try {
                 # Usar $sender.Text en lugar de $txt_IpAdress.Text por si hay problema de scope
                 $ipsText = $sender.Text
 
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Contenido (variable): '$($txt_IpAdress.Text)'" -Color DarkGray
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Contenido (variable): '$($txt_IpAdress.Text)'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
 
                 if ([string]::IsNullOrWhiteSpace($ipsText)) {
                     Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow
@@ -991,7 +1231,7 @@ function New-MainForm {
 
     $btnSQLManagement.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Iniciando búsqueda de SSMS instalados" -Color DarkGray
+            Write-DzDebug "`t[DEBUG] Iniciando búsqueda de SSMS instalados" -Color DarkGray
             function Get-SSMSVersions {
                 $ssmsPaths = @()
 
@@ -1019,13 +1259,13 @@ function New-MainForm {
                     foreach ($f in $found) {
                         if ($ssmsPaths -notcontains $f.FullName) {
                             $ssmsPaths += $f.FullName
-                            Write-DzDebug "`t[DEBUG]`t[DEBUG] ✓ Encontrado: $($f.FullName)" -Color Green
+                            Write-DzDebug "`t[DEBUG] ✓ Encontrado: $($f.FullName)" -Color Green
                         }
                     }
                 }
 
                 if ($ssmsPaths.Count -eq 0) {
-                    Write-DzDebug "`t[DEBUG]`t[DEBUG] No se encontró en rutas fijas. Buscando en registro..." -Color DarkGray
+                    Write-DzDebug "`t[DEBUG] No se encontró en rutas fijas. Buscando en registro..." -Color DarkGray
                     $registryPaths = @(
                         "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
                         "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
@@ -1046,7 +1286,7 @@ function New-MainForm {
                                     $resolved = (Resolve-Path $full).Path
                                     if ($ssmsPaths -notcontains $resolved) {
                                         $ssmsPaths += $resolved
-                                        Write-DzDebug "`t[DEBUG]`t[DEBUG] ✓ Encontrado (registro): $resolved" -Color Green
+                                        Write-DzDebug "`t[DEBUG] ✓ Encontrado (registro): $resolved" -Color Green
                                     }
                                 }
                             }
@@ -1222,7 +1462,7 @@ function New-MainForm {
                 $serverText = $global:txtServer.Text.Trim()
                 $userText = $global:txtUser.Text.Trim()
                 $passwordText = $global:txtPassword.Password
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
+                Write-DzDebug "`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
                 if ([string]::IsNullOrWhiteSpace($serverText) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordText)) {
                     throw "Complete todos los campos de conexión"
                 }
@@ -1259,11 +1499,11 @@ Base de datos: ((
                 $global:btnDisconnectDb.IsEnabled = $true
                 $global:rtbQuery.IsEnabled = $true
             } catch {
-                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] CATCH: ((
+                Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: ((
 (_.Exception.Message)"
-                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] Tipo: ((
+                Write-DzDebug "`t[DEBUG][btnConnectDb] Tipo: ((
 (_.Exception.GetType().FullName)"
-                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] Stack: ((
+                Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: ((
 (_.ScriptStackTrace)"
                 [System.Windows.MessageBox]::Show("Error de conexión: ((
 (_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
@@ -1356,7 +1596,7 @@ Base de datos: ((
     # Crear el scriptblock con GetNewClosure() para capturar el contexto
     $closeWindowScript = {
         Write-Host "Cerrando aplicación..." -ForegroundColor Yellow
-        Write-DzDebug "`t[DEBUG]`t[DEBUG] Botón Salir presionado" -Color DarkGray
+        Write-DzDebug "`t[DEBUG] Botón Salir presionado" -Color DarkGray
 
         try {
             # Método 1: Buscar la ventana desde el sender
@@ -1365,15 +1605,15 @@ Base de datos: ((
 
             if ($null -ne $win) {
                 $win.Close()
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Ventana cerrada (método 1)" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Ventana cerrada (método 1)" -Color DarkGray
             } else {
                 # Método 2: Usar la ventana capturada
                 $window.Close()
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Ventana cerrada (método 2)" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Ventana cerrada (método 2)" -Color DarkGray
             }
         } catch {
             Write-Host "Error al cerrar: $_" -ForegroundColor Yellow
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Error: $_" -Color Red
+            Write-DzDebug "`t[DEBUG] Error: $_" -Color Red
         }
     }.GetNewClosure()
 

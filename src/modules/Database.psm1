@@ -248,7 +248,7 @@ function Show-BackupDialog {
 
     $theme = Get-DzUiTheme
     $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Respaldo" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Respaldo" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
         <Style TargetType="Label">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -310,6 +310,7 @@ function Show-BackupDialog {
 
     $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
     $window = [System.Windows.Markup.XamlReader]::Load($reader)
+    Set-DzWpfThemeResources -Window $window -Theme $theme
     if (-not $window) { Write-DzDebug "`t[DEBUG][Show-BackupDialog] ERROR: window=NULL"; throw "No se pudo crear la ventana (XAML)." }
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Ventana creada OK"
 

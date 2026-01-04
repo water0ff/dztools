@@ -1,7 +1,7 @@
 ﻿@"
-# 🌟 Daniel Tools — Suite de Utilidades para Administración de Sistemas
+# 🌟 Gerardo Zermeño Tools — Suite de Utilidades para Administración de Sistemas
 
-**Daniel Tools (dztools)** es una herramienta en PowerShell con interfaz gráfica (Windows Forms), diseñada para facilitar tareas administrativas en Windows y SQL Server.
+**Gerardo Zermeño Tools (dztools)** es una herramienta en PowerShell con interfaz gráfica (Windows Forms), diseñada para facilitar tareas administrativas en Windows y SQL Server.
 Es ideal para técnicos de soporte, administradores de sistemas y desarrolladores que buscan automatizar operaciones comunes.
 
 ---
@@ -136,5 +136,5 @@ Puedes usar, modificar y distribuir libremente bajo los términos de la licencia
 
 ## ✨ Autor
 
-Daniel Zermeño (water0ff)
+Gerardo Zermeño (water0ff)
 Herramientas para soporte técnico, automatización y administración de bases de datos.

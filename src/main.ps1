@@ -432,18 +432,37 @@ function New-MainForm {
                                        FontWeight="Bold"
                                        Foreground="{DynamicResource AccentPrimary}"
                                        Margin="0,0,0,8"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                <TextBlock Text="🌙 Dark Mode" VerticalAlignment="Center"/>
-                                <ToggleButton Name="tglDarkMode" Style="{StaticResource TogglePillStyle}" Margin="10,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                <TextBlock Text="🐞 DEBUG" VerticalAlignment="Center"/>
-                                <ToggleButton Name="tglDebugMode" Style="{StaticResource TogglePillStyle}" Margin="24,0,0,0"/>
-                            </StackPanel>
-                            <TextBlock Text="Al cambiar, reinicia la app para aplicar."
-                                       FontSize="10"
-                                       Foreground="{DynamicResource PanelFg}"
-                                       TextWrapping="Wrap"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <ToggleButton Name="tglDarkMode"
+                                            Grid.Column="0"
+                                            Style="{StaticResource TogglePillStyle}"/>
+
+                                <TextBlock Grid.Column="2"
+                                        Text="🌙 Dark Mode"
+                                        VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <ToggleButton Name="tglDebugMode"
+                                            Grid.Column="0"
+                                            Style="{StaticResource TogglePillStyle}"/>
+
+                                <TextBlock Grid.Column="2"
+                                        Text="🐞 DEBUG"
+                                        VerticalAlignment="Center"/>
+                            </Grid>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -596,37 +615,38 @@ function New-MainForm {
     }.GetNewClosure()
     $script:showRestartNotice = {
         param([string]$settingLabel)
-        Show-WpfMessageBox -Message "Se guardó $settingLabel en dztools.ini.`nReinicia la aplicación para aplicar los cambios." `
-            -Title "Reinicio requerido" -Buttons OK -Icon Information | Out-Null
+
+        Show-WpfMessageBox -Message "Se guardó $settingLabel en dztools.ini.`nReinicia la aplicación para aplicar los cambios." -Title "Reinicio requerido" -Buttons "OK" -Icon "Information" | Out-Null
     }.GetNewClosure()
     if ($tglDarkMode) {
         $tglDarkMode.Add_Checked({
                 Write-DzDebug "`t[DEBUG]Toggle Dark Mode activado"
                 if ($script:initializingToggles) { return }
                 Set-DzUiMode -Mode "dark"
-                & $script:showRestartNotice "el modo Dark"
+                if ($script:showRestartNotice -is [scriptblock]) {
+                    $script:showRestartNotice.Invoke("el modo Dark")
+                }
             })
         $tglDarkMode.Add_Unchecked({
                 Write-DzDebug "`t[DEBUG]Toggle Dark Mode desactivado"
                 if ($script:initializingToggles) { return }
                 Set-DzUiMode -Mode "light"
-                & $script:showRestartNotice "el modo Light"
+                if ($script:showRestartNotice -is [scriptblock]) {
+                    $script:showRestartNotice.Invoke("el modo Light")
+                }
             })
     }
-
     if ($tglDebugMode) {
         $tglDebugMode.Add_Checked({
-                Write-DzDebug "`t[DEBUG]Toggle DEBUG activado"
                 if ($script:initializingToggles) { return }
                 Set-DzDebugPreference -Enabled $true
-                & $script:showRestartNotice "DEBUG activado"
+                Write-Host "[DEBUG] Activado" -ForegroundColor Yellow
             })
-
         $tglDebugMode.Add_Unchecked({
                 Write-DzDebug "`t[DEBUG]Toggle DEBUG desactivado"
                 if ($script:initializingToggles) { return }
                 Set-DzDebugPreference -Enabled $false
-                & $script:showRestartNotice "DEBUG desactivado"
+                Write-Host "[DEBUG] Desactivado" -ForegroundColor DarkGray
             })
     }
     $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |

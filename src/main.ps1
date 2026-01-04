@@ -96,6 +96,10 @@ foreach ($module in $modules) {
 }
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
+- Nueva interfaz WPF
+    * Fuentes y colores actualizados.
+- Switch para modo oscuro
+- Switch para modo debug
 - Se agregó una mejor busqueda para SQL Server Management Studio.
 - Migración completa a WPF
 - Carga de INIS en la conexión a BDD.
@@ -111,6 +115,21 @@ $global:defaultInstructions = @"
 - - Ahora se pueden agregar comentarios con "-" y entre "/* */"
 - - Tabla en consola
 - - Obtener columnas en consola
+- Se agregó botón para limpiar AnyDesk
+- Se agregó botón para mostrar impresoras instaladas
+- Se agregó botón para limpiar y reiniciar cola de impresión
+- Se agregó botón para agregar usuario de Windows
+- Se agregó botón para forzar actualización de datos del sistema
+- Se agregó botón para buscar instalador LZMA
+- Se agregó botón para agregar IPs a adaptadores de red
+- Se agregó botón para cambiar OTM a SQL/DBF
+- Se agregó botón para permisos en C:\NationalSoft
+- Se agregó botón para creación de SRM APK
+- Se agregó botón para extractor de instalador
+- Se agregó botón para ejecutar SQL Server Management Studio
+- Se agregó botón para ejecutar Database4
+- Se agregó botón para ejecutar SQL Server Manager
+- Se agregó botón para ejecutar ExpressProfiler
 "@
 function Initialize-Environment {
     if (!(Test-Path -Path "C:\Temp")) {

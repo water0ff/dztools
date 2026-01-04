@@ -1360,7 +1360,7 @@ function Install-7ZipWithChoco {
     param()
 
     if (-not (Test-ChocolateyInstalled)) {
-        Write-DzDebug "[Install-7ZipWithChoco] Chocolatey no está instalado"
+        Write-DzDebug "`t[DEBUG] [Install-7ZipWithChoco] Chocolatey no está instalado"
         return $false
     }
 

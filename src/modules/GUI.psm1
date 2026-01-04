@@ -726,6 +726,7 @@ function Set-DzWpfThemeResources {
 
     Set-BrushResource -Resources $Window.Resources -Key "AccentPrimary"    -Hex $Theme.AccentPrimary
     Set-BrushResource -Resources $Window.Resources -Key "AccentSecondary"  -Hex $Theme.AccentSecondary
+    Set-BrushResource -Resources $Window.Resources -Key "OnAccentFg" -Hex "#1E1E1E"
 
     $Window.Resources["UiFontFamily"] = [System.Windows.Media.FontFamily]::new($Theme.UiFontFamily)
     $Window.Resources["UiFontSize"] = [double]$Theme.UiFontSize

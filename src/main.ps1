@@ -123,7 +123,7 @@ function Initialize-Environment {
     }
     try {
         $debugEnabled = Initialize-DzToolsConfig
-        Write-DzDebug "`t[DEBUG]`t[DEBUG]Configuración de debug cargada (debug=$debugEnabled)" -Color DarkGray
+        Write-DzDebug "`t[DEBUG]Configuración de debug cargada (debug=$debugEnabled)" -Color DarkGray
     } catch {
         Write-Host "Advertencia: No se pudo inicializar la configuración de debug. $_" -ForegroundColor Yellow
     }
@@ -288,7 +288,6 @@ function New-MainForm {
             <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
         </Style>
-
         <Style x:Key="GeneralButtonStyle" TargetType="{x:Type Button}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
@@ -296,22 +295,72 @@ function New-MainForm {
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,6"/>
             <Setter Property="Cursor" Value="Hand"/>
-        </Style>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
 
+            <!-- ✅ Evita el estilo/hover del tema de Windows -->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                RecognizesAccessKey="True"
+                                TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <!-- Hover global -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <!-- azul cielo -->
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                                <!-- ✅ texto negro legible -->
+                                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                            </Trigger>
+
+                            <!-- Click -->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+                            </Trigger>
+
+                            <!-- Disabled -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="SystemButtonStyle"
                TargetType="{x:Type Button}"
                BasedOn="{StaticResource GeneralButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
-
         <Style x:Key="NationalSoftButtonStyle"
-               TargetType="{x:Type Button}"
-               BasedOn="{StaticResource GeneralButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-        </Style>
+            TargetType="{x:Type Button}"
+            BasedOn="{StaticResource GeneralButtonStyle}">
 
+            <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <!-- tu azul cielo -->
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <!-- ✅ FUERZA NEGRO en hover -->
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="TogglePillStyle" TargetType="{x:Type ToggleButton}">
             <Setter Property="Width" Value="84"/>
             <Setter Property="Height" Value="30"/>
@@ -365,12 +414,19 @@ function New-MainForm {
 
             <TabItem Header="Aplicaciones" Name="tabAplicaciones">
                   <Grid Background="{DynamicResource PanelBg}">
-
-                    <TextBox Name="lblHostname" HorizontalAlignment="Left" VerticalAlignment="Top"
-                           Width="220" Height="40" Margin="10,1,0,0" Background="{DynamicResource ControlBg}"
-                            Foreground="{DynamicResource ControlFg}"
-                            BorderBrush="{DynamicResource BorderBrushColor}"
-                            BorderThickness="1" Cursor="Hand"/>
+                <TextBox Name="lblHostname"
+                        Width="220" Height="40" Margin="10,1,0,0"
+                        VerticalAlignment="Top" HorizontalAlignment="Left"
+                        Style="{StaticResource InfoHeaderTextBoxStyle}"
+                        Text="HOSTNAME"
+                        Cursor="Hand"
+                        IsReadOnly="True"
+                        IsReadOnlyCaretVisible="False"
+                        TextAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Focusable="False"
+                        IsTabStop="False"/>
                 <TextBox Name="lblPort"
                             Width="220" Height="40" Margin="250,1,0,0"
                             VerticalAlignment="Top" HorizontalAlignment="Left"
@@ -685,11 +741,11 @@ function New-MainForm {
     if ($ipsWithAdapters.Count -gt 0) {
         $ipsTextForLabel = $ipsWithAdapters | ForEach-Object { "- $($_.AdapterName) - IP: $($_.IPAddress)" } | Out-String
         $txt_IpAdress.Text = $ipsTextForLabel
-        Write-DzDebug "`t[DEBUG]`t[DEBUG] txt_IpAdress poblado con: '$($txt_IpAdress.Text)'"
-        Write-DzDebug "`t[DEBUG]`t[DEBUG] txt_IpAdress.Text.Length: $($txt_IpAdress.Text.Length)"
+        Write-DzDebug "`t[DEBUG] txt_IpAdress poblado con: '$($txt_IpAdress.Text)'"
+        Write-DzDebug "`t[DEBUG] txt_IpAdress.Text.Length: $($txt_IpAdress.Text.Length)"
     } else {
         $txt_IpAdress.Text = "No se encontraron direcciones IP"
-        Write-DzDebug "`t[DEBUG]`t[DEBUG] No se encontraron IPs" -Color Yellow
+        Write-DzDebug "`t[DEBUG] No se encontraron IPs" -Color Yellow
     }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
@@ -763,11 +819,11 @@ function New-MainForm {
     }
     $lblPort.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
+            Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
 
             try {
                 $textToCopy = $global:sqlPortsData.DetailedText.Trim()
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Contenido a copiar: '$textToCopy'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Contenido a copiar: '$textToCopy'" -Color DarkGray
 
                 # Mostrar en consola
                 Write-Host "`n=== INFORMACIÓN DE PUERTOS SQL ===" -ForegroundColor Cyan
@@ -819,7 +875,7 @@ function New-MainForm {
         })
     $lblHostname.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
+            Write-DzDebug "`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
             try {
                 $hostname = [System.Net.Dns]::GetHostName()
 
@@ -838,14 +894,14 @@ function New-MainForm {
         })
     $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
+            Write-DzDebug "`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
             try {
                 # Usar $sender.Text en lugar de $txt_IpAdress.Text por si hay problema de scope
                 $ipsText = $sender.Text
 
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Contenido (variable): '$($txt_IpAdress.Text)'" -Color DarkGray
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Contenido (variable): '$($txt_IpAdress.Text)'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
 
                 if ([string]::IsNullOrWhiteSpace($ipsText)) {
                     Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow
@@ -1156,7 +1212,7 @@ function New-MainForm {
 
     $btnSQLManagement.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Iniciando búsqueda de SSMS instalados" -Color DarkGray
+            Write-DzDebug "`t[DEBUG] Iniciando búsqueda de SSMS instalados" -Color DarkGray
             function Get-SSMSVersions {
                 $ssmsPaths = @()
 
@@ -1184,13 +1240,13 @@ function New-MainForm {
                     foreach ($f in $found) {
                         if ($ssmsPaths -notcontains $f.FullName) {
                             $ssmsPaths += $f.FullName
-                            Write-DzDebug "`t[DEBUG]`t[DEBUG] ✓ Encontrado: $($f.FullName)" -Color Green
+                            Write-DzDebug "`t[DEBUG] ✓ Encontrado: $($f.FullName)" -Color Green
                         }
                     }
                 }
 
                 if ($ssmsPaths.Count -eq 0) {
-                    Write-DzDebug "`t[DEBUG]`t[DEBUG] No se encontró en rutas fijas. Buscando en registro..." -Color DarkGray
+                    Write-DzDebug "`t[DEBUG] No se encontró en rutas fijas. Buscando en registro..." -Color DarkGray
                     $registryPaths = @(
                         "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
                         "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
@@ -1211,7 +1267,7 @@ function New-MainForm {
                                     $resolved = (Resolve-Path $full).Path
                                     if ($ssmsPaths -notcontains $resolved) {
                                         $ssmsPaths += $resolved
-                                        Write-DzDebug "`t[DEBUG]`t[DEBUG] ✓ Encontrado (registro): $resolved" -Color Green
+                                        Write-DzDebug "`t[DEBUG] ✓ Encontrado (registro): $resolved" -Color Green
                                     }
                                 }
                             }
@@ -1387,7 +1443,7 @@ function New-MainForm {
                 $serverText = $global:txtServer.Text.Trim()
                 $userText = $global:txtUser.Text.Trim()
                 $passwordText = $global:txtPassword.Password
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
+                Write-DzDebug "`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
                 if ([string]::IsNullOrWhiteSpace($serverText) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordText)) {
                     throw "Complete todos los campos de conexión"
                 }
@@ -1424,11 +1480,11 @@ Base de datos: ((
                 $global:btnDisconnectDb.IsEnabled = $true
                 $global:rtbQuery.IsEnabled = $true
             } catch {
-                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] CATCH: ((
+                Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: ((
 (_.Exception.Message)"
-                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] Tipo: ((
+                Write-DzDebug "`t[DEBUG][btnConnectDb] Tipo: ((
 (_.Exception.GetType().FullName)"
-                Write-DzDebug "`t[DEBUG]`t[DEBUG][btnConnectDb] Stack: ((
+                Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: ((
 (_.ScriptStackTrace)"
                 [System.Windows.MessageBox]::Show("Error de conexión: ((
 (_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
@@ -1521,7 +1577,7 @@ Base de datos: ((
     # Crear el scriptblock con GetNewClosure() para capturar el contexto
     $closeWindowScript = {
         Write-Host "Cerrando aplicación..." -ForegroundColor Yellow
-        Write-DzDebug "`t[DEBUG]`t[DEBUG] Botón Salir presionado" -Color DarkGray
+        Write-DzDebug "`t[DEBUG] Botón Salir presionado" -Color DarkGray
 
         try {
             # Método 1: Buscar la ventana desde el sender
@@ -1530,15 +1586,15 @@ Base de datos: ((
 
             if ($null -ne $win) {
                 $win.Close()
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Ventana cerrada (método 1)" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Ventana cerrada (método 1)" -Color DarkGray
             } else {
                 # Método 2: Usar la ventana capturada
                 $window.Close()
-                Write-DzDebug "`t[DEBUG]`t[DEBUG] Ventana cerrada (método 2)" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Ventana cerrada (método 2)" -Color DarkGray
             }
         } catch {
             Write-Host "Error al cerrar: $_" -ForegroundColor Yellow
-            Write-DzDebug "`t[DEBUG]`t[DEBUG] Error: $_" -Color Red
+            Write-DzDebug "`t[DEBUG] Error: $_" -Color Red
         }
     }.GetNewClosure()
 

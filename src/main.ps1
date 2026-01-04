@@ -138,7 +138,7 @@ function New-MainForm {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Gerardo Zermeño Tools"
-        Height="650" Width="1050"
+        Height="650" Width="980"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
@@ -312,6 +312,54 @@ function New-MainForm {
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
 
+        <Style x:Key="TogglePillStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Width" Value="84"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Grid Width="{TemplateBinding Width}" Height="{TemplateBinding Height}">
+                            <Border x:Name="SwitchBorder"
+                                    Background="{DynamicResource BorderBrushColor}"
+                                    BorderBrush="{DynamicResource BorderBrushColor}"
+                                    BorderThickness="1"
+                                    CornerRadius="15"/>
+                            <Border x:Name="SwitchThumb"
+                                    Width="22" Height="22"
+                                    Background="{DynamicResource FormBg}"
+                                    CornerRadius="11"
+                                    HorizontalAlignment="Left"
+                                    Margin="4,4,0,4"/>
+                            <TextBlock x:Name="SwitchLabel"
+                                       Text="OFF"
+                                       Foreground="{DynamicResource FormFg}"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="SwitchBorder" Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                                <Setter TargetName="SwitchBorder" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                                <Setter TargetName="SwitchThumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="SwitchThumb" Property="Margin" Value="0,4,4,4"/>
+                                <Setter TargetName="SwitchLabel" Property="Text" Value="ON"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SwitchBorder" Property="BorderBrush" Value="{DynamicResource AccentSecondary}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Window.Resources>
     <Grid Background="{DynamicResource FormBg}">
         <TabControl Name="tabControl" Margin="5">
@@ -417,8 +465,8 @@ function New-MainForm {
                 </Grid>
             </TabItem>
         </TabControl>
-        <Button Content="Salir" Name="btnExit" Width="500" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="350,0,0,10" Style="{StaticResource GeneralButtonStyle}"/>
+        <Button Content="Salir" Name="btnExit" Width="400" Height="30"
+                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="300,0,0,10" Style="{StaticResource GeneralButtonStyle}"/>
     </Grid>
 </Window>
 "@
@@ -481,6 +529,8 @@ function New-MainForm {
     $btnExecute = $window.FindName("btnExecute")
     $cmbQueries = $window.FindName("cmbQueries")
     $rtbQuery = $window.FindName("rtbQuery")
+    $tglDarkMode = $window.FindName("tglDarkMode")
+    $tglDebugMode = $window.FindName("tglDebugMode")
     $script:predefinedQueries = Get-PredefinedQueries
     Initialize-PredefinedQueries -ComboQueries $cmbQueries -RichTextBox $rtbQuery -Queries $script:predefinedQueries -Window $window
     $dgvResults = $window.FindName("dgvResults")
@@ -500,6 +550,14 @@ function New-MainForm {
     $global:txt_AdapterStatus = $txt_AdapterStatus
     $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
+    $script:initializingToggles = $true
+    if ($tglDarkMode) {
+        $tglDarkMode.IsChecked = ((Get-DzUiMode) -eq 'dark')
+    }
+    if ($tglDebugMode) {
+        $tglDebugMode.IsChecked = (Get-DzDebugPreference)
+    }
+    $script:initializingToggles = $false
     Write-Host "`n==================================================" -ForegroundColor DarkCyan
     Write-Host "       Gerardo Zermeño Tools - Suite de Utilidades       " -ForegroundColor Green
     Write-Host "              Versión: $($global:version)               " -ForegroundColor Green
@@ -516,6 +574,41 @@ function New-MainForm {
                 })
         }
     }.GetNewClosure()
+    $script:showRestartNotice = {
+        param([string]$settingLabel)
+        Show-WpfMessageBox -Message "Se guardó $settingLabel en dztools.ini.`nReinicia la aplicación para aplicar los cambios." `
+            -Title "Reinicio requerido" -Buttons OK -Icon Information | Out-Null
+    }.GetNewClosure()
+    if ($tglDarkMode) {
+        $tglDarkMode.Add_Checked({
+                Write-DzDebug "`t[DEBUG]Toggle Dark Mode activado"
+                if ($script:initializingToggles) { return }
+                Set-DzUiMode -Mode "dark"
+                & $script:showRestartNotice "el modo Dark"
+            })
+        $tglDarkMode.Add_Unchecked({
+                Write-DzDebug "`t[DEBUG]Toggle Dark Mode desactivado"
+                if ($script:initializingToggles) { return }
+                Set-DzUiMode -Mode "light"
+                & $script:showRestartNotice "el modo Light"
+            })
+    }
+
+    if ($tglDebugMode) {
+        $tglDebugMode.Add_Checked({
+                Write-DzDebug "`t[DEBUG]Toggle DEBUG activado"
+                if ($script:initializingToggles) { return }
+                Set-DzDebugPreference -Enabled $true
+                & $script:showRestartNotice "DEBUG activado"
+            })
+
+        $tglDebugMode.Add_Unchecked({
+                Write-DzDebug "`t[DEBUG]Toggle DEBUG desactivado"
+                if ($script:initializingToggles) { return }
+                Set-DzDebugPreference -Enabled $false
+                & $script:showRestartNotice "DEBUG desactivado"
+            })
+    }
     $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
     Where-Object { $_.OperationalStatus -eq 'Up' } |
     ForEach-Object {

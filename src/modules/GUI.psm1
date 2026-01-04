@@ -142,7 +142,7 @@ function New-WpfWindow {
 
 function Show-WpfMessageBox {
     param(
-        [string]$Message,
+        [Parameter(Mandatory = $true)][string]$Message,
         [string]$Title = "Mensaje",
         [ValidateSet("OK", "OKCancel", "YesNo", "YesNoCancel")]
         [string]$Buttons = "OK",
@@ -150,31 +150,209 @@ function Show-WpfMessageBox {
         [string]$Icon = "Information"
     )
 
-    $buttonMap = @{
-        "OK"          = [System.Windows.MessageBoxButton]::OK
-        "OKCancel"    = [System.Windows.MessageBoxButton]::OKCancel
-        "YesNo"       = [System.Windows.MessageBoxButton]::YesNo
-        "YesNoCancel" = [System.Windows.MessageBoxButton]::YesNoCancel
+    $theme = Get-DzUiTheme
+
+    # Iconos simples (Unicode). Si quieres, luego los cambiamos por Paths (vector).
+    $iconGlyph = switch ($Icon) {
+        "Information" { "ℹ" }
+        "Warning" { "⚠" }
+        "Error" { "⛔" }
+        "Question" { "❓" }
+        default { "ℹ" }
     }
 
-    $iconMap = @{
-        "Information" = [System.Windows.MessageBoxImage]::Information
-        "Warning"     = [System.Windows.MessageBoxImage]::Warning
-        "Error"       = [System.Windows.MessageBoxImage]::Error
-        "Question"    = [System.Windows.MessageBoxImage]::Question
+    # Visibilidad de botones
+    $showOK = "Collapsed"
+    $showYes = "Collapsed"
+    $showNo = "Collapsed"
+    $showCancel = "Collapsed"
+
+    switch ($Buttons) {
+        "OK" {
+            $showOK = "Visible"
+        }
+        "OKCancel" {
+            $showOK = "Visible"
+            $showCancel = "Visible"
+        }
+        "YesNo" {
+            $showYes = "Visible"
+            $showNo = "Visible"
+        }
+        "YesNoCancel" {
+            $showYes = "Visible"
+            $showNo = "Visible"
+            $showCancel = "Visible"
+        }
     }
 
-    return [System.Windows.MessageBox]::Show(
-        $Message,
-        $Title,
-        $buttonMap[$Buttons],
-        $iconMap[$Icon]
-    )
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="$Title"
+        Height="230" Width="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+    <Border Background="$($theme.FormBackground)"
+            CornerRadius="10"
+            BorderBrush="$($theme.AccentPrimary)"
+            BorderThickness="2"
+            Padding="0">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.30"/>
+        </Border.Effect>
+
+        <Grid Margin="14">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="34"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="$Title"
+                           Foreground="$($theme.FormForeground)"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold"/>
+
+                <Button Name="btnClose"
+                        Grid.Column="1"
+                        Content="✕"
+                        Foreground="$($theme.FormForeground)"
+                        Width="34" Height="26"
+                        Margin="8,0,0,0"
+                        ToolTip="Cerrar"
+                        Background="Transparent"
+                        BorderBrush="Transparent"/>
+            </Grid>
+
+            <!-- Body -->
+            <Grid Grid.Row="1" Margin="0,10,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="42"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Width="34" Height="34"
+                        CornerRadius="8"
+                        Background="$($theme.ControlBackground)"
+                        BorderBrush="$($theme.BorderColor)"
+                        BorderThickness="1"
+                        VerticalAlignment="Top">
+                    <TextBlock Text="$iconGlyph"
+                               FontSize="18"
+                               Foreground="$($theme.AccentPrimary)"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Border>
+
+                <TextBlock Grid.Column="1"
+                           Text="$Message"
+                           Foreground="$($theme.FormForeground)"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Top"/>
+            </Grid>
+
+            <!-- Buttons -->
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+
+                <Button Name="btnYes"
+                        Content="Sí"
+                        Visibility="$showYes"
+                        Width="110" Height="30"
+                        Margin="0,0,10,0"
+                        Background="$($theme.ButtonSystemBackground)"
+                        Foreground="$($theme.ButtonSystemForeground)"
+                        BorderBrush="$($theme.BorderColor)"
+                        BorderThickness="1"/>
+
+                <Button Name="btnNo"
+                        Content="No"
+                        Visibility="$showNo"
+                        Width="110" Height="30"
+                        Margin="0,0,10,0"
+                        Background="$($theme.ButtonGeneralBackground)"
+                        Foreground="$($theme.ButtonGeneralForeground)"
+                        BorderBrush="$($theme.BorderColor)"
+                        BorderThickness="1"/>
+
+                <Button Name="btnCancel"
+                        Content="Cancelar"
+                        Visibility="$showCancel"
+                        Width="110" Height="30"
+                        Margin="0,0,10,0"
+                        Background="$($theme.ButtonGeneralBackground)"
+                        Foreground="$($theme.ButtonGeneralForeground)"
+                        BorderBrush="$($theme.BorderColor)"
+                        BorderThickness="1"/>
+
+                <Button Name="btnOK"
+                        Content="OK"
+                        Visibility="$showOK"
+                        Width="110" Height="30"
+                        Background="$($theme.ButtonSystemBackground)"
+                        Foreground="$($theme.ButtonSystemForeground)"
+                        BorderBrush="$($theme.BorderColor)"
+                        BorderThickness="1"/>
+            </StackPanel>
+
+        </Grid>
+    </Border>
+</Window>
+"@
+
+    $ui = New-WpfWindow -Xaml $xaml -PassThru
+    $w = $ui.Window
+    $c = $ui.Controls
+
+    try { Set-WpfDialogOwner -Dialog $w } catch {}
+
+    # Drag
+    $c['HeaderBar'].Add_MouseLeftButtonDown({
+            if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() }
+        })
+
+    # Default/Cancel para Enter/Esc
+    if ($c['btnOK']) { $c['btnOK'].IsDefault = $true }
+    if ($c['btnYes']) { $c['btnYes'].IsDefault = $true }
+    if ($c['btnCancel']) { $c['btnCancel'].IsCancel = $true }
+
+    # Resultado
+    $result = [System.Windows.MessageBoxResult]::None
+
+    $c['btnClose'].Add_Click({ $result = [System.Windows.MessageBoxResult]::Cancel; $w.Close() })
+
+    if ($c['btnOK']) {
+        $c['btnOK'].Add_Click({ $result = [System.Windows.MessageBoxResult]::OK; $w.Close() })
+    }
+    if ($c['btnYes']) {
+        $c['btnYes'].Add_Click({ $result = [System.Windows.MessageBoxResult]::Yes; $w.Close() })
+    }
+    if ($c['btnNo']) {
+        $c['btnNo'].Add_Click({ $result = [System.Windows.MessageBoxResult]::No; $w.Close() })
+    }
+    if ($c['btnCancel']) {
+        $c['btnCancel'].Add_Click({ $result = [System.Windows.MessageBoxResult]::Cancel; $w.Close() })
+    }
+
+    $null = $w.ShowDialog()
+    return $result
 }
 
-#endregion
-
-#region Barra de Progreso WPF Mejorada
 
 function Show-WpfProgressBar {
     <#

@@ -138,7 +138,7 @@ function New-MainForm {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Gerardo Zermeño Tools"
-        Height="650" Width="1050"
+        Height="650" Width="980"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
@@ -411,12 +411,12 @@ function New-MainForm {
                     <Button Content="Extractor de Instalador" Name="btnExtractInstaller" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="220" Height="400" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
+                             Width="220" Height="300" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                              FontFamily="Courier New" FontSize="10"/>
                     <Border Name="cardQuickSettings"
                             Width="220" Height="150"
-                            Margin="730,460,0,0"
+                            Margin="730,370,0,0"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Top"
                             Background="{DynamicResource ControlBg}"
@@ -485,8 +485,8 @@ function New-MainForm {
                 </Grid>
             </TabItem>
         </TabControl>
-        <Button Content="Salir" Name="btnExit" Width="500" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="350,0,0,10" Style="{StaticResource GeneralButtonStyle}"/>
+        <Button Content="Salir" Name="btnExit" Width="400" Height="30"
+                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="300,0,0,10" Style="{StaticResource GeneralButtonStyle}"/>
     </Grid>
 </Window>
 "@
@@ -602,11 +602,13 @@ function New-MainForm {
 
     if ($tglDarkMode) {
         $tglDarkMode.Add_Checked({
+                Write-DzDebug "`t[DEBUG]Toggle Dark Mode activado"
                 if ($script:initializingToggles) { return }
                 Set-DzUiMode -Mode "dark"
                 $showRestartNotice.Invoke("el modo Dark")
             })
         $tglDarkMode.Add_Unchecked({
+                Write-DzDebug "`t[DEBUG]Toggle Dark Mode desactivado"
                 if ($script:initializingToggles) { return }
                 Set-DzUiMode -Mode "light"
                 $showRestartNotice.Invoke("el modo Light")
@@ -615,11 +617,13 @@ function New-MainForm {
 
     if ($tglDebugMode) {
         $tglDebugMode.Add_Checked({
+                Write-DzDebug "`t[DEBUG]Toggle DEBUG activado"
                 if ($script:initializingToggles) { return }
                 Set-DzDebugPreference -Enabled $true
                 $showRestartNotice.Invoke("DEBUG activado")
             })
         $tglDebugMode.Add_Unchecked({
+                Write-DzDebug "`t[DEBUG]Toggle DEBUG desactivado"
                 if ($script:initializingToggles) { return }
                 Set-DzDebugPreference -Enabled $false
                 $showRestartNotice.Invoke("DEBUG desactivado")

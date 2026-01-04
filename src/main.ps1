@@ -451,41 +451,38 @@ function New-MainForm {
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <ToggleButton Name="tglDarkMode"
-                                            Grid.Column="0"
-                                            Style="{StaticResource TogglePillStyle}"/>
-
-                                <TextBlock Grid.Column="2"
-                                        Text="🌙 Dark Mode"
-                                        VerticalAlignment="Center"/>
                             </Grid>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+                            <ToggleButton Name="tglDarkMode"
+                                        Grid.Column="0"
+                                        Style="{StaticResource TogglePillStyle}"/>
 
-                                <ToggleButton Name="tglDebugMode"
-                                            Grid.Column="0"
-                                            Style="{StaticResource TogglePillStyle}"/>
+                            <TextBlock Grid.Column="2"
+                                    Text="🌙 Dark Mode"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
 
-                                <TextBlock Grid.Column="2"
-                                        Text="🐞 DEBUG"
-                                        VerticalAlignment="Center"/>
-                            </Grid>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                <TextBlock Text="🌙 Dark Mode" VerticalAlignment="Center"/>
-                                <ToggleButton Name="tglDarkMode" Style="{StaticResource TogglePillStyle}" Margin="10,0,0,0"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                <TextBlock Text="🐞 DEBUG" VerticalAlignment="Center"/>
-                                <ToggleButton Name="tglDebugMode" Style="{StaticResource TogglePillStyle}" Margin="24,0,0,0"/>
-                            </StackPanel>
-                            <TextBlock Text="Al cambiar, reinicia la app para aplicar."
-                                       Foreground="{DynamicResource PanelFg}"
-                                       TextWrapping="Wrap"/>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <ToggleButton Name="tglDebugMode"
+                                        Grid.Column="0"
+                                        Style="{StaticResource TogglePillStyle}"/>
+
+                            <TextBlock Grid.Column="2"
+                                    Text="🐞 DEBUG"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
                         </StackPanel>
                     </Border>
                 </Grid>

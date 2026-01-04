@@ -594,24 +594,23 @@ function New-MainForm {
                 })
         }
     }.GetNewClosure()
-    $showRestartNotice = {
+    $script:showRestartNotice = {
         param([string]$settingLabel)
         Show-WpfMessageBox -Message "Se guardó $settingLabel en dztools.ini.`nReinicia la aplicación para aplicar los cambios." `
             -Title "Reinicio requerido" -Buttons OK -Icon Information | Out-Null
     }.GetNewClosure()
-
     if ($tglDarkMode) {
         $tglDarkMode.Add_Checked({
                 Write-DzDebug "`t[DEBUG]Toggle Dark Mode activado"
                 if ($script:initializingToggles) { return }
                 Set-DzUiMode -Mode "dark"
-                $showRestartNotice.Invoke("el modo Dark")
+                & $script:showRestartNotice "el modo Dark"
             })
         $tglDarkMode.Add_Unchecked({
                 Write-DzDebug "`t[DEBUG]Toggle Dark Mode desactivado"
                 if ($script:initializingToggles) { return }
                 Set-DzUiMode -Mode "light"
-                $showRestartNotice.Invoke("el modo Light")
+                & $script:showRestartNotice "el modo Light"
             })
     }
 
@@ -620,16 +619,16 @@ function New-MainForm {
                 Write-DzDebug "`t[DEBUG]Toggle DEBUG activado"
                 if ($script:initializingToggles) { return }
                 Set-DzDebugPreference -Enabled $true
-                $showRestartNotice.Invoke("DEBUG activado")
+                & $script:showRestartNotice "DEBUG activado"
             })
+
         $tglDebugMode.Add_Unchecked({
                 Write-DzDebug "`t[DEBUG]Toggle DEBUG desactivado"
                 if ($script:initializingToggles) { return }
                 Set-DzDebugPreference -Enabled $false
-                $showRestartNotice.Invoke("DEBUG desactivado")
+                & $script:showRestartNotice "DEBUG desactivado"
             })
     }
-
     $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
     Where-Object { $_.OperationalStatus -eq 'Up' } |
     ForEach-Object {

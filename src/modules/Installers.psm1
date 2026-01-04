@@ -310,7 +310,9 @@ function Show-SSMSInstallerDialog {
         Height="200" Width="380"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        Background="$($theme.FormBackground)">
+        Background="$($theme.FormBackground)"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
 
     <Window.Resources>
         <Style TargetType="TextBlock">
@@ -325,7 +327,6 @@ function Show-SSMSInstallerDialog {
         <Style TargetType="Button">
             <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
             <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
-            <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="15,8"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -360,14 +361,12 @@ function Show-SSMSInstallerDialog {
         <!-- Título -->
         <TextBlock Grid.Row="0"
                   Text="Elige la versión a instalar:"
-                  FontSize="13"
                   FontWeight="Bold"
                   Margin="0,0,0,15"/>
 
         <!-- ComboBox -->
         <ComboBox Grid.Row="1"
                  Name="cmbVersion"
-                 FontSize="12"
                  Padding="8"
                  Margin="0,0,0,20">
             <ComboBoxItem Content="Último disponible" IsSelected="True"/>
@@ -397,6 +396,7 @@ function Show-SSMSInstallerDialog {
         [xml]$xaml = $stringXaml
         $reader = New-Object System.Xml.XmlNodeReader $xaml
         $window = [Windows.Markup.XamlReader]::Load($reader)
+        Set-DzWpfThemeResources -Window $window -Theme $theme
 
 
         # Obtener controles

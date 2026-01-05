@@ -2844,31 +2844,52 @@ function Show-WpfPathSelectionDialog {
     return $null
 }
 function Show-LZMADialog {
-    param(
-        [array]$Instaladores
-    )
-
+    param([array]$Instaladores)
     Write-DzDebug "`t[DEBUG][Show-LZMADialog] INICIO"
     $theme = Get-DzUiTheme
+    $UiConfirm = {
+        param([string]$m, [string]$t = "Confirmar")
+        (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $w) -eq [System.Windows.MessageBoxResult]::Yes
+    }.GetNewClosure()
+    function Convert-RegProviderPathToDisplay {
+        param([Parameter(Mandatory)][string]$ProviderPath)
+        $p = $ProviderPath -replace '^Microsoft\.PowerShell\.Core\\Registry::', ''
+        if ($p -like 'HKEY_LOCAL_MACHINE\*') { return ('HKLM:\' + $p.Substring('HKEY_LOCAL_MACHINE\'.Length)) }
+        if ($p -like 'HKEY_CURRENT_USER\*') { return ('HKCU:\' + $p.Substring('HKEY_CURRENT_USER\'.Length)) }
+        return $p
+    }
+    function Get-LzmaInstallerItems {
+        $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
+        if (-not (Test-Path $LZMAregistryPath)) { return @() }
+        $carpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer }
+        $tmp = @()
+        foreach ($carpeta in $carpetasPrincipales) {
+            $subdirs = Get-ChildItem -Path $carpeta.PSPath -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer }
+            foreach ($sd in $subdirs) {
+                $tmp += [PSCustomObject]@{
+                    Name         = [string]$sd.PSChildName
+                    ProviderPath = [string]$sd.PSPath
+                    DisplayPath  = (Convert-RegProviderPathToDisplay -ProviderPath ([string]$sd.PSPath))
+                }
+            }
+        }
+        $tmp | Sort-Object Name -Descending
+    }
     if (-not $Instaladores -or $Instaladores.Count -eq 0) {
         $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
         if (-not (Test-Path $LZMAregistryPath)) {
             Write-DzDebug "`t[DEBUG][Show-LZMADialog] No existe la clave LZMA: $LZMAregistryPath" Yellow
-            Show-WpfMessageBox -Message "No se encontró Advanced Installer (LZMA) en este equipo.`n`nRuta no existe:`n$LZMAregistryPath" `
-                -Title "Sin instaladores" -Buttons OK -Icon Information | Out-Null
+            Show-WpfMessageBox -Message "No se encontró Advanced Installer (LZMA) en este equipo.`n`nRuta no existe:`n$LZMAregistryPath" -Title "Sin instaladores" -Buttons OK -Icon Information | Out-Null
             Write-DzDebug "`t[DEBUG][Show-LZMADialog] Fin - sin clave LZMA"
             return
         }
-
         try {
             $carpetasPrincipales = Get-ChildItem -Path $LZMAregistryPath -ErrorAction Stop | Where-Object { $_.PSIsContainer }
             if (-not $carpetasPrincipales -or $carpetasPrincipales.Count -lt 1) {
                 Write-DzDebug "`t[DEBUG][Show-LZMADialog] No se encontraron carpetas principales." Yellow
-                Show-WpfMessageBox -Message "No se encontraron carpetas principales en la ruta del registro." `
-                    -Title "Sin resultados" -Buttons OK -Icon Information | Out-Null
+                Show-WpfMessageBox -Message "No se encontraron carpetas principales en la ruta del registro." -Title "Sin resultados" -Buttons OK -Icon Information | Out-Null
                 return
             }
-
             $tmp = @()
             foreach ($carpeta in $carpetasPrincipales) {
                 $subdirs = Get-ChildItem -Path $carpeta.PSPath -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer }
@@ -2879,349 +2900,219 @@ function Show-LZMADialog {
                     }
                 }
             }
-
             if (-not $tmp -or $tmp.Count -lt 1) {
                 Write-DzDebug "`t[DEBUG][Show-LZMADialog] No se encontraron subcarpetas." Yellow
-                Show-WpfMessageBox -Message "No se encontraron instaladores (subcarpetas) en la ruta del registro." `
-                    -Title "Sin resultados" -Buttons OK -Icon Information | Out-Null
+                Show-WpfMessageBox -Message "No se encontraron instaladores (subcarpetas) en la ruta del registro." -Title "Sin resultados" -Buttons OK -Icon Information | Out-Null
                 return
             }
-
             $Instaladores = $tmp | Sort-Object Name -Descending
         } catch {
             Write-DzDebug "`t[DEBUG][Show-LZMADialog] Error accediendo al registro: $($_.Exception.Message)" Red
-            Show-WpfMessageBox -Message "Error accediendo al registro:`n$($_.Exception.Message)" `
-                -Title "Error" -Buttons OK -Icon Error | Out-Null
+            Show-WpfMessageBox -Message "Error accediendo al registro:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
             return
         }
     }
-
-    # Construir items: lista muestra nombre + ruta, pero guardamos Name/Path separadas
     $items = foreach ($i in $Instaladores) {
         if (-not $i) { continue }
+        $provider = if ($null -ne $i.PSObject.Properties['ProviderPath']) { [string]$i.ProviderPath } else { [string]$i.Path }
+        $displayPath = if ($null -ne $i.PSObject.Properties['DisplayPath'] -and -not [string]::IsNullOrWhiteSpace([string]$i.DisplayPath)) { [string]$i.DisplayPath } else { Convert-RegProviderPathToDisplay -ProviderPath $provider }
         [PSCustomObject]@{
-            Name    = [string]$i.Name
-            Path    = [string]$i.Path
-            Display = ("{0}  |  {1}" -f $i.Name, $i.Path) # LISTA con ruta
+            Name         = [string]$i.Name
+            ProviderPath = $provider
+            DisplayPath  = $displayPath
+            Display      = ("{0}  |  {1}" -f [string]$i.Name, $displayPath)
         }
     }
-
     $stringXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Carpetas LZMA"
-        Height="290" Width="760"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        ShowInTaskbar="False"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
-        FontFamily="{DynamicResource UiFontFamily}"
-        FontSize="{DynamicResource UiFontSize}">
-<Window.Resources>
-        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="$($theme.FormBackground)"/>
-        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="$($theme.ControlForeground)"/>
-        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="$($theme.ControlBackground)"/>
-        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="$($theme.ControlForeground)"/>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Carpetas LZMA" Height="290" Width="760" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False" WindowStyle="None" AllowsTransparency="True" Background="Transparent" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
+  <Window.Resources>
+    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#2A2A2A"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#2A2A2A"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="ComboItemHoverBg" Color="#2A2A2A"/>
     <Style TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
     </Style>
-            <Style TargetType="ComboBox">
-                <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-                <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-                <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Padding" Value="8,4"/>
-                <Setter Property="SnapsToDevicePixels" Value="True"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="ComboBox">
-                            <Grid>
-                                <Border x:Name="Bd"
-                                        Background="{TemplateBinding Background}"
-                                        BorderBrush="{TemplateBinding BorderBrush}"
-                                        BorderThickness="{TemplateBinding BorderThickness}"
-                                        CornerRadius="6"
-                                        SnapsToDevicePixels="True">
-                                    <DockPanel>
-                                        <!-- Flecha -->
-                                        <Border DockPanel.Dock="Right"
-                                                Width="32"
-                                                Background="Transparent">
-                                            <Path Data="M 0 0 L 6 6 L 12 0 Z"
-                                                Fill="{TemplateBinding Foreground}"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Margin="0,2,0,0"/>
-                                        </Border>
-
-                                        <!-- Texto seleccionado -->
-                                        <ContentPresenter x:Name="ContentSite"
-                                                        Margin="{TemplateBinding Padding}"
-                                                        VerticalAlignment="Center"
-                                                        HorizontalAlignment="Left"
-                                                        Content="{TemplateBinding SelectionBoxItem}"
-                                                        ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                                        ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
-                                                        RecognizesAccessKey="True"/>
-                                    </DockPanel>
-                                </Border>
-
-                                <!-- ESTE ES EL QUE HACE QUE ABRA AL CLIC -->
-                                <ToggleButton x:Name="DropDownToggle"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            Focusable="False"
-                                            ClickMode="Press"
-                                            IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
-                                            HorizontalAlignment="Stretch"
-                                            VerticalAlignment="Stretch"/>
-
-                                <!-- Popup -->
-                                <Popup x:Name="Popup"
-                                    Placement="Bottom"
-                                    PlacementTarget="{Binding ElementName=Bd}"
-                                    IsOpen="{TemplateBinding IsDropDownOpen}"
-                                    AllowsTransparency="True"
-                                    Focusable="False"
-                                    PopupAnimation="Fade">
-                                    <Border Background="$($theme.ControlBackground)"
-                                            BorderBrush="$($theme.BorderColor)"
-                                            BorderThickness="1"
-                                            CornerRadius="8"
-                                            SnapsToDevicePixels="True"
-                                            Margin="0,6,0,0">
-                                        <ScrollViewer Margin="4" SnapsToDevicePixels="True">
-                                            <ItemsPresenter/>
-                                        </ScrollViewer>
-                                    </Border>
-                                </Popup>
-                            </Grid>
-
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="Bd" Property="Opacity" Value="0.60"/>
-                                </Trigger>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bd" Property="BorderBrush" Value="$($theme.AccentPrimary)"/>
-                                </Trigger>
-                                <Trigger Property="IsDropDownOpen" Value="True">
-                                    <Setter TargetName="Bd" Property="BorderBrush" Value="$($theme.AccentPrimary)"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-
-    <!-- ✅ Items del dropdown -->
-    <Style TargetType="ComboBoxItem">
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-        <Setter Property="Padding" Value="8,6"/>
-        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-        <Style.Triggers>
-            <Trigger Property="IsHighlighted" Value="True">
-                <Setter Property="Background" Value="{DynamicResource AccentMuted}"/>
-                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-            </Trigger>
-            <Trigger Property="IsSelected" Value="True">
-                <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-            </Trigger>
-            <Trigger Property="IsEnabled" Value="False">
-                <Setter Property="Opacity" Value="0.55"/>
-            </Trigger>
-        </Style.Triggers>
-    </Style>
-
-    <!-- ✅ TextBox interno (cuando el ComboBox es editable, o para el template interno) -->
-    <Style TargetType="TextBox">
-        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-        <Setter Property="BorderThickness" Value="1"/>
-    </Style>
-
-    <Style x:Key="SystemButtonStyle" TargetType="Button">
-        <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-    </Style>
-
-</Window.Resources>
-
-    <Border Background="{DynamicResource FormBg}"
-            CornerRadius="10"
-            BorderBrush="{DynamicResource AccentPrimary}"
-            BorderThickness="2"
-            Padding="0">
-        <Border.Effect>
-            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
-        </Border.Effect>
-
-        <Grid Margin="16">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="36"/>   <!-- Header -->
-                <RowDefinition Height="Auto"/> <!-- Instrucción -->
-                <RowDefinition Height="Auto"/> <!-- Combo -->
-                <RowDefinition Height="*"/>    <!-- AI_ExePath -->
-                <RowDefinition Height="Auto"/> <!-- Botones -->
-            </Grid.RowDefinitions>
-
-            <!-- Header -->
-            <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Text="Carpetas LZMA"
-                           VerticalAlignment="Center"
-                           FontWeight="SemiBold"/>
-
-                <Button Name="btnClose"
-                        Grid.Column="1"
-                        Content="✕"
-                        Width="34" Height="26"
-                        Margin="8,0,0,0"
-                        ToolTip="Cerrar"
-                        Background="Transparent"
-                        BorderBrush="Transparent"/>
+    <Style TargetType="ComboBox">
+      <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+      <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="SnapsToDevicePixels" Value="True"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBox">
+            <Grid>
+              <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" SnapsToDevicePixels="True">
+                <DockPanel>
+                  <Border DockPanel.Dock="Right" Width="32" Background="Transparent">
+                    <Path Data="M 0 0 L 6 6 L 12 0 Z" Fill="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,2,0,0"/>
+                  </Border>
+                  <ContentPresenter x:Name="ContentSite" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" HorizontalAlignment="Left" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" RecognizesAccessKey="True"/>
+                </DockPanel>
+              </Border>
+              <ToggleButton x:Name="DropDownToggle" Background="Transparent" BorderThickness="0" Focusable="False" ClickMode="Press" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+              <Popup x:Name="Popup" Placement="Bottom" PlacementTarget="{Binding ElementName=Bd}" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                <Border Background="$($theme.ControlBackground)" BorderBrush="$($theme.BorderColor)" BorderThickness="1" CornerRadius="8" SnapsToDevicePixels="True" Margin="0,6,0,0">
+                  <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                    <ItemsPresenter/>
+                  </ScrollViewer>
+                </Border>
+              </Popup>
             </Grid>
-
-            <TextBlock Grid.Row="1"
-                       Text="Seleccione el instalador (registro) que desea renombrar."
-                       FontWeight="SemiBold"
-                       Margin="0,0,0,10"/>
-
-            <ComboBox Name="cmbInstallers"
-                      Grid.Row="2"
-                      Height="30"
-                      Margin="0,0,0,10"
-                      DisplayMemberPath="Display"
-                      SelectedValuePath="Path"/>
-
-            <!-- AI_ExePath -->
-            <Border Grid.Row="3"
-                    Background="{DynamicResource ControlBg}"
-                    CornerRadius="8"
-                    Padding="10"
-                    Margin="0,0,0,8"
-                    MinHeight="78">
-                <StackPanel>
-                    <TextBlock Text="AI_ExePath:"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Name="lblExePath"
-                               Text="-"
-                               Foreground="{DynamicResource AccentMuted}"
-                               TextWrapping="Wrap"
-                               TextTrimming="None"
-                               MaxHeight="48"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Botones -->
-            <StackPanel Grid.Row="4"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Right"
-                        Margin="0,0,0,0">
-                <Button Name="btnRename" Content="Renombrar" Width="110" Height="30" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
-                <Button Name="btnExit" Content="Salir" Width="110" Height="30" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
-            </StackPanel>
-
-        </Grid>
-    </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.60"/>
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="$($theme.AccentPrimary)"/>
+              </Trigger>
+              <Trigger Property="IsDropDownOpen" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="$($theme.AccentPrimary)"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ComboBoxItem">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="Padding" Value="8,6"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Style.Triggers>
+        <Trigger Property="IsHighlighted" Value="True">
+          <Setter Property="Background" Value="{StaticResource ComboItemHoverBg}"/>
+          <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        </Trigger>
+        <Trigger Property="IsSelected" Value="True">
+          <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+          <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Opacity" Value="0.55"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style x:Key="SystemButtonStyle" TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+  </Window.Resources>
+  <Border Background="{DynamicResource FormBg}" CornerRadius="10" BorderBrush="{DynamicResource AccentPrimary}" BorderThickness="2" Padding="0">
+    <Border.Effect>
+      <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
+    </Border.Effect>
+    <Grid Margin="16">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="36"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="Carpetas LZMA" VerticalAlignment="Center" FontWeight="SemiBold"/>
+        <Button Name="btnClose" Grid.Column="1" Content="✕" Width="34" Height="26" Margin="8,0,0,0" ToolTip="Cerrar" Background="Transparent" BorderBrush="Transparent"/>
+      </Grid>
+      <TextBlock Grid.Row="1" Text="Seleccione el instalador (registro) que desea renombrar." FontWeight="SemiBold" Margin="0,0,0,10"/>
+      <ComboBox Name="cmbInstallers" Grid.Row="2" Height="30" Margin="0,0,0,10" DisplayMemberPath="Display" SelectedValuePath="ProviderPath"/>
+      <Border Grid.Row="3" Background="{DynamicResource ControlBg}" CornerRadius="8" Padding="10" Margin="0,0,0,8" MinHeight="78">
+        <StackPanel>
+          <TextBlock Text="AI_ExePath:" Margin="0,0,0,4"/>
+          <TextBlock Name="lblExePath" Text="-" Foreground="{DynamicResource AccentMuted}" TextWrapping="Wrap" TextTrimming="None" MaxHeight="48"/>
+        </StackPanel>
+      </Border>
+      <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
+        <Button Name="btnRename" Content="Renombrar" Width="110" Height="30" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
+        <Button Name="btnExit" Content="Salir" Width="110" Height="30" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
+      </StackPanel>
+    </Grid>
+  </Border>
 </Window>
 "@
-
-    try {
-        $ui = New-WpfWindow -Xaml $stringXaml -PassThru
-    } catch {
+    try { $ui = New-WpfWindow -Xaml $stringXaml -PassThru } catch {
         Write-DzDebug "`t[DEBUG][Show-LZMADialog] ERROR creando ventana: $($_.Exception.Message)" Red
         Show-WpfMessageBox -Message "No se pudo crear la ventana LZMA." -Title "Error" -Buttons OK -Icon Error | Out-Null
         return
     }
-
     $w = $ui.Window
     $c = $ui.Controls
     Set-DzWpfThemeResources -Window $w -Theme $theme
-
-    # Owner / centrado
     try { Set-WpfDialogOwner -Dialog $w } catch {}
     if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
-
     $script:__dlgResult = $false
-    $c['btnClose'].Add_Click({ $script:__dlgResult = $false; $w.Close() })
-    $c['HeaderBar'].Add_MouseLeftButtonDown({
-            if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() }
-        })
-
-    # Poblar combo
-    $placeholder = [PSCustomObject]@{ Name = ""; Path = ""; Display = "Selecciona instalador a renombrar" }
+    $script:__allowClose = $false
+    $w.Add_Closing({ param($sender, $e) if (-not $script:__allowClose) { $e.Cancel = $true } })
+    $c['btnClose'].Add_Click({ $script:__dlgResult = $false; $script:__allowClose = $true; $w.Close() })
+    $c['HeaderBar'].Add_MouseLeftButtonDown({ if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() } })
+    $placeholder = [PSCustomObject]@{ Name = ""; ProviderPath = ""; Display = "Selecciona instalador a renombrar" }
     $c['cmbInstallers'].ItemsSource = @($placeholder) + @($items)
     $c['cmbInstallers'].SelectedIndex = 0
-
     $updateUi = {
         $idx = $c['cmbInstallers'].SelectedIndex
         $c['btnRename'].IsEnabled = ($idx -gt 0)
-
-        if ($idx -le 0) {
-            $c['lblExePath'].Text = "-"
-            return
-        }
-
+        if ($idx -le 0) { $c['lblExePath'].Text = "-"; return }
         $it = $c['cmbInstallers'].SelectedItem
-        if (-not $it -or [string]::IsNullOrWhiteSpace($it.Path)) {
-            $c['lblExePath'].Text = "No encontrado"
-            return
-        }
-
+        if (-not $it -or [string]::IsNullOrWhiteSpace($it.ProviderPath)) { $c['lblExePath'].Text = "No encontrado"; return }
         try {
-            $prop = Get-ItemProperty -Path $it.Path -Name "AI_ExePath" -ErrorAction SilentlyContinue
-            if ($prop -and $prop.AI_ExePath) {
-                $pathTxt = [string]$prop.AI_ExePath
-                $pathTxt = $pathTxt -replace "\\", "\ "
-                $c['lblExePath'].Text = $pathTxt
-
-            } else {
-                $c['lblExePath'].Text = "No encontrado"
-            }
-        } catch {
-            $c['lblExePath'].Text = "Error leyendo AI_ExePath"
-        }
+            $prop = Get-ItemProperty -Path $it.ProviderPath -Name "AI_ExePath" -ErrorAction SilentlyContinue
+            if ($prop -and $prop.AI_ExePath) { $c['lblExePath'].Text = [string]$prop.AI_ExePath } else { $c['lblExePath'].Text = "No encontrado" }
+        } catch { $c['lblExePath'].Text = "Error leyendo AI_ExePath" }
     }
-
     $c['cmbInstallers'].Add_SelectionChanged({ & $updateUi })
     & $updateUi
-
     $c['btnRename'].Add_Click({
             $idx = $c['cmbInstallers'].SelectedIndex
             if ($idx -le 0) { return }
-
             $it = $c['cmbInstallers'].SelectedItem
-            if (-not $it -or [string]::IsNullOrWhiteSpace($it.Path)) { return }
-
-            $rutaVieja = [string]$it.Path
-            $nombre = [string]$it.Name
-            $nuevoNombre = "$nombre.backup"
-
+            if (-not $it -or [string]::IsNullOrWhiteSpace($it.ProviderPath)) { return }
+            $rutaVieja = [string]$it.ProviderPath
+            $nombreViejo = [string]$it.Name
+            $nuevoNombre = "$nombreViejo.backup"
+            Write-DzDebug "`t[DEBUG][Show-LZMADialog] Renombrar solicitado:" -Color DarkGray
+            Write-DzDebug "`t[DEBUG][Show-LZMADialog] Nombre viejo: $nombreViejo" -Color DarkGray
+            Write-DzDebug "`t[DEBUG][Show-LZMADialog] Nuevo nombre: $nuevoNombre" -Color DarkGray
+            Write-DzDebug "`t[DEBUG][Show-LZMADialog] ProviderPath viejo: $rutaVieja" -Color DarkGray
             $msg = "¿Está seguro de renombrar el registro?`n`n$rutaVieja`n`nA:`n$nuevoNombre"
-            $conf = Show-WpfMessageBox -Message $msg -Title "Confirmar renombrado" -Buttons YesNo -Icon Warning
-
-            if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { return }
-
+            $ok = & $UiConfirm $msg "Confirmar renombrado"
+            if (-not $ok) {
+                Write-DzDebug "t[DEBUG][Show-LZMADialog] Usuario canceló renombrado." -Color DarkGray
+                return
+            }
             try {
                 Rename-Item -Path $rutaVieja -NewName $nuevoNombre -ErrorAction Stop
-                Show-WpfMessageBox -Message "Registro renombrado correctamente." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
-                $script:__dlgResult = $true
-                $w.Close()
+                Show-WpfMessageBox -Message "Registro renombrado correctamente." -Title "Éxito" -Buttons OK -Icon Information -Owner $w | Out-Null
+                $fresh = Get-LzmaInstallerItems
+                $freshItems = foreach ($i in $fresh) {
+                    [PSCustomObject]@{
+                        Name         = [string]$i.Name
+                        ProviderPath = [string]$i.ProviderPath
+                        DisplayPath  = [string]$i.DisplayPath
+                        Display      = ("{0}  |  {1}" -f [string]$i.Name, [string]$i.DisplayPath)
+                    }
+                }
+                $placeholder2 = [PSCustomObject]@{ Name = ""; ProviderPath = ""; Display = "Selecciona instalador a renombrar" }
+                $c['cmbInstallers'].ItemsSource = @($placeholder2) + @($freshItems)
+                $c['cmbInstallers'].SelectedIndex = 0
+                & $updateUi
             } catch {
-                Show-WpfMessageBox -Message "Error al renombrar:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+                Show-WpfMessageBox -Message "Error al renombrar:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error -Owner $w | Out-Null
             }
         })
-
-    $c['btnExit'].Add_Click({ $script:__dlgResult = $false; $w.Close() })
+    $c['btnExit'].Add_Click({ $script:__dlgResult = $false; $script:__allowClose = $true; $w.Close() })
     $null = $w.ShowDialog()
     Write-DzDebug "`t[DEBUG][Show-LZMADialog] FIN"
     return $script:__dlgResult
@@ -3230,22 +3121,9 @@ function Show-AddUserDialog {
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] INICIO"
     $theme = Get-DzUiTheme
     $stringXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Crear Usuario de Windows"
-        Height="420" Width="640"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        ShowInTaskbar="False"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
-        FontFamily="{DynamicResource UiFontFamily}"
-        FontSize="{DynamicResource UiFontSize}">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Crear Usuario de Windows" Height="420" Width="640" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False" WindowStyle="None" AllowsTransparency="True" Background="Transparent" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
   <Window.Resources>
-    <Style TargetType="TextBlock">
-      <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-    </Style>
+    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="$($theme.FormForeground)"/></Style>
     <Style TargetType="TextBox">
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
@@ -3258,9 +3136,7 @@ function Show-AddUserDialog {
       <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
       <Setter Property="BorderThickness" Value="1"/>
     </Style>
-    <Style TargetType="RadioButton">
-      <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-    </Style>
+    <Style TargetType="RadioButton"><Setter Property="Foreground" Value="$($theme.FormForeground)"/></Style>
     <Style TargetType="ToggleButton">
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
@@ -3333,168 +3209,152 @@ function Show-AddUserDialog {
   </Border>
 </Window>
 "@
-    try { $ui = New-WpfWindow -Xaml $stringXaml -PassThru }catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando ventana: $($_.Exception.Message)" Red; Show-WpfMessageBox -Message "No se pudo crear la ventana de usuario." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
-    $w = $ui.Window; $c = $ui.Controls
+    try { $ui = New-WpfWindow -Xaml $stringXaml -PassThru } catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando ventana: $($_.Exception.Message)" Red; Show-WpfMessageBox -Message "No se pudo crear la ventana de usuario." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
+    $w = $ui.Window
+    $c = $ui.Controls
     Set-DzWpfThemeResources -Window $w -Theme $theme
-    try { Set-WpfDialogOwner -Dialog $w }catch {}
+    try { Set-WpfDialogOwner -Dialog $w } catch {}
     if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
     $script:__dlgResult = $false
     $c['btnClose'].Add_Click({ $w.DialogResult = $false; $w.Close() })
     $c['HeaderBar'].Add_MouseLeftButtonDown({ if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() } })
-    try { $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name; $userGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name }catch { Show-WpfMessageBox -Message "No se pudieron obtener los grupos locales (requiere permisos).`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null; $w.Close(); return }
-    function Set-Status { param([string]$Text, [string]$Level = "Ok"); switch ($Level) { "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen }"Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod }"Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick } }; $c['lblStatus'].Text = $Text }
-    function Show-UsersTableDialog {
-        param(
-            [Parameter(Mandatory)] [System.Windows.Window]$Owner,
-            [Parameter(Mandatory)] $Rows
-        )
-
+    try { $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name; $userGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name } catch { Show-WpfMessageBox -Message "No se pudieron obtener los grupos locales (requiere permisos).`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null; $w.Close(); return }
+    function Set-Status { param([string]$Text, [string]$Level = "Ok"); switch ($Level) { "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen } "Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod } "Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick } }; $c['lblStatus'].Text = $Text }
+    function Get-PasswordText { if ($c['txtPasswordVisible'].Visibility -eq 'Visible') { return [string]$c['txtPasswordVisible'].Text }; return [string]$c['pwdPassword'].Password }
+    $WriteUsersTableConsoleSb = {
+        param([Parameter(Mandatory)]$Rows)
+        Write-Host ""
+        Write-Host "Usuarios locales" -ForegroundColor Cyan
+        $lines = @()
+        $lines += ("{0,-28} {1,-14} {2,-14}" -f "Usuario", "Administrador", "Estado")
+        $lines += ("{0,-28} {1,-14} {2,-14}" -f ("-" * 28), ("-" * 14), ("-" * 14))
+        foreach ($r in $Rows) { $lines += ("{0,-28} {1,-14} {2,-14}" -f $r.Usuario, $r.Administrador, $r.Estado) }
+        $lines | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
+        Write-Host ""
+    }.GetNewClosure()
+    $getUsersRowsSb = {
+        $adminGroupName = (Get-LocalGroup | Where-Object SID -eq 'S-1-5-32-544').Name
+        $adminMembers = @{}
+        try {
+            Get-LocalGroupMember -Group $adminGroupName -ErrorAction Stop | ForEach-Object {
+                $n = $_.Name
+                if ($n -match '\\') { $n = ($n -split '\\')[-1] }
+                $adminMembers[$n.ToLowerInvariant()] = $true
+            }
+        } catch {
+            Write-DzDebug "`t[DEBUG][Show-UsersTableDialog] No se pudieron obtener miembros admin: $($_.Exception.Message)" Yellow
+        }
+        Get-LocalUser | Sort-Object Name | ForEach-Object {
+            $uname = $_.Name
+            $isAdmin = $false
+            if ($adminMembers.Count -gt 0) { $isAdmin = $adminMembers.ContainsKey($uname.ToLowerInvariant()) }
+            [pscustomobject]@{ Usuario = $uname; Administrador = if ($isAdmin) { "Sí" } else { "No" }; Estado = if ($_.Enabled) { "Habilitado" } else { "Deshabilitado" } }
+        }
+    }.GetNewClosure()
+    $ShowUsersTableDialogSb = {
+        param([Parameter(Mandatory)][System.Windows.Window]$Owner, [Parameter(Mandatory)]$Rows, [Parameter(Mandatory)][scriptblock]$GetUsersRowsSb, [Parameter(Mandatory)][scriptblock]$WriteUsersTableConsoleSb)
         $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Usuarios locales"
-        Height="460" Width="620"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="CanResize"
-        ShowInTaskbar="False"
-        Background="{DynamicResource FormBg}">
-
-    <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <TextBlock Grid.Row="0"
-                   Text="Usuarios locales"
-                   Foreground="{DynamicResource FormFg}"
-                   FontSize="13"
-                   FontWeight="SemiBold"
-                   Margin="0,0,0,10"/>
-
-        <Border Grid.Row="1"
-                Background="{DynamicResource PanelBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="8">
-
-            <DataGrid Name="dgUsers"
-                      AutoGenerateColumns="False"
-                      CanUserAddRows="False"
-                      CanUserDeleteRows="False"
-                      IsReadOnly="True"
-                      HeadersVisibility="Column"
-                      GridLinesVisibility="None"
-                      Background="{DynamicResource ControlBg}"
-                      Foreground="{DynamicResource ControlFg}"
-                      BorderBrush="{DynamicResource BorderBrushColor}"
-                      BorderThickness="1"
-                      RowHeight="28"
-                      AlternationCount="2"
-                      SelectionMode="Single">
-
-                <!-- Estilo de encabezados -->
-                <DataGrid.ColumnHeaderStyle>
-                    <Style TargetType="{x:Type DataGridColumnHeader}">
-                        <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
-                        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                        <Setter Property="Padding" Value="10,6"/>
-                        <Setter Property="FontWeight" Value="SemiBold"/>
-                    </Style>
-                </DataGrid.ColumnHeaderStyle>
-
-                <!-- Filas alternadas -->
-                <DataGrid.RowStyle>
-                    <Style TargetType="{x:Type DataGridRow}">
-                        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-                        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-                        <Setter Property="BorderThickness" Value="0"/>
-                        <Style.Triggers>
-                            <Trigger Property="ItemsControl.AlternationIndex" Value="1">
-                                <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.RowStyle>
-
-                <!-- Celdas -->
-                <DataGrid.CellStyle>
-                    <Style TargetType="{x:Type DataGridCell}">
-                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                        <Setter Property="Padding" Value="10,4"/>
-                    </Style>
-                </DataGrid.CellStyle>
-
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Usuario" Binding="{Binding Usuario}" Width="*"/>
-                    <DataGridTextColumn Header="Administrador" Binding="{Binding Administrador}" Width="140"/>
-                    <DataGridTextColumn Header="Estado" Binding="{Binding Estado}" Width="150"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
-
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button Name="btnCopy"
-                    Content="Copiar"
-                    Width="110" Height="32"
-                    Margin="0,0,10,0"
-                    Background="{DynamicResource ControlBg}"
-                    Foreground="{DynamicResource ControlFg}"
-                    BorderBrush="{DynamicResource BorderBrushColor}"
-                    BorderThickness="1"/>
-
-            <Button Name="btnClose"
-                    Content="Cerrar"
-                    Width="110" Height="32"
-                    Background="{DynamicResource AccentPrimary}"
-                    Foreground="{DynamicResource FormFg}"
-                    BorderThickness="0"/>
-        </StackPanel>
-    </Grid>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Usuarios locales" Height="500" Width="700" WindowStartupLocation="CenterOwner" ResizeMode="CanResize" ShowInTaskbar="False" Background="{DynamicResource FormBg}">
+  <Grid Margin="12">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <TextBlock Grid.Row="0" Text="Usuarios locales" Foreground="{DynamicResource FormFg}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,10"/>
+    <Border Grid.Row="1" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="10" Padding="8">
+      <DataGrid Name="dgUsers" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="None" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" RowHeight="28" AlternationCount="2" SelectionMode="Single">
+        <DataGrid.ColumnHeaderStyle>
+          <Style TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+          </Style>
+        </DataGrid.ColumnHeaderStyle>
+        <DataGrid.RowStyle>
+          <Style TargetType="{x:Type DataGridRow}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+              <Trigger Property="ItemsControl.AlternationIndex" Value="1"><Setter Property="Background" Value="{DynamicResource PanelBg}"/></Trigger>
+              <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource AccentPrimary}"/><Setter Property="Foreground" Value="{DynamicResource FormFg}"/></Trigger>
+            </Style.Triggers>
+          </Style>
+        </DataGrid.RowStyle>
+        <DataGrid.CellStyle>
+          <Style TargetType="{x:Type DataGridCell}">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="10,4"/>
+          </Style>
+        </DataGrid.CellStyle>
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Usuario" Binding="{Binding Usuario}" Width="*"/>
+          <DataGridTextColumn Header="Administrador" Binding="{Binding Administrador}" Width="140"/>
+          <DataGridTextColumn Header="Estado" Binding="{Binding Estado}" Width="150"/>
+        </DataGrid.Columns>
+      </DataGrid>
+    </Border>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+      <Button Name="btnDelete" Content="Eliminar" Width="110" Height="32" Margin="0,0,10,0" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"/>
+      <Button Name="btnCopy" Content="Copiar" Width="110" Height="32" Margin="0,0,10,0" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"/>
+      <Button Name="btnClose" Content="Cerrar" Width="110" Height="32" Background="{DynamicResource AccentPrimary}" Foreground="{DynamicResource FormFg}" BorderThickness="0"/>
+    </StackPanel>
+  </Grid>
 </Window>
 "@
-
         $ui2 = New-WpfWindow -Xaml $xaml -PassThru
         $win = $ui2.Window
         $ctrl = $ui2.Controls
-
-        # ✅ Aplicar recursos del tema (Dark/Light)
-        $theme = Get-DzUiTheme
-        Set-DzWpfThemeResources -Window $win -Theme $theme
-
-        # Owner + posicionamiento
-        if ($Owner) {
-            $win.Owner = $Owner
-            $win.WindowStartupLocation = "CenterOwner"
-        } else {
-            $win.WindowStartupLocation = "CenterScreen"
-        }
-
+        $theme2 = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $win -Theme $theme2
+        if ($Owner) { $win.Owner = $Owner; $win.WindowStartupLocation = "CenterOwner" } else { $win.WindowStartupLocation = "CenterScreen" }
+        $Rows = @($Rows)
         $ctrl['dgUsers'].ItemsSource = $Rows
-
+        $refresh = {
+            Write-DzDebug "`t[DEBUG][Show-UsersTableDialog] Refresh: obteniendo usuarios..."
+            $newRows = @(& $GetUsersRowsSb)
+            Write-DzDebug "`t[DEBUG][Show-UsersTableDialog] Refresh: rows=$($newRows.Count)"
+            $Rows = $newRows
+            $ctrl['dgUsers'].ItemsSource = $null
+            $ctrl['dgUsers'].ItemsSource = $Rows
+            & $WriteUsersTableConsoleSb -Rows $Rows
+        }.GetNewClosure()
         $ctrl['btnCopy'].Add_Click({
                 try {
                     $tsv = ($Rows | ForEach-Object { "{0}`t{1}`t{2}" -f $_.Usuario, $_.Administrador, $_.Estado }) -join "`r`n"
                     [System.Windows.Clipboard]::SetText($tsv)
                 } catch {}
-            })
-
+            }.GetNewClosure())
+        $ctrl['btnDelete'].Add_Click({
+                try {
+                    $sel = $ctrl['dgUsers'].SelectedItem
+                    if (-not $sel -or [string]::IsNullOrWhiteSpace([string]$sel.Usuario)) { Show-WpfMessageBox -Message "Selecciona un usuario para eliminar." -Title "Aviso" -Buttons OK -Icon Warning -Owner $win | Out-Null; return }
+                    $u = [string]$sel.Usuario
+                    Write-DzDebug "`t[DEBUG][Show-UsersTableDialog] Solicitud eliminar usuario='$u'"
+                    if ($u.ToLowerInvariant() -in @("administrator", "administrador", "guest", "invitado", "defaultaccount", "wdagutilityaccount")) { Show-WpfMessageBox -Message "Este usuario está protegido y no se eliminará." -Title "Aviso" -Buttons OK -Icon Warning -Owner $win | Out-Null; return }
+                    $profile = $null
+                    try { $profile = (Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue | Where-Object { $_.LocalPath -and ($_.LocalPath -match "\\Users\\$([regex]::Escape($u))$") } | Select-Object -First 1) } catch {}
+                    $profilePath = if ($profile -and $profile.LocalPath) { [string]$profile.LocalPath } else { "C:\Users\$u" }
+                    $warn = "Se eliminará el usuario:`n`n$u`n`nImportante:`nLa carpeta de perfil, si existe, normalmente está en:`n$profilePath`n`nLa eliminación del usuario no siempre borra esa carpeta."
+                    $c1 = Show-WpfMessageBoxSafe -Message $warn -Title "Confirmar eliminación" -Buttons YesNo -Icon Warning -Owner $win
+                    if ($c1 -ne [System.Windows.MessageBoxResult]::Yes) { return }
+                    $c2 = Show-WpfMessageBoxSafe -Message "¿Eliminar definitivamente el usuario '$u'?" -Title "Confirmación final" -Buttons YesNo -Icon Warning -Owner $win
+                    if ($c2 -ne [System.Windows.MessageBoxResult]::Yes) { return }
+                    Write-DzDebug "`t[DEBUG][Show-UsersTableDialog] Eliminando usuario='$u'..."
+                    try { Remove-LocalUser -Name $u -ErrorAction Stop } catch { Show-WpfMessageBox -Message "No se pudo eliminar el usuario:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error -Owner $win | Out-Null; return }
+                    Write-DzDebug "`t[DEBUG][Show-UsersTableDialog] Usuario eliminado OK usuario='$u'"
+                    Write-DzDebug "`t[DEBUG][Show-UsersTableDialog] Ejecutando refresh tras eliminar usuario='$u'..."
+                    & $refresh
+                    Write-DzDebug "`t[DEBUG][Show-UsersTableDialog] Refresh OK tras eliminar usuario='$u'"
+                } catch {
+                    Show-WpfMessageBox -Message "Error al eliminar usuario:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error -Owner $win | Out-Null
+                }
+            }.GetNewClosure())
         $ctrl['btnClose'].Add_Click({ $win.Close() })
-
         $null = $win.ShowDialog()
-    }
-
-    function Get-PasswordText { if ($c['txtPasswordVisible'].Visibility -eq 'Visible') { return [string]$c['txtPasswordVisible'].Text }; return [string]$c['pwdPassword'].Password }
+    }.GetNewClosure()
     function Validate-Form {
         $username = ([string]$c['txtUsername'].Text).Trim()
         $pass = (Get-PasswordText).Trim()
@@ -3513,56 +3373,36 @@ function Show-AddUserDialog {
         Set-Status "Listo para crear usuario." "Ok"
         $c['btnCreate'].IsEnabled = $true
     }
-    $c['tglShowPassword'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword ON"; $c['txtPasswordVisible'].Text = [string]$c['pwdPassword'].Password; $c['pwdPassword'].Visibility = 'Collapsed'; $c['txtPasswordVisible'].Visibility = 'Visible'; Validate-Form })
-    $c['tglShowPassword'].Add_Unchecked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword OFF"; $c['pwdPassword'].Password = [string]$c['txtPasswordVisible'].Text; $c['txtPasswordVisible'].Visibility = 'Collapsed'; $c['pwdPassword'].Visibility = 'Visible'; Validate-Form })
-    $c['txtUsername'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtUsername changed"; Validate-Form })
-    $c['pwdPassword'].Add_PasswordChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] pwdPassword changed"; Validate-Form })
-    $c['txtPasswordVisible'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtPasswordVisible changed"; Validate-Form })
-    $c['rbStandard'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Standard"; Validate-Form })
-    $c['rbAdmin'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Admin"; Validate-Form })
+    $c['tglShowPassword'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword ON"; $c['txtPasswordVisible'].Text = [string]$c['pwdPassword'].Password; $c['pwdPassword'].Visibility = 'Collapsed'; $c['txtPasswordVisible'].Visibility = 'Visible'; Validate-Form }.GetNewClosure())
+    $c['tglShowPassword'].Add_Unchecked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword OFF"; $c['pwdPassword'].Password = [string]$c['txtPasswordVisible'].Text; $c['txtPasswordVisible'].Visibility = 'Collapsed'; $c['pwdPassword'].Visibility = 'Visible'; Validate-Form }.GetNewClosure())
+    $c['txtUsername'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtUsername changed"; Validate-Form }.GetNewClosure())
+    $c['pwdPassword'].Add_PasswordChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] pwdPassword changed"; Validate-Form }.GetNewClosure())
+    $c['txtPasswordVisible'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtPasswordVisible changed"; Validate-Form }.GetNewClosure())
+    $c['rbStandard'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Standard"; Validate-Form }.GetNewClosure())
+    $c['rbAdmin'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Admin"; Validate-Form }.GetNewClosure())
     $c['btnShowUsers'].Add_Click({
             Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnShowUsers click (tabla)"
             try {
-                $adminGroupName = (Get-LocalGroup | Where-Object SID -eq 'S-1-5-32-544').Name
-                $adminMembers = @{}
-                try {
-                    Get-LocalGroupMember -Group $adminGroupName -ErrorAction Stop | ForEach-Object {
-                        $n = $_.Name
-                        if ($n -match '\\') { $n = ($n -split '\\')[-1] }
-                        $adminMembers[$n.ToLowerInvariant()] = $true
-                    }
-                } catch {
-                    Write-DzDebug "`t[DEBUG][Show-AddUserDialog] No se pudieron obtener miembros admin: $($_.Exception.Message)" Yellow
-                }
-                $rows = Get-LocalUser | Sort-Object Name | ForEach-Object {
-                    $uname = $_.Name
-                    $isAdmin = $false
-                    if ($adminMembers.Count -gt 0) {
-                        $isAdmin = $adminMembers.ContainsKey($uname.ToLowerInvariant())
-                    }
-
-                    [pscustomobject]@{
-                        Usuario       = $uname
-                        Administrador = if ($isAdmin) { "Sí" } else { "No" }
-                        Estado        = if ($_.Enabled) { "Habilitado" } else { "Deshabilitado" }
-                    }
-                }
-                Show-UsersTableDialog -Owner $w -Rows $rows | Out-Null
+                Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnShowUsers: getUsersRowsSb=$([bool]$getUsersRowsSb)"
+                $rows = @(& $getUsersRowsSb)
+                Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnShowUsers: rows=$($rows.Count)"
+                & $WriteUsersTableConsoleSb -Rows $rows
+                & $ShowUsersTableDialogSb -Owner $w -Rows $rows -GetUsersRowsSb $getUsersRowsSb -WriteUsersTableConsoleSb $WriteUsersTableConsoleSb | Out-Null
                 Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tabla de usuarios mostrada OK"
             } catch {
                 Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR btnShowUsers: $($_.Exception.Message)" Red
                 Show-WpfMessageBox -Message "No se pudieron listar usuarios:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
             }
-        })
+        }.GetNewClosure())
     $c['btnCreate'].Add_Click({
             Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnCreate click"
             $username = ([string]$c['txtUsername'].Text).Trim()
             $password = Get-PasswordText
-            $isAdmin = $false; try { $isAdmin = [bool]$c['rbAdmin'].IsChecked }catch {}
-            $tipo = if ($isAdmin) { "Administrador" }else { "Usuario estándar" }
-            $group = if ($isAdmin) { $adminGroup }else { $userGroup }
+            $isAdmin = $false; try { $isAdmin = [bool]$c['rbAdmin'].IsChecked } catch {}
+            $tipo = if ($isAdmin) { "Administrador" } else { "Usuario estándar" }
+            $group = if ($isAdmin) { $adminGroup } else { $userGroup }
             $confirmMsg = "Se creará el usuario:`n`n$username`n`nTipo: $tipo`nGrupo: $group"
-            $conf = Show-WpfMessageBox -Message $confirmMsg -Title "Confirmar" -Buttons YesNo -Icon Question
+            $conf = Show-WpfMessageBoxSafe -Message $confirmMsg -Title "Confirmar creación" -Buttons YesNo -Icon Warning -Owner $w
             if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Creación cancelada"; return }
             try {
                 if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) { Set-Status "El usuario '$username' ya existe." "Error"; Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Ya existe: $username" Yellow; return }
@@ -3577,11 +3417,45 @@ function Show-AddUserDialog {
                 Set-Status "Error: $($_.Exception.Message)" "Error"
                 Show-WpfMessageBox -Message "Error al crear usuario:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
             }
-        })
-    $c['btnCancel'].Add_Click({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnCancel"; $w.DialogResult = $false; $w.Close() })
+        }.GetNewClosure())
+    $c['btnCancel'].Add_Click({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnCancel"; $w.DialogResult = $false; $w.Close() }.GetNewClosure())
     Validate-Form
-    try { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowDialog()"; $w.ShowDialog() | Out-Null }catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR ShowDialog: $($_.Exception.Message)" Red; throw }
+    try { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowDialog()"; $w.ShowDialog() | Out-Null } catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR ShowDialog: $($_.Exception.Message)" Red; throw }
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] FIN"
+}
+function Set-ClipboardTextSafe {
+    param(
+        [Parameter(Mandatory)][string]$Text,
+        [int]$MaxRetries = 8,
+        [int]$DelayMs = 60,
+        [System.Windows.Window]$Owner = $null
+    )
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
+    $doCopy = {
+        param($t, $max, $delay)
+        for ($i = 0; $i -lt $max; $i++) {
+            try {
+                [System.Windows.Clipboard]::Clear()
+                [System.Windows.Clipboard]::SetText($t)
+                return $true
+            } catch {
+                Start-Sleep -Milliseconds $delay
+            }
+        }
+        return $false
+    }
+    try {
+        if ($global:MainWindow -and $global:MainWindow.Dispatcher) {
+            return [bool]$global:MainWindow.Dispatcher.Invoke([Func[bool]] {
+                    & $doCopy $Text $MaxRetries $DelayMs
+                })
+        }
+    } catch {}
+    try {
+        return [bool](& $doCopy $Text $MaxRetries $DelayMs)
+    } catch {}
+    if ($Owner) { Ui-Error "No se pudo copiar al portapapeles (posiblemente está en uso). Intenta de nuevo." $Owner }
+    return $false
 }
 
 Export-ModuleMember -Function @(
@@ -3626,5 +3500,6 @@ Export-ModuleMember -Function @(
     'Show-NSApplicationsIniReport',
     'show-NSPrinters',
     'Invoke-ClearPrintJobs',
-    'Show-AddUserDialog'
+    'Show-AddUserDialog',
+    'Set-ClipboardTextSafe'
 )

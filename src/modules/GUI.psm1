@@ -61,8 +61,16 @@ function New-WpfWindow {
         if ($PassThru) {
             [xml]$xmlDoc = $xamlText
             $controls = @{}
-            $xmlDoc.SelectNodes("//*[@Name]") | ForEach-Object { $controls[$_.Name] = $window.FindName($_.Name) }
-            return @{Window = $window; Controls = $controls }
+
+            $nodes = $xmlDoc.SelectNodes("//*[@Name]")
+            foreach ($node in $nodes) {
+                $n = $node.GetAttribute("Name")
+                if (-not [string]::IsNullOrWhiteSpace($n)) {
+                    $controls[$n] = $window.FindName($n)
+                }
+            }
+
+            return @{ Window = $window; Controls = $controls }
         }
         $window
     } catch {
@@ -146,18 +154,7 @@ function Show-WpfMessageBox {
         $safeTitle = [Security.SecurityElement]::Escape($Title)
         $safeMsg = [Security.SecurityElement]::Escape($Message)
         $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="$safeTitle"
-        SizeToContent="WidthAndHeight"
-        ResizeMode="NoResize"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
-        ShowInTaskbar="False"
-        Topmost="True"
-        FontFamily="{DynamicResource UiFontFamily}"
-        FontSize="{DynamicResource UiFontSize}">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="$safeTitle" SizeToContent="WidthAndHeight" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False" Topmost="True" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
   <Border Background="{DynamicResource FormBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="14" Padding="16">
     <Grid Width="430">
       <Grid.RowDefinitions>
@@ -167,9 +164,7 @@ function Show-WpfMessageBox {
       </Grid.RowDefinitions>
       <DockPanel Grid.Row="0" Margin="0,0,0,10">
         <TextBlock Text="$safeTitle" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource FormFg}" DockPanel.Dock="Left"/>
-        <Button Name="btnClose" Content="✕" Width="34" Height="28" Margin="10,0,0,0" DockPanel.Dock="Right"
-                Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}"
-                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Cursor="Hand"/>
+        <Button Name="btnClose" Content="✕" Width="34" Height="28" Margin="10,0,0,0" DockPanel.Dock="Right" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Cursor="Hand"/>
       </DockPanel>
       <Grid Grid.Row="1">
         <Grid.ColumnDefinitions>
@@ -190,132 +185,99 @@ function Show-WpfMessageBox {
   </Border>
 </Window>
 "@
-
         $result = New-WpfWindow -Xaml $xaml -PassThru
-        if (-not $result -or -not $result.Window) { throw "Show-WpfMessageBox: ventana no creada (New-WpfWindow devolvió null)." }
+        if (-not $result -or -not $result.Window) { throw "Show-WpfMessageBox: ventana no creada." }
         $w = $result.Window
         $c = $result.Controls
-        $script:__forceClose = $false
-        $script:__inDialog = $false
-        $w.Add_Closing({
-                param($sender, $e)
-                Write-DzDebug "`t[DEBUG] Window.Closing: Cancel(before)=$($e.Cancel) forceClose=$script:__forceClose inDialog=$script:__inDialog" -Color DarkGray
-                if ($script:__forceClose) {
-                    $e.Cancel = $false
-                }
-                Write-DzDebug "`t[DEBUG] Window.Closing: Cancel(after)=$($e.Cancel)" -Color DarkGray
-            })
-        if ($null -eq $w -or -not ($w -is [System.Windows.Window])) { throw "Show-WpfMessageBox: w es null o no es Window." }
-        if ($null -eq $c) { throw "Show-WpfMessageBox: no se pudieron obtener controles (Controls=null)." }
+        $dzState = @{ Result = [System.Windows.MessageBoxResult]::None; Completed = $false }
+        $theme = Get-DzUiTheme
+        try { Set-DzWpfThemeResources -Window $w -Theme $theme } catch {}
+        if ($Owner) { try { $w.Owner = $Owner; $w.WindowStartupLocation = "CenterOwner" } catch { $w.WindowStartupLocation = "CenterScreen" } } else { $w.WindowStartupLocation = "CenterScreen" }
         $btnClose = $c['btnClose']
         $btn1 = $c['btn1']
         $btn2 = $c['btn2']
         $btn3 = $c['btn3']
         $txtIcon = $c['txtIcon']
-        if (-not $btnClose -or -not $btn1 -or -not $btn2 -or -not $btn3 -or -not $txtIcon) {
-            throw "Show-WpfMessageBox: faltan controles (btnClose/btn1/btn2/btn3/txtIcon)."
+        if ($txtIcon) {
+            switch ($Icon) {
+                "Information" { $txtIcon.Text = "i" }
+                "Warning" { $txtIcon.Text = "!" }
+                "Error" { $txtIcon.Text = "×" }
+                "Question" { $txtIcon.Text = "?" }
+            }
         }
-        if ($Owner) {
-            $w.Owner = $Owner
-            $w.WindowStartupLocation = "CenterOwner"
-        } else {
-            $w.WindowStartupLocation = "CenterScreen"
-        }
-        $theme = Get-DzUiTheme
-        Set-DzWpfThemeResources -Window $w -Theme $theme
-        switch ($Icon) {
-            "Information" { $txtIcon.Text = "i" }
-            "Warning" { $txtIcon.Text = "!" }
-            "Error" { $txtIcon.Text = "×" }
-            "Question" { $txtIcon.Text = "?" }
-        }
+        $allButtons = @($btn1, $btn2, $btn3, $btnClose) | Where-Object { $_ }
         foreach ($b in @($btn1, $btn2, $btn3)) {
-            $b.Background = $w.FindResource("ControlBg")
-            $b.Foreground = $w.FindResource("ControlFg")
-            $b.BorderBrush = $w.FindResource("BorderBrushColor")
-            $b.BorderThickness = [System.Windows.Thickness]::new(1)
-            $b.Cursor = "Hand"
-            $b.Visibility = "Collapsed"
+            if (-not $b) { continue }
+            try {
+                $b.Background = $w.FindResource("ControlBg")
+                $b.Foreground = $w.FindResource("ControlFg")
+                $b.BorderBrush = $w.FindResource("BorderBrushColor")
+                $b.BorderThickness = [System.Windows.Thickness]::new(1)
+                $b.Cursor = "Hand"
+                $b.Visibility = "Collapsed"
+            } catch {}
         }
-        $script:__mbResult = [System.Windows.MessageBoxResult]::None
+        $w.Add_Closing({
+                if (-not $dzState.Completed) {
+                    $dzState.Result = [System.Windows.MessageBoxResult]::Cancel
+                    $dzState.Completed = $true
+                }
+            }.GetNewClosure())
+        $finish = {
+            param([System.Windows.MessageBoxResult]$rv)
+            if ($dzState.Completed) { return }
+            $dzState.Result = $rv
+            $dzState.Completed = $true
+            foreach ($b in $allButtons) { try { $b.IsEnabled = $false } catch {} }
+            try {
+                $w.Dispatcher.Invoke([action] {
+                        try { $w.DialogResult = $true } catch {}
+                        try { $w.Close() } catch {}
+                    })
+            } catch {
+                try { $w.Close() } catch {}
+            }
+        }.GetNewClosure()
+        $finishSb = $finish
         $setBtn = {
-            param($btn, $text, $resultValue, [bool]$isPrimary)
+            param($btn, $text, [System.Windows.MessageBoxResult]$rv, [bool]$isPrimary)
+            if (-not $btn) { return }
             $btn.Content = $text
             $btn.Visibility = "Visible"
-            $btn.IsHitTestVisible = $true
             $btn.IsDefault = $false
             $btn.IsCancel = $false
             if ($isPrimary) { $btn.IsDefault = $true }
             if ($isPrimary) {
-                $btn.Background = $w.FindResource("AccentPrimary")
-                $btn.Foreground = $w.FindResource("FormFg")
-                $btn.BorderThickness = [System.Windows.Thickness]::new(0)
-            } else {
-                $btn.Background = $w.FindResource("ControlBg")
-                $btn.Foreground = $w.FindResource("ControlFg")
-                $btn.BorderBrush = $w.FindResource("BorderBrushColor")
-                $btn.BorderThickness = [System.Windows.Thickness]::new(1)
-            }
-            $localResult = $resultValue
-            $closeWithResult = {
-                param($sender)
-                Write-DzDebug "`t[DEBUG] Show-WpfMessageBox: BTN '$text' handler ejecutado. result=$localResult" -Color DarkGray
-                $script:__mbResult = $localResult
-                $script:__forceClose = $true
-                $winToClose = $null
                 try {
-                    $winToClose = [System.Windows.Window]::GetWindow($sender)
+                    $btn.Background = $w.FindResource("AccentPrimary")
+                    $btn.Foreground = $w.FindResource("FormFg")
+                    $btn.BorderThickness = [System.Windows.Thickness]::new(0)
                 } catch {}
-                if ($null -eq $winToClose) {
-                    $winToClose = $w
-                }
-                if ($null -eq $winToClose) {
-                    Write-DzDebug "`t[DEBUG] Close ERROR: winToClose llegó NULL (sender/window)" -Color Red
-                    return
-                }
-                if ($script:__inDialog) {
-                    try { $winToClose.DialogResult = $true } catch {
-                        Write-DzDebug "`t[DEBUG] DialogResult ERROR: $($_.Exception.Message)" -Color Red
-                    }
-                }
-                try { $winToClose.Close() } catch {
-                    Write-DzDebug "`t[DEBUG] Close ERROR: $($_.Exception.Message)" -Color Red
-                }
-            }.GetNewClosure()
-            $btn.AddHandler(
-                [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
-                [System.Windows.RoutedEventHandler] {
-                    param($sender, $e)
-                    & $closeWithResult $sender
-                }.GetNewClosure(),
-                $true
-            )
-        }
+            }
+            $localText = $text
+            $localRv = $rv
+            $localFinish = $finishSb
+            $btn.Add_Click({
+                    Write-DzDebug "`t[DEBUG] Show-WpfMessageBox: BTN '$localText' handler ejecutado. result=$localRv" -Color DarkGray
+                    $localFinish.Invoke($localRv)
+                }.GetNewClosure())
+        }.GetNewClosure()
         switch ($Buttons) {
-            "OK" { & $setBtn $btn3 "OK" ([System.Windows.MessageBoxResult]::OK) $true }
-            "OKCancel" { & $setBtn $btn2 "Cancelar" ([System.Windows.MessageBoxResult]::Cancel) $false; & $setBtn $btn3 "OK" ([System.Windows.MessageBoxResult]::OK) $true }
-            "YesNo" { & $setBtn $btn2 "No" ([System.Windows.MessageBoxResult]::No) $false; & $setBtn $btn3 "Sí" ([System.Windows.MessageBoxResult]::Yes) $true }
-            "YesNoCancel" { & $setBtn $btn1 "Cancelar" ([System.Windows.MessageBoxResult]::Cancel) $false; & $setBtn $btn2 "No" ([System.Windows.MessageBoxResult]::No) $false; & $setBtn $btn3 "Sí" ([System.Windows.MessageBoxResult]::Yes) $true }
+            "OK" { $setBtn.Invoke($btn3, "OK", ([System.Windows.MessageBoxResult]::OK), $true) }
+            "OKCancel" { $setBtn.Invoke($btn2, "Cancelar", ([System.Windows.MessageBoxResult]::Cancel), $false); $setBtn.Invoke($btn3, "OK", ([System.Windows.MessageBoxResult]::OK), $true) }
+            "YesNo" { $setBtn.Invoke($btn2, "No", ([System.Windows.MessageBoxResult]::No), $false); $setBtn.Invoke($btn3, "Sí", ([System.Windows.MessageBoxResult]::Yes), $true) }
+            "YesNoCancel" { $setBtn.Invoke($btn1, "Cancelar", ([System.Windows.MessageBoxResult]::Cancel), $false); $setBtn.Invoke($btn2, "No", ([System.Windows.MessageBoxResult]::No), $false); $setBtn.Invoke($btn3, "Sí", ([System.Windows.MessageBoxResult]::Yes), $true) }
         }
-        $btnClose.Add_Click({
-                Write-DzDebug "`t[DEBUG] Show-WpfMessageBox: btnClose clicked." -Color DarkGray
-                $script:__mbResult = [System.Windows.MessageBoxResult]::Cancel
-                $script:__forceClose = $true
-
-                if ($script:__inDialog) {
-                    try { $w.DialogResult = $false } catch {
-                        Write-DzDebug "`t[DEBUG] DialogResult(X) ERROR: $($_.Exception.Message)" -Color Red
-                    }
-                }
-
-                try { $w.Close() } catch {
-                    Write-DzDebug "`t[DEBUG] Close(X) ERROR: $($_.Exception.Message)" -Color Red
-                }
-            })
-        $script:__inDialog = $true
+        if ($btnClose) {
+            $localFinish2 = $finishSb
+            $btnClose.Add_Click({
+                    Write-DzDebug "`t[DEBUG] Show-WpfMessageBox: btnClose clicked." -Color DarkGray
+                    $localFinish2.Invoke([System.Windows.MessageBoxResult]::Cancel)
+                }.GetNewClosure())
+        }
         $null = $w.ShowDialog()
-        $script:__inDialog = $false
-        return $script:__mbResult
+        return [System.Windows.MessageBoxResult]$dzState.Result
     } catch {
         Write-Warning "Show-WpfMessageBox falló: $($_.Exception.Message)"
         switch ($Buttons) {
@@ -326,10 +288,18 @@ function Show-WpfMessageBox {
         }
     }
 }
+
 function Show-WpfMessageBoxSafe {
-    param([Parameter(Mandatory)][string]$Message, [Parameter(Mandatory)][string]$Title, [Parameter(Mandatory)][ValidateSet("OK", "OKCancel", "YesNo", "YesNoCancel")][string]$Buttons, [Parameter(Mandatory)][ValidateSet("Information", "Warning", "Error", "Question")][string]$Icon, [System.Windows.Window]$Owner)
-    try { ConvertTo-MessageBoxResult (Show-WpfMessageBox -Message $Message -Title $Title -Buttons $Buttons -Icon $Icon -Owner $Owner) } catch { [System.Windows.MessageBoxResult]::None }
+    param(
+        [Parameter(Mandatory)][string]$Message,
+        [Parameter(Mandatory)][string]$Title,
+        [Parameter(Mandatory)][ValidateSet("OK", "OKCancel", "YesNo", "YesNoCancel")][string]$Buttons,
+        [Parameter(Mandatory)][ValidateSet("Information", "Warning", "Error", "Question")][string]$Icon,
+        [System.Windows.Window]$Owner
+    )
+    ConvertTo-MessageBoxResult (Show-WpfMessageBox -Message $Message -Title $Title -Buttons $Buttons -Icon $Icon -Owner $Owner)
 }
+
 function Show-WpfProgressBar {
     param([string]$Title = "Procesando", [string]$Message = "Por favor espere...")
     $theme = Get-DzUiTheme
@@ -462,8 +432,14 @@ function Show-WpfFolderDialog {
     $r = $dialog.ShowDialog()
     if ($r -eq [System.Windows.Forms.DialogResult]::OK) { $dialog.SelectedPath } else { $null }
 }
+function Ui-Info { param([string]$Message, [string]$Title = "Información", [System.Windows.Window]$Owner) Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Information" -Owner $Owner | Out-Null }
+function Ui-Warn { param([string]$Message, [string]$Title = "Atención", [System.Windows.Window]$Owner) Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Warning" -Owner $Owner | Out-Null }
+function Ui-Error { param([string]$Message, [string]$Title = "Error", [System.Windows.Window]$Owner) Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Error" -Owner $Owner | Out-Null }
+function Ui-Confirm { param([string]$Message, [string]$Title = "Confirmar", [System.Windows.Window]$Owner) (Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "YesNo" -Icon "Question" -Owner $Owner) -eq [System.Windows.MessageBoxResult]::Yes }
+
 Export-ModuleMember -Function @(
     'Get-DzUiTheme', 'New-WpfWindow', 'Show-WpfMessageBox', 'Show-WpfMessageBoxSafe', 'ConvertTo-MessageBoxResult',
     'New-WpfInputDialog', 'Show-WpfProgressBar', 'Update-WpfProgressBar', 'Close-WpfProgressBar', 'Show-ProgressBar',
-    'Set-WpfControlEnabled', 'Get-WpfPasswordBoxText', 'Show-WpfFolderDialog', 'Set-WpfDialogOwner', 'Set-DzWpfThemeResources'
+    'Set-WpfControlEnabled', 'Get-WpfPasswordBoxText', 'Show-WpfFolderDialog', 'Set-WpfDialogOwner', 'Set-DzWpfThemeResources',
+    'Ui-Info', 'Ui-Warn', 'Ui-Error', 'Ui-Confirm'
 )

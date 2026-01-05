@@ -519,6 +519,7 @@ function New-MainForm {
     try {
         $window = [Windows.Markup.XamlReader]::Load($reader)
         $theme = Get-DzUiTheme
+        $global:MainWindow = $window
         Set-DzWpfThemeResources -Window $window -Theme $theme
     } catch {
         Write-Host "`n[XAML ERROR] $($_.Exception.Message)" -ForegroundColor Red
@@ -530,10 +531,6 @@ function New-MainForm {
         }
         throw
     }
-    function Ui-Info([string]$m, [string]$t = "Información") { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $window | Out-Null }
-    function Ui-Warn([string]$m, [string]$t = "Atención") { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $window | Out-Null }
-    function Ui-Error([string]$m, [string]$t = "Error") { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $window | Out-Null }
-    function Ui-Confirm([string]$m, [string]$t = "Confirmar") { (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $window) -eq [System.Windows.MessageBoxResult]::Yes }
     $lblHostname = $window.FindName("lblHostname")
     $lblPort = $window.FindName("lblPort")
     $txt_IpAdress = $window.FindName("txt_IpAdress")
@@ -724,7 +721,7 @@ function New-MainForm {
                         $retryCount++
                         if ($retryCount -ge $maxRetries) {
                             Write-Host "`n[ERROR] No se pudo copiar al portapapeles: $($_.Exception.Message)" -ForegroundColor Red
-                            Ui-Error "Error al copiar al portapapeles: $($_.Exception.Message)"
+                            Ui-Error "Error al copiar al portapapeles: $($_.Exception.Message)" $global:MainWindow
                         } else {
                             Start-Sleep -Milliseconds 100
                         }
@@ -740,7 +737,7 @@ function New-MainForm {
                 }
             } catch {
                 Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                Ui-Error "Error: $($_.Exception.Message)"
+                Ui-Error "Error: $($_.Exception.Message)" $global:MainWindow
             }
         })
     $lblHostname.Add_PreviewMouseLeftButtonDown({
@@ -748,34 +745,32 @@ function New-MainForm {
             Write-DzDebug "`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
             try {
                 $hostname = [System.Net.Dns]::GetHostName()
-                if ([string]::IsNullOrWhiteSpace($hostname)) {
-                    Write-Host "`n[AVISO] No se pudo obtener el hostname." -ForegroundColor Yellow
-                    return
-                }
-                [System.Windows.Clipboard]::SetText($hostname)
-                Write-Host "`nNombre del equipo copiado: $hostname" -ForegroundColor Green
+                if ([string]::IsNullOrWhiteSpace($hostname)) { Write-Host "`n[AVISO] No se pudo obtener el hostname." -ForegroundColor Yellow; return }
+                $ok = Set-ClipboardTextSafe -Text $hostname -Owner $global:MainWindow
+                if ($ok) { Write-Host "`nNombre del equipo copiado: $hostname" -ForegroundColor Green } else { Ui-Error "No se pudo copiar el hostname al portapapeles." $global:MainWindow }
             } catch {
                 Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                Ui-Error "Error: $($_.Exception.Message)"
+                Ui-Error "Error: $($_.Exception.Message)" $global:MainWindow
+            } finally {
+                $e.Handled = $true
             }
-        })
+        }.GetNewClosure())
     $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
             try {
-                $ipsText = $sender.Text
+                $ipsText = [string]$sender.Text
                 Write-DzDebug "`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
-                Write-DzDebug "`t[DEBUG] Contenido (variable): '$($txt_IpAdress.Text)'" -Color DarkGray
                 Write-DzDebug "`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
-                if ([string]::IsNullOrWhiteSpace($ipsText)) {
-                    Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow
-                    return
-                }
-                [System.Windows.Clipboard]::SetText($ipsText)
-                Write-Host "`nIP's copiadas al portapapeles:`n$ipsText" -ForegroundColor Green
+                if ([string]::IsNullOrWhiteSpace($ipsText)) { Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow; return }
+                $textToCopy = $ipsText.TrimEnd()
+                $ok = Set-ClipboardTextSafe -Text $textToCopy -Owner $global:MainWindow
+                if ($ok) { Write-Host "`nIP's copiadas al portapapeles:`n$textToCopy" -ForegroundColor Green } else { Ui-Error "No se pudieron copiar las IPs al portapapeles." $global:MainWindow }
             } catch {
                 Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                Ui-Error "Error: $($_.Exception.Message)"
+                Ui-Error "Error: $($_.Exception.Message)" $global:MainWindow
+            } finally {
+                $e.Handled = $true
             }
         }.GetNewClosure())
     $txt_AdapterStatus.Add_PreviewMouseLeftButtonDown({
@@ -786,9 +781,8 @@ function New-MainForm {
             $e.Handled = $true
         })
     $btnInstalarHerramientas.Add_Click({
-            Write-Host ""
             Write-DzDebug ("`t[DEBUG] Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+            Write-Host "`t- - - Comenzando el proceso de 'Instalar Herramientas' - - -" -ForegroundColor Gray
             if (-not (Check-Chocolatey)) {
                 Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
                 return
@@ -796,16 +790,23 @@ function New-MainForm {
             Show-ChocolateyInstallerMenu
         })
     $btnProfiler.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Profiler' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Profiler' - - -" -ForegroundColor Gray
             Invoke-PortableTool -ToolName "ExpressProfiler" -Url "https://github.com/ststeiger/ExpressProfiler/releases/download/1.0/ExpressProfiler20.zip" -ZipPath "C:\Temp\ExpressProfiler22wAddinSigned.zip" -ExtractPath "C:\Temp\ExpressProfiler2" -ExeName "ExpressProfiler.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
-    $btnPrinterTool.Add_Click({
-            Invoke-PortableTool -ToolName "POS Printer Test" -Url "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip" -ZipPath "C:\Temp\RPT-RPI-Printer-Tool-1.zip" -ExtractPath "C:\Temp\RPT-RPI-Printer-Tool-1" -ExeName "POS Printer Test.exe" -InfoTextBlock $txt_InfoInstrucciones
-        })
     $btnDatabase.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Database' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Database' - - -" -ForegroundColor Gray
             Invoke-PortableTool -ToolName "Database4" -Url "https://fishcodelib.com/files/DatabaseNet4.zip" -ZipPath "C:\Temp\DatabaseNet4.zip" -ExtractPath "C:\Temp\Database4" -ExeName "Database4.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
+    $btnPrinterTool.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Printer Tool' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Printer Tool' - - -" -ForegroundColor Gray
+            Invoke-PortableTool -ToolName "POS Printer Test" -Url "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip" -ZipPath "C:\Temp\RPT-RPI-Printer-Tool-1.zip" -ExtractPath "C:\Temp\RPT-RPI-Printer-Tool-1" -ExeName "POS Printer Test.exe" -InfoTextBlock $txt_InfoInstrucciones
+        })
     $btnLectorDPicacls.Add_Click({
-            Write-DzDebug "`t[DEBUG]BTN CLICK: Inicio ejecución (Lector DP + icacls)" ([System.ConsoleColor]::DarkGray)
+            Write-DzDebug ("`t[DEBUG] Click en 'Lector DP + icacls' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Lector DP + icacls' - - -" -ForegroundColor Gray
             $pwPs = $null
             $pwDrv = $null
             try {
@@ -965,19 +966,20 @@ function New-MainForm {
             }
         })
     $btnSQLManager.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'SQL Manager' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'SQL Manager' - - -" -ForegroundColor Gray
             function Get-SQLServerManagers {
                 $possiblePaths = @("${env:SystemRoot}\System32\SQLServerManager*.msc", "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc")
                 $managers = foreach ($pattern in $possiblePaths) { Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | ForEach-Object FullName }
                 @($managers) | Where-Object { $_ } | Select-Object -Unique
             }
             $managers = Get-SQLServerManagers
-            if (-not $managers -or $managers.Count -eq 0) { Ui-Error "No se encontró ninguna versión de SQL Server Configuration Manager." ; return }
+            if (-not $managers -or $managers.Count -eq 0) { Ui-Error "No se encontró ninguna versión de SQL Server Configuration Manager." $global:MainWindow ; return }
             Show-SQLselector -Managers $managers
         })
     $btnSQLManagement.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Write-DzDebug "`t[DEBUG] Iniciando búsqueda de SSMS instalados" -Color DarkGray
+            Write-DzDebug ("`t[DEBUG] Click en 'SQL Management' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'SQL Management' - - -" -ForegroundColor Gray
             function Get-SSMSVersions {
                 $ssmsPaths = @()
                 $fixedPaths = @(
@@ -1043,7 +1045,7 @@ function New-MainForm {
                         try {
                             Start-Process -FilePath $openFileDialog.FileName
                             Write-Host "`tEjecutando: $($openFileDialog.FileName)" -ForegroundColor Green
-                        } catch { Ui-Error "Error al ejecutar SSMS: $($_.Exception.Message)" }
+                        } catch { Ui-Error "Error al ejecutar SSMS: $($_.Exception.Message)" $global:MainWindow }
                     }
                 } else {
                     $wantDownload = Ui-Confirm "¿Desea descargar la última versión de SSMS?" "Descargar SSMS"
@@ -1055,14 +1057,16 @@ function New-MainForm {
             Show-SQLselector -SSMSVersions $filteredVersions
         })
     $btnForzarActualizacion.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Forzar Actualización' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Forzar Actualización' - - -" -ForegroundColor Gray
             Show-SystemComponents
-            $ok = Ui-Confirm "¿Desea forzar la actualización de datos?" "Confirmación"
-            if ($ok) { Start-SystemUpdate ; Ui-Info "Actualización completada" "Éxito" } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
+            $ok = Ui-Confirm "¿Desea forzar la actualización de datos?" "Confirmación" $global:MainWindow
+            if ($ok) { Start-SystemUpdate ; Ui-Info "Actualización completada" "Éxito" $global:MainWindow } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
         })
     $btnClearAnyDesk.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            $ok = Ui-Confirm "¿Estás seguro de renovar AnyDesk?" "Confirmar renovación"
+            Write-DzDebug ("`t[DEBUG] Click en 'Clear AnyDesk' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Clear AnyDesk' - - -" -ForegroundColor Gray
+            $ok = Ui-Confirm "¿Estás seguro de renovar AnyDesk?" "Confirmar renovación" $global:MainWindow
             if ($ok) {
                 $filesToDelete = @("C:\ProgramData\AnyDesk\system.conf", "C:\ProgramData\AnyDesk\service.conf", "$env:APPDATA\AnyDesk\system.conf", "$env:APPDATA\AnyDesk\service.conf")
                 $deletedFilesCount = 0
@@ -1086,25 +1090,40 @@ function New-MainForm {
                         }
                     } catch { Write-Host "`nError al eliminar el archivo." -ForegroundColor Red }
                 }
-                if ($errors.Count -eq 0) { Ui-Info "$deletedFilesCount archivo(s) eliminado(s) correctamente." "Éxito" } else { Ui-Error "Se encontraron errores. Revisa la consola para más detalles." }
+                if ($errors.Count -eq 0) { Ui-Info "$deletedFilesCount archivo(s) eliminado(s) correctamente." "Éxito" $global:MainWindow } else { Ui-Error "Se encontraron errores. Revisa la consola para más detalles." $global:MainWindow }
             } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
         })
-    $btnShowPrinters.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Show-NSPrinters })
-    $btnClearPrintJobs.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Invoke-ClearPrintJobs -InfoTextBlock $txt_InfoInstrucciones })
+    $btnShowPrinters.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Show Printers' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Show Printers' - - -" -ForegroundColor Gray; Show-NSPrinters })
+    $btnClearPrintJobs.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Clear Print Jobs' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Clear Print Jobs' - - -" -ForegroundColor Gray ; Invoke-ClearPrintJobs -InfoTextBlock $txt_InfoInstrucciones })
     $btnCheckPermissions.Add_Click({
-            Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
-            if (-not (Test-Administrator)) { Ui-Error "Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador." ; return }
+            Write-DzDebug ("`t[DEBUG] Click en 'Revisar Permisos' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Revisar Permisos' - - -" -ForegroundColor Gray
+            if (-not (Test-Administrator)) { Ui-Error "Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador." $global:MainWindow ; return }
             Check-Permissions
         })
-    $btnAplicacionesNS.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; $res = Get-NSApplicationsIniReport ; Show-NSApplicationsIniReport -Resultados $res })
-    $btnCambiarOTM.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Invoke-CambiarOTMConfig -InfoTextBlock $txt_InfoInstrucciones })
-    $LZMAbtnBuscarCarpeta.Add_Click({ Show-LZMADialog })
-    $btnConfigurarIPs.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Show-IPConfigDialog })
-    $btnAddUser.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Show-AddUserDialog })
-    $btnCreateAPK.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones })
-    $btnExtractInstaller.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Show-InstallerExtractorDialog })
+    $btnAplicacionesNS.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Aplicaciones NS' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Aplicaciones NS' - - -" -ForegroundColor Gray; $res = Get-NSApplicationsIniReport ; Show-NSApplicationsIniReport -Resultados $res })
+    $btnCambiarOTM.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Cambiar OTM' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Cambiar OTM' - - -" -ForegroundColor Gray ; Invoke-CambiarOTMConfig -InfoTextBlock $txt_InfoInstrucciones })
+    $LZMAbtnBuscarCarpeta.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Buscar Instaladores LZMA' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Buscar Instaladores LZMA' - - -" -ForegroundColor Gray; Show-LZMADialog })
+    $btnConfigurarIPs.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Configurar IPs' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Configurar IPs' - - -" -ForegroundColor Gray ; Show-IPConfigDialog })
+    $btnAddUser.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Agregar Usuario' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Agregar Usuario' - - -" -ForegroundColor Gray ; Show-AddUserDialog })
+    $btnCreateAPK.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Crear APK' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Crear APK' - - -" -ForegroundColor Gray ; Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones })
+    $btnExtractInstaller.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Extraer Instalador' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Extraer Instalador' - - -" -ForegroundColor Gray ; Show-InstallerExtractorDialog })
     $btnConnectDb.Add_Click({
-            Write-Host "`nConectando a la instancia..." -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Gray
+
             try {
                 if ($null -eq $global:txtServer -or $null -eq $global:txtUser -or $null -eq $global:txtPassword) { throw "Error interno: controles de conexión no inicializados." }
                 $serverText = $global:txtServer.Text.Trim()
@@ -1147,7 +1166,7 @@ Base de datos: ((
 (_.Exception.GetType().FullName)"
                 Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: ((
 (_.ScriptStackTrace)"
-                Ui-Error "Error: $($_.Exception.Message)"
+                Ui-Error "Error: $($_.Exception.Message)" $global:MainWindow
                 Write-Host "Error | Error de conexión: ((
 (_.Exception.Message)" -ForegroundColor Red
             }

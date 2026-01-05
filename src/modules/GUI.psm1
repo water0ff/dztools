@@ -1,136 +1,70 @@
 ﻿#requires -Version 5.0
-
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
-
-#region Funciones Base WPF
-
+Add-Type -AssemblyName System.Windows.Forms
 function Get-DzUiTheme {
     $iniMode = "dark"
-    if (Get-Command Get-DzUiMode -ErrorAction SilentlyContinue) {
-        $iniMode = Get-DzUiMode
-    }
-
+    if (Get-Command Get-DzUiMode -ErrorAction SilentlyContinue) { $iniMode = Get-DzUiMode }
     $themes = @{
         Light = @{
-            FormBackground           = "#FFFFFF"
-            FormForeground           = "#333333"
-
-            InfoBackground           = "#F3F3F3"
-            InfoForeground           = "#333333"
-            InfoHoverBackground      = "#FF8C00"
-            InfoHoverForeground      = "#1E1E1E"   # <- importante
-
-            ControlBackground        = "#FFFFFF"
-            ControlForeground        = "#333333"
-
-            BorderColor              = "#D0D0D0"
-
-            ButtonGeneralBackground  = "#E7E7E7"
-            ButtonGeneralForeground  = "#333333"
-            ButtonSystemBackground   = "#0E639C"
-            ButtonSystemForeground   = "#FFFFFF"
-            ButtonNationalBackground = "#C586C0"
-            ButtonNationalForeground = "#FFFFFF"
-
-            ConsoleBackground        = "#FFFFFF"
-            ConsoleForeground        = "#333333"
-
-            AccentPrimary            = "#0E639C"
-            AccentSecondary          = "#2AA198"
-
-            AccentMuted              = "#6B7280"
-
-            UiFontFamily             = "Segoe UI"
-            UiFontSize               = 12
-            CodeFontFamily           = "Consolas"
-            CodeFontSize             = 12
+            FormBackground = "#F4F6F8"; FormForeground = "#111111"
+            InfoBackground = "#FFFFFF"; InfoForeground = "#111111"
+            InfoHoverBackground = "#FF8C00"; InfoHoverForeground = "#111111"
+            ControlBackground = "#FFFFFF"; ControlForeground = "#111111"
+            BorderColor = "#CFCFCF"
+            ButtonGeneralBackground = "#E6E6E6"; ButtonGeneralForeground = "#111111"
+            ButtonSystemBackground = "#96C8FF"; ButtonSystemForeground = "#111111"
+            ButtonNationalBackground = "#FFC896"; ButtonNationalForeground = "#111111"
+            ConsoleBackground = "#FFFFFF"; ConsoleForeground = "#111111"
+            AccentPrimary = "#1976D2"; AccentSecondary = "#2E7D32"; AccentMuted = "#6B7280"
+            UiFontFamily = "Segoe UI"; UiFontSize = 12
+            CodeFontFamily = "Consolas"; CodeFontSize = 12
+            OnAccentForeground = "#000000"
         }
         Dark  = @{
-            FormBackground           = "#1E1E1E"
-            FormForeground           = "#D4D4D4"
-
-            InfoBackground           = "#252526"
-            InfoForeground           = "#D4D4D4"
-            InfoHoverBackground      = "#FF8C00"
-            InfoHoverForeground      = "#1E1E1E"   # <- importante (naranja + negro = legible)
-
-            ControlBackground        = "#3C3C3C"
-            ControlForeground        = "#D4D4D4"
-
-            BorderColor              = "#454545"
-
-            ButtonGeneralBackground  = "#2D2D2D"
-            ButtonGeneralForeground  = "#D4D4D4"
-            ButtonSystemBackground   = "#0E639C"
-            ButtonSystemForeground   = "#FFFFFF"
-            ButtonNationalBackground = "#C586C0"
-            ButtonNationalForeground = "#1E1E1E"
-
-            ConsoleBackground        = "#1E1E1E"
-            ConsoleForeground        = "#D4D4D4"
-
-            AccentPrimary            = "#0E639C"
-            AccentSecondary          = "#4EC9B0"
-            AccentMuted              = "#9CA3AF"
-
-            UiFontFamily             = "Segoe UI"
-            UiFontSize               = 12
-            CodeFontFamily           = "Consolas"
-            CodeFontSize             = 12
+            FormBackground = "#000000"; FormForeground = "#FFFFFF"
+            InfoBackground = "#1E1E1E"; InfoForeground = "#FFFFFF"
+            InfoHoverBackground = "#FF8C00"; InfoHoverForeground = "#000000"
+            ControlBackground = "#1C1C1C"; ControlForeground = "#FFFFFF"
+            BorderColor = "#4C4C4C"
+            ButtonGeneralBackground = "#2F2F2F"; ButtonGeneralForeground = "#FFFFFF"
+            ButtonSystemBackground = "#96C8FF"; ButtonSystemForeground = "#000000"
+            ButtonNationalBackground = "#FFC896"; ButtonNationalForeground = "#000000"
+            ConsoleBackground = "#012456"; ConsoleForeground = "#FFFFFF"
+            AccentPrimary = "#2196F3"; AccentSecondary = "#4CAF50"; AccentMuted = "#9CA3AF"
+            UiFontFamily = "Segoe UI"; UiFontSize = 12
+            CodeFontFamily = "Consolas"; CodeFontSize = 12
+            OnAccentForeground = "#000000"
         }
     }
-
-    $selectedMode = if ($iniMode -match '^(dark|light)$') {
-        ($iniMode.Substring(0, 1).ToUpper() + $iniMode.Substring(1).ToLower())
-    } else { 'Dark' }
-
-    return $themes[$selectedMode]
+    $selectedMode = if ($iniMode -match '^(dark|light)$') { ($iniMode.Substring(0, 1).ToUpper() + $iniMode.Substring(1).ToLower()) } else { "Dark" }
+    $themes[$selectedMode]
 }
 
-
 function New-WpfWindow {
-    param(
-        [Parameter(Mandatory)]
-        [object]$Xaml,
-        [switch]$PassThru
-    )
-
+    param([Parameter(Mandatory)][object]$Xaml, [switch]$PassThru)
+    $xmlReader = $null; $stringReader = $null
     try {
-        # 1) Convertir a string XAML
         $xamlText = switch ($Xaml.GetType().FullName) {
             'System.String' { $Xaml }
             'System.Xml.XmlDocument' { $Xaml.OuterXml }
             default { [string]$Xaml }
         }
-
-        if ([string]::IsNullOrWhiteSpace($xamlText)) {
-            throw "XAML vacío o nulo."
-        }
-
-        # 2) Crear XmlReader desde string (evita problemas con XmlNodeReader)
+        if ([string]::IsNullOrWhiteSpace($xamlText)) { throw "XAML vacío o nulo." }
         $stringReader = New-Object System.IO.StringReader($xamlText)
-        $xmlReaderSettings = New-Object System.Xml.XmlReaderSettings
-        $xmlReaderSettings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
-        $xmlReaderSettings.XmlResolver = $null
-        $xmlReader = [System.Xml.XmlReader]::Create($stringReader, $xmlReaderSettings)
-
-        # 3) Cargar ventana WPF
+        $settings = New-Object System.Xml.XmlReaderSettings
+        $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
+        $settings.XmlResolver = $null
+        $xmlReader = [System.Xml.XmlReader]::Create($stringReader, $settings)
         $window = [Windows.Markup.XamlReader]::Load($xmlReader)
-
         if ($PassThru) {
-            # Para mapear controles por Name necesitamos un XmlDocument (pero SOLO para SelectNodes)
             [xml]$xmlDoc = $xamlText
-
             $controls = @{}
-            $xmlDoc.SelectNodes("//*[@Name]") | ForEach-Object {
-                $controls[$_.Name] = $window.FindName($_.Name)
-            }
-            return @{ Window = $window; Controls = $controls }
+            $xmlDoc.SelectNodes("//*[@Name]") | ForEach-Object { $controls[$_.Name] = $window.FindName($_.Name) }
+            return @{Window = $window; Controls = $controls }
         }
-
-        return $window
+        $window
     } catch {
         Write-Error "Error cargando XAML: $($_.Exception.Message)"
         throw
@@ -139,614 +73,397 @@ function New-WpfWindow {
         if ($stringReader) { $stringReader.Close() }
     }
 }
-
-function Show-WpfMessageBox {
-    param(
-        [Parameter(Mandatory = $true)][string]$Message,
-        [string]$Title = "Mensaje",
-        [ValidateSet("OK", "OKCancel", "YesNo", "YesNoCancel")]
-        [string]$Buttons = "OK",
-        [ValidateSet("Information", "Warning", "Error", "Question")]
-        [string]$Icon = "Information"
-    )
-
-    $theme = Get-DzUiTheme
-
-    # Iconos simples (Unicode). Si quieres, luego los cambiamos por Paths (vector).
-    $iconGlyph = switch ($Icon) {
-        "Information" { "ℹ" }
-        "Warning" { "⚠" }
-        "Error" { "⛔" }
-        "Question" { "❓" }
-        default { "ℹ" }
-    }
-
-    # Visibilidad de botones
-    $showOK = "Collapsed"
-    $showYes = "Collapsed"
-    $showNo = "Collapsed"
-    $showCancel = "Collapsed"
-
-    switch ($Buttons) {
-        "OK" {
-            $showOK = "Visible"
-        }
-        "OKCancel" {
-            $showOK = "Visible"
-            $showCancel = "Visible"
-        }
-        "YesNo" {
-            $showYes = "Visible"
-            $showNo = "Visible"
-        }
-        "YesNoCancel" {
-            $showYes = "Visible"
-            $showNo = "Visible"
-            $showCancel = "Visible"
-        }
-    }
-
-    $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="$Title"
-        Height="230" Width="520"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        ShowInTaskbar="False"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
-        FontFamily="{DynamicResource UiFontFamily}"
-        FontSize="{DynamicResource UiFontSize}">
-    <Border Background="$($theme.FormBackground)"
-            CornerRadius="10"
-            BorderBrush="$($theme.AccentPrimary)"
-            BorderThickness="2"
-            Padding="0">
-        <Border.Effect>
-            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.30"/>
-        </Border.Effect>
-
-        <Grid Margin="14">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="34"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <!-- Header -->
-            <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Text="$Title"
-                           Foreground="$($theme.FormForeground)"
-                           VerticalAlignment="Center"
-                           FontWeight="SemiBold"/>
-
-                <Button Name="btnClose"
-                        Grid.Column="1"
-                        Content="✕"
-                        Foreground="$($theme.FormForeground)"
-                        Width="34" Height="26"
-                        Margin="8,0,0,0"
-                        ToolTip="Cerrar"
-                        Background="Transparent"
-                        BorderBrush="Transparent"/>
-            </Grid>
-
-            <!-- Body -->
-            <Grid Grid.Row="1" Margin="0,10,0,12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="42"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <Border Width="34" Height="34"
-                        CornerRadius="8"
-                        Background="$($theme.ControlBackground)"
-                        BorderBrush="$($theme.BorderColor)"
-                        BorderThickness="1"
-                        VerticalAlignment="Top">
-                    <TextBlock Text="$iconGlyph"
-                               Foreground="$($theme.AccentPrimary)"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"/>
-                </Border>
-
-                <TextBlock Grid.Column="1"
-                           Text="$Message"
-                           Foreground="$($theme.FormForeground)"
-                           TextWrapping="Wrap"
-                           VerticalAlignment="Top"/>
-            </Grid>
-
-            <!-- Buttons -->
-            <StackPanel Grid.Row="2"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Right">
-
-                <Button Name="btnYes"
-                        Content="Sí"
-                        Visibility="$showYes"
-                        Width="110" Height="30"
-                        Margin="0,0,10,0"
-                        Background="$($theme.ButtonSystemBackground)"
-                        Foreground="$($theme.ButtonSystemForeground)"
-                        BorderBrush="$($theme.BorderColor)"
-                        BorderThickness="1"/>
-
-                <Button Name="btnNo"
-                        Content="No"
-                        Visibility="$showNo"
-                        Width="110" Height="30"
-                        Margin="0,0,10,0"
-                        Background="$($theme.ButtonGeneralBackground)"
-                        Foreground="$($theme.ButtonGeneralForeground)"
-                        BorderBrush="$($theme.BorderColor)"
-                        BorderThickness="1"/>
-
-                <Button Name="btnCancel"
-                        Content="Cancelar"
-                        Visibility="$showCancel"
-                        Width="110" Height="30"
-                        Margin="0,0,10,0"
-                        Background="$($theme.ButtonGeneralBackground)"
-                        Foreground="$($theme.ButtonGeneralForeground)"
-                        BorderBrush="$($theme.BorderColor)"
-                        BorderThickness="1"/>
-
-                <Button Name="btnOK"
-                        Content="OK"
-                        Visibility="$showOK"
-                        Width="110" Height="30"
-                        Background="$($theme.ButtonSystemBackground)"
-                        Foreground="$($theme.ButtonSystemForeground)"
-                        BorderBrush="$($theme.BorderColor)"
-                        BorderThickness="1"/>
-            </StackPanel>
-
-        </Grid>
-    </Border>
-</Window>
-"@
-
-    $ui = New-WpfWindow -Xaml $xaml -PassThru
-    $w = $ui.Window
-    $c = $ui.Controls
-    Set-DzWpfThemeResources -Window $w -Theme $theme
-
-    try { Set-WpfDialogOwner -Dialog $w } catch {}
-
-    # Drag
-    $c['HeaderBar'].Add_MouseLeftButtonDown({
-            if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() }
-        })
-
-    # Default/Cancel para Enter/Esc
-    if ($c['btnOK']) { $c['btnOK'].IsDefault = $true }
-    if ($c['btnYes']) { $c['btnYes'].IsDefault = $true }
-    if ($c['btnCancel']) { $c['btnCancel'].IsCancel = $true }
-
-    # Resultado
-    $result = [System.Windows.MessageBoxResult]::None
-
-    $c['btnClose'].Add_Click({ $result = [System.Windows.MessageBoxResult]::Cancel; $w.Close() })
-
-    if ($c['btnOK']) {
-        $c['btnOK'].Add_Click({ $result = [System.Windows.MessageBoxResult]::OK; $w.Close() })
-    }
-    if ($c['btnYes']) {
-        $c['btnYes'].Add_Click({ $result = [System.Windows.MessageBoxResult]::Yes; $w.Close() })
-    }
-    if ($c['btnNo']) {
-        $c['btnNo'].Add_Click({ $result = [System.Windows.MessageBoxResult]::No; $w.Close() })
-    }
-    if ($c['btnCancel']) {
-        $c['btnCancel'].Add_Click({ $result = [System.Windows.MessageBoxResult]::Cancel; $w.Close() })
-    }
-
-    $null = $w.ShowDialog()
-    return $result
-}
-
-
-function Show-WpfProgressBar {
-    <#
-    .SYNOPSIS
-        Muestra una barra de progreso WPF no bloqueante.
-    #>
-    param(
-        [string]$Title = "Procesando",
-        [string]$Message = "Por favor espere..."
-    )
-
-    $theme = Get-DzUiTheme
-
-    $stringXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="$Title"
-        Height="220" Width="500"
-        WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
-        Topmost="True"
-        ShowInTaskbar="False"
-        FontFamily="{DynamicResource UiFontFamily}"
-        FontSize="{DynamicResource UiFontSize}">
-    <Border Background="$($theme.FormBackground)"
-            CornerRadius="8"
-            BorderBrush="$($theme.AccentPrimary)"
-            BorderThickness="2"
-            Padding="20">
-        <Border.Effect>
-            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="5" BlurRadius="15" Opacity="0.3"/>
-        </Border.Effect>
-        <StackPanel>
-            <TextBlock Text="$Title"
-                       FontWeight="Bold"
-                       Foreground="$($theme.AccentPrimary)"
-                       HorizontalAlignment="Center"
-                       Margin="0,0,0,20"/>
-
-            <TextBlock Name="lblMessage"
-                       Text="$Message"
-                       Foreground="$($theme.FormForeground)"
-                       TextAlignment="Center"
-                       TextWrapping="Wrap"
-                       Margin="0,0,0,15"
-                       MinHeight="30"/>
-
-            <ProgressBar Name="progressBar"
-                         Height="25"
-                         Minimum="0"
-                         Maximum="100"
-                         Value="0"
-                         Foreground="$($theme.AccentSecondary)"
-                         Background="$($theme.ControlBackground)"
-                         Margin="0,0,0,10"/>
-
-            <TextBlock Name="lblPercent"
-                       Text="0%"
-                       FontWeight="Bold"
-                       Foreground="$($theme.AccentPrimary)"
-                       HorizontalAlignment="Center"/>
-        </StackPanel>
-    </Border>
-</Window>
-"@
-
-    try {
-        $result = New-WpfWindow -Xaml $stringXaml -PassThru
-        $window = $result.Window
-        Set-DzWpfThemeResources -Window $window -Theme $theme
-
-        $window | Add-Member -MemberType NoteProperty -Name ProgressBar   -Value $result.Controls['progressBar'] | Out-Null
-        $window | Add-Member -MemberType NoteProperty -Name MessageLabel  -Value $result.Controls['lblMessage']  | Out-Null
-        $window | Add-Member -MemberType NoteProperty -Name PercentLabel  -Value $result.Controls['lblPercent']  | Out-Null
-        $window | Add-Member -MemberType NoteProperty -Name IsClosed      -Value $false                          | Out-Null
-        $window.Add_Closed({
-                $window.IsClosed = $true
-            })
-        $window.Show()
-
-        # Forzar render inicial (siempre con el dispatcher de la misma ventana)
-        $window.Dispatcher.Invoke(
-            [System.Windows.Threading.DispatcherPriority]::Background,
-            [action] {}
-        ) | Out-Null
-        return $window
-    } catch {
-        Write-Error "Error al crear barra de progreso: $_"
-        return $null
-    }
-}
-function Set-WpfDialogOwner {
-    param(
-        [Parameter(Mandatory)]
-        [System.Windows.Window]$Dialog
-    )
-
-    try {
-        if ($Global:window -is [System.Windows.Window]) { $Dialog.Owner = $Global:window; return }
-    } catch {}
-
-    try {
-        if ($script:window -is [System.Windows.Window]) { $Dialog.Owner = $script:window; return }
-    } catch {}
-}
-
-function Update-WpfProgressBar {
-    param(
-        [Parameter(Mandatory = $true)] $Window,
-        [Parameter(Mandatory = $true)][ValidateRange(0, 100)][int] $Percent,
-        [string] $Message = $null
-    )
-
-    if ($null -eq $Window) { return }
-    if (-not ($Window -is [System.Windows.Window])) { return }
-    if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) { return }
-
-    # Capturar valores (sin cambiar variables externas para compatibilidad)
-    $pLocal = [Math]::Min($Percent, 100)
-    $mLocal = $Message
-
-    # Copia local del window para pasarla como argumento al delegate
-    $wLocal = $Window
-
-    try {
-        # Tipado del delegate para poder pasar parámetros (evita closures raros en PS5)
-        $action = [Action[object, int, string]] {
-            param($w, $p, $m)
-
-            if ($null -eq $w) { return }
-            if ($w.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $w.IsClosed) { return }
-
-            # ProgressBar
-            if ($w.PSObject.Properties.Match('ProgressBar').Count -gt 0 -and $w.ProgressBar) {
-                $w.ProgressBar.IsIndeterminate = $false
-                $w.ProgressBar.Value = $p
-            }
-
-            # Porcentaje
-            if ($w.PSObject.Properties.Match('PercentLabel').Count -gt 0 -and $w.PercentLabel) {
-                $w.PercentLabel.Text = "$p%"
-            }
-
-            # Mensaje
-            if (-not [string]::IsNullOrWhiteSpace($m) -and
-                $w.PSObject.Properties.Match('MessageLabel').Count -gt 0 -and $w.MessageLabel) {
-                $w.MessageLabel.Text = $m
-            }
-
-            $w.UpdateLayout()
-        }
-
-        # Invoke con prioridad de render, pasando args en lugar de capturar variables
-        $wLocal.Dispatcher.Invoke(
-            $action,
-            [System.Windows.Threading.DispatcherPriority]::Render,
-            $wLocal, $pLocal, $mLocal
-        ) | Out-Null
-
-    } catch {
-        Write-Warning "Error actualizando barra de progreso: $($_.Exception.Message)"
-    }
-}
-
-function Close-WpfProgressBar {
-    param([Parameter(Mandatory = $true)] $Window)
-
-    if ($null -eq $Window) { return }
-
-    if (-not ($Window -is [System.Windows.Window])) {
-        Write-Warning "Close-WpfProgressBar: El objeto recibido NO es WPF Window. Tipo: $($Window.GetType().FullName)"
-        return
-    }
-
-    if ($Window.IsClosed) { return }
-
-    if ($null -eq $Window.Dispatcher -or
-        $Window.Dispatcher.HasShutdownStarted -or
-        $Window.Dispatcher.HasShutdownFinished) { return }
-
-    try {
-        $Window.Dispatcher.Invoke([action] {
-                if (-not $Window.IsClosed) { $Window.Close() }
-            }, [System.Windows.Threading.DispatcherPriority]::Normal)
-    } catch {
-        Write-Warning "Error cerrando barra de progreso: $($_.Exception.Message)"
-    }
-}
-function Show-ProgressBar {
-    return Show-WpfProgressBar -Title "Progreso de Actualización" -Message "Iniciando proceso..."
-}
-function Set-WpfControlEnabled {
-    param(
-        [Parameter(Mandatory = $true)]
-        $Control,
-        [Parameter(Mandatory = $true)]
-        [bool]$Enabled
-    )
-
-    if ($null -eq $Control) {
-        Write-Warning "Control es null."
-        return
-    }
-
-    try {
-        if ($Control.Dispatcher.CheckAccess()) {
-            $Control.IsEnabled = $Enabled
-        } else {
-            $Control.Dispatcher.Invoke([action] {
-                    $Control.IsEnabled = $Enabled
-                })
-        }
-    } catch {
-        Write-Warning "Error cambiando estado del control: $_"
-    }
-}
-function New-WpfInputDialog {
-    param(
-        [string]$Title = "Entrada",
-        [string]$Prompt = "Ingrese un valor:",
-        [string]$DefaultValue = ""
-    )
-
-    $theme = Get-DzUiTheme
-    $stringXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="$Title"
-        Height="180" Width="400"
-        WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize"
-        ShowInTaskbar="False"
-        Background="$($theme.FormBackground)"
-        FontFamily="{DynamicResource UiFontFamily}"
-        FontSize="{DynamicResource UiFontSize}">
-    <Window.Resources>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-        </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-        <Style x:Key="SystemButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
-        </Style>
-    </Window.Resources>
-    <StackPanel Margin="20" Background="$($theme.FormBackground)">
-        <TextBlock Text="$Prompt" Margin="0,0,0,10"/>
-        <TextBox Name="txtInput" Text="$DefaultValue" Padding="5" Margin="0,0,0,20"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Name="btnOK" Content="Aceptar" Width="80" Margin="0,0,10,0" IsDefault="True" Style="{StaticResource SystemButtonStyle}"/>
-            <Button Name="btnCancel" Content="Cancelar" Width="80" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
-        </StackPanel>
-    </StackPanel>
-</Window>
-"@
-
-    $result = New-WpfWindow -Xaml $stringXaml -PassThru
-    $window = $result.Window
-    Set-DzWpfThemeResources -Window $window -Theme $theme
-    $controls = $result.Controls
-
-    $script:inputValue = $null
-
-    $controls['btnOK'].Add_Click({
-            $script:inputValue = $controls['txtInput'].Text
-            $window.DialogResult = $true
-            $window.Close()
-        })
-
-    $controls['btnCancel'].Add_Click({
-            $window.DialogResult = $false
-            $window.Close()
-        })
-
-    $dialogResult = $window.ShowDialog()
-
-    if ($dialogResult) {
-        return $script:inputValue
-    }
-
-    return $null
-}
-
-function Get-WpfPasswordBoxText {
-    param(
-        [Parameter(Mandatory = $true)]
-        [System.Windows.Controls.PasswordBox]$PasswordBox
-    )
-    return $PasswordBox.Password
-}
-function Show-WpfFolderDialog {
-    param(
-        [string]$Description = "Seleccione una carpeta",
-        [string]$InitialDirectory = [Environment]::GetFolderPath('Desktop')
-    )
-    if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
-        Write-Warning "Show-WpfFolderDialog requiere STA. Ejecuta PowerShell con -STA."
-        return $null
-    }
-    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-    $dialog.Description = $Description
-    $dialog.SelectedPath = $InitialDirectory
-    $dialog.ShowNewFolderButton = $true
-
-    $result = $dialog.ShowDialog()
-
-    if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-        return $dialog.SelectedPath
-    }
-    return $null
-}
-
-
 function Set-BrushResource {
-    param(
-        [Parameter(Mandatory)]
-        [System.Windows.ResourceDictionary]$Resources,
-
-        [Parameter(Mandatory)]
-        [string]$Key,
-
-        [Parameter(Mandatory)]
-        [string]$Hex
-    )
-
-    if ([string]::IsNullOrWhiteSpace($Hex)) {
-        throw "Theme error: el color para '$Key' llegó vacío/nulo."
-    }
-
-    # Acepta #RRGGBB o #AARRGGBB
-    if ($Hex -notmatch '^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$') {
-        throw "Theme error: el color para '$Key' no es HEX válido: '$Hex' (usa #RRGGBB o #AARRGGBB)."
-    }
-
-    # ✅ Esto regresa un Brush (SolidColorBrush) listo para Background/Foreground/BorderBrush
+    param([Parameter(Mandatory)][System.Windows.ResourceDictionary]$Resources, [Parameter(Mandatory)][string]$Key, [Parameter(Mandatory)][string]$Hex)
+    if ([string]::IsNullOrWhiteSpace($Hex)) { throw "Theme error: el color para '$Key' llegó vacío/nulo." }
+    if ($Hex -notmatch '^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$') { throw "Theme error: el color para '$Key' no es HEX válido: '$Hex' (usa #RRGGBB o #AARRGGBB)." }
     $brush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($Hex)
-
-    # Congelar si se puede (mejor rendimiento)
     if ($brush -is [System.Windows.Freezable] -and $brush.CanFreeze) { $brush.Freeze() }
-
     $Resources[$Key] = $brush
 }
-
-
 function Set-DzWpfThemeResources {
-    param(
-        [Parameter(Mandatory)] [System.Windows.Window]$Window,
-        [Parameter(Mandatory)] $Theme
-    )
-
-    # Mapeo: keys WPF (FormBg, PanelBg...) -> propiedades reales del Theme
-    Set-BrushResource -Resources $Window.Resources -Key "FormBg"           -Hex $Theme.FormBackground
-    Set-BrushResource -Resources $Window.Resources -Key "FormFg"           -Hex $Theme.FormForeground
-
-    # PanelBg/PanelFg: puedes usar InfoBackground/InfoForeground para paneles
-    Set-BrushResource -Resources $Window.Resources -Key "PanelBg"          -Hex $Theme.InfoBackground
-    Set-BrushResource -Resources $Window.Resources -Key "PanelFg"          -Hex $Theme.InfoForeground
-
-    Set-BrushResource -Resources $Window.Resources -Key "ControlBg"        -Hex $Theme.ControlBackground
-    Set-BrushResource -Resources $Window.Resources -Key "ControlFg"        -Hex $Theme.ControlForeground
-
+    param([Parameter(Mandatory)][System.Windows.Window]$Window, [Parameter(Mandatory)]$Theme)
+    Set-BrushResource -Resources $Window.Resources -Key "FormBg" -Hex $Theme.FormBackground
+    Set-BrushResource -Resources $Window.Resources -Key "FormFg" -Hex $Theme.FormForeground
+    Set-BrushResource -Resources $Window.Resources -Key "PanelBg" -Hex $Theme.InfoBackground
+    Set-BrushResource -Resources $Window.Resources -Key "PanelFg" -Hex $Theme.InfoForeground
+    Set-BrushResource -Resources $Window.Resources -Key "ControlBg" -Hex $Theme.ControlBackground
+    Set-BrushResource -Resources $Window.Resources -Key "ControlFg" -Hex $Theme.ControlForeground
     Set-BrushResource -Resources $Window.Resources -Key "BorderBrushColor" -Hex $Theme.BorderColor
-
-    Set-BrushResource -Resources $Window.Resources -Key "AccentPrimary"    -Hex $Theme.AccentPrimary
-    Set-BrushResource -Resources $Window.Resources -Key "AccentSecondary"  -Hex $Theme.AccentSecondary
-    Set-BrushResource -Resources $Window.Resources -Key "OnAccentFg" -Hex "#1E1E1E"
-
+    Set-BrushResource -Resources $Window.Resources -Key "AccentPrimary" -Hex $Theme.AccentPrimary
+    Set-BrushResource -Resources $Window.Resources -Key "AccentSecondary" -Hex $Theme.AccentSecondary
+    Set-BrushResource -Resources $Window.Resources -Key "AccentMuted" -Hex $Theme.AccentMuted
+    $onAccent = "#000000"
+    if ($Theme -and $Theme.PSObject -and ($Theme.PSObject.Properties.Match('OnAccentForeground').Count -gt 0)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$Theme.OnAccentForeground)) { $onAccent = [string]$Theme.OnAccentForeground }
+    }
+    Set-BrushResource -Resources $Window.Resources -Key "OnAccentFg" -Hex $onAccent
     $Window.Resources["UiFontFamily"] = [System.Windows.Media.FontFamily]::new($Theme.UiFontFamily)
     $Window.Resources["UiFontSize"] = [double]$Theme.UiFontSize
     $Window.Resources["CodeFontFamily"] = [System.Windows.Media.FontFamily]::new($Theme.CodeFontFamily)
     $Window.Resources["CodeFontSize"] = [double]$Theme.CodeFontSize
 }
+function Set-WpfDialogOwner {
+    param([Parameter(Mandatory)][System.Windows.Window]$Dialog)
+    try { if ($Global:window -is [System.Windows.Window]) { $Dialog.Owner = $Global:window; return } } catch {}
+    try { if ($script:window -is [System.Windows.Window]) { $Dialog.Owner = $script:window; return } } catch {}
+}
 
+function ConvertTo-MessageBoxResult {
+    param([object]$Value)
+    if ($null -eq $Value) { return [System.Windows.MessageBoxResult]::None }
+    if ($Value -is [System.Windows.MessageBoxResult]) { return $Value }
+    if ($Value -is [int]) {
+        switch ($Value) {
+            6 { return [System.Windows.MessageBoxResult]::Yes }
+            7 { return [System.Windows.MessageBoxResult]::No }
+            2 { return [System.Windows.MessageBoxResult]::Cancel }
+            1 { return [System.Windows.MessageBoxResult]::OK }
+            default { return [System.Windows.MessageBoxResult]::None }
+        }
+    }
+    $s = ($Value.ToString()).Trim().ToLowerInvariant()
+    switch ($s) {
+        'yes' { [System.Windows.MessageBoxResult]::Yes }
+        'no' { [System.Windows.MessageBoxResult]::No }
+        'cancel' { [System.Windows.MessageBoxResult]::Cancel }
+        'ok' { [System.Windows.MessageBoxResult]::OK }
+        'true' { [System.Windows.MessageBoxResult]::Yes }
+        'false' { [System.Windows.MessageBoxResult]::No }
+        default { [System.Windows.MessageBoxResult]::None }
+    }
+}
+function Show-WpfMessageBox {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Message,
+        [string]$Title = "Mensaje",
+        [ValidateSet("OK", "OKCancel", "YesNo", "YesNoCancel")][string]$Buttons = "OK",
+        [ValidateSet("Information", "Warning", "Error", "Question")][string]$Icon = "Information",
+        [System.Windows.Window]$Owner
+    )
+    try {
+        $safeTitle = [Security.SecurityElement]::Escape($Title)
+        $safeMsg = [Security.SecurityElement]::Escape($Message)
+        $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="$safeTitle"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
+  <Border Background="{DynamicResource FormBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="14" Padding="16">
+    <Grid Width="430">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <DockPanel Grid.Row="0" Margin="0,0,0,10">
+        <TextBlock Text="$safeTitle" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource FormFg}" DockPanel.Dock="Left"/>
+        <Button Name="btnClose" Content="✕" Width="34" Height="28" Margin="10,0,0,0" DockPanel.Dock="Right"
+                Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}"
+                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Cursor="Hand"/>
+      </DockPanel>
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border Width="40" Height="40" CornerRadius="10" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" VerticalAlignment="Top">
+          <TextBlock Name="txtIcon" Text="i" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource AccentPrimary}"/>
+        </Border>
+        <TextBlock Grid.Column="1" Name="txtMessage" Text="$safeMsg" TextWrapping="Wrap" Margin="12,2,0,0" Foreground="{DynamicResource PanelFg}"/>
+      </Grid>
+      <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <Button Name="btn1" Width="120" Height="34" Margin="0,0,10,0"/>
+        <Button Name="btn2" Width="120" Height="34" Margin="0,0,10,0"/>
+        <Button Name="btn3" Width="140" Height="34"/>
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>
+"@
 
+        $result = New-WpfWindow -Xaml $xaml -PassThru
+        if (-not $result -or -not $result.Window) { throw "Show-WpfMessageBox: ventana no creada (New-WpfWindow devolvió null)." }
+        $w = $result.Window
+        $c = $result.Controls
+        $script:__forceClose = $false
+        $script:__inDialog = $false
+        $w.Add_Closing({
+                param($sender, $e)
+                Write-DzDebug "`t[DEBUG] Window.Closing: Cancel(before)=$($e.Cancel) forceClose=$script:__forceClose inDialog=$script:__inDialog" -Color DarkGray
+                if ($script:__forceClose) {
+                    $e.Cancel = $false
+                }
+                Write-DzDebug "`t[DEBUG] Window.Closing: Cancel(after)=$($e.Cancel)" -Color DarkGray
+            })
+        if ($null -eq $w -or -not ($w -is [System.Windows.Window])) { throw "Show-WpfMessageBox: w es null o no es Window." }
+        if ($null -eq $c) { throw "Show-WpfMessageBox: no se pudieron obtener controles (Controls=null)." }
+        $btnClose = $c['btnClose']
+        $btn1 = $c['btn1']
+        $btn2 = $c['btn2']
+        $btn3 = $c['btn3']
+        $txtIcon = $c['txtIcon']
+        if (-not $btnClose -or -not $btn1 -or -not $btn2 -or -not $btn3 -or -not $txtIcon) {
+            throw "Show-WpfMessageBox: faltan controles (btnClose/btn1/btn2/btn3/txtIcon)."
+        }
+        if ($Owner) {
+            $w.Owner = $Owner
+            $w.WindowStartupLocation = "CenterOwner"
+        } else {
+            $w.WindowStartupLocation = "CenterScreen"
+        }
+        $theme = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $w -Theme $theme
+        switch ($Icon) {
+            "Information" { $txtIcon.Text = "i" }
+            "Warning" { $txtIcon.Text = "!" }
+            "Error" { $txtIcon.Text = "×" }
+            "Question" { $txtIcon.Text = "?" }
+        }
+        foreach ($b in @($btn1, $btn2, $btn3)) {
+            $b.Background = $w.FindResource("ControlBg")
+            $b.Foreground = $w.FindResource("ControlFg")
+            $b.BorderBrush = $w.FindResource("BorderBrushColor")
+            $b.BorderThickness = [System.Windows.Thickness]::new(1)
+            $b.Cursor = "Hand"
+            $b.Visibility = "Collapsed"
+        }
+        $script:__mbResult = [System.Windows.MessageBoxResult]::None
+        $setBtn = {
+            param($btn, $text, $resultValue, [bool]$isPrimary)
+            $btn.Content = $text
+            $btn.Visibility = "Visible"
+            $btn.IsHitTestVisible = $true
+            $btn.IsDefault = $false
+            $btn.IsCancel = $false
+            if ($isPrimary) { $btn.IsDefault = $true }
+            if ($isPrimary) {
+                $btn.Background = $w.FindResource("AccentPrimary")
+                $btn.Foreground = $w.FindResource("FormFg")
+                $btn.BorderThickness = [System.Windows.Thickness]::new(0)
+            } else {
+                $btn.Background = $w.FindResource("ControlBg")
+                $btn.Foreground = $w.FindResource("ControlFg")
+                $btn.BorderBrush = $w.FindResource("BorderBrushColor")
+                $btn.BorderThickness = [System.Windows.Thickness]::new(1)
+            }
+            $localResult = $resultValue
+            $closeWithResult = {
+                param($sender)
+                Write-DzDebug "`t[DEBUG] Show-WpfMessageBox: BTN '$text' handler ejecutado. result=$localResult" -Color DarkGray
+                $script:__mbResult = $localResult
+                $script:__forceClose = $true
+                $winToClose = $null
+                try {
+                    $winToClose = [System.Windows.Window]::GetWindow($sender)
+                } catch {}
+                if ($null -eq $winToClose) {
+                    $winToClose = $w
+                }
+                if ($null -eq $winToClose) {
+                    Write-DzDebug "`t[DEBUG] Close ERROR: winToClose llegó NULL (sender/window)" -Color Red
+                    return
+                }
+                if ($script:__inDialog) {
+                    try { $winToClose.DialogResult = $true } catch {
+                        Write-DzDebug "`t[DEBUG] DialogResult ERROR: $($_.Exception.Message)" -Color Red
+                    }
+                }
+                try { $winToClose.Close() } catch {
+                    Write-DzDebug "`t[DEBUG] Close ERROR: $($_.Exception.Message)" -Color Red
+                }
+            }.GetNewClosure()
+            $btn.AddHandler(
+                [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+                [System.Windows.RoutedEventHandler] {
+                    param($sender, $e)
+                    & $closeWithResult $sender
+                }.GetNewClosure(),
+                $true
+            )
+        }
+        switch ($Buttons) {
+            "OK" { & $setBtn $btn3 "OK" ([System.Windows.MessageBoxResult]::OK) $true }
+            "OKCancel" { & $setBtn $btn2 "Cancelar" ([System.Windows.MessageBoxResult]::Cancel) $false; & $setBtn $btn3 "OK" ([System.Windows.MessageBoxResult]::OK) $true }
+            "YesNo" { & $setBtn $btn2 "No" ([System.Windows.MessageBoxResult]::No) $false; & $setBtn $btn3 "Sí" ([System.Windows.MessageBoxResult]::Yes) $true }
+            "YesNoCancel" { & $setBtn $btn1 "Cancelar" ([System.Windows.MessageBoxResult]::Cancel) $false; & $setBtn $btn2 "No" ([System.Windows.MessageBoxResult]::No) $false; & $setBtn $btn3 "Sí" ([System.Windows.MessageBoxResult]::Yes) $true }
+        }
+        $btnClose.Add_Click({
+                Write-DzDebug "`t[DEBUG] Show-WpfMessageBox: btnClose clicked." -Color DarkGray
+                $script:__mbResult = [System.Windows.MessageBoxResult]::Cancel
+                $script:__forceClose = $true
+
+                if ($script:__inDialog) {
+                    try { $w.DialogResult = $false } catch {
+                        Write-DzDebug "`t[DEBUG] DialogResult(X) ERROR: $($_.Exception.Message)" -Color Red
+                    }
+                }
+
+                try { $w.Close() } catch {
+                    Write-DzDebug "`t[DEBUG] Close(X) ERROR: $($_.Exception.Message)" -Color Red
+                }
+            })
+        $script:__inDialog = $true
+        $null = $w.ShowDialog()
+        $script:__inDialog = $false
+        return $script:__mbResult
+    } catch {
+        Write-Warning "Show-WpfMessageBox falló: $($_.Exception.Message)"
+        switch ($Buttons) {
+            "YesNo" { return [System.Windows.MessageBoxResult]::No }
+            "YesNoCancel" { return [System.Windows.MessageBoxResult]::Cancel }
+            "OKCancel" { return [System.Windows.MessageBoxResult]::Cancel }
+            default { return [System.Windows.MessageBoxResult]::OK }
+        }
+    }
+}
+function Show-WpfMessageBoxSafe {
+    param([Parameter(Mandatory)][string]$Message, [Parameter(Mandatory)][string]$Title, [Parameter(Mandatory)][ValidateSet("OK", "OKCancel", "YesNo", "YesNoCancel")][string]$Buttons, [Parameter(Mandatory)][ValidateSet("Information", "Warning", "Error", "Question")][string]$Icon, [System.Windows.Window]$Owner)
+    try { ConvertTo-MessageBoxResult (Show-WpfMessageBox -Message $Message -Title $Title -Buttons $Buttons -Icon $Icon -Owner $Owner) } catch { [System.Windows.MessageBoxResult]::None }
+}
+function Show-WpfProgressBar {
+    param([string]$Title = "Procesando", [string]$Message = "Por favor espere...")
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="$Title" Height="220" Width="500" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
+  <Border Background="{DynamicResource FormBg}" CornerRadius="8" BorderBrush="{DynamicResource AccentPrimary}" BorderThickness="2" Padding="20">
+    <Border.Effect><DropShadowEffect Color="Black" Direction="270" ShadowDepth="5" BlurRadius="15" Opacity="0.3"/></Border.Effect>
+    <StackPanel>
+      <TextBlock Text="$Title" FontWeight="Bold" Foreground="{DynamicResource AccentPrimary}" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+      <TextBlock Name="lblMessage" Text="$Message" Foreground="{DynamicResource FormFg}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,15" MinHeight="30"/>
+      <ProgressBar Name="progressBar" Height="25" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource AccentSecondary}" Background="{DynamicResource ControlBg}" Margin="0,0,0,10"/>
+      <TextBlock Name="lblPercent" Text="0%" FontWeight="Bold" Foreground="{DynamicResource AccentPrimary}" HorizontalAlignment="Center"/>
+    </StackPanel>
+  </Border>
+</Window>
+"@
+    try {
+        $result = New-WpfWindow -Xaml $stringXaml -PassThru
+        $window = $result.Window
+        Set-DzWpfThemeResources -Window $window -Theme $theme
+        $window | Add-Member -MemberType NoteProperty -Name ProgressBar -Value $result.Controls['progressBar'] | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name MessageLabel -Value $result.Controls['lblMessage'] | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name PercentLabel -Value $result.Controls['lblPercent'] | Out-Null
+        $window | Add-Member -MemberType NoteProperty -Name IsClosed -Value $false | Out-Null
+        $window.Add_Closed({ $window.IsClosed = $true })
+        $window.Show()
+        $window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, [action] {}) | Out-Null
+        $window
+    } catch {
+        Write-Error "Error al crear barra de progreso: $_"
+        $null
+    }
+}
+function Update-WpfProgressBar {
+    param([Parameter(Mandatory = $true)]$Window, [Parameter(Mandatory = $true)][ValidateRange(0, 100)][int]$Percent, [string]$Message = $null)
+    if ($null -eq $Window) { return }
+    if (-not ($Window -is [System.Windows.Window])) { return }
+    if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) { return }
+    $pLocal = [Math]::Min($Percent, 100)
+    $mLocal = $Message
+    $wLocal = $Window
+    try {
+        $action = [Action[object, int, string]] {
+            param($w, $p, $m)
+            if ($null -eq $w) { return }
+            if ($w.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $w.IsClosed) { return }
+            if ($w.PSObject.Properties.Match('ProgressBar').Count -gt 0 -and $w.ProgressBar) { $w.ProgressBar.IsIndeterminate = $false; $w.ProgressBar.Value = $p }
+            if ($w.PSObject.Properties.Match('PercentLabel').Count -gt 0 -and $w.PercentLabel) { $w.PercentLabel.Text = "$p%" }
+            if (-not [string]::IsNullOrWhiteSpace($m) -and $w.PSObject.Properties.Match('MessageLabel').Count -gt 0 -and $w.MessageLabel) { $w.MessageLabel.Text = $m }
+            $w.UpdateLayout()
+        }
+        $wLocal.Dispatcher.Invoke($action, [System.Windows.Threading.DispatcherPriority]::Render, $wLocal, $pLocal, $mLocal) | Out-Null
+    } catch {
+        Write-Warning "Error actualizando barra de progreso: $($_.Exception.Message)"
+    }
+}
+function Close-WpfProgressBar {
+    param([Parameter(Mandatory = $true)]$Window)
+    if ($null -eq $Window) { return }
+    if (-not ($Window -is [System.Windows.Window])) { Write-Warning "Close-WpfProgressBar: El objeto recibido NO es WPF Window. Tipo: $($Window.GetType().FullName)"; return }
+    if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) { return }
+    if ($null -eq $Window.Dispatcher -or $Window.Dispatcher.HasShutdownStarted -or $Window.Dispatcher.HasShutdownFinished) { return }
+    try { $Window.Dispatcher.Invoke([action] { if (-not $Window.IsClosed) { $Window.Close() } }, [System.Windows.Threading.DispatcherPriority]::Normal) } catch { Write-Warning "Error cerrando barra de progreso: $($_.Exception.Message)" }
+}
+function Show-ProgressBar { Show-WpfProgressBar -Title "Progreso de Actualización" -Message "Iniciando proceso..." }
+function Set-WpfControlEnabled {
+    param([Parameter(Mandatory = $true)]$Control, [Parameter(Mandatory = $true)][bool]$Enabled)
+    if ($null -eq $Control) { Write-Warning "Control es null."; return }
+    try {
+        if ($Control.Dispatcher.CheckAccess()) { $Control.IsEnabled = $Enabled }
+        else { $Control.Dispatcher.Invoke([action] { $Control.IsEnabled = $Enabled }) }
+    } catch {
+        Write-Warning "Error cambiando estado del control: $_"
+    }
+}
+function New-WpfInputDialog {
+    param([string]$Title = "Entrada", [string]$Prompt = "Ingrese un valor:", [string]$DefaultValue = "")
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="$Title" Height="180" Width="400" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" ShowInTaskbar="False" Background="{DynamicResource FormBg}" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
+  <Window.Resources>
+    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource FormFg}"/></Style>
+    <Style TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="6,4"/>
+    </Style>
+    <Style x:Key="SystemButtonStyle" TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="10,6"/>
+    </Style>
+  </Window.Resources>
+  <StackPanel Margin="20" Background="{DynamicResource FormBg}">
+    <TextBlock Text="$Prompt" Margin="0,0,0,10"/>
+    <TextBox Name="txtInput" Text="$DefaultValue" Margin="0,0,0,20"/>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button Name="btnOK" Content="Aceptar" Width="90" Margin="0,0,10,0" IsDefault="True" Style="{StaticResource SystemButtonStyle}"/>
+      <Button Name="btnCancel" Content="Cancelar" Width="90" IsCancel="True" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Padding="10,6"/>
+    </StackPanel>
+  </StackPanel>
+</Window>
+"@
+    $result = New-WpfWindow -Xaml $stringXaml -PassThru
+    $window = $result.Window
+    Set-DzWpfThemeResources -Window $window -Theme $theme
+    $controls = $result.Controls
+    $script:inputValue = $null
+    $script:__inputOk = $false
+    $controls['btnOK'].Add_Click({ $script:inputValue = $controls['txtInput'].Text; $script:__inputOk = $true; $window.Close() })
+    $controls['btnCancel'].Add_Click({ $script:__inputOk = $false; $window.Close() })
+    $null = $window.ShowDialog()
+    if ($script:__inputOk) { return $script:inputValue }
+    return $null
+}
+function Get-WpfPasswordBoxText {
+    param([Parameter(Mandatory = $true)][System.Windows.Controls.PasswordBox]$PasswordBox)
+    $PasswordBox.Password
+}
+function Show-WpfFolderDialog {
+    param([string]$Description = "Seleccione una carpeta", [string]$InitialDirectory = [Environment]::GetFolderPath('Desktop'))
+    if ([System.Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') { Write-Warning "Show-WpfFolderDialog requiere STA. Ejecuta PowerShell con -STA."; return $null }
+    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dialog.Description = $Description
+    $dialog.SelectedPath = $InitialDirectory
+    $dialog.ShowNewFolderButton = $true
+    $r = $dialog.ShowDialog()
+    if ($r -eq [System.Windows.Forms.DialogResult]::OK) { $dialog.SelectedPath } else { $null }
+}
 Export-ModuleMember -Function @(
-    'Get-DzUiTheme',
-    'New-WpfWindow',
-    'Show-WpfMessageBox',
-    'New-WpfInputDialog',
-    'Show-WpfProgressBar',
-    'Update-WpfProgressBar',
-    'Close-WpfProgressBar',
-    'Set-WpfControlEnabled',
-    'Get-WpfPasswordBoxText',
-    'Show-WpfFolderDialog',
-    'Show-ProgressBar',
-    'Set-WpfDialogOwner',
-    'Set-DzWpfThemeResources'
+    'Get-DzUiTheme', 'New-WpfWindow', 'Show-WpfMessageBox', 'Show-WpfMessageBoxSafe', 'ConvertTo-MessageBoxResult',
+    'New-WpfInputDialog', 'Show-WpfProgressBar', 'Update-WpfProgressBar', 'Close-WpfProgressBar', 'Show-ProgressBar',
+    'Set-WpfControlEnabled', 'Get-WpfPasswordBoxText', 'Show-WpfFolderDialog', 'Set-WpfDialogOwner', 'Set-DzWpfThemeResources'
 )

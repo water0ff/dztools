@@ -1501,7 +1501,7 @@ function Show-InstallerExtractorDialog {
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
         </Style>
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
             <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -1511,13 +1511,13 @@ function Show-InstallerExtractorDialog {
             <Setter Property="Foreground" Value="$($theme.ButtonGeneralForeground)"/>
         </Style>
         <Style x:Key="NationalSoftButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonNationalBackground)"/>
+            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
             <Setter Property="Foreground" Value="$($theme.ButtonNationalForeground)"/>
         </Style>
     </Window.Resources>
-    <Border Background="$($theme.FormBackground)"
+    <Border Background="{DynamicResource FormBg}"
             CornerRadius="10"
-            BorderBrush="$($theme.ButtonNationalBackground)"
+            BorderBrush="{DynamicResource AccentPrimary}"
             BorderThickness="2"
             Padding="0">
         <Border.Effect>
@@ -1920,7 +1920,7 @@ function Show-IPConfigDialog {
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        Background="$($theme.FormBackground)"
+        Background="{DynamicResource FormBg}"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
@@ -1928,7 +1928,7 @@ function Show-IPConfigDialog {
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
         </Style>
         <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
             <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -1938,7 +1938,7 @@ function Show-IPConfigDialog {
             <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
         </Style>
     </Window.Resources>
-    <Grid Margin="12" Background="$($theme.FormBackground)">
+    <Grid Margin="12" Background="{DynamicResource FormBg}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -2693,7 +2693,7 @@ function Show-WpfPathSelectionDialog {
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
         </Style>
         <Style TargetType="ListBox">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
             <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -2712,9 +2712,9 @@ function Show-WpfPathSelectionDialog {
             <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
         </Style>
     </Window.Resources>
-    <Border Background="$($theme.FormBackground)"
+    <Border Background="{DynamicResource FormBg}"
             CornerRadius="10"
-            BorderBrush="$($theme.ButtonNationalBackground)"
+            BorderBrush="{DynamicResource AccentPrimary}"
             BorderThickness="2"
             Padding="0">
         <Border.Effect>
@@ -2850,14 +2850,13 @@ function Show-LZMADialog {
 
     Write-DzDebug "`t[DEBUG][Show-LZMADialog] INICIO"
     $theme = Get-DzUiTheme
-
     if (-not $Instaladores -or $Instaladores.Count -eq 0) {
         $LZMAregistryPath = "HKLM:\SOFTWARE\WOW6432Node\Caphyon\Advanced Installer\LZMA"
-
         if (-not (Test-Path $LZMAregistryPath)) {
             Write-DzDebug "`t[DEBUG][Show-LZMADialog] No existe la clave LZMA: $LZMAregistryPath" Yellow
             Show-WpfMessageBox -Message "No se encontró Advanced Installer (LZMA) en este equipo.`n`nRuta no existe:`n$LZMAregistryPath" `
                 -Title "Sin instaladores" -Buttons OK -Icon Information | Out-Null
+            Write-DzDebug "`t[DEBUG][Show-LZMADialog] Fin - sin clave LZMA"
             return
         }
 
@@ -2920,24 +2919,141 @@ function Show-LZMADialog {
         Background="Transparent"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
-    <Window.Resources>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-        </Style>
-        <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-        <Style x:Key="SystemButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
-        </Style>
-    </Window.Resources>
-    <Border Background="$($theme.FormBackground)"
+<Window.Resources>
+        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="$($theme.FormBackground)"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="$($theme.ControlForeground)"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="$($theme.ControlBackground)"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="$($theme.ControlForeground)"/>
+    <Style TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+            <Style TargetType="ComboBox">
+                <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+                <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+                <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="8,4"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ComboBox">
+                            <Grid>
+                                <Border x:Name="Bd"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="6"
+                                        SnapsToDevicePixels="True">
+                                    <DockPanel>
+                                        <!-- Flecha -->
+                                        <Border DockPanel.Dock="Right"
+                                                Width="32"
+                                                Background="Transparent">
+                                            <Path Data="M 0 0 L 6 6 L 12 0 Z"
+                                                Fill="{TemplateBinding Foreground}"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Margin="0,2,0,0"/>
+                                        </Border>
+
+                                        <!-- Texto seleccionado -->
+                                        <ContentPresenter x:Name="ContentSite"
+                                                        Margin="{TemplateBinding Padding}"
+                                                        VerticalAlignment="Center"
+                                                        HorizontalAlignment="Left"
+                                                        Content="{TemplateBinding SelectionBoxItem}"
+                                                        ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                        ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                        RecognizesAccessKey="True"/>
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- ESTE ES EL QUE HACE QUE ABRA AL CLIC -->
+                                <ToggleButton x:Name="DropDownToggle"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Focusable="False"
+                                            ClickMode="Press"
+                                            IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Stretch"/>
+
+                                <!-- Popup -->
+                                <Popup x:Name="Popup"
+                                    Placement="Bottom"
+                                    PlacementTarget="{Binding ElementName=Bd}"
+                                    IsOpen="{TemplateBinding IsDropDownOpen}"
+                                    AllowsTransparency="True"
+                                    Focusable="False"
+                                    PopupAnimation="Fade">
+                                    <Border Background="$($theme.ControlBackground)"
+                                            BorderBrush="$($theme.BorderColor)"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            SnapsToDevicePixels="True"
+                                            Margin="0,6,0,0">
+                                        <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                                            <ItemsPresenter/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="Bd" Property="Opacity" Value="0.60"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="$($theme.AccentPrimary)"/>
+                                </Trigger>
+                                <Trigger Property="IsDropDownOpen" Value="True">
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="$($theme.AccentPrimary)"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+    <!-- ✅ Items del dropdown -->
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Style.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter Property="Background" Value="{DynamicResource AccentMuted}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.55"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ✅ TextBox interno (cuando el ComboBox es editable, o para el template interno) -->
+    <Style TargetType="TextBox">
+        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <Style x:Key="SystemButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+
+</Window.Resources>
+
+    <Border Background="{DynamicResource FormBg}"
             CornerRadius="10"
-            BorderBrush="$($theme.ButtonNationalBackground)"
+            BorderBrush="{DynamicResource AccentPrimary}"
             BorderThickness="2"
             Padding="0">
         <Border.Effect>
@@ -2988,7 +3104,7 @@ function Show-LZMADialog {
 
             <!-- AI_ExePath -->
             <Border Grid.Row="3"
-                    Background="$($theme.ControlBackground)"
+                    Background="{DynamicResource ControlBg}"
                     CornerRadius="8"
                     Padding="10"
                     Margin="0,0,0,8"
@@ -2998,7 +3114,7 @@ function Show-LZMADialog {
                                Margin="0,0,0,4"/>
                     <TextBlock Name="lblExePath"
                                Text="-"
-                               Foreground="#B00020"
+                               Foreground="{DynamicResource AccentMuted}"
                                TextWrapping="Wrap"
                                TextTrimming="None"
                                MaxHeight="48"/>
@@ -3035,8 +3151,8 @@ function Show-LZMADialog {
     try { Set-WpfDialogOwner -Dialog $w } catch {}
     if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
 
-    # Header drag + close
-    $c['btnClose'].Add_Click({ $w.DialogResult = $false; $w.Close() })
+    $script:__dlgResult = $false
+    $c['btnClose'].Add_Click({ $script:__dlgResult = $false; $w.Close() })
     $c['HeaderBar'].Add_MouseLeftButtonDown({
             if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() }
         })
@@ -3098,22 +3214,18 @@ function Show-LZMADialog {
             try {
                 Rename-Item -Path $rutaVieja -NewName $nuevoNombre -ErrorAction Stop
                 Show-WpfMessageBox -Message "Registro renombrado correctamente." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
-                $w.DialogResult = $true
+                $script:__dlgResult = $true
                 $w.Close()
             } catch {
                 Show-WpfMessageBox -Message "Error al renombrar:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
             }
         })
 
-    $c['btnExit'].Add_Click({
-            $w.DialogResult = $false
-            $w.Close()
-        })
-
-    $w.ShowDialog() | Out-Null
+    $c['btnExit'].Add_Click({ $script:__dlgResult = $false; $w.Close() })
+    $null = $w.ShowDialog()
     Write-DzDebug "`t[DEBUG][Show-LZMADialog] FIN"
+    return $script:__dlgResult
 }
-
 function Show-AddUserDialog {
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] INICIO"
     $theme = Get-DzUiTheme
@@ -3135,13 +3247,13 @@ function Show-AddUserDialog {
       <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
     </Style>
     <Style TargetType="TextBox">
-      <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
       <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
       <Setter Property="BorderThickness" Value="1"/>
     </Style>
     <Style TargetType="PasswordBox">
-      <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
       <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
       <Setter Property="BorderThickness" Value="1"/>
@@ -3150,7 +3262,7 @@ function Show-AddUserDialog {
       <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
     </Style>
     <Style TargetType="ToggleButton">
-      <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
       <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
       <Setter Property="BorderThickness" Value="1"/>
@@ -3166,7 +3278,7 @@ function Show-AddUserDialog {
       <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
     </Style>
   </Window.Resources>
-  <Border Background="$($theme.FormBackground)" CornerRadius="10" BorderBrush="$($theme.ButtonNationalBackground)" BorderThickness="2" Padding="0">
+  <Border Background="{DynamicResource FormBg}" CornerRadius="10" BorderBrush="{DynamicResource AccentPrimary}" BorderThickness="2" Padding="0">
     <Border.Effect><DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/></Border.Effect>
     <Grid Margin="16">
       <Grid.RowDefinitions>
@@ -3201,7 +3313,7 @@ function Show-AddUserDialog {
         </StackPanel>
         <Button Name="btnShowUsers" Grid.Row="2" Grid.Column="2" Content="Ver usuarios" Width="110" Height="30" Margin="12,0,0,0" Style="{StaticResource SystemButtonStyle}"/>
       </Grid>
-      <Border Grid.Row="3" Background="$($theme.ControlBackground)" CornerRadius="8" Padding="12">
+      <Border Grid.Row="3" Background="{DynamicResource ControlBg}" CornerRadius="8" Padding="12">
         <StackPanel>
           <TextBlock Text="Requisitos:" FontWeight="SemiBold" Margin="0,0,0,6"/>
           <TextBlock Text="• Nombre: sin espacios (ej. soporte01)" Margin="0,0,0,2"/>
@@ -3226,10 +3338,162 @@ function Show-AddUserDialog {
     Set-DzWpfThemeResources -Window $w -Theme $theme
     try { Set-WpfDialogOwner -Dialog $w }catch {}
     if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
+    $script:__dlgResult = $false
     $c['btnClose'].Add_Click({ $w.DialogResult = $false; $w.Close() })
     $c['HeaderBar'].Add_MouseLeftButtonDown({ if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() } })
     try { $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name; $userGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name }catch { Show-WpfMessageBox -Message "No se pudieron obtener los grupos locales (requiere permisos).`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null; $w.Close(); return }
     function Set-Status { param([string]$Text, [string]$Level = "Ok"); switch ($Level) { "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen }"Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod }"Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick } }; $c['lblStatus'].Text = $Text }
+    function Show-UsersTableDialog {
+        param(
+            [Parameter(Mandatory)] [System.Windows.Window]$Owner,
+            [Parameter(Mandatory)] $Rows
+        )
+
+        $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Usuarios locales"
+        Height="460" Width="620"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        ShowInTaskbar="False"
+        Background="{DynamicResource FormBg}">
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Usuarios locales"
+                   Foreground="{DynamicResource FormFg}"
+                   FontSize="13"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,10"/>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="8">
+
+            <DataGrid Name="dgUsers"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      IsReadOnly="True"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="None"
+                      Background="{DynamicResource ControlBg}"
+                      Foreground="{DynamicResource ControlFg}"
+                      BorderBrush="{DynamicResource BorderBrushColor}"
+                      BorderThickness="1"
+                      RowHeight="28"
+                      AlternationCount="2"
+                      SelectionMode="Single">
+
+                <!-- Estilo de encabezados -->
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="{x:Type DataGridColumnHeader}">
+                        <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                        <Setter Property="Padding" Value="10,6"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+
+                <!-- Filas alternadas -->
+                <DataGrid.RowStyle>
+                    <Style TargetType="{x:Type DataGridRow}">
+                        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Style.Triggers>
+                            <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                                <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+
+                <!-- Celdas -->
+                <DataGrid.CellStyle>
+                    <Style TargetType="{x:Type DataGridCell}">
+                        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                        <Setter Property="Padding" Value="10,4"/>
+                    </Style>
+                </DataGrid.CellStyle>
+
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Usuario" Binding="{Binding Usuario}" Width="*"/>
+                    <DataGridTextColumn Header="Administrador" Binding="{Binding Administrador}" Width="140"/>
+                    <DataGridTextColumn Header="Estado" Binding="{Binding Estado}" Width="150"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Name="btnCopy"
+                    Content="Copiar"
+                    Width="110" Height="32"
+                    Margin="0,0,10,0"
+                    Background="{DynamicResource ControlBg}"
+                    Foreground="{DynamicResource ControlFg}"
+                    BorderBrush="{DynamicResource BorderBrushColor}"
+                    BorderThickness="1"/>
+
+            <Button Name="btnClose"
+                    Content="Cerrar"
+                    Width="110" Height="32"
+                    Background="{DynamicResource AccentPrimary}"
+                    Foreground="{DynamicResource FormFg}"
+                    BorderThickness="0"/>
+        </StackPanel>
+    </Grid>
+</Window>
+"@
+
+        $ui2 = New-WpfWindow -Xaml $xaml -PassThru
+        $win = $ui2.Window
+        $ctrl = $ui2.Controls
+
+        # ✅ Aplicar recursos del tema (Dark/Light)
+        $theme = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $win -Theme $theme
+
+        # Owner + posicionamiento
+        if ($Owner) {
+            $win.Owner = $Owner
+            $win.WindowStartupLocation = "CenterOwner"
+        } else {
+            $win.WindowStartupLocation = "CenterScreen"
+        }
+
+        $ctrl['dgUsers'].ItemsSource = $Rows
+
+        $ctrl['btnCopy'].Add_Click({
+                try {
+                    $tsv = ($Rows | ForEach-Object { "{0}`t{1}`t{2}" -f $_.Usuario, $_.Administrador, $_.Estado }) -join "`r`n"
+                    [System.Windows.Clipboard]::SetText($tsv)
+                } catch {}
+            })
+
+        $ctrl['btnClose'].Add_Click({ $win.Close() })
+
+        $null = $win.ShowDialog()
+    }
+
     function Get-PasswordText { if ($c['txtPasswordVisible'].Visibility -eq 'Visible') { return [string]$c['txtPasswordVisible'].Text }; return [string]$c['pwdPassword'].Password }
     function Validate-Form {
         $username = ([string]$c['txtUsername'].Text).Trim()
@@ -3257,18 +3521,34 @@ function Show-AddUserDialog {
     $c['rbStandard'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Standard"; Validate-Form })
     $c['rbAdmin'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Admin"; Validate-Form })
     $c['btnShowUsers'].Add_Click({
-            Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnShowUsers click"
+            Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnShowUsers click (tabla)"
             try {
-                $users = Get-LocalUser | Select-Object Name, Enabled
-                Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Usuarios obtenidos: $($users.Count)"
-                $lines = foreach ($u in $users) {
-                    $estado = if ($u.Enabled) { "Habilitado" }else { "Deshabilitado" }
-                    "{0,-20}  {1}" -f $u.Name, $estado
+                $adminGroupName = (Get-LocalGroup | Where-Object SID -eq 'S-1-5-32-544').Name
+                $adminMembers = @{}
+                try {
+                    Get-LocalGroupMember -Group $adminGroupName -ErrorAction Stop | ForEach-Object {
+                        $n = $_.Name
+                        if ($n -match '\\') { $n = ($n -split '\\')[-1] }
+                        $adminMembers[$n.ToLowerInvariant()] = $true
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG][Show-AddUserDialog] No se pudieron obtener miembros admin: $($_.Exception.Message)" Yellow
                 }
-                $msg = $lines -join "`n"
-                if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "(Sin resultados)" }
-                Show-WpfMessageBox -Message $msg -Title "Usuarios locales" -Buttons OK -Icon Information | Out-Null
-                Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnShowUsers mostrado OK"
+                $rows = Get-LocalUser | Sort-Object Name | ForEach-Object {
+                    $uname = $_.Name
+                    $isAdmin = $false
+                    if ($adminMembers.Count -gt 0) {
+                        $isAdmin = $adminMembers.ContainsKey($uname.ToLowerInvariant())
+                    }
+
+                    [pscustomobject]@{
+                        Usuario       = $uname
+                        Administrador = if ($isAdmin) { "Sí" } else { "No" }
+                        Estado        = if ($_.Enabled) { "Habilitado" } else { "Deshabilitado" }
+                    }
+                }
+                Show-UsersTableDialog -Owner $w -Rows $rows | Out-Null
+                Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tabla de usuarios mostrada OK"
             } catch {
                 Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR btnShowUsers: $($_.Exception.Message)" Red
                 Show-WpfMessageBox -Message "No se pudieron listar usuarios:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null

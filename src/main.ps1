@@ -19,62 +19,35 @@ try {
 if (Get-Command Set-ExecutionPolicy -ErrorAction SilentlyContinue) {
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 }
-
-# Estado de la UI de consola
 $script:ProgressActive = $false
 $script:LastProgressLen = 0
-
 function Show-GlobalProgress {
-    param(
-        [int]$Percent,
-        [string]$Status
-    )
-
+    param([int]$Percent, [string]$Status)
     $Percent = [math]::Max(0, [math]::Min(100, $Percent))
-
     $width = 40
     $filled = [math]::Round(($Percent / 100) * $width)
     $bar = "[" + ("#" * $filled).PadRight($width) + "]"
     $text = "{0} {1,3}% - {2}" -f $bar, $Percent, $Status
-
-    # Recorta para no rebasar ancho de consola
     $max = [System.Console]::WindowWidth - 1
     if ($max -gt 10 -and $text.Length -gt $max) { $text = $text.Substring(0, $max) }
-
-    # Sobrescribe la misma línea (sin mover cursor por filas)
     $pad = ""
-    if ($script:LastProgressLen -gt $text.Length) {
-        $pad = " " * ($script:LastProgressLen - $text.Length)
-    }
-
+    if ($script:LastProgressLen -gt $text.Length) { $pad = " " * ($script:LastProgressLen - $text.Length) }
     Write-Host ("`r" + $text + $pad) -NoNewline
-
     $script:ProgressActive = $true
     $script:LastProgressLen = ($text.Length + $pad.Length)
 }
-
 function Stop-GlobalProgress {
-    # Termina la línea de progreso para que el siguiente Write-Host no se pegue
     if ($script:ProgressActive) {
-        Write-Host ""  # nueva línea
+        Write-Host ""
         $script:ProgressActive = $false
         $script:LastProgressLen = 0
     }
 }
-
 function Write-Log {
-    param(
-        [Parameter(Mandatory)] [string]$Message,
-        [ConsoleColor]$Color = [ConsoleColor]::Gray
-    )
-    # Si hay barra activa, ciérrala antes de imprimir logs
+    param([Parameter(Mandatory)][string]$Message, [ConsoleColor]$Color = [ConsoleColor]::Gray)
     Stop-GlobalProgress
     Write-Host $Message -ForegroundColor $Color
 }
-
-
-
-
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
 $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "Queries.psm1", "Installers.psm1")
@@ -150,7 +123,6 @@ function Initialize-Environment {
 }
 $global:isHighlightingQuery = $false
 function New-MainForm {
-
     Write-Host "`nCreando formulario principal WPF..." -ForegroundColor Yellow
     $theme = Get-DzUiTheme
     $stringXaml = @"
@@ -161,32 +133,25 @@ function New-MainForm {
         WindowStartupLocation="CenterScreen"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
-
     <Window.Resources>
         <Style TargetType="{x:Type Control}">
             <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
             <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
         </Style>
-
         <Style TargetType="{x:Type TextBlock}">
             <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
             <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
-
         <Style TargetType="{x:Type Label}">
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
-
-        <!-- TabControl -->
         <Style TargetType="{x:Type TabControl}">
             <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
-
-        <!-- TabItem -->
         <Style TargetType="{x:Type TabItem}">
             <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
@@ -222,8 +187,6 @@ function New-MainForm {
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <!-- TextBox base -->
         <Style TargetType="{x:Type TextBox}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
@@ -231,7 +194,6 @@ function New-MainForm {
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="6,4"/>
         </Style>
-
         <Style TargetType="{x:Type PasswordBox}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
@@ -239,26 +201,21 @@ function New-MainForm {
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="6,4"/>
         </Style>
-
-        <!-- ComboBox -->
         <Style TargetType="{x:Type ComboBox}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
-
         <Style TargetType="{x:Type CheckBox}">
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
-
         <Style TargetType="{x:Type RichTextBox}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
-
         <Style TargetType="{x:Type DataGrid}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
@@ -266,7 +223,6 @@ function New-MainForm {
             <Setter Property="RowBackground" Value="{DynamicResource ControlBg}"/>
             <Setter Property="AlternatingRowBackground" Value="{DynamicResource PanelBg}"/>
         </Style>
-
         <Style TargetType="{x:Type DataGridRow}">
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Style.Triggers>
@@ -276,30 +232,20 @@ function New-MainForm {
                 </Trigger>
             </Style.Triggers>
         </Style>
-
         <Style TargetType="{x:Type DataGridColumnHeader}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
         </Style>
-
         <Style TargetType="{x:Type DataGridCell}">
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
         </Style>
-
-        <!-- ====== Styles faltantes ====== -->
-
-        <Style x:Key="InfoHeaderTextBoxStyle"
-               TargetType="{x:Type TextBox}"
-               BasedOn="{StaticResource {x:Type TextBox}}">
+        <Style x:Key="InfoHeaderTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
-
-        <Style x:Key="ConsoleTextBoxStyle"
-               TargetType="{x:Type TextBox}"
-               BasedOn="{StaticResource {x:Type TextBox}}">
+        <Style x:Key="ConsoleTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="FontFamily" Value="{DynamicResource CodeFontFamily}"/>
             <Setter Property="FontSize" Value="{DynamicResource CodeFontSize}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
@@ -315,8 +261,6 @@ function New-MainForm {
             <Setter Property="Padding" Value="10,6"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
-
-            <!-- ✅ Evita el estilo/hover del tema de Windows -->
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
@@ -333,23 +277,15 @@ function New-MainForm {
                                 RecognizesAccessKey="True"
                                 TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
-
                         <ControlTemplate.Triggers>
-                            <!-- Hover global -->
                             <Trigger Property="IsMouseOver" Value="True">
-                                <!-- azul cielo -->
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentPrimary}"/>
-                                <!-- ✅ texto negro legible -->
                                 <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
                                 <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
                             </Trigger>
-
-                            <!-- Click -->
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
                             </Trigger>
-
-                            <!-- Disabled -->
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
                             </Trigger>
@@ -358,24 +294,16 @@ function New-MainForm {
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="SystemButtonStyle"
-               TargetType="{x:Type Button}"
-               BasedOn="{StaticResource GeneralButtonStyle}">
+        <Style x:Key="SystemButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
         </Style>
-        <Style x:Key="NationalSoftButtonStyle"
-            TargetType="{x:Type Button}"
-            BasedOn="{StaticResource GeneralButtonStyle}">
-
+        <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
             <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <!-- tu azul cielo -->
                     <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-                    <!-- ✅ FUERZA NEGRO en hover -->
                     <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
                 </Trigger>
             </Style.Triggers>
@@ -426,39 +354,37 @@ function New-MainForm {
                 </Setter.Value>
             </Setter>
         </Style>
-
     </Window.Resources>
     <Grid Background="{DynamicResource FormBg}">
         <TabControl Name="tabControl" Margin="5">
-
             <TabItem Header="Aplicaciones" Name="tabAplicaciones">
-                  <Grid Background="{DynamicResource PanelBg}">
-                <TextBox Name="lblHostname"
-                        Width="220" Height="40" Margin="10,1,0,0"
-                        VerticalAlignment="Top" HorizontalAlignment="Left"
-                        Style="{StaticResource InfoHeaderTextBoxStyle}"
-                        Text="HOSTNAME"
-                        Cursor="Hand"
-                        IsReadOnly="True"
-                        IsReadOnlyCaretVisible="False"
-                        TextAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        HorizontalContentAlignment="Center"
-                        Focusable="False"
-                        IsTabStop="False"/>
-                <TextBox Name="lblPort"
-                            Width="220" Height="40" Margin="250,1,0,0"
-                            VerticalAlignment="Top" HorizontalAlignment="Left"
-                            Style="{StaticResource InfoHeaderTextBoxStyle}"
-                            Text="Puerto: No disponible"/>
+                <Grid Background="{DynamicResource PanelBg}">
+                    <TextBox Name="lblHostname"
+                             Width="220" Height="40" Margin="10,1,0,0"
+                             VerticalAlignment="Top" HorizontalAlignment="Left"
+                             Style="{StaticResource InfoHeaderTextBoxStyle}"
+                             Text="HOSTNAME"
+                             Cursor="Hand"
+                             IsReadOnly="True"
+                             IsReadOnlyCaretVisible="False"
+                             TextAlignment="Center"
+                             VerticalContentAlignment="Center"
+                             HorizontalContentAlignment="Center"
+                             Focusable="False"
+                             IsTabStop="False"/>
+                    <TextBox Name="lblPort"
+                             Width="220" Height="40" Margin="250,1,0,0"
+                             VerticalAlignment="Top" HorizontalAlignment="Left"
+                             Style="{StaticResource InfoHeaderTextBoxStyle}"
+                             Text="Puerto: No disponible"/>
                     <TextBox Name="txt_IpAdress"
-                            Width="220" Height="40" Margin="490,1,0,0"
-                            VerticalAlignment="Top" HorizontalAlignment="Left"
-                            Style="{StaticResource InfoHeaderTextBoxStyle}"/>
+                             Width="220" Height="40" Margin="490,1,0,0"
+                             VerticalAlignment="Top" HorizontalAlignment="Left"
+                             Style="{StaticResource InfoHeaderTextBoxStyle}"/>
                     <TextBox Name="txt_AdapterStatus"
-                            Width="220" Height="40" Margin="730,1,0,0"
-                            VerticalAlignment="Top" HorizontalAlignment="Left"
-                            Style="{StaticResource InfoHeaderTextBoxStyle}"/>
+                             Width="220" Height="40" Margin="730,1,0,0"
+                             VerticalAlignment="Top" HorizontalAlignment="Left"
+                             Style="{StaticResource InfoHeaderTextBoxStyle}"/>
                     <Button Content="Instalar Herramientas" Name="btnInstalarHerramientas" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Ejecutar ExpressProfiler" Name="btnProfiler" Width="220" Height="30"
@@ -499,8 +425,7 @@ function New-MainForm {
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
                              Width="220" Height="300" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
-                             IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                             />
+                             IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
                     <Border Name="cardQuickSettings"
                             Width="220" Height="150"
                             Margin="730,370,0,0"
@@ -525,46 +450,31 @@ function New-MainForm {
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-
                             </Grid>
-                        <Grid Margin="0,0,0,6">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <ToggleButton Name="tglDarkMode"
-                                        Grid.Column="0"
-                                        Style="{StaticResource TogglePillStyle}"/>
-
-                            <TextBlock Grid.Column="2"
-                                    Text="🌙 Dark Mode"
-                                    VerticalAlignment="Center"/>
-                        </Grid>
-
-                        <Grid Margin="0,0,0,6">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <ToggleButton Name="tglDebugMode"
-                                        Grid.Column="0"
-                                        Style="{StaticResource TogglePillStyle}"/>
-
-                            <TextBlock Grid.Column="2"
-                                    Text="🐞 DEBUG"
-                                    VerticalAlignment="Center"/>
-                        </Grid>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ToggleButton Name="tglDarkMode" Grid.Column="0" Style="{StaticResource TogglePillStyle}"/>
+                                <TextBlock Grid.Column="2" Text="🌙 Dark Mode" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ToggleButton Name="tglDebugMode" Grid.Column="0" Style="{StaticResource TogglePillStyle}"/>
+                                <TextBlock Grid.Column="2" Text="🐞 DEBUG" VerticalAlignment="Center"/>
+                            </Grid>
                         </StackPanel>
                     </Border>
                 </Grid>
             </TabItem>
             <TabItem Header="Base de datos" Name="tabProSql">
-                  <Grid Background="{DynamicResource PanelBg}">
-
+                <Grid Background="{DynamicResource PanelBg}">
                     <Label Content="Instancia SQL:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,10,0,0"/>
                     <ComboBox Name="txtServer" HorizontalAlignment="Left" VerticalAlignment="Top"
                               Width="180" Margin="10,30,0,0" IsEditable="True" Text=".\NationalSoft"/>
@@ -604,30 +514,26 @@ function New-MainForm {
     </Grid>
 </Window>
 "@
-
     [xml]$xaml = $stringXaml
     $reader = New-Object System.Xml.XmlNodeReader $xaml
     try {
         $window = [Windows.Markup.XamlReader]::Load($reader)
         $theme = Get-DzUiTheme
         Set-DzWpfThemeResources -Window $window -Theme $theme
-
     } catch {
         Write-Host "`n[XAML ERROR] $($_.Exception.Message)" -ForegroundColor Red
-
-        # XamlParseException suele traer LineNumber/LinePosition
         if ($_.Exception -and ($_.Exception.PSObject.Properties.Name -contains "LineNumber")) {
             Write-Host "Linea: $($_.Exception.LineNumber)  Col: $($_.Exception.LinePosition)" -ForegroundColor Yellow
         }
-
         if ($_.Exception.InnerException) {
             Write-Host "Inner: $($_.Exception.InnerException.Message)" -ForegroundColor Yellow
         }
-
         throw
     }
-
-
+    function Ui-Info([string]$m, [string]$t = "Información") { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $window | Out-Null }
+    function Ui-Warn([string]$m, [string]$t = "Atención") { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $window | Out-Null }
+    function Ui-Error([string]$m, [string]$t = "Error") { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $window | Out-Null }
+    function Ui-Confirm([string]$m, [string]$t = "Confirmar") { (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $window) -eq [System.Windows.MessageBoxResult]::Yes }
     $lblHostname = $window.FindName("lblHostname")
     $lblPort = $window.FindName("lblPort")
     $txt_IpAdress = $window.FindName("txt_IpAdress")
@@ -685,12 +591,8 @@ function New-MainForm {
     $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
     $script:initializingToggles = $true
-    if ($tglDarkMode) {
-        $tglDarkMode.IsChecked = ((Get-DzUiMode) -eq 'dark')
-    }
-    if ($tglDebugMode) {
-        $tglDebugMode.IsChecked = (Get-DzDebugPreference)
-    }
+    if ($tglDarkMode) { $tglDarkMode.IsChecked = ((Get-DzUiMode) -eq 'dark') }
+    if ($tglDebugMode) { $tglDebugMode.IsChecked = (Get-DzDebugPreference) }
     $script:initializingToggles = $false
     Write-Host "`n==================================================" -ForegroundColor DarkCyan
     Write-Host "       Gerardo Zermeño Tools - Suite de Utilidades       " -ForegroundColor Green
@@ -703,32 +605,25 @@ function New-MainForm {
     $script:setInstructionText = {
         param([string]$Message)
         if ($null -ne $txt_InfoInstrucciones) {
-            $txt_InfoInstrucciones.Dispatcher.Invoke([action] {
-                    $txt_InfoInstrucciones.Text = $Message
-                })
+            $txt_InfoInstrucciones.Dispatcher.Invoke([action] { $txt_InfoInstrucciones.Text = $Message })
         }
     }.GetNewClosure()
     $script:showRestartNotice = {
         param([string]$settingLabel)
-
-        Show-WpfMessageBox -Message "Se guardó $settingLabel en dztools.ini.`nReinicia la aplicación para aplicar los cambios." -Title "Reinicio requerido" -Buttons "OK" -Icon "Information" | Out-Null
+        Show-WpfMessageBoxSafe -Message "Se guardó $settingLabel en dztools.ini.`nReinicia la aplicación para aplicar los cambios." -Title "Reinicio requerido" -Buttons "OK" -Icon "Information" -Owner $window | Out-Null
     }.GetNewClosure()
     if ($tglDarkMode) {
         $tglDarkMode.Add_Checked({
                 Write-DzDebug "`t[DEBUG]Toggle Dark Mode activado"
                 if ($script:initializingToggles) { return }
                 Set-DzUiMode -Mode "dark"
-                if ($script:showRestartNotice -is [scriptblock]) {
-                    $script:showRestartNotice.Invoke("el modo Dark")
-                }
+                if ($script:showRestartNotice -is [scriptblock]) { $script:showRestartNotice.Invoke("el modo Dark") }
             })
         $tglDarkMode.Add_Unchecked({
                 Write-DzDebug "`t[DEBUG]Toggle Dark Mode desactivado"
                 if ($script:initializingToggles) { return }
                 Set-DzUiMode -Mode "light"
-                if ($script:showRestartNotice -is [scriptblock]) {
-                    $script:showRestartNotice.Invoke("el modo Light")
-                }
+                if ($script:showRestartNotice -is [scriptblock]) { $script:showRestartNotice.Invoke("el modo Light") }
             })
     }
     if ($tglDebugMode) {
@@ -744,17 +639,10 @@ function New-MainForm {
                 Write-Host "[DEBUG] Desactivado" -ForegroundColor DarkGray
             })
     }
-    $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
-    Where-Object { $_.OperationalStatus -eq 'Up' } |
-    ForEach-Object {
+    $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | Where-Object { $_.OperationalStatus -eq 'Up' } | ForEach-Object {
         $interface = $_
-        $interface.GetIPProperties().UnicastAddresses |
-        Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' } |
-        ForEach-Object {
-            @{
-                AdapterName = $interface.Name
-                IPAddress   = $_.Address.ToString()
-            }
+        $interface.GetIPProperties().UnicastAddresses | Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' } | ForEach-Object {
+            @{AdapterName = $interface.Name; IPAddress = $_.Address.ToString() }
         }
     }
     if ($ipsWithAdapters.Count -gt 0) {
@@ -768,30 +656,13 @@ function New-MainForm {
     }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
-    $buttonsToUpdate = @(
-        $LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler,
-        $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool,
-        $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion,
-        $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
-        $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller
-    )
+    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller)
     foreach ($button in $buttonsToUpdate) {
-        $button.Add_MouseLeave({
-                if ($script:setInstructionText) {
-                    $script:setInstructionText.Invoke($global:defaultInstructions)
-                }
-            })
+        $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
-    # Obtener puertos UNA VEZ y almacenar en variable estructurada
     $portsResult = Get-SqlPortWithDebug
-    # Asegurarnos de que $portsResult sea un array (incluso si solo hay un elemento)
     $portsArray = @($portsResult)
-    $global:sqlPortsData = @{
-        Ports        = $portsArray
-        Summary      = $null
-        DetailedText = $null
-        DisplayText  = $null
-    }
+    $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
     if ($portsArray.Count -gt 0) {
         $sortedPorts = $portsArray | Sort-Object -Property Instance
         $displayParts = @()
@@ -807,11 +678,7 @@ function New-MainForm {
         $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
         $lblPort.Text = $global:sqlPortsData.DisplayText
         $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
-        $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) {
-            "Haz clic para mostrar en consola y copiar al portapapeles"
-        } else {
-            "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles"
-        }
+        $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) { "Haz clic para mostrar en consola y copiar al portapapeles" } else { "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles" }
         Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
         Write-Host $global:sqlPortsData.Summary -ForegroundColor White
         Write-Host "Puertos: " -ForegroundColor White -NoNewline
@@ -819,19 +686,14 @@ function New-MainForm {
             $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
             Write-Host "$instanceName : " -ForegroundColor White -NoNewline
             Write-Host "$($port.Port) " -ForegroundColor Magenta -NoNewline
-
-            if ($port -ne $sortedPorts[-1]) {
-                Write-Host "| " -ForegroundColor Gray -NoNewline
-            }
+            if ($port -ne $sortedPorts[-1]) { Write-Host "| " -ForegroundColor Gray -NoNewline }
         }
-        Write-Host ""  # Nueva línea
+        Write-Host ""
         Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
-
     } else {
         $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
         $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
         $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
-
         $lblPort.Text = "No se encontraron puertos SQL"
         $lblPort.Tag = $global:sqlPortsData.DetailedText
         $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
@@ -839,25 +701,18 @@ function New-MainForm {
     $lblPort.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
-
             try {
                 $textToCopy = $global:sqlPortsData.DetailedText.Trim()
                 Write-DzDebug "`t[DEBUG] Contenido a copiar: '$textToCopy'" -Color DarkGray
-
-                # Mostrar en consola
                 Write-Host "`n=== INFORMACIÓN DE PUERTOS SQL ===" -ForegroundColor Cyan
                 if ($global:sqlPortsData.Ports.Count -gt 0) {
                     Write-Host $global:sqlPortsData.Summary -ForegroundColor White
                     Write-Host ""
-                    $textToCopy -split "`n" | ForEach-Object {
-                        Write-Host $_ -ForegroundColor Green
-                    }
+                    $textToCopy -split "`n" | ForEach-Object { Write-Host $_ -ForegroundColor Green }
                 } else {
                     Write-Host $textToCopy -ForegroundColor Red
                 }
                 Write-Host "=====================================" -ForegroundColor Cyan
-
-                # Intentar copiar al portapapeles con reintentos
                 $retryCount = 0
                 $maxRetries = 3
                 $copied = $false
@@ -869,27 +724,23 @@ function New-MainForm {
                         $retryCount++
                         if ($retryCount -ge $maxRetries) {
                             Write-Host "`n[ERROR] No se pudo copiar al portapapeles: $($_.Exception.Message)" -ForegroundColor Red
-                            [System.Windows.MessageBox]::Show("Error al copiar al portapapeles: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                            Ui-Error "Error al copiar al portapapeles: $($_.Exception.Message)"
                         } else {
                             Start-Sleep -Milliseconds 100
                         }
                     }
                 }
-
                 if ($copied) {
                     if ($global:sqlPortsData.Ports.Count -gt 0) {
                         Write-Host "`n[ÉXITO] Información de puertos SQL copiada al portapapeles:" -ForegroundColor Green
-                        $textToCopy -split "`n" | ForEach-Object {
-                            Write-Host "  $_" -ForegroundColor Gray
-                        }
+                        $textToCopy -split "`n" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
                     } else {
                         Write-Host "`n[INFORMACIÓN] $textToCopy (copiado al portapapeles)" -ForegroundColor Yellow
                     }
                 }
-
             } catch {
                 Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                Ui-Error "Error: $($_.Exception.Message)"
             }
         })
     $lblHostname.Add_PreviewMouseLeftButtonDown({
@@ -897,51 +748,39 @@ function New-MainForm {
             Write-DzDebug "`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
             try {
                 $hostname = [System.Net.Dns]::GetHostName()
-
                 if ([string]::IsNullOrWhiteSpace($hostname)) {
                     Write-Host "`n[AVISO] No se pudo obtener el hostname." -ForegroundColor Yellow
                     return
                 }
-
                 [System.Windows.Clipboard]::SetText($hostname)
                 Write-Host "`nNombre del equipo copiado: $hostname" -ForegroundColor Green
-
             } catch {
                 Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                Ui-Error "Error: $($_.Exception.Message)"
             }
         })
     $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
             try {
-                # Usar $sender.Text en lugar de $txt_IpAdress.Text por si hay problema de scope
                 $ipsText = $sender.Text
-
                 Write-DzDebug "`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
                 Write-DzDebug "`t[DEBUG] Contenido (variable): '$($txt_IpAdress.Text)'" -Color DarkGray
                 Write-DzDebug "`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
-
                 if ([string]::IsNullOrWhiteSpace($ipsText)) {
                     Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow
                     return
                 }
-
                 [System.Windows.Clipboard]::SetText($ipsText)
                 Write-Host "`nIP's copiadas al portapapeles:`n$ipsText" -ForegroundColor Green
-
             } catch {
                 Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                [System.Windows.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                Ui-Error "Error: $($_.Exception.Message)"
             }
         }.GetNewClosure())
     $txt_AdapterStatus.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
-            Get-NetConnectionProfile |
-            Where-Object { $_.NetworkCategory -ne 'Private' } |
-            ForEach-Object {
-                Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private
-            }
+            Get-NetConnectionProfile | Where-Object { $_.NetworkCategory -ne 'Private' } | ForEach-Object { Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private }
             Write-Host "Todas las redes se han establecido como Privadas."
             Refresh-AdapterStatus
             $e.Handled = $true
@@ -957,45 +796,20 @@ function New-MainForm {
             Show-ChocolateyInstallerMenu
         })
     $btnProfiler.Add_Click({
-            Invoke-PortableTool `
-                -ToolName "ExpressProfiler" `
-                -Url "https://github.com/ststeiger/ExpressProfiler/releases/download/1.0/ExpressProfiler20.zip" `
-                -ZipPath "C:\Temp\ExpressProfiler22wAddinSigned.zip" `
-                -ExtractPath "C:\Temp\ExpressProfiler2" `
-                -ExeName "ExpressProfiler.exe" `
-                -InfoTextBlock $txt_InfoInstrucciones
+            Invoke-PortableTool -ToolName "ExpressProfiler" -Url "https://github.com/ststeiger/ExpressProfiler/releases/download/1.0/ExpressProfiler20.zip" -ZipPath "C:\Temp\ExpressProfiler22wAddinSigned.zip" -ExtractPath "C:\Temp\ExpressProfiler2" -ExeName "ExpressProfiler.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
-
     $btnPrinterTool.Add_Click({
-            Invoke-PortableTool `
-                -ToolName "POS Printer Test" `
-                -Url "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip" `
-                -ZipPath "C:\Temp\RPT-RPI-Printer-Tool-1.zip" `
-                -ExtractPath "C:\Temp\RPT-RPI-Printer-Tool-1" `
-                -ExeName "POS Printer Test.exe" `
-                -InfoTextBlock $txt_InfoInstrucciones
+            Invoke-PortableTool -ToolName "POS Printer Test" -Url "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip" -ZipPath "C:\Temp\RPT-RPI-Printer-Tool-1.zip" -ExtractPath "C:\Temp\RPT-RPI-Printer-Tool-1" -ExeName "POS Printer Test.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
-
     $btnDatabase.Add_Click({
-            Invoke-PortableTool `
-                -ToolName "Database4" `
-                -Url "https://fishcodelib.com/files/DatabaseNet4.zip" `
-                -ZipPath "C:\Temp\DatabaseNet4.zip" `
-                -ExtractPath "C:\Temp\Database4" `
-                -ExeName "Database4.exe" `
-                -InfoTextBlock $txt_InfoInstrucciones
+            Invoke-PortableTool -ToolName "Database4" -Url "https://fishcodelib.com/files/DatabaseNet4.zip" -ZipPath "C:\Temp\DatabaseNet4.zip" -ExtractPath "C:\Temp\Database4" -ExeName "Database4.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
-
-
     $btnLectorDPicacls.Add_Click({
             Write-DzDebug "`t[DEBUG]BTN CLICK: Inicio ejecución (Lector DP + icacls)" ([System.ConsoleColor]::DarkGray)
             $pwPs = $null
             $pwDrv = $null
             try {
-                $rMain = Show-WpfMessageBox -Message "Este proceso ejecutará cambios de permisos con PsExec (SYSTEM) y puede descargar/instalar un driver.`n`n¿Deseas continuar?" `
-                    -Title "Confirmar operación" `
-                    -Buttons "YesNo" `
-                    -Icon "Warning"
+                $rMain = Show-WpfMessageBox -Message "Este proceso ejecutará cambios de permisos con PsExec (SYSTEM) y puede descargar/instalar un driver.`n`n¿Deseas continuar?" -Title "Confirmar operación" -Buttons "YesNo" -Icon "Warning"
                 Write-DzDebug "`t[DEBUG]INFO: Confirmación principal (rMain) = $rMain" ([System.ConsoleColor]::Cyan)
                 if ($rMain -ne [System.Windows.MessageBoxResult]::Yes) {
                     Write-DzDebug "`t[DEBUG]INFO: Operación cancelada por el usuario." ([System.ConsoleColor]::Cyan)
@@ -1031,17 +845,13 @@ function New-MainForm {
                         if (Test-Path $psexecExtractPath) { Remove-Item $psexecExtractPath -Recurse -Force -ErrorAction SilentlyContinue }
                         Expand-Archive -Path $psexecZip -DestinationPath $psexecExtractPath -Force
                         if (-not (Test-Path $psexecPath)) { throw "No se pudo extraer PsExec.exe." }
-
                         Write-DzDebug "`t[DEBUG] PsExec descargado y extraído correctamente." ([System.ConsoleColor]::Cyan)
                     } catch {
                         Write-DzDebug "`t[DEBUG]ERROR PsExec: $($_.Exception.Message)" ([System.ConsoleColor]::Red)
                         if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Error PsExec: $($_.Exception.Message)" }
                         return
                     } finally {
-                        if ($null -ne $pwPs) {
-                            try { Close-WpfProgressBar -Window $pwPs } catch {}
-                            $pwPs = $null
-                        }
+                        if ($null -ne $pwPs) { try { Close-WpfProgressBar -Window $pwPs } catch {} ; $pwPs = $null }
                     }
                 } else {
                     Write-DzDebug "`t[DEBUG] PsExec ya está instalado en: $psexecPath" ([System.ConsoleColor]::Cyan)
@@ -1073,10 +883,7 @@ function New-MainForm {
                 Write-DzDebug ([string]$output2) ([System.ConsoleColor]::Gray)
                 Write-DzDebug "`t[DEBUG] Modificación de permisos completada." ([System.ConsoleColor]::Cyan)
                 if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Permisos actualizados." }
-                $ResponderDriver = Show-WpfMessageBox -Message "¿Desea descargar e instalar el driver del lector?" `
-                    -Title "Descargar Driver" `
-                    -Buttons "YesNo" `
-                    -Icon "Question"
+                $ResponderDriver = Show-WpfMessageBox -Message "¿Desea descargar e instalar el driver del lector?" -Title "Descargar Driver" -Buttons "YesNo" -Icon "Question"
                 Write-DzDebug "`t[DEBUG]INFO: Respuesta driver = $ResponderDriver" ([System.ConsoleColor]::Cyan)
                 if ($ResponderDriver -ne [System.Windows.MessageBoxResult]::Yes) {
                     Write-DzDebug "`t[DEBUG]INFO: Usuario decidió NO descargar el driver." ([System.ConsoleColor]::Cyan)
@@ -1094,11 +901,7 @@ function New-MainForm {
                 Write-DzDebug "`t[DEBUG] extractPath=$extractPath" ([System.ConsoleColor]::DarkGray)
                 Write-DzDebug "`t[DEBUG] msiPath=$msiPath" ([System.ConsoleColor]::DarkGray)
                 if (Test-Path $validationPath) {
-                    $rExistDrv = Show-WpfMessageBox -Message "El driver ya existe en:`n$validationPath`n`nSí = Instalar local`nNo = Volver a descargar`nCancelar = Cancelar operación" `
-                        -Title "Driver ya existe" `
-                        -Buttons "YesNoCancel" `
-                        -Icon "Question"
-
+                    $rExistDrv = Show-WpfMessageBox -Message "El driver ya existe en:`n$validationPath`n`nSí = Instalar local`nNo = Volver a descargar`nCancelar = Cancelar operación" -Title "Driver ya existe" -Buttons "YesNoCancel" -Icon "Question"
                     Write-DzDebug "`t[DEBUG]INFO: Resultado existe driver (rExistDrv) = $rExistDrv" ([System.ConsoleColor]::Cyan)
                     if ($rExistDrv -eq [System.Windows.MessageBoxResult]::Yes) {
                         if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Instalando driver existente..." }
@@ -1113,11 +916,7 @@ function New-MainForm {
                         return
                     }
                 } else {
-                    $rDrv = Show-WpfMessageBox -Message "¿Deseas descargar el driver del lector ahora?" `
-                        -Title "Confirmar descarga" `
-                        -Buttons "YesNo" `
-                        -Icon "Question"
-
+                    $rDrv = Show-WpfMessageBox -Message "¿Deseas descargar el driver del lector ahora?" -Title "Confirmar descarga" -Buttons "YesNo" -Icon "Question"
                     Write-DzDebug "`t[DEBUG]INFO: Confirmación descarga driver (rDrv) = $rDrv" ([System.ConsoleColor]::Cyan)
                     if ($rDrv -ne [System.Windows.MessageBoxResult]::Yes) {
                         Write-DzDebug "`t[DEBUG]INFO: Descarga de driver cancelada." ([System.ConsoleColor]::Cyan)
@@ -1125,116 +924,62 @@ function New-MainForm {
                         return
                     }
                 }
-
                 $pwDrv = Show-WpfProgressBar -Title "Descargando Driver DP" -Message "Preparando descarga..."
                 if ($null -eq $pwDrv -or $null -eq $pwDrv.ProgressBar) {
                     Write-DzDebug "`t[DEBUG]ERROR: No se pudo crear progress bar para Driver." ([System.ConsoleColor]::Red)
                     return
                 }
-
                 if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
-
                 try {
                     Update-WpfProgressBar -Window $pwDrv -Percent 0 -Message "Preparando descarga..."
                     if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Descargando driver..." }
-
                     $okDrv = Download-FileWithProgressWpfStream -Url $url -OutFile $zipPath -Window $pwDrv -OnStatus {
                         param($p, $m)
                         Write-DzDebug "`t[DEBUG]PROGRESS(Driver): $p% - $m" ([System.ConsoleColor]::DarkGray)
                         if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Driver: $m" }
                     }
-
                     if (-not $okDrv) { throw "Descarga del driver fallida." }
-
                     Update-WpfProgressBar -Window $pwDrv -Percent 100 -Message "Extrayendo..."
                     if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Extrayendo driver..." }
-
-                    if (Test-Path $extractPath) {
-                        Remove-Item $extractPath -Recurse -Force -ErrorAction SilentlyContinue
-                    }
-
+                    if (Test-Path $extractPath) { Remove-Item $extractPath -Recurse -Force -ErrorAction SilentlyContinue }
                     Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-
                     if (-not (Test-Path $validationPath)) { throw "No se encontró $validationPath" }
-
                     Update-WpfProgressBar -Window $pwDrv -Percent 100 -Message "Instalando..."
                     if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Instalando driver..." }
-
-                    try {
-                        $pwDrv.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, [action] {}) | Out-Null
-                    } catch {}
-
-                    try {
-                        $pwDrv.Dispatcher.Invoke([action] {
-                                $pwDrv.Topmost = $false
-                                $pwDrv.WindowState = [System.Windows.WindowState]::Minimized
-                            }) | Out-Null
-                    } catch {}
-
+                    try { $pwDrv.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, [action] {}) | Out-Null } catch {}
+                    try { $pwDrv.Dispatcher.Invoke([action] { $pwDrv.Topmost = $false; $pwDrv.WindowState = [System.Windows.WindowState]::Minimized }) | Out-Null } catch {}
                     Start-Process "msiexec.exe" -ArgumentList "/i `"$validationPath`" /passive" -Wait
-
-                    try {
-                        $pwDrv.Dispatcher.Invoke([action] {
-                                $pwDrv.WindowState = [System.Windows.WindowState]::Normal
-                            }) | Out-Null
-                    } catch {}
-
+                    try { $pwDrv.Dispatcher.Invoke([action] { $pwDrv.WindowState = [System.Windows.WindowState]::Normal }) | Out-Null } catch {}
                     Write-DzDebug "`t[DEBUG]INFO: Driver instalado correctamente." ([System.ConsoleColor]::Cyan)
                     if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Driver instalado correctamente." }
-
                 } catch {
                     Write-DzDebug "`t[DEBUG]ERROR Driver: $($_.Exception.Message)" ([System.ConsoleColor]::Red)
                     if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Error Driver: $($_.Exception.Message)" }
                 }
-
             } catch {
                 Write-DzDebug "`t[DEBUG]ERROR TryCatch: $($_.Exception.Message)`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
                 if ($null -ne $txt_InfoInstrucciones) { $txt_InfoInstrucciones.Text = "Error: $($_.Exception.Message)" }
             } finally {
-                if ($null -ne $pwDrv) {
-                    try { Close-WpfProgressBar -Window $pwDrv } catch {}
-                    $pwDrv = $null
-                }
-                if ($null -ne $pwPs) {
-                    try { Close-WpfProgressBar -Window $pwPs } catch {}
-                    $pwPs = $null
-                }
+                if ($null -ne $pwDrv) { try { Close-WpfProgressBar -Window $pwDrv } catch {} ; $pwDrv = $null }
+                if ($null -ne $pwPs) { try { Close-WpfProgressBar -Window $pwPs } catch {} ; $pwPs = $null }
             }
         })
-
     $btnSQLManager.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             function Get-SQLServerManagers {
-                $possiblePaths = @(
-                    "${env:SystemRoot}\System32\SQLServerManager*.msc",
-                    "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc"
-                )
-
-                $managers = foreach ($pattern in $possiblePaths) {
-                    Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | ForEach-Object FullName
-                }
-
+                $possiblePaths = @("${env:SystemRoot}\System32\SQLServerManager*.msc", "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc")
+                $managers = foreach ($pattern in $possiblePaths) { Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | ForEach-Object FullName }
                 @($managers) | Where-Object { $_ } | Select-Object -Unique
             }
             $managers = Get-SQLServerManagers
-            if (-not $managers -or $managers.Count -eq 0) {
-                [System.Windows.MessageBox]::Show(
-                    "No se encontró ninguna versión de SQL Server Configuration Manager.",
-                    "Error",
-                    [System.Windows.MessageBoxButton]::OK,
-                    [System.Windows.MessageBoxImage]::Error
-                ) | Out-Null
-                return
-            }
+            if (-not $managers -or $managers.Count -eq 0) { Ui-Error "No se encontró ninguna versión de SQL Server Configuration Manager." ; return }
             Show-SQLselector -Managers $managers
         })
-
     $btnSQLManagement.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             Write-DzDebug "`t[DEBUG] Iniciando búsqueda de SSMS instalados" -Color DarkGray
             function Get-SSMSVersions {
                 $ssmsPaths = @()
-
                 $fixedPaths = @(
                     "${env:ProgramFiles(x86)}\Microsoft SQL Server\*\Tools\Binn\ManagementStudio\Ssms.exe",
                     "${env:ProgramFiles(x86)}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe",
@@ -1253,7 +998,6 @@ function New-MainForm {
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio *\Common7\IDE\Ssms.exe",
                     "${env:ProgramFiles}\Microsoft SQL Server Management Studio *\Release\Common7\IDE\Ssms.exe"
                 )
-
                 foreach ($pattern in $fixedPaths) {
                     $found = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue
                     foreach ($f in $found) {
@@ -1263,20 +1007,11 @@ function New-MainForm {
                         }
                     }
                 }
-
                 if ($ssmsPaths.Count -eq 0) {
                     Write-DzDebug "`t[DEBUG] No se encontró en rutas fijas. Buscando en registro..." -Color DarkGray
-                    $registryPaths = @(
-                        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
-                        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
-                    )
+                    $registryPaths = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*", "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*")
                     foreach ($regPath in $registryPaths) {
-                        $entries = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue |
-                        Where-Object {
-                            $_.DisplayName -like "*SQL Server Management Studio*" -and
-                            $_.InstallLocation -and
-                            $_.InstallLocation.Trim() -ne ""
-                        }
+                        $entries = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "*SQL Server Management Studio*" -and $_.InstallLocation -and $_.InstallLocation.Trim() -ne "" }
                         foreach ($entry in $entries) {
                             $installPath = $entry.InstallLocation.Trim()
                             if (-not $installPath.EndsWith('\')) { $installPath += '\' }
@@ -1293,85 +1028,43 @@ function New-MainForm {
                         }
                     }
                 }
-
                 $ssmsPaths | Sort-Object -Descending
             }
-
             $ssmsVersions = Get-SSMSVersions
-
-            $filteredVersions = foreach ($p in $ssmsVersions) {
-                if ((Split-Path $p -Leaf) -eq "Ssms.exe" -and (Test-Path $p -PathType Leaf)) { $p }
-            }
-
+            $filteredVersions = foreach ($p in $ssmsVersions) { if ((Split-Path $p -Leaf) -eq "Ssms.exe" -and (Test-Path $p -PathType Leaf)) { $p } }
             if (-not $filteredVersions -or $filteredVersions.Count -eq 0) {
                 Write-Host "`tNo se encontró ninguna versión de SSMS instalada." -ForegroundColor Red
-
-                $result = [System.Windows.MessageBox]::Show(
-                    "No se encontró SQL Server Management Studio. ¿Desea buscar manualmente?",
-                    "SSMS no encontrado",
-                    [System.Windows.MessageBoxButton]::YesNo,
-                    [System.Windows.MessageBoxImage]::Question
-                )
-
-                if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+                $wantManual = Ui-Confirm "No se encontró SQL Server Management Studio. ¿Desea buscar manualmente?" "SSMS no encontrado"
+                if ($wantManual) {
                     $openFileDialog = New-Object Microsoft.Win32.OpenFileDialog
                     $openFileDialog.Filter = "SSMS Executable (Ssms.exe)|Ssms.exe"
                     $openFileDialog.Title = "Seleccione Ssms.exe"
-
                     if ($openFileDialog.ShowDialog() -eq $true) {
                         try {
                             Start-Process -FilePath $openFileDialog.FileName
                             Write-Host "`tEjecutando: $($openFileDialog.FileName)" -ForegroundColor Green
-                        } catch {
-                            [System.Windows.MessageBox]::Show(
-                                "Error al ejecutar SSMS: $($_.Exception.Message)",
-                                "Error",
-                                [System.Windows.MessageBoxButton]::OK,
-                                [System.Windows.MessageBoxImage]::Error
-                            ) | Out-Null
-                        }
+                        } catch { Ui-Error "Error al ejecutar SSMS: $($_.Exception.Message)" }
                     }
                 } else {
-                    $downloadResult = [System.Windows.MessageBox]::Show(
-                        "¿Desea descargar la última versión de SSMS?",
-                        "Descargar SSMS",
-                        [System.Windows.MessageBoxButton]::YesNo,
-                        [System.Windows.MessageBoxImage]::Information
-                    )
-
-                    if ($downloadResult -eq [System.Windows.MessageBoxResult]::Yes) {
-                        Start-Process "https://aka.ms/ssmsfullsetup"
-                    }
+                    $wantDownload = Ui-Confirm "¿Desea descargar la última versión de SSMS?" "Descargar SSMS"
+                    if ($wantDownload) { Start-Process "https://aka.ms/ssmsfullsetup" }
                 }
-
                 return
             }
             Write-Host "`t✓ Se encontraron $($filteredVersions.Count) instalación(es) de SSMS" -ForegroundColor Green
-            # ✅ Aquí ya usamos el mismo selector
             Show-SQLselector -SSMSVersions $filteredVersions
         })
-
     $btnForzarActualizacion.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             Show-SystemComponents
-            $resultado = [System.Windows.MessageBox]::Show("¿Desea forzar la actualización de datos?", "Confirmación", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
-            if ($resultado -eq [System.Windows.MessageBoxResult]::Yes) {
-                Start-SystemUpdate
-                [System.Windows.MessageBox]::Show("Actualización completada", "Éxito", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-            } else {
-                Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red
-            }
+            $ok = Ui-Confirm "¿Desea forzar la actualización de datos?" "Confirmación"
+            if ($ok) { Start-SystemUpdate ; Ui-Info "Actualización completada" "Éxito" } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
         })
     $btnClearAnyDesk.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            $confirmationResult = [System.Windows.MessageBox]::Show("¿Estás seguro de renovar AnyDesk?", "Confirmar Renovación", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
-            if ($confirmationResult -eq [System.Windows.MessageBoxResult]::Yes) {
-                $filesToDelete = @(
-                    "C:\ProgramData\AnyDesk\system.conf",
-                    "C:\ProgramData\AnyDesk\service.conf",
-                    "$env:APPDATA\AnyDesk\system.conf",
-                    "$env:APPDATA\AnyDesk\service.conf"
-                )
+            $ok = Ui-Confirm "¿Estás seguro de renovar AnyDesk?" "Confirmar renovación"
+            if ($ok) {
+                $filesToDelete = @("C:\ProgramData\AnyDesk\system.conf", "C:\ProgramData\AnyDesk\service.conf", "$env:APPDATA\AnyDesk\system.conf", "$env:APPDATA\AnyDesk\service.conf")
                 $deletedFilesCount = 0
                 $errors = @()
                 try {
@@ -1391,81 +1084,34 @@ function New-MainForm {
                         } else {
                             Write-Host "`tArchivo no encontrado: $file" -ForegroundColor Red
                         }
-                    } catch {
-                        Write-Host "`nError al eliminar el archivo." -ForegroundColor Red
-                    }
+                    } catch { Write-Host "`nError al eliminar el archivo." -ForegroundColor Red }
                 }
-                if ($errors.Count -eq 0) {
-                    [System.Windows.MessageBox]::Show("$deletedFilesCount archivo(s) eliminado(s) correctamente.", "Éxito", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-                } else {
-                    [System.Windows.MessageBox]::Show("Se encontraron errores. Revisa la consola para más detalles.", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-                }
-            } else {
-                Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red
-            }
+                if ($errors.Count -eq 0) { Ui-Info "$deletedFilesCount archivo(s) eliminado(s) correctamente." "Éxito" } else { Ui-Error "Se encontraron errores. Revisa la consola para más detalles." }
+            } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
         })
-    $btnShowPrinters.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Show-NSPrinters
-        })
-
-    $btnClearPrintJobs.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Invoke-ClearPrintJobs -InfoTextBlock $txt_InfoInstrucciones
-        })
+    $btnShowPrinters.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Show-NSPrinters })
+    $btnClearPrintJobs.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Invoke-ClearPrintJobs -InfoTextBlock $txt_InfoInstrucciones })
     $btnCheckPermissions.Add_Click({
             Write-Host "`nRevisando permisos en C:\NationalSoft" -ForegroundColor Yellow
-            if (-not (Test-Administrator)) {
-                [System.Windows.MessageBox]::Show("Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador.", "Permisos insuficientes", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
-                return
-            }
+            if (-not (Test-Administrator)) { Ui-Error "Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador." ; return }
             Check-Permissions
         })
-    $btnAplicacionesNS.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            $res = Get-NSApplicationsIniReport
-            Show-NSApplicationsIniReport -Resultados $res
-        })
-
-    $btnCambiarOTM.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Invoke-CambiarOTMConfig -InfoTextBlock $txt_InfoInstrucciones
-        })
-
-
-    $LZMAbtnBuscarCarpeta.Add_Click({
-            Show-LZMADialog
-        })
-    $btnConfigurarIPs.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Show-IPConfigDialog
-        })
-    $btnAddUser.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Show-AddUserDialog
-        })
-    $btnCreateAPK.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones
-        })
-
-    $btnExtractInstaller.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
-            Show-InstallerExtractorDialog
-        })
+    $btnAplicacionesNS.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; $res = Get-NSApplicationsIniReport ; Show-NSApplicationsIniReport -Resultados $res })
+    $btnCambiarOTM.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Invoke-CambiarOTMConfig -InfoTextBlock $txt_InfoInstrucciones })
+    $LZMAbtnBuscarCarpeta.Add_Click({ Show-LZMADialog })
+    $btnConfigurarIPs.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Show-IPConfigDialog })
+    $btnAddUser.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Show-AddUserDialog })
+    $btnCreateAPK.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones })
+    $btnExtractInstaller.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray ; Show-InstallerExtractorDialog })
     $btnConnectDb.Add_Click({
             Write-Host "`nConectando a la instancia..." -ForegroundColor Gray
             try {
-                if ($null -eq $global:txtServer -or $null -eq $global:txtUser -or $null -eq $global:txtPassword) {
-                    throw "Error interno: controles de conexión no inicializados."
-                }
+                if ($null -eq $global:txtServer -or $null -eq $global:txtUser -or $null -eq $global:txtPassword) { throw "Error interno: controles de conexión no inicializados." }
                 $serverText = $global:txtServer.Text.Trim()
                 $userText = $global:txtUser.Text.Trim()
                 $passwordText = $global:txtPassword.Password
                 Write-DzDebug "`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
-                if ([string]::IsNullOrWhiteSpace($serverText) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordText)) {
-                    throw "Complete todos los campos de conexión"
-                }
+                if ([string]::IsNullOrWhiteSpace($serverText) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordText)) { throw "Complete todos los campos de conexión" }
                 $securePassword = (New-Object System.Net.NetworkCredential('', $passwordText)).SecurePassword
                 $credential = New-Object System.Management.Automation.PSCredential($userText, $securePassword)
                 $global:server = $serverText
@@ -1473,13 +1119,9 @@ function New-MainForm {
                 $global:password = $passwordText
                 $global:dbCredential = $credential
                 $databases = Get-SqlDatabases -Server $serverText -Credential $credential
-                if (-not $databases -or $databases.Count -eq 0) {
-                    throw "Conexión correcta, pero no se encontraron bases de datos disponibles."
-                }
+                if (-not $databases -or $databases.Count -eq 0) { throw "Conexión correcta, pero no se encontraron bases de datos disponibles." }
                 $global:cmbDatabases.Items.Clear()
-                foreach ($db in $databases) {
-                    [void]$global:cmbDatabases.Items.Add($db)
-                }
+                foreach ($db in $databases) { [void]$global:cmbDatabases.Items.Add($db) }
                 $global:cmbDatabases.IsEnabled = $true
                 $global:cmbDatabases.SelectedIndex = 0
                 $global:lblConnectionStatus.Content = @"
@@ -1505,18 +1147,14 @@ Base de datos: ((
 (_.Exception.GetType().FullName)"
                 Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: ((
 (_.ScriptStackTrace)"
-                [System.Windows.MessageBox]::Show("Error de conexión: ((
-(_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                Ui-Error "Error: $($_.Exception.Message)"
                 Write-Host "Error | Error de conexión: ((
 (_.Exception.Message)" -ForegroundColor Red
             }
         })
     $btnDisconnectDb.Add_Click({
             try {
-                if ($global:connection -and $global:connection.State -ne [System.Data.ConnectionState]::Closed) {
-                    $global:connection.Close()
-                    $global:connection.Dispose()
-                }
+                if ($global:connection -and $global:connection.State -ne [System.Data.ConnectionState]::Closed) { $global:connection.Close() ; $global:connection.Dispose() }
                 $global:connection = $null
                 $global:dbCredential = $null
                 $global:lblConnectionStatus.Content = "Conectado a BDD: Ninguna"
@@ -1533,11 +1171,8 @@ Base de datos: ((
                 $global:cmbDatabases.Items.Clear()
                 $global:cmbDatabases.IsEnabled = $false
                 Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
-            } catch {
-                Write-Host "`nError al desconectar: $($_.Exception.Message)" -ForegroundColor Red
-            }
+            } catch { Write-Host "`nError al desconectar: $($_.Exception.Message)" -ForegroundColor Red }
         })
-
     $btnExecute.Add_Click({
             Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
             try {
@@ -1587,27 +1222,17 @@ Base de datos: ((
                 Write-Host "====================================" -ForegroundColor Red
             }
         })
-
-
-    $btnBackup.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso de Backup - - -" -ForegroundColor Gray
-            Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem
-        })
-    # Crear el scriptblock con GetNewClosure() para capturar el contexto
+    $btnBackup.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso de Backup - - -" -ForegroundColor Gray ; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
     $closeWindowScript = {
         Write-Host "Cerrando aplicación..." -ForegroundColor Yellow
         Write-DzDebug "`t[DEBUG] Botón Salir presionado" -Color DarkGray
-
         try {
-            # Método 1: Buscar la ventana desde el sender
-            $btn = $args[0]  # El botón que disparó el evento
+            $btn = $args[0]
             $win = [System.Windows.Window]::GetWindow($btn)
-
             if ($null -ne $win) {
                 $win.Close()
                 Write-DzDebug "`t[DEBUG] Ventana cerrada (método 1)" -Color DarkGray
             } else {
-                # Método 2: Usar la ventana capturada
                 $window.Close()
                 Write-DzDebug "`t[DEBUG] Ventana cerrada (método 2)" -Color DarkGray
             }
@@ -1616,35 +1241,23 @@ Base de datos: ((
             Write-DzDebug "`t[DEBUG] Error: $_" -Color Red
         }
     }.GetNewClosure()
-
     $btnExit.Add_Click($closeWindowScript)
     Write-Host "✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     return $window
 }
-
 function Start-Application {
-
     Show-GlobalProgress -Percent 0 -Status "Inicializando..."
-
-    if (-not (Initialize-Environment)) {
-        Show-GlobalProgress -Percent 100 -Status "Error inicializando"
-        return
-    }
+    if (-not (Initialize-Environment)) { Show-GlobalProgress -Percent 100 -Status "Error inicializando" ; return }
     Show-GlobalProgress -Percent 10 -Status "Entorno listo"
-
-    # Importar módulos (solo una vez)
     Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
     $modulesPath = Join-Path $PSScriptRoot "modules"
     $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "Queries.psm1", "Installers.psm1")
-
     $i = 0
     foreach ($module in $modules) {
         $i++
         Show-GlobalProgress -Percent (20 + [math]::Round(($i / $modules.Count) * 20)) -Status "Importando $module"
         $modulePath = Join-Path $modulesPath $module
-        if (Test-Path $modulePath) {
-            Import-Module $modulePath -Force -DisableNameChecking -ErrorAction Stop
-        }
+        if (Test-Path $modulePath) { Import-Module $modulePath -Force -DisableNameChecking -ErrorAction Stop }
     }
     Show-GlobalProgress -Percent 45 -Status "Módulos listos"
     Show-GlobalProgress -Percent 80 -Status "Creando formulario..."
@@ -1653,8 +1266,6 @@ function Start-Application {
     Show-GlobalProgress -Percent 100 -Status "¡Listo!`n"
     $null = $mainForm.ShowDialog()
 }
-
-
 try {
     Start-Application
 } catch {

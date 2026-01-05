@@ -208,6 +208,18 @@ function Show-BackupDialog {
     $script:BackupRunning = $false
     $script:BackupDone = $false
     $script:EnableThreadJob = $false
+    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null
+    }
+    function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null
+    }
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null
+    }
+    function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) {
+        (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes
+    }
     function Initialize-ThreadJob {
         [CmdletBinding()]
         param()
@@ -248,7 +260,7 @@ function Show-BackupDialog {
 
     $theme = Get-DzUiTheme
     $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Respaldo" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Respaldo" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)">
     <Window.Resources>
         <Style TargetType="Label">
             <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
@@ -310,7 +322,6 @@ function Show-BackupDialog {
 
     $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
     $window = [System.Windows.Markup.XamlReader]::Load($reader)
-    Set-DzWpfThemeResources -Window $window -Theme $theme
     if (-not $window) { Write-DzDebug "`t[DEBUG][Show-BackupDialog] ERROR: window=NULL"; throw "No se pudo crear la ventana (XAML)." }
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Ventana creada OK"
 
@@ -448,17 +459,14 @@ function Show-BackupDialog {
                 if ($DoCompress) {
                     EnqProg 90 "Backup listo. Preparando compresión..."
                     EnqLog "🗜️ Iniciando compresión ZIP..."
-
                     $inputBak = $ScriptBackupPath
                     $zipPath = "$ScriptBackupPath.zip"
-
                     if (-not (Test-Path $inputBak)) {
                         EnqProg 0 "Error: no existe BAK"
                         EnqLog ("⚠️ No existe el BAK accesible: {0}" -f $inputBak)
                         EnqLog "__DONE__"
                         return
                     }
-
                     $sevenZip = Get-7ZipPath
                     if (-not $sevenZip -or -not (Test-Path $sevenZip)) {
                         EnqProg 0 "Error: no se encontró 7-Zip"
@@ -466,20 +474,16 @@ function Show-BackupDialog {
                         EnqLog "__DONE__"
                         return
                     }
-
                     try {
                         if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
-
                         EnqProg 92 "Comprimiendo (ZIP)..."
                         if ($ZipPassword -and $ZipPassword.Trim().Length -gt 0) {
                             & $sevenZip a -tzip -p"$($ZipPassword.Trim())" -mem=AES256 $zipPath $inputBak | Out-Null
                         } else {
                             & $sevenZip a -tzip $zipPath $inputBak | Out-Null
                         }
-
                         EnqProg 97 "Finalizando compresión..."
                         Start-Sleep -Milliseconds 300
-
                         if (Test-Path $zipPath) {
                             $zipMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
                             EnqProg 99 "ZIP creado. Cerrando..."
@@ -500,7 +504,6 @@ function Show-BackupDialog {
                 EnqLog "__DONE__"
             }
         }
-
         $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
         $rs.ApartmentState = 'MTA'
         $rs.ThreadOptions = 'ReuseThread'
@@ -511,27 +514,21 @@ function Show-BackupDialog {
         $null = $ps.BeginInvoke()
         Write-DzDebug "`t[DEBUG][Start-BackupWorkAsync] Worker lanzado"
     }
-
     $stopwatch = $null
     $timer = $null
-
     $logTimer = [System.Windows.Threading.DispatcherTimer]::new()
     $logTimer.Interval = [TimeSpan]::FromMilliseconds(200)
     $logTimer.Add_Tick({
             try {
                 $count = 0
                 $doneThisTick = $false
-
                 while ($count -lt 50) {
                     $line = $null
                     if (-not $logQueue.TryDequeue([ref]$line)) { break }
-
                     $txtLog.Text = "$line`n" + $txtLog.Text
-
                     if ($line -like "*__DONE__*") {
                         Write-DzDebug "`t[DEBUG][UI] Señal DONE recibida"
                         $doneThisTick = $true
-
                         $script:BackupRunning = $false
                         $btnAceptar.IsEnabled = $true
                         $btnAceptar.Content = "Iniciar Respaldo"
@@ -539,20 +536,15 @@ function Show-BackupDialog {
                         $chkComprimir.IsEnabled = $true
                         if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true }
                         $btnAbrirCarpeta.IsEnabled = $true
-
                         # Limpia progreso pendiente para que no pise el 100
                         $tmp = $null
                         while ($progressQueue.TryDequeue([ref]$tmp)) { }
-
                         Paint-Progress -Percent 100 -Message "Completado"
                         $script:BackupDone = $true
                     }
-
                     $count++
                 }
-
                 if ($count -gt 0) { $txtLog.ScrollToLine(0) }
-
                 # Solo si NO llegó DONE en este tick, aplicamos el último progreso
                 if (-not $doneThisTick) {
                     $last = $null
@@ -563,11 +555,9 @@ function Show-BackupDialog {
                     }
                     if ($last) { Paint-Progress -Percent $last.Percent -Message $last.Message }
                 }
-
             } catch {
                 Write-DzDebug "`t[DEBUG][UI][logTimer] ERROR: $($_.Exception.Message)"
             }
-
             if ($script:BackupDone) {
                 $tmpLine = $null
                 $tmpProg = $null
@@ -577,10 +567,8 @@ function Show-BackupDialog {
                 }
             }
         })
-
     $logTimer.Start()
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] logTimer iniciado"
-
     $chkComprimir.Add_Checked({
             Write-DzDebug "`t[DEBUG][UI] chkComprimir CHECKED"
             try {
@@ -591,27 +579,45 @@ Chocolatey es necesario SOLAMENTE si deseas:
 Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
 ¿Deseas instalar Chocolatey ahora?
 "@
-                    $wantChoco = Show-ConfirmDialog -Message $msg -Title "Chocolatey requerido"
-                    if (-not $wantChoco) { Show-WarnDialog -Message "Compresión deshabilitada (Chocolatey no instalado)." -Title "Atención"; Disable-CompressionUI; return }
+                    $wantChoco = Ui-Confirm $msg "Chocolatey requerido" $window
+                    if (-not $wantChoco) {
+                        Ui-Warn "Compresión deshabilitada (Chocolatey no instalado)." "Atención" $window
+                        Disable-CompressionUI
+                        return
+                    }
+
                     $okChoco = Install-Chocolatey
-                    if (-not $okChoco -or -not (Test-ChocolateyInstalled)) { Show-WarnDialog -Message "No se pudo instalar Chocolatey. Compresión deshabilitada." -Title "Atención"; Disable-CompressionUI; return }
+                    if (-not $okChoco -or -not (Test-ChocolateyInstalled)) {
+                        Ui-Warn "No se pudo instalar Chocolatey. Compresión deshabilitada." "Atención" $window
+                        Disable-CompressionUI
+                        return
+                    }
                 }
+
                 if (-not (Test-7ZipInstalled)) {
-                    $want7z = Show-ConfirmDialog -Message "Para comprimir se requiere 7-Zip. ¿Deseas instalarlo ahora con Chocolatey?" -Title "7-Zip requerido"
-                    if (-not $want7z) { Show-WarnDialog -Message "Compresión deshabilitada (7-Zip no instalado)." -Title "Atención"; Disable-CompressionUI; return }
+                    $want7z = Ui-Confirm "Para comprimir se requiere 7-Zip. ¿Deseas instalarlo ahora con Chocolatey?" "7-Zip requerido" $window
+                    if (-not $want7z) {
+                        Ui-Warn "Compresión deshabilitada (7-Zip no instalado)." "Atención" $window
+                        Disable-CompressionUI
+                        return
+                    }
+
                     $ok7z = Install-7ZipWithChoco
-                    if (-not $ok7z) { Show-WarnDialog -Message "No se pudo instalar 7-Zip. Compresión deshabilitada." -Title "Atención"; Disable-CompressionUI; return }
+                    if (-not $ok7z) {
+                        Ui-Warn "No se pudo instalar 7-Zip. Compresión deshabilitada." "Atención" $window
+                        Disable-CompressionUI
+                        return
+                    }
                 }
                 $txtPassword.IsEnabled = $true
                 $lblPassword.IsEnabled = $true
             } catch {
                 Write-DzDebug "`t[DEBUG][UI] Error chkComprimir CHECKED: $($_.Exception.Message)"
-                Show-WarnDialog -Message "Error validando requisitos de compresión: $($_.Exception.Message)" -Title "Error"
+                Ui-Error "Error validando requisitos de compresión: $($_.Exception.Message)" "Error" $window
                 Disable-CompressionUI
             }
         })
     $chkComprimir.Add_Unchecked({ Write-DzDebug "`t[DEBUG][UI] chkComprimir UNCHECKED"; Disable-CompressionUI })
-
     $btnAceptar.Add_Click({
             Write-DzDebug "`t[DEBUG][UI] btnAceptar Click"
             if ($script:BackupRunning) { return }  # evita doble click o reentrada
@@ -627,7 +633,6 @@ Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
                 $pbBackup.Value = 0
                 $txtProgress.Text = "Esperando..."
                 Add-Log "Iniciando proceso de backup..."
-
                 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
                 $timer = [System.Windows.Threading.DispatcherTimer]::new()
                 $timer.Interval = [TimeSpan]::FromSeconds(1)
@@ -637,12 +642,10 @@ Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
                 $machineName = $machinePart.Split(',')[0]
                 if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
                 $sameHost = ($env:COMPUTERNAME -ieq $machineName)
-
                 $backupFileName = $txtNombre.Text
                 $sqlBackupFolder = "C:\Temp\SQLBackups"
                 $sqlBackupPath = Join-Path $sqlBackupFolder $backupFileName
                 if ($sameHost) { $scriptBackupPath = $sqlBackupPath } else { $scriptBackupPath = "\\$machineName\C$\Temp\SQLBackups\$backupFileName" }
-
                 Add-Log "Servidor: $Server"
                 Add-Log "Base de datos: $Database"
                 Add-Log "Usuario: $User"
@@ -653,16 +656,15 @@ Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
                     $backupFileName = "$backupFileName.bak"
                     $txtNombre.Text = $backupFileName
                 }
-
                 # 2) caracteres inválidos en nombre de archivo
                 $invalid = [System.IO.Path]::GetInvalidFileNameChars()
                 if ($backupFileName.IndexOfAny($invalid) -ge 0) {
-                    Show-WarnDialog -Message "El nombre contiene caracteres no válidos..." -Title "Nombre inválido"
+                    Show-WarnDialog -Message "El nombre contiene caracteres no válidos..." -Title "Nombre inválido" -Owner $window
                     Reset-BackupUI -ProgressText "Nombre inválido"
                     return
                 }
                 if (Test-Path $scriptBackupPath) {
-                    $choice = Show-ConfirmDialog -Message "Ya existe un respaldo con ese nombre en:`n$scriptBackupPath`n`n¿Deseas sobrescribirlo?" -Title "Archivo existente"
+                    $choice = Ui-Confirm "Ya existe un respaldo con ese nombre en:`n$scriptBackupPath`n`n¿Deseas sobrescribirlo?" "Archivo existente" $window
                     if (-not $choice) {
                         $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'
                         $txtNombre.Text = "$Database-$timestampsDefault.bak"
@@ -678,7 +680,6 @@ Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
                     if (-not (Test-Path $uncFolder))
                     { Add-Log "⚠️ No pude validar la carpeta UNC: $uncFolder (puede ser permisos). SQL intentará escribir en $sqlBackupFolder en el servidor." }
                 }
-
                 $credential = New-SafeCredential -Username $User -PlainPassword $Password
                 Add-Log "✓ Credenciales listas"
 
@@ -699,16 +700,14 @@ WITH CHECKSUM, STATS = 1, FORMAT, INIT
                 if ($stopwatch) { $stopwatch.Stop() }
             }
         })
-
     $btnAbrirCarpeta.Add_Click({
             Write-DzDebug "`t[DEBUG][UI] btnAbrirCarpeta Click"
             $machinePart = $Server.Split('\')[0]
             $machineName = $machinePart.Split(',')[0]
             if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
             $backupFolder = "\\$machineName\C$\Temp\SQLBackups"
-            if (Test-Path $backupFolder) { Start-Process explorer.exe $backupFolder } else { [System.Windows.MessageBox]::Show("La carpeta de respaldos no existe todavía.`n`nRuta: $backupFolder", "Atención", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning) }
+            if (Test-Path $backupFolder) { Start-Process explorer.exe $backupFolder } else { Ui-Warn "La carpeta de respaldos no existe todavía.`n`nRuta: $backupFolder" "Atención" $window }
         })
-
     $btnCerrar.Add_Click({
             Write-DzDebug "`t[DEBUG][UI] btnCerrar Click"
             try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch {}
@@ -717,22 +716,17 @@ WITH CHECKSUM, STATS = 1, FORMAT, INIT
             $window.DialogResult = $false
             $window.Close()
         })
-
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Antes de ShowDialog()"
     $null = $window.ShowDialog()
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Después de ShowDialog()"
 }
 function Reset-BackupUI {
     param([string]$ButtonText = "Iniciar Respaldo", [string]$ProgressText = "Esperando...")
-
     $script:BackupRunning = $false
     $btnAceptar.IsEnabled = $true
     $btnAceptar.Content = $ButtonText
-
     $txtNombre.IsEnabled = $true
     $chkComprimir.IsEnabled = $true
-
-    # Password solo si compresión está marcada
     if ($chkComprimir.IsChecked -eq $true) {
         $txtPassword.IsEnabled = $true
         $lblPassword.IsEnabled = $true
@@ -740,11 +734,9 @@ function Reset-BackupUI {
         $txtPassword.IsEnabled = $false
         $lblPassword.IsEnabled = $false
     }
-
     $btnAbrirCarpeta.IsEnabled = $true
     $txtProgress.Text = $ProgressText
 }
-
 Export-ModuleMember -Function @('Invoke-SqlQuery', 'Remove-SqlComments', 'Get-SqlDatabases',
     'Backup-Database', 'Execute-SqlQuery', 'Show-ResultsConsole',
     'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable',

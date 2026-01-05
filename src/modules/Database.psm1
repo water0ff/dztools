@@ -61,6 +61,73 @@ function Invoke-SqlQuery {
     }
 }
 
+function Invoke-SqlQueryMultiResultSet {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][string]$Query,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory = $false)][scriptblock]$InfoMessageCallback
+    )
+
+    $connection = $null
+    Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] INICIO"
+    try {
+        $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+        $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+        $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
+        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+        $messages = New-Object System.Collections.Generic.List[string]
+        $connection.add_InfoMessage({
+                param($sender, $e)
+                [void]$messages.Add($e.Message)
+                if ($InfoMessageCallback) {
+                    try { & $InfoMessageCallback $e.Message } catch { Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] Error en InfoMessageCallback: $_" }
+                }
+            })
+        $connection.FireInfoMessageEventOnUserErrors = $true
+        $connection.Open()
+        $command = $connection.CreateCommand()
+        $command.CommandText = $Query
+        $command.CommandTimeout = 0
+
+        $reader = $command.ExecuteReader()
+        $resultSets = New-Object System.Collections.Generic.List[object]
+
+        do {
+            if ($reader.FieldCount -gt 0) {
+                $dataTable = New-Object System.Data.DataTable
+                [void]$dataTable.Load($reader)
+                $resultSets.Add([PSCustomObject]@{
+                        DataTable = $dataTable
+                        RowCount = $dataTable.Rows.Count
+                    })
+            }
+        } while ($reader.NextResult())
+
+        $recordsAffected = $reader.RecordsAffected
+        $reader.Close()
+
+        if ($resultSets.Count -eq 0 -and $recordsAffected -ge 0) {
+            return @{Success = $true; ResultSets = @(); RowsAffected = $recordsAffected; Messages = $messages }
+        }
+
+        return @{Success = $true; ResultSets = $resultSets.ToArray(); Messages = $messages }
+    } catch {
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] CATCH: $($_.Exception.Message)"
+        return @{Success = $false; ErrorMessage = $_.Exception.Message; Type = "Error" }
+    } finally {
+        if ($plainPassword) { $plainPassword = $null }
+        if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
+        if ($null -ne $connection) {
+            if ($connection.State -eq [System.Data.ConnectionState]::Open) { $connection.Close() }
+            $connection.Dispose()
+        }
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] FIN"
+    }
+}
+
 function Remove-SqlComments { [CmdletBinding()] param([Parameter(Mandatory = $true)][string]$Query) $query = $Query -replace '(?s)/\*.*?\*/', ''; $query = $query -replace '(?m)^\s*--.*\n?', ''; $query = $query -replace '(?<!\w)--.*$', ''; $query.Trim() }
 function Get-SqlDatabases {
     [CmdletBinding()]
@@ -737,7 +804,7 @@ function Reset-BackupUI {
     $btnAbrirCarpeta.IsEnabled = $true
     $txtProgress.Text = $ProgressText
 }
-Export-ModuleMember -Function @('Invoke-SqlQuery', 'Remove-SqlComments', 'Get-SqlDatabases',
+Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases',
     'Backup-Database', 'Execute-SqlQuery', 'Show-ResultsConsole',
     'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable',
     'Show-BackupDialog', 'Reset-BackupUI')

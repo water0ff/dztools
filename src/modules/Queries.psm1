@@ -496,6 +496,7 @@ function Get-TextPointerFromOffset {
 
     return $RichTextBox.Document.ContentEnd
 }
+$script:sqlRegex = '\b(' + $script:sqlKeywords + ')\b'
 Export-ModuleMember -Function @(
     'Get-PredefinedQueries',
     'Initialize-PredefinedQueries',

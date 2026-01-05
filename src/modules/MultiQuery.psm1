@@ -1,5 +1,4 @@
-#requires -Version 5.0
-
+﻿#requires -Version 5.0
 $script:queryTabCounter = 1
 
 function Get-ActiveQueryTab {
@@ -60,7 +59,11 @@ function Clear-ActiveQueryTab {
     if ($rtb) {
         $rtb.Document.Blocks.Clear()
         $tab = Get-ActiveQueryTab -TabControl $TabControl
-        if ($tab -and $tab.Tag) { $tab.Tag.IsDirty = $false; Update-QueryTabHeader -TabItem $tab }
+        if ($tab -and $tab.Tag) {
+            $tab.Tag.IsDirty = $false
+            $title = $tab.Tag.Title
+            if ($tab.Tag.HeaderTextBlock) { $tab.Tag.HeaderTextBlock.Text = $title }
+        }
     }
 }
 
@@ -114,17 +117,43 @@ function New-QueryTab {
     [void]$grid.Children.Add($rtb)
     $tabItem.Content = $grid
 
-    $tabItem.Tag = @{ Type = "QueryTab"; RichTextBox = $rtb; Title = $tabTitle; HeaderTextBlock = $headerText; IsDirty = $false }
+    $tabItem.Tag = [pscustomobject]@{
+        Type            = "QueryTab"
+        RichTextBox     = $rtb
+        Title           = $tabTitle
+        HeaderTextBlock = $headerText
+        IsDirty         = $false
+    }
+    $updateHeader = {
+        param([System.Windows.Controls.TabItem]$TabItem)
+        if (-not $TabItem -or -not $TabItem.Tag) { return }
 
+        $title = $TabItem.Tag.Title
+        if ($TabItem.Tag.IsDirty) { $title = "*$title" }
+
+        $htb = $TabItem.Tag.HeaderTextBlock
+        if ($htb) { $htb.Text = $title }
+    }.GetNewClosure()
     $rtb.Add_TextChanged({
-            $tabItem.Tag.IsDirty = $true
-            Update-QueryTabHeader -TabItem $tabItem
-        })
+            if ($global:isHighlightingQuery) { return }
 
+            # si todavía no está listo el regex, no intentes resaltar
+            if ([string]::IsNullOrWhiteSpace($script:sqlRegex)) { return }
+
+            $global:isHighlightingQuery = $true
+            try {
+                Set-WpfSqlHighlighting -RichTextBox $rtb -RegexPattern $script:sqlRegex
+            } catch {
+                # opcional: log sin tumbar la app
+                Write-DzDebug "`t[DEBUG] Highlight error: $($_.Exception.Message)" -Color Yellow
+            } finally {
+                $global:isHighlightingQuery = $false
+            }
+        }.GetNewClosure())
+    $tcRef = $TabControl
     $closeButton.Add_Click({
-            Close-QueryTab -TabControl $TabControl -TabItem $tabItem
-        })
-
+            Close-QueryTab -TabControl $tcRef -TabItem $tabItem
+        }.GetNewClosure())
     $insertIndex = $TabControl.Items.Count
     for ($i = 0; $i -lt $TabControl.Items.Count; $i++) {
         $item = $TabControl.Items[$i]
@@ -206,7 +235,6 @@ function Execute-QueryInTab {
 
     return $result
 }
-
 function Show-MultipleResultSets {
     [CmdletBinding()]
     param(
@@ -218,12 +246,21 @@ function Show-MultipleResultSets {
 
     if (-not $ResultSets -or $ResultSets.Count -eq 0) {
         $tab = New-Object System.Windows.Controls.TabItem
-        $tab.Header = "Resultado"
+
+        $ht = New-Object System.Windows.Controls.TextBlock
+        $ht.Text = "Resultado"
+        $ht.VerticalAlignment = "Center"
+        $tab.Header = $ht
+
         $text = New-Object System.Windows.Controls.TextBlock
         $text.Text = "La consulta no devolvió resultados."
         $text.Margin = "10"
         $tab.Content = $text
+
         [void]$TabControl.Items.Add($tab)
+
+        # Seleccionar el primero
+        $TabControl.SelectedIndex = 0
         return
     }
 
@@ -231,8 +268,14 @@ function Show-MultipleResultSets {
     foreach ($rs in $ResultSets) {
         $i++
         $tab = New-Object System.Windows.Controls.TabItem
+
         $rowCount = if ($rs.RowCount -ne $null) { $rs.RowCount } else { $rs.DataTable.Rows.Count }
-        $tab.Header = "Resultado $i ($rowCount filas)"
+
+        # Header como TextBlock (no string)
+        $ht = New-Object System.Windows.Controls.TextBlock
+        $ht.Text = "Resultado $i ($rowCount filas)"
+        $ht.VerticalAlignment = "Center"
+        $tab.Header = $ht
 
         $dg = New-Object System.Windows.Controls.DataGrid
         $dg.ItemsSource = $rs.DataTable.DefaultView
@@ -245,6 +288,9 @@ function Show-MultipleResultSets {
         $tab.Content = $dg
         [void]$TabControl.Items.Add($tab)
     }
+
+    # Mostrar el Resultado 1 por omisión
+    $TabControl.SelectedIndex = 0
 }
 
 function Export-ResultSetToCsv {
@@ -258,6 +304,61 @@ function Export-ResultSetToCsv {
 
     $ResultSet.DataTable | Export-Csv -Path $Path -NoTypeInformation -Encoding UTF8
 }
+function Get-TextPointerAtOffset {
+    param(
+        [Parameter(Mandatory)][System.Windows.Documents.TextPointer]$Start,
+        [Parameter(Mandatory)][int]$Offset
+    )
+    $navigator = $Start
+    $count = 0
+    while ($navigator -ne $null) {
+        if ($navigator.GetPointerContext([System.Windows.Documents.LogicalDirection]::Forward) -eq [System.Windows.Documents.TextPointerContext]::Text) {
+            $run = $navigator.GetTextInRun([System.Windows.Documents.LogicalDirection]::Forward)
+            $remaining = $Offset - $count
+            if ($remaining -le $run.Length) {
+                return $navigator.GetPositionAtOffset($remaining)
+            }
+            $count += $run.Length
+        }
+        $navigator = $navigator.GetNextContextPosition([System.Windows.Documents.LogicalDirection]::Forward)
+    }
+    return $Start
+}
+function Set-WpfSqlHighlighting {
+    param(
+        [Parameter(Mandatory)][System.Windows.Controls.RichTextBox]$RichTextBox,
+        [string]$RegexPattern
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RegexPattern)) { return }
+
+    $doc = $RichTextBox.Document
+    if (-not $doc) { return }
+
+    $fullRange = New-Object System.Windows.Documents.TextRange($doc.ContentStart, $doc.ContentEnd)
+    $text = $fullRange.Text
+    if ([string]::IsNullOrWhiteSpace($text)) { return }
+
+    # reset a color normal
+    $fullRange.ApplyPropertyValue(
+        [System.Windows.Documents.TextElement]::ForegroundProperty,
+        $RichTextBox.Foreground
+    )
+
+    $rx = [regex]::new($RegexPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    $matches = $rx.Matches($text)
+    if ($matches.Count -eq 0) { return }
+
+    $accent = $RichTextBox.FindResource("AccentPrimary")
+    foreach ($m in $matches) {
+        $start = Get-TextPointerAtOffset -Start $doc.ContentStart -Offset $m.Index
+        $end = Get-TextPointerAtOffset -Start $doc.ContentStart -Offset ($m.Index + $m.Length)
+        if ($start -and $end) {
+            (New-Object System.Windows.Documents.TextRange($start, $end)).
+            ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $accent)
+        }
+    }
+}
 
 Export-ModuleMember -Function @(
     'New-QueryTab',
@@ -268,5 +369,9 @@ Export-ModuleMember -Function @(
     'Get-ActiveQueryRichTextBox',
     'Set-QueryTextInActiveTab',
     'Insert-TextIntoActiveQuery',
-    'Clear-ActiveQueryTab'
+    'Clear-ActiveQueryTab',
+    'Update-QueryTabHeader',
+    'Get-ActiveQueryTab',
+    'Set-WpfSqlHighlighting',
+    'Get-TextPointerAtOffset'
 )

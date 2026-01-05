@@ -60,7 +60,6 @@ function Invoke-SqlQuery {
         Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] FIN"
     }
 }
-
 function Invoke-SqlQueryMultiResultSet {
     [CmdletBinding()]
     param(
@@ -72,12 +71,16 @@ function Invoke-SqlQueryMultiResultSet {
     )
 
     $connection = $null
+    $reader = $null
     Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] INICIO"
+
     try {
         $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
         $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+
         $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+
         $messages = New-Object System.Collections.Generic.List[string]
         $connection.add_InfoMessage({
                 param($sender, $e)
@@ -87,42 +90,80 @@ function Invoke-SqlQueryMultiResultSet {
                 }
             })
         $connection.FireInfoMessageEventOnUserErrors = $true
+
         $connection.Open()
         $command = $connection.CreateCommand()
         $command.CommandText = $Query
         $command.CommandTimeout = 0
-
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] QUERY:`n$Query"
         $reader = $command.ExecuteReader()
         $resultSets = New-Object System.Collections.Generic.List[object]
 
-        do {
-            if ($reader.FieldCount -gt 0) {
-                $dataTable = New-Object System.Data.DataTable
-                [void]$dataTable.Load($reader)
+        while ($true) {
+            # Si este resultset trae columnas, lo leemos en un DataTable sin cerrar el reader
+            if (-not $reader.IsClosed -and $reader.FieldCount -gt 0) {
+                $dt = New-Object System.Data.DataTable
+
+                # Columnas
+                for ($i = 0; $i -lt $reader.FieldCount; $i++) {
+                    $colName = $reader.GetName($i)
+                    if ([string]::IsNullOrWhiteSpace($colName)) { $colName = "Column$($i+1)" }
+                    [void]$dt.Columns.Add($colName)
+                }
+
+                # Filas
+                while ($reader.Read()) {
+                    $row = $dt.NewRow()
+                    for ($i = 0; $i -lt $reader.FieldCount; $i++) {
+                        $row[$i] = $reader.GetValue($i)
+                    }
+                    [void]$dt.Rows.Add($row)
+                }
+
                 $resultSets.Add([PSCustomObject]@{
-                        DataTable = $dataTable
-                        RowCount = $dataTable.Rows.Count
+                        DataTable = $dt
+                        RowCount  = $dt.Rows.Count
                     })
+                Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] RS#$($resultSets.Count) Filas: $($dt.Rows.Count) Columnas: $($dt.Columns.Count)"
+
             }
-        } while ($reader.NextResult())
 
-        $recordsAffected = $reader.RecordsAffected
-        $reader.Close()
+            # Pasar al siguiente resultset (si el reader ya se cerró, salimos)
+            if ($reader.IsClosed) { break }
 
-        if ($resultSets.Count -eq 0 -and $recordsAffected -ge 0) {
-            return @{Success = $true; ResultSets = @(); RowsAffected = $recordsAffected; Messages = $messages }
+            $hasNext = $false
+            try { $hasNext = $reader.NextResult() } catch { break }
+            if (-not $hasNext) { break }
         }
 
-        return @{Success = $true; ResultSets = $resultSets.ToArray(); Messages = $messages }
+        $recordsAffected = -1
+        try { if ($reader -and -not $reader.IsClosed) { $recordsAffected = $reader.RecordsAffected } } catch {}
+
+        if ($reader -and -not $reader.IsClosed) { $reader.Close() }
+
+        if ($resultSets.Count -eq 0 -and $recordsAffected -ge 0) {
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] ResultSets: $($resultSets.Count)"
+            $idx = 0
+            foreach ($rs in $resultSets) {
+                $idx++
+                Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] RS#$idx Filas: $($rs.RowCount)"
+            }
+            return @{ Success = $true; ResultSets = @(); RowsAffected = $recordsAffected; Messages = $messages }
+        }
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] ResultSets: $($resultSets.Count) TotalFilas: $((($resultSets | ForEach-Object { $_.RowCount }) | Measure-Object -Sum).Sum)"
+        return @{ Success = $true; ResultSets = $resultSets.ToArray(); Messages = $messages }
     } catch {
         Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] CATCH: $($_.Exception.Message)"
-        return @{Success = $false; ErrorMessage = $_.Exception.Message; Type = "Error" }
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] Tipo: $($_.Exception.GetType().FullName)"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] Stack: $($_.ScriptStackTrace)"
+        return @{ Success = $false; ErrorMessage = $_.Exception.Message; Type = "Error" }
     } finally {
+        if ($reader) { try { $reader.Close() } catch {} }
         if ($plainPassword) { $plainPassword = $null }
         if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
         if ($null -ne $connection) {
-            if ($connection.State -eq [System.Data.ConnectionState]::Open) { $connection.Close() }
-            $connection.Dispose()
+            try { if ($connection.State -eq [System.Data.ConnectionState]::Open) { $connection.Close() } } catch {}
+            try { $connection.Dispose() } catch {}
         }
         Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] FIN"
     }

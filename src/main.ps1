@@ -130,7 +130,7 @@ function New-MainForm {
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Gerardo Zermeño Tools"
         Height="650" Width="1200" MinHeight="600" MinWidth="1000"
-        WindowStartupLocation="CenterScreen" WindowState="Maximized"
+        WindowStartupLocation="CenterScreen" WindowState="Normal"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
@@ -215,6 +215,10 @@ function New-MainForm {
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+        <Style TargetType="{x:Type Paragraph}">
+            <Setter Property="Margin" Value="0"/>
         </Style>
         <Style TargetType="{x:Type DataGrid}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
@@ -552,8 +556,6 @@ function New-MainForm {
                 </Grid>
             </TabItem>
         </TabControl>
-        <Button Content="Salir" Name="btnExit" Width="400" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="300,0,0,10" Style="{StaticResource GeneralButtonStyle}"/>
     </Grid>
 </Window>
 "@
@@ -647,7 +649,6 @@ function New-MainForm {
         if ($tcQueries) { $tcQueries.IsEnabled = $false }
         if ($tcResults) { $tcResults.IsEnabled = $false }
     }
-    $btnExit = $window.FindName("btnExit")
     $global:txtServer = $txtServer
     $global:txtUser = $txtUser
     $global:txtPassword = $txtPassword
@@ -1340,7 +1341,6 @@ Base de datos: $($global:database)
             Write-DzDebug "`t[DEBUG] Error: $_" -Color Red
         }
     }.GetNewClosure()
-    $btnExit.Add_Click($closeWindowScript)
     Write-Host "✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     return $window
 }

@@ -77,20 +77,27 @@ function Invoke-SqlQueryMultiResultSet {
     try {
         $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
         $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
-
         $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-
         $messages = New-Object System.Collections.Generic.List[string]
+        $script:HadSqlError = $false   # <-- IMPORTANTE: inicializar
         $connection.add_InfoMessage({
                 param($sender, $e)
                 [void]$messages.Add($e.Message)
+                # Si viene colección de errores, usa severidad real
+                if ($e.Errors) {
+                    foreach ($err in $e.Errors) {
+                        if ($err.Class -ge 11) {
+                            $script:HadSqlError = $true
+                        }
+                    }
+                }
+
                 if ($InfoMessageCallback) {
-                    try { & $InfoMessageCallback $e.Message } catch { Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] Error en InfoMessageCallback: $_" }
+                    try { & $InfoMessageCallback $e.Message } catch { }
                 }
             })
         $connection.FireInfoMessageEventOnUserErrors = $true
-
         $connection.Open()
         $command = $connection.CreateCommand()
         $command.CommandText = $Query
@@ -148,6 +155,27 @@ function Invoke-SqlQueryMultiResultSet {
                 $idx++
                 Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] RS#$idx Filas: $($rs.RowCount)"
             }
+            # Si hubo error reportado por SQL (aunque no haya exception), falla la operación
+            # ---- DETECCIÓN GLOBAL DE ERROR (ANTES DE CUALQUIER RETURN) ----
+            $allMsgs = ""
+            try { $allMsgs = ($messages -join "`n") } catch {}
+
+            # Fallback: si SQL no llena e.Errors pero sí manda texto de error
+            $looksLikeError = $false
+            if ($allMsgs -match '(?i)\b(no es válido|invalid object name|incorrect syntax|error\s+de\s+sql|msg\s+\d+|level\s+\d+)\b') {
+                $looksLikeError = $true
+            }
+
+            if ($script:HadSqlError -or $looksLikeError) {
+                return @{
+                    Success      = $false
+                    ErrorMessage = $allMsgs
+                    Type         = "Error"
+                    Messages     = $messages
+                    ResultSets   = @()
+                }
+            }
+            # -------------------------------------------------------------
             return @{ Success = $true; ResultSets = @(); RowsAffected = $recordsAffected; Messages = $messages }
         }
         Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] ResultSets: $($resultSets.Count) TotalFilas: $((($resultSets | ForEach-Object { $_.RowCount }) | Measure-Object -Sum).Sum)"

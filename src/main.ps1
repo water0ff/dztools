@@ -36,18 +36,6 @@ function Show-GlobalProgress {
     $script:ProgressActive = $true
     $script:LastProgressLen = ($text.Length + $pad.Length)
 }
-function Update-UI {
-    param(
-        [scriptblock]$ScriptBlock,
-        [System.Windows.Window]$Window = $global:MainWindow
-    )
-    if (-not $Window) { return }
-    try {
-        $Window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Normal, $ScriptBlock)
-    } catch {
-        Write-DzDebug "`t[DEBUG] Error en Update-UI: $($_.Exception.Message)" -Color Red
-    }
-}
 function Stop-GlobalProgress {
     if ($script:ProgressActive) {
         Write-Host ""
@@ -674,27 +662,6 @@ function New-MainForm {
     $tabAddQuery = $window.FindName("tabAddQuery")
     $tglDarkMode = $window.FindName("tglDarkMode")
     $tglDebugMode = $window.FindName("tglDebugMode")
-    $global:txtServer = $txtServer
-    $global:txtUser = $txtUser
-    $global:txtPassword = $txtPassword
-    $global:cmbDatabases = $cmbDatabases
-    $global:btnConnectDb = $btnConnectDb
-    $global:btnDisconnectDb = $btnDisconnectDb
-    $global:btnBackup = $btnBackup
-    $global:lblConnectionStatus = $window.FindName("lblConnectionStatus")
-    $global:tvDatabases = $tvDatabases
-    # Controles del área de consultas (NUEVOS)
-    $global:btnExecute = $btnExecute
-    $global:cmbQueries = $cmbQueries
-    $global:btnClearQuery = $btnClearQuery
-    $global:btnFormat = $window.FindName("btnFormat")
-    $global:btnComment = $window.FindName("btnComment")
-    $global:rtbQueryEditor1 = $window.FindName("rtbQueryEditor1")
-    $global:dgResults = $window.FindName("dgResults")
-    $global:txtMessages = $window.FindName("txtMessages")
-    $global:lblExecutionTime = $window.FindName("lblExecutionTime")
-    $global:lblRowCount = $window.FindName("lblRowCount")
-
     $script:predefinedQueries = Get-PredefinedQueries
     $script:sqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
     if ($cmbQueries) {
@@ -736,6 +703,20 @@ function New-MainForm {
         if ($tcQueries) { $tcQueries.IsEnabled = $false }
         if ($tcResults) { $tcResults.IsEnabled = $false }
     }
+    $global:txtServer = $txtServer
+    $global:txtUser = $txtUser
+    $global:txtPassword = $txtPassword
+    $global:cmbDatabases = $cmbDatabases
+    $global:btnConnectDb = $btnConnectDb
+    $global:btnDisconnectDb = $btnDisconnectDb
+    $global:btnExecute = $btnExecute
+    $global:btnBackup = $btnBackup
+    $global:btnClearQuery = $btnClearQuery
+    $global:cmbQueries = $cmbQueries
+    $global:tcQueries = $tcQueries
+    $global:tcResults = $tcResults
+    $global:tvDatabases = $tvDatabases
+    $global:tabAddQuery = $tabAddQuery
     $global:btnFormat = $window.FindName("btnFormat")
     $global:btnComment = $window.FindName("btnComment")
     $global:rtbQueryEditor1 = $window.FindName("rtbQueryEditor1")
@@ -1284,10 +1265,6 @@ function New-MainForm {
             Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss"))
             Write-Host "`t- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Gray
 
-            # Deshabilitar botón inmediatamente para evitar doble clic
-            $global:btnConnectDb.IsEnabled = $false
-            $global:btnConnectDb.Content = "Conectando..."
-
             try {
                 if ($null -eq $global:txtServer -or $null -eq $global:txtUser -or $null -eq $global:txtPassword) {
                     throw "Error interno: controles de conexión no inicializados."
@@ -1303,110 +1280,67 @@ function New-MainForm {
                     throw "Complete todos los campos de conexión"
                 }
 
-                # Crear credential en el hilo actual
                 $securePassword = (New-Object System.Net.NetworkCredential('', $passwordText)).SecurePassword
                 $credential = New-Object System.Management.Automation.PSCredential($userText, $securePassword)
 
-                # Ejecutar operación de BD en un job de fondo
-                $job = Start-Job -ScriptBlock {
-                    param($server, $credential)
-                    try {
-                        # Importar módulo en el job
-                        Import-Module "Database" -Force -DisableNameChecking
-                        $databases = Get-SqlDatabases -Server $server -Credential $credential
-                        return @{ Success = $true; Databases = $databases; Error = $null }
-                    } catch {
-                        return @{ Success = $false; Databases = @(); Error = $_.Exception.Message }
-                    }
-                } -ArgumentList $serverText, $credential
+                $global:server = $serverText
+                $global:user = $userText
+                $global:password = $passwordText
+                $global:dbCredential = $credential
 
-                # Esperar resultado (con timeout)
-                $timeout = 30 # segundos
-                $start = Get-Date
-                while ($job.State -eq 'Running' -and ((Get-Date) - $start).TotalSeconds -lt $timeout) {
-                    Start-Sleep -Milliseconds 100
-                }
+                $databases = Get-SqlDatabases -Server $serverText -Credential $credential
 
-                if ($job.State -eq 'Running') {
-                    Stop-Job $job
-                    Remove-Job $job
-                    throw "Timeout al conectar con SQL Server"
-                }
-
-                $result = Receive-Job $job
-                Remove-Job $job
-
-                if (-not $result.Success) {
-                    throw "Error obteniendo bases de datos: $($result.Error)"
-                }
-
-                if (-not $result.Databases -or $result.Databases.Count -eq 0) {
+                if (-not $databases -or $databases.Count -eq 0) {
                     throw "Conexión correcta, pero no se encontraron bases de datos disponibles."
                 }
 
-                # Usar Dispatcher para actualizar la UI desde el hilo principal
-                $window.Dispatcher.Invoke([action] {
-                        # Actualizar controles de UI
-                        $global:cmbDatabases.Items.Clear()
-                        foreach ($db in $result.Databases) {
-                            [void]$global:cmbDatabases.Items.Add($db)
-                        }
+                $global:cmbDatabases.Items.Clear()
+                foreach ($db in $databases) {
+                    [void]$global:cmbDatabases.Items.Add($db)
+                }
 
-                        $global:cmbDatabases.IsEnabled = $true
-                        $global:cmbDatabases.SelectedIndex = 0
-                        $global:database = $global:cmbDatabases.SelectedItem
+                $global:cmbDatabases.IsEnabled = $true
+                $global:cmbDatabases.SelectedIndex = 0
+                $global:database = $global:cmbDatabases.SelectedItem
 
-                        # Actualizar barra de estado
-                        $global:lblConnectionStatus.Text = "✓ Conectado a: $serverText | DB: $($global:database)"
+                # Actualizar barra de estado
+                $global:lblConnectionStatus.Text = "✓ Conectado a: $serverText | DB: $($global:database)"
 
-                        # Guardar variables globales
-                        $global:server = $serverText
-                        $global:user = $userText
-                        $global:password = $passwordText
-                        $global:dbCredential = $credential
+                $global:txtServer.IsEnabled = $false
+                $global:txtUser.IsEnabled = $false
+                $global:txtPassword.IsEnabled = $false
+                $global:btnExecute.IsEnabled = $true
+                $global:btnClearQuery.IsEnabled = $true
+                $global:cmbQueries.IsEnabled = $true
+                $global:btnConnectDb.IsEnabled = $false
+                $global:btnBackup.IsEnabled = $true
+                $global:btnDisconnectDb.IsEnabled = $true
+                $global:btnFormat.IsEnabled = $true
+                $global:btnComment.IsEnabled = $true
+                # ✅ Habilitar UI de trabajo al conectar
+                if ($global:tcQueries) { $global:tcQueries.IsEnabled = $true }
+                if ($global:tcResults) { $global:tcResults.IsEnabled = $true }
 
-                        # Actualizar estado de controles
-                        $global:txtServer.IsEnabled = $false
-                        $global:txtUser.IsEnabled = $false
-                        $global:txtPassword.IsEnabled = $false
-                        $global:btnExecute.IsEnabled = $true
-                        $global:btnClearQuery.IsEnabled = $true
-                        $global:cmbQueries.IsEnabled = $true
-                        $global:btnConnectDb.IsEnabled = $false
-                        $global:btnBackup.IsEnabled = $true
-                        $global:btnDisconnectDb.IsEnabled = $true
-                        $global:btnFormat.IsEnabled = $true
-                        $global:btnComment.IsEnabled = $true
-                        $global:rtbQueryEditor1.IsEnabled = $true
+                if ($global:rtbQueryEditor1) { $global:rtbQueryEditor1.IsEnabled = $true }
+                if ($global:dgResults) { $global:dgResults.IsEnabled = $true }
+                if ($global:txtMessages) { $global:txtMessages.IsEnabled = $true }
 
-                        # Inicializar TreeView (si existe la función)
-                        if (Get-Command Initialize-SqlTreeView -ErrorAction SilentlyContinue) {
-                            try {
-                                Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential -InsertTextHandler {
-                                    param($text)
-                                    if ($global:rtbQueryEditor1) {
-                                        $global:rtbQueryEditor1.Dispatcher.Invoke([action] {
-                                                $global:rtbQueryEditor1.Focus()
-                                                $global:rtbQueryEditor1.CaretPosition.InsertTextInRun($text)
-                                            })
-                                    }
-                                }
-                            } catch {
-                                Write-DzDebug "`t[DEBUG] Error inicializando TreeView: $_" -Color Yellow
-                            }
-                        }
-
-                        Write-Host "✓ Conexión exitosa a $serverText" -ForegroundColor Green
-                    }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                # Opcional: enfoque al editor
+                $global:rtbQueryEditor1.Focus() | Out-Null
+                # IMPORTANTE: Inicializar TreeView con el nuevo RichTextBox
+                Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential -InsertTextHandler {
+                    param($text)
+                    # Insertar en el RichTextBox actual
+                    if ($global:rtbQueryEditor1) {
+                        $global:rtbQueryEditor1.Focus()
+                        $global:rtbQueryEditor1.CaretPosition.InsertTextInRun($text)
+                    }
+                }
 
             } catch {
-                Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: $($_.Exception.Message)" -Color Red
-
-                # Restaurar UI incluso en error
-                $window.Dispatcher.Invoke([action] {
-                        $global:btnConnectDb.IsEnabled = $true
-                        $global:btnConnectDb.Content = "Conectar"
-                    })
+                Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: $($_.Exception.Message)"
+                Write-DzDebug "`t[DEBUG][btnConnectDb] Tipo: $($_.Exception.GetType().FullName)"
+                Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: $($_.ScriptStackTrace)"
 
                 Ui-Error "Error de conexión: $($_.Exception.Message)" $global:MainWindow
                 Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
@@ -1437,7 +1371,8 @@ function New-MainForm {
                 $global:rtbQueryEditor1.IsEnabled = $false
                 $global:dgResults.IsEnabled = $false
                 $global:txtMessages.IsEnabled = $false
-
+                if ($global:tcQueries) { $global:tcQueries.IsEnabled = $false }
+                if ($global:tcResults) { $global:tcResults.IsEnabled = $false }
                 $global:tvDatabases.Items.Clear()
                 $global:cmbDatabases.Items.Clear()
                 $global:cmbDatabases.IsEnabled = $false

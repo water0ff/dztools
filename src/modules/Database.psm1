@@ -1,6 +1,5 @@
 ﻿#requires -Version 5.0
 function Process-SqlProgressMessage { param([string]$Message) if ($Message -match '(?i)(\d{1,3})\s*percent') { $percent = [int]$Matches[1]; Write-Output "Progreso: $percent%" } elseif ($Message -match 'BACKUP DATABASE successfully processed') { Write-Output "Backup completado exitosamente" } }
-
 function Invoke-SqlQuery {
     [CmdletBinding()]
     param(
@@ -69,30 +68,36 @@ function Invoke-SqlQueryMultiResultSet {
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
         [Parameter(Mandatory = $false)][scriptblock]$InfoMessageCallback
     )
-
     $connection = $null
     $reader = $null
     Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] INICIO"
-
+    $script:HadSqlError = $false
     try {
         $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
         $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
         $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
         $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
         $messages = New-Object System.Collections.Generic.List[string]
-        $script:HadSqlError = $false   # <-- IMPORTANTE: inicializar
+        $script:HadSqlError = $false
         $connection.add_InfoMessage({
                 param($sender, $e)
-                [void]$messages.Add($e.Message)
-                # Si viene colección de errores, usa severidad real
+                Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] InfoMessage recibido: $($e.Message)" -Color DarkYellow
+                $isError = $false
                 if ($e.Errors) {
                     foreach ($err in $e.Errors) {
+                        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - Error detallado: $($err.Message) (Class: $($err.Class), State: $($err.State))" -Color Red
                         if ($err.Class -ge 11) {
                             $script:HadSqlError = $true
+                            $isError = $true
+                            Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - ERROR SQL detectado (Class >= 11)" -Color Red
                         }
                     }
                 }
-
+                if ($e.Message -match '(?i)\b(no es válido|invalid object name|incorrect syntax|error\s+de\s+sql|msg\s+\d+|level\s+\d+|sintaxis incorrecta)\b') {
+                    Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - ERROR detectado por patrón en mensaje" -Color Red
+                    $isError = $true
+                }
+                [void]$messages.Add($e.Message)
                 if ($InfoMessageCallback) {
                     try { & $InfoMessageCallback $e.Message } catch { }
                 }
@@ -105,79 +110,68 @@ function Invoke-SqlQueryMultiResultSet {
         Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] QUERY:`n$Query"
         $reader = $command.ExecuteReader()
         $resultSets = New-Object System.Collections.Generic.List[object]
-
         while ($true) {
-            # Si este resultset trae columnas, lo leemos en un DataTable sin cerrar el reader
             if (-not $reader.IsClosed -and $reader.FieldCount -gt 0) {
                 $dt = New-Object System.Data.DataTable
-
-                # Columnas
                 for ($i = 0; $i -lt $reader.FieldCount; $i++) {
                     $colName = $reader.GetName($i)
                     if ([string]::IsNullOrWhiteSpace($colName)) { $colName = "Column$($i+1)" }
                     [void]$dt.Columns.Add($colName)
                 }
-
-                # Filas
                 while ($reader.Read()) {
                     $row = $dt.NewRow()
-                    for ($i = 0; $i -lt $reader.FieldCount; $i++) {
-                        $row[$i] = $reader.GetValue($i)
-                    }
+                    for ($i = 0; $i -lt $reader.FieldCount; $i++) { $row[$i] = $reader.GetValue($i) }
                     [void]$dt.Rows.Add($row)
                 }
-
-                $resultSets.Add([PSCustomObject]@{
-                        DataTable = $dt
-                        RowCount  = $dt.Rows.Count
-                    })
+                $resultSets.Add([PSCustomObject]@{ DataTable = $dt; RowCount = $dt.Rows.Count })
                 Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] RS#$($resultSets.Count) Filas: $($dt.Rows.Count) Columnas: $($dt.Columns.Count)"
-
             }
-
-            # Pasar al siguiente resultset (si el reader ya se cerró, salimos)
             if ($reader.IsClosed) { break }
-
             $hasNext = $false
             try { $hasNext = $reader.NextResult() } catch { break }
             if (-not $hasNext) { break }
         }
-
         $recordsAffected = -1
         try { if ($reader -and -not $reader.IsClosed) { $recordsAffected = $reader.RecordsAffected } } catch {}
-
         if ($reader -and -not $reader.IsClosed) { $reader.Close() }
-
         if ($resultSets.Count -eq 0 -and $recordsAffected -ge 0) {
             Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] ResultSets: $($resultSets.Count)"
             $idx = 0
-            foreach ($rs in $resultSets) {
-                $idx++
-                Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] RS#$idx Filas: $($rs.RowCount)"
-            }
-            # Si hubo error reportado por SQL (aunque no haya exception), falla la operación
-            # ---- DETECCIÓN GLOBAL DE ERROR (ANTES DE CUALQUIER RETURN) ----
+            foreach ($rs in $resultSets) { $idx++; Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] RS#$idx Filas: $($rs.RowCount)" }
             $allMsgs = ""
             try { $allMsgs = ($messages -join "`n") } catch {}
-
-            # Fallback: si SQL no llena e.Errors pero sí manda texto de error
             $looksLikeError = $false
-            if ($allMsgs -match '(?i)\b(no es válido|invalid object name|incorrect syntax|error\s+de\s+sql|msg\s+\d+|level\s+\d+)\b') {
-                $looksLikeError = $true
-            }
-
+            if ($allMsgs -match '(?i)\b(no es válido|invalid object name|incorrect syntax|error\s+de\s+sql|msg\s+\d+|level\s+\d+)\b') { $looksLikeError = $true }
             if ($script:HadSqlError -or $looksLikeError) {
-                return @{
-                    Success      = $false
-                    ErrorMessage = $allMsgs
-                    Type         = "Error"
-                    Messages     = $messages
-                    ResultSets   = @()
-                }
+                return @{ Success = $false; ErrorMessage = $allMsgs; Type = "Error"; Messages = $messages; ResultSets = @() }
             }
-            # -------------------------------------------------------------
             return @{ Success = $true; ResultSets = @(); RowsAffected = $recordsAffected; Messages = $messages }
         }
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] ResultSets: $($resultSets.Count) TotalFilas: $((($resultSets | ForEach-Object { $_.RowCount }) | Measure-Object -Sum).Sum)"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] RESUMEN FINAL ANTES DE RETORNAR:"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - resultSets.Count: $($resultSets.Count)"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - recordsAffected: $recordsAffected"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - script:HadSqlError: $($script:HadSqlError)"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - messages count: $($messages.Count)"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - Últimos mensajes:"
+        if ($messages.Count -gt 0) { for ($i = [math]::Max(0, $messages.Count - 3); $i -lt $messages.Count; $i++) { Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet]   [$i]: $($messages[$i])" -Color Gray } }
+        if ($script:HadSqlError) {
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] RETORNANDO ERROR (HadSqlError = true)" -Color Red
+            $allMsgs = $messages -join "`n"
+            return @{ Success = $false; ErrorMessage = $allMsgs; Type = "Error"; Messages = $messages; ResultSets = @() }
+        }
+        $allMsgs = $messages -join "`n"
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] Revisando contenido de mensajes para errores..." -Color DarkGray
+        if ($allMsgs -match '(?i)\b(no es válido|invalid object name|incorrect syntax|error|sintaxis incorrecta|no existe|does not exist|not found|no se pudo|cannot|no se puede)\b') {
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] ERROR DETECTADO EN CONTENIDO DE MENSAJES" -Color Red
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] Fragmento detectado: $($Matches[0])" -Color Red
+            return @{ Success = $false; ErrorMessage = $allMsgs; Type = "Error"; Messages = $messages; ResultSets = @() }
+        }
+        if ($resultSets.Count -eq 0 -and $recordsAffected -ge 0) {
+            Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] RETORNANDO: Sin resultsets pero con recordsAffected" -Color Cyan
+            return @{ Success = $true; ResultSets = @(); RowsAffected = $recordsAffected; Messages = $messages }
+        }
+        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] RETORNANDO: Con resultsets" -Color Green
         Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] ResultSets: $($resultSets.Count) TotalFilas: $((($resultSets | ForEach-Object { $_.RowCount }) | Measure-Object -Sum).Sum)"
         return @{ Success = $true; ResultSets = $resultSets.ToArray(); Messages = $messages }
     } catch {
@@ -196,7 +190,6 @@ function Invoke-SqlQueryMultiResultSet {
         Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] FIN"
     }
 }
-
 function Remove-SqlComments { [CmdletBinding()] param([Parameter(Mandatory = $true)][string]$Query) $query = $Query -replace '(?s)/\*.*?\*/', ''; $query = $query -replace '(?m)^\s*--.*\n?', ''; $query = $query -replace '(?<!\w)--.*$', ''; $query.Trim() }
 function Get-SqlDatabases {
     [CmdletBinding()]
@@ -204,7 +197,6 @@ function Get-SqlDatabases {
         [Parameter(Mandatory = $true)][string]$Server,
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
     )
-
     $query = @"
 SELECT name
 FROM sys.databases
@@ -212,15 +204,12 @@ WHERE name NOT IN ('tempdb','model','msdb')
   AND state_desc = 'ONLINE'
 ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name
 "@
-
     $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $query -Credential $Credential
     if (-not $result.Success) { throw "Error obteniendo bases de datos: $($result.ErrorMessage)" }
-
     $databases = @()
     foreach ($row in $result.DataTable.Rows) { $databases += $row["name"] }
     $databases
 }
-
 function Backup-Database {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$Database, [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential, [Parameter(Mandatory = $true)][string]$BackupPath, [Parameter(Mandatory = $false)][scriptblock]$ProgressCallback)
@@ -241,7 +230,6 @@ WITH CHECKSUM, STATS = 1, FORMAT, INIT
         @{Success = $false; ErrorMessage = $_.Exception.Message }
     }
 }
-
 function Execute-SqlQuery {
     param([string]$server, [string]$database, [string]$query)
     $connection = $null
@@ -270,7 +258,6 @@ function Execute-SqlQuery {
         }
     }
 }
-
 function Show-ResultsConsole {
     param([string]$query)
     try {
@@ -295,7 +282,6 @@ function Show-ResultsConsole {
         }
     } catch { Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red }
 }
-
 function Get-IniConnections {
     $connections = @()
     $pathsToCheck = @(
@@ -319,7 +305,6 @@ function Get-IniConnections {
     }
     $connections | Sort-Object
 }
-
 function Load-IniConnectionsToComboBox {
     param([Parameter(Mandatory = $true)]$Combo)
     $connections = Get-IniConnections
@@ -327,7 +312,6 @@ function Load-IniConnectionsToComboBox {
     if ($connections.Count -gt 0) { foreach ($c in $connections) { [void]$Combo.Items.Add($c) } } else { Write-Host "`tNo se encontraron conexiones en archivos INI" -ForegroundColor Yellow }
     $Combo.Text = ".\NationalSoft"
 }
-
 function ConvertTo-DataTable {
     param($InputObject)
     $dt = New-Object System.Data.DataTable
@@ -337,41 +321,27 @@ function ConvertTo-DataTable {
     foreach ($row in $InputObject) { $dr = $dt.NewRow(); foreach ($c in $cols) { $dr[$c] = $row[$c] }; [void]$dt.Rows.Add($dr) }
     $dt
 }
-
 function Show-BackupDialog {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database)
     $script:BackupRunning = $false
     $script:BackupDone = $false
     $script:EnableThreadJob = $false
-    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) {
-        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null
-    }
-    function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) {
-        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null
-    }
-    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) {
-        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null
-    }
-    function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) {
-        (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes
-    }
+    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
+    function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null }
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
+    function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) { (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes }
     function Initialize-ThreadJob {
         [CmdletBinding()]
         param()
-
         Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Verificando módulo ThreadJob"
-
-        # Verificar si el módulo está disponible
         if (Get-Module -ListAvailable -Name ThreadJob) {
             Import-Module ThreadJob -Force
             Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob importado"
             return $true
         } else {
             Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob no encontrado, intentando instalar"
-
             try {
-                # Intentar instalar desde PSGallery
                 Install-Module -Name ThreadJob -Force -Scope CurrentUser -ErrorAction Stop
                 Import-Module ThreadJob -Force
                 Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob instalado e importado"
@@ -382,18 +352,11 @@ function Show-BackupDialog {
             }
         }
     }
-
-    if ($script:EnableThreadJob) {
-        if (-not (Initialize-ThreadJob)) {
-            Write-Host "Advertencia: No se pudo cargar ThreadJob..." -ForegroundColor Yellow
-        }
-    }
+    if ($script:EnableThreadJob) { if (-not (Initialize-ThreadJob)) { Write-Host "Advertencia: No se pudo cargar ThreadJob..." -ForegroundColor Yellow } }
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] INICIO"
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Server='$Server' Database='$Database' User='$User'"
-
     Add-Type -AssemblyName PresentationFramework
     Add-Type -AssemblyName System.Windows.Forms
-
     $theme = Get-DzUiTheme
     $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Respaldo" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)">
@@ -455,12 +418,10 @@ function Show-BackupDialog {
     <Button x:Name="btnCerrar" Content="Cerrar" Width="80" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/></StackPanel></Grid>
 </Window>
 "@
-
     $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
     $window = [System.Windows.Markup.XamlReader]::Load($reader)
     if (-not $window) { Write-DzDebug "`t[DEBUG][Show-BackupDialog] ERROR: window=NULL"; throw "No se pudo crear la ventana (XAML)." }
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Ventana creada OK"
-
     $chkRespaldo = $window.FindName("chkRespaldo")
     $txtNombre = $window.FindName("txtNombre")
     $chkComprimir = $window.FindName("chkComprimir")
@@ -474,29 +435,20 @@ function Show-BackupDialog {
     $btnAbrirCarpeta = $window.FindName("btnAbrirCarpeta")
     $btnCerrar = $window.FindName("btnCerrar")
     $btnTogglePassword = $window.FindName("btnTogglePassword")
-
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Controles: chkRespaldo=$([bool]$chkRespaldo) txtNombre=$([bool]$txtNombre) chkComprimir=$([bool]$chkComprimir) txtPassword=$([bool]$txtPassword) lblPassword=$([bool]$lblPassword) chkSubir=$([bool]$chkSubir) pbBackup=$([bool]$pbBackup) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnAbrirCarpeta=$([bool]$btnAbrirCarpeta) btnCerrar=$([bool]$btnCerrar) btnTogglePassword=$([bool]$btnTogglePassword)"
-
-    if (-not $txtNombre -or -not $chkComprimir -or -not $txtPassword -or -not $lblPassword -or -not $chkSubir -or -not $pbBackup -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnAbrirCarpeta -or -not $btnCerrar) {
-        Write-DzDebug "`t[DEBUG][Show-BackupDialog] ERROR: uno o más controles son NULL. Cerrando..."
-        throw "Controles WPF incompletos (FindName devolvió NULL)."
-    }
-
+    if (-not $txtNombre -or -not $chkComprimir -or -not $txtPassword -or -not $lblPassword -or -not $chkSubir -or -not $pbBackup -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnAbrirCarpeta -or -not $btnCerrar) { Write-DzDebug "`t[DEBUG][Show-BackupDialog] ERROR: uno o más controles son NULL. Cerrando..."; throw "Controles WPF incompletos (FindName devolvió NULL)." }
     $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'
     $txtNombre.Text = ("$Database-$timestampsDefault.bak")
     $txtPassword.IsEnabled = $false
     $lblPassword.IsEnabled = $false
     $chkSubir.IsEnabled = $false
     $chkSubir.IsChecked = $false
-
     $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
     $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
-
     function Paint-Progress { param([int]$Percent, [string]$Message) $pbBackup.Value = $Percent; $txtProgress.Text = $Message }
     function Add-Log { param([string]$Message) $logQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $Message)) }
     function Disable-CompressionUI { $chkComprimir.IsChecked = $false; $txtPassword.IsEnabled = $false; $lblPassword.IsEnabled = $false; $txtPassword.Password = "" }
     function New-SafeCredential { param([string]$Username, [string]$PlainPassword) $secure = New-Object System.Security.SecureString; foreach ($ch in $PlainPassword.ToCharArray()) { $secure.AppendChar($ch) }; $secure.MakeReadOnly(); New-Object System.Management.Automation.PSCredential($Username, $secure) }
-
     function Start-BackupWorkAsync {
         param(
             [string]$Server,
@@ -514,7 +466,6 @@ function Show-BackupDialog {
             param($Server, $Database, $BackupQuery, $ScriptBackupPath, $DoCompress, $ZipPassword, $Credential, $LogQueue, $ProgressQueue)
             function EnqLog([string]$m) { $LogQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $m)) }
             function EnqProg([int]$p, [string]$m) { $ProgressQueue.Enqueue(@{Percent = $p; Message = $m }) }
-
             function Invoke-SqlQueryLite {
                 param([string]$Server, [string]$Database, [string]$Query, [System.Management.Automation.PSCredential]$Credential, [scriptblock]$InfoMessageCallback)
                 $connection = $null
@@ -538,7 +489,6 @@ function Show-BackupDialog {
                     if ($connection) { try { $connection.Close() } catch {}; try { $connection.Dispose() } catch {} }
                 }
             }
-
             function Get-7ZipPath {
                 $c = @("$env:ProgramFiles\7-Zip\7z.exe", "${env:ProgramFiles(x86)}\7-Zip\7z.exe")
                 foreach ($p in $c) { if (Test-Path $p) { return $p } }
@@ -546,7 +496,6 @@ function Show-BackupDialog {
                 if ($cmd) { return $cmd.Source }
                 $null
             }
-
             try {
                 EnqLog "Enviando comando a SQL Server..."
                 EnqProg 10 "Iniciando backup..."
@@ -554,84 +503,46 @@ function Show-BackupDialog {
                     param([string]$Message)
                     $m = ($Message -replace '\s+', ' ').Trim()
                     if ($m) { EnqLog ("[SQL] {0}" -f $m) }
-                    # Reserva de barra si hay compresión
                     $backupMax = 100
-                    if ($DoCompress) { $backupMax = 90 }  # 0..90 backup, 90..99 zip, 100 solo al final (__DONE__)
-
+                    if ($DoCompress) { $backupMax = 90 }
                     if ($Message -match '(?i)\b(\d{1,3})\s*(percent|porcentaje|por\s+ciento)\b') {
                         $p = [int]$Matches[1]
                         if ($p -gt 100) { $p = 100 }
                         if ($p -lt 0) { $p = 0 }
-                        # Escalar el progreso del backup al rango 0..$backupMax
                         $scaled = [int][math]::Floor(($p * $backupMax) / 100)
-                        # Si hay compresión, evita que el BACKUP alcance 100 visualmente
                         if ($DoCompress -and $scaled -ge 100) { $scaled = 90 }
                         EnqProg $scaled ("Progreso backup: {0}%" -f $p)
-                        EnqLog  ("Progreso backup: {0}%" -f $p)
+                        EnqLog ("Progreso backup: {0}%" -f $p)
                         return
                     }
                     if ($Message -match '(?i)\b(successfully processed|procesad[oa]\s+correctamente|completad[oa])\b') {
-                        if ($DoCompress) {
-                            EnqProg 90 "Backup listo. Iniciando compresión..."
-                        } else {
-                            EnqProg 100 "¡Backup completado!"
-                        }
+                        if ($DoCompress) { EnqProg 90 "Backup listo. Iniciando compresión..." } else { EnqProg 100 "¡Backup completado!" }
                         EnqLog "✅ Backup completado (mensaje SQL)"
                         return
                     }
                 }
                 $r = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $BackupQuery -Credential $Credential -InfoMessageCallback $progressCb
                 if (-not $r.Success) { EnqProg 0 "Error en backup"; EnqLog ("❌ Error de SQL: {0}" -f $r.ErrorMessage); EnqLog "__DONE__"; return }
-                if ($DoCompress) {
-                    EnqProg 90 "Backup terminado. Iniciando compresión..."
-                } else {
-                    EnqProg 100 "Backup terminado."
-                }
-                EnqLog  "✅ Comando BACKUP finalizó (ExecuteNonQuery)"
+                if ($DoCompress) { EnqProg 90 "Backup terminado. Iniciando compresión..." } else { EnqProg 100 "Backup terminado." }
+                EnqLog "✅ Comando BACKUP finalizó (ExecuteNonQuery)"
                 Start-Sleep -Milliseconds 500
-                if (Test-Path $ScriptBackupPath)
-                { $sizeMB = [math]::Round((Get-Item $ScriptBackupPath).Length / 1MB, 2); EnqLog ("📊 Tamaño del archivo: {0} MB" -f $sizeMB); EnqLog ("📁 Ubicación: {0}" -f $ScriptBackupPath) }
-                else { EnqLog ("⚠️ No se encontró el archivo en: {0}" -f $ScriptBackupPath) }
+                if (Test-Path $ScriptBackupPath) { $sizeMB = [math]::Round((Get-Item $ScriptBackupPath).Length / 1MB, 2); EnqLog ("📊 Tamaño del archivo: {0} MB" -f $sizeMB); EnqLog ("📁 Ubicación: {0}" -f $ScriptBackupPath) } else { EnqLog ("⚠️ No se encontró el archivo en: {0}" -f $ScriptBackupPath) }
                 if ($DoCompress) {
                     EnqProg 90 "Backup listo. Preparando compresión..."
                     EnqLog "🗜️ Iniciando compresión ZIP..."
                     $inputBak = $ScriptBackupPath
                     $zipPath = "$ScriptBackupPath.zip"
-                    if (-not (Test-Path $inputBak)) {
-                        EnqProg 0 "Error: no existe BAK"
-                        EnqLog ("⚠️ No existe el BAK accesible: {0}" -f $inputBak)
-                        EnqLog "__DONE__"
-                        return
-                    }
+                    if (-not (Test-Path $inputBak)) { EnqProg 0 "Error: no existe BAK"; EnqLog ("⚠️ No existe el BAK accesible: {0}" -f $inputBak); EnqLog "__DONE__"; return }
                     $sevenZip = Get-7ZipPath
-                    if (-not $sevenZip -or -not (Test-Path $sevenZip)) {
-                        EnqProg 0 "Error: no se encontró 7-Zip"
-                        EnqLog "❌ No se encontró 7z.exe. No se puede comprimir."
-                        EnqLog "__DONE__"
-                        return
-                    }
+                    if (-not $sevenZip -or -not (Test-Path $sevenZip)) { EnqProg 0 "Error: no se encontró 7-Zip"; EnqLog "❌ No se encontró 7z.exe. No se puede comprimir."; EnqLog "__DONE__"; return }
                     try {
                         if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
                         EnqProg 92 "Comprimiendo (ZIP)..."
-                        if ($ZipPassword -and $ZipPassword.Trim().Length -gt 0) {
-                            & $sevenZip a -tzip -p"$($ZipPassword.Trim())" -mem=AES256 $zipPath $inputBak | Out-Null
-                        } else {
-                            & $sevenZip a -tzip $zipPath $inputBak | Out-Null
-                        }
+                        if ($ZipPassword -and $ZipPassword.Trim().Length -gt 0) { & $sevenZip a -tzip -p"$($ZipPassword.Trim())" -mem=AES256 $zipPath $inputBak | Out-Null } else { & $sevenZip a -tzip $zipPath $inputBak | Out-Null }
                         EnqProg 97 "Finalizando compresión..."
                         Start-Sleep -Milliseconds 300
-                        if (Test-Path $zipPath) {
-                            $zipMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
-                            EnqProg 99 "ZIP creado. Cerrando..."
-                            EnqLog ("✅ ZIP creado ({0} MB): {1}" -f $zipMB, $zipPath)
-                        } else {
-                            EnqProg 0 "Error: ZIP no generado"
-                            EnqLog ("❌ Se ejecutó 7-Zip pero NO se generó el ZIP: {0}" -f $zipPath)
-                        }
-                    } catch {
-                        EnqProg 0 "Error al comprimir"
-                        EnqLog ("❌ Error al comprimir: {0}" -f $_.Exception.Message)
-                    }
+                        if (Test-Path $zipPath) { $zipMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2); EnqProg 99 "ZIP creado. Cerrando..."; EnqLog ("✅ ZIP creado ({0} MB): {1}" -f $zipMB, $zipPath) } else { EnqProg 0 "Error: ZIP no generado"; EnqLog ("❌ Se ejecutó 7-Zip pero NO se generó el ZIP: {0}" -f $zipPath) }
+                    } catch { EnqProg 0 "Error al comprimir"; EnqLog ("❌ Error al comprimir: {0}" -f $_.Exception.Message) }
                 }
                 EnqLog "__DONE__"
             } catch {
@@ -672,7 +583,6 @@ function Show-BackupDialog {
                         $chkComprimir.IsEnabled = $true
                         if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true }
                         $btnAbrirCarpeta.IsEnabled = $true
-                        # Limpia progreso pendiente para que no pise el 100
                         $tmp = $null
                         while ($progressQueue.TryDequeue([ref]$tmp)) { }
                         Paint-Progress -Percent 100 -Message "Completado"
@@ -681,7 +591,6 @@ function Show-BackupDialog {
                     $count++
                 }
                 if ($count -gt 0) { $txtLog.ScrollToLine(0) }
-                # Solo si NO llegó DONE en este tick, aplicamos el último progreso
                 if (-not $doneThisTick) {
                     $last = $null
                     while ($true) {
@@ -691,16 +600,11 @@ function Show-BackupDialog {
                     }
                     if ($last) { Paint-Progress -Percent $last.Percent -Message $last.Message }
                 }
-            } catch {
-                Write-DzDebug "`t[DEBUG][UI][logTimer] ERROR: $($_.Exception.Message)"
-            }
+            } catch { Write-DzDebug "`t[DEBUG][UI][logTimer] ERROR: $($_.Exception.Message)" }
             if ($script:BackupDone) {
                 $tmpLine = $null
                 $tmpProg = $null
-                if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) {
-                    $logTimer.Stop()
-                    $script:BackupDone = $false
-                }
+                if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) { $logTimer.Stop(); $script:BackupDone = $false }
             }
         })
     $logTimer.Start()
@@ -716,34 +620,15 @@ Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
 ¿Deseas instalar Chocolatey ahora?
 "@
                     $wantChoco = Ui-Confirm $msg "Chocolatey requerido" $window
-                    if (-not $wantChoco) {
-                        Ui-Warn "Compresión deshabilitada (Chocolatey no instalado)." "Atención" $window
-                        Disable-CompressionUI
-                        return
-                    }
-
+                    if (-not $wantChoco) { Ui-Warn "Compresión deshabilitada (Chocolatey no instalado)." "Atención" $window; Disable-CompressionUI; return }
                     $okChoco = Install-Chocolatey
-                    if (-not $okChoco -or -not (Test-ChocolateyInstalled)) {
-                        Ui-Warn "No se pudo instalar Chocolatey. Compresión deshabilitada." "Atención" $window
-                        Disable-CompressionUI
-                        return
-                    }
+                    if (-not $okChoco -or -not (Test-ChocolateyInstalled)) { Ui-Warn "No se pudo instalar Chocolatey. Compresión deshabilitada." "Atención" $window; Disable-CompressionUI; return }
                 }
-
                 if (-not (Test-7ZipInstalled)) {
                     $want7z = Ui-Confirm "Para comprimir se requiere 7-Zip. ¿Deseas instalarlo ahora con Chocolatey?" "7-Zip requerido" $window
-                    if (-not $want7z) {
-                        Ui-Warn "Compresión deshabilitada (7-Zip no instalado)." "Atención" $window
-                        Disable-CompressionUI
-                        return
-                    }
-
+                    if (-not $want7z) { Ui-Warn "Compresión deshabilitada (7-Zip no instalado)." "Atención" $window; Disable-CompressionUI; return }
                     $ok7z = Install-7ZipWithChoco
-                    if (-not $ok7z) {
-                        Ui-Warn "No se pudo instalar 7-Zip. Compresión deshabilitada." "Atención" $window
-                        Disable-CompressionUI
-                        return
-                    }
+                    if (-not $ok7z) { Ui-Warn "No se pudo instalar 7-Zip. Compresión deshabilitada." "Atención" $window; Disable-CompressionUI; return }
                 }
                 $txtPassword.IsEnabled = $true
                 $lblPassword.IsEnabled = $true
@@ -756,7 +641,7 @@ Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
     $chkComprimir.Add_Unchecked({ Write-DzDebug "`t[DEBUG][UI] chkComprimir UNCHECKED"; Disable-CompressionUI })
     $btnAceptar.Add_Click({
             Write-DzDebug "`t[DEBUG][UI] btnAceptar Click"
-            if ($script:BackupRunning) { return }  # evita doble click o reentrada
+            if ($script:BackupRunning) { return }
             $script:BackupDone = $false
             if ($script:BackupRunning) { return }
             $script:BackupDone = $false
@@ -787,38 +672,16 @@ Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
                 Add-Log "Usuario: $User"
                 Add-Log "Ruta SQL (donde escribe el motor): $sqlBackupPath"
                 Add-Log "Ruta accesible desde esta PC: $scriptBackupPath"
-                # 1) extensión
-                if (-not $backupFileName.ToLower().EndsWith(".bak")) {
-                    $backupFileName = "$backupFileName.bak"
-                    $txtNombre.Text = $backupFileName
-                }
-                # 2) caracteres inválidos en nombre de archivo
+                if (-not $backupFileName.ToLower().EndsWith(".bak")) { $backupFileName = "$backupFileName.bak"; $txtNombre.Text = $backupFileName }
                 $invalid = [System.IO.Path]::GetInvalidFileNameChars()
-                if ($backupFileName.IndexOfAny($invalid) -ge 0) {
-                    Show-WarnDialog -Message "El nombre contiene caracteres no válidos..." -Title "Nombre inválido" -Owner $window
-                    Reset-BackupUI -ProgressText "Nombre inválido"
-                    return
-                }
+                if ($backupFileName.IndexOfAny($invalid) -ge 0) { Show-WarnDialog -Message "El nombre contiene caracteres no válidos..." -Title "Nombre inválido" -Owner $window; Reset-BackupUI -ProgressText "Nombre inválido"; return }
                 if (Test-Path $scriptBackupPath) {
                     $choice = Ui-Confirm "Ya existe un respaldo con ese nombre en:`n$scriptBackupPath`n`n¿Deseas sobrescribirlo?" "Archivo existente" $window
-                    if (-not $choice) {
-                        $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'
-                        $txtNombre.Text = "$Database-$timestampsDefault.bak"
-                        Add-Log "⚠️ Operación cancelada: el archivo ya existe. Se sugirió un nuevo nombre."
-                        Reset-BackupUI -ProgressText "Cancelado (elige otro nombre y vuelve a intentar)"
-                        return
-                    }
+                    if (-not $choice) { $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'; $txtNombre.Text = "$Database-$timestampsDefault.bak"; Add-Log "⚠️ Operación cancelada: el archivo ya existe. Se sugirió un nuevo nombre."; Reset-BackupUI -ProgressText "Cancelado (elige otro nombre y vuelve a intentar)"; return }
                 }
-                if ($sameHost) {
-                    if (-not (Test-Path $sqlBackupFolder)) { New-Item -ItemType Directory -Path $sqlBackupFolder -Force | Out-Null }
-                } else {
-                    $uncFolder = "\\$machineName\C$\Temp\SQLBackups"
-                    if (-not (Test-Path $uncFolder))
-                    { Add-Log "⚠️ No pude validar la carpeta UNC: $uncFolder (puede ser permisos). SQL intentará escribir en $sqlBackupFolder en el servidor." }
-                }
+                if ($sameHost) { if (-not (Test-Path $sqlBackupFolder)) { New-Item -ItemType Directory -Path $sqlBackupFolder -Force | Out-Null } } else { $uncFolder = "\\$machineName\C$\Temp\SQLBackups"; if (-not (Test-Path $uncFolder)) { Add-Log "⚠️ No pude validar la carpeta UNC: $uncFolder (puede ser permisos). SQL intentará escribir en $sqlBackupFolder en el servidor." } }
                 $credential = New-SafeCredential -Username $User -PlainPassword $Password
                 Add-Log "✓ Credenciales listas"
-
                 $backupQuery = @"
 BACKUP DATABASE [$Database]
 TO DISK = '$sqlBackupPath'
@@ -863,17 +726,8 @@ function Reset-BackupUI {
     $btnAceptar.Content = $ButtonText
     $txtNombre.IsEnabled = $true
     $chkComprimir.IsEnabled = $true
-    if ($chkComprimir.IsChecked -eq $true) {
-        $txtPassword.IsEnabled = $true
-        $lblPassword.IsEnabled = $true
-    } else {
-        $txtPassword.IsEnabled = $false
-        $lblPassword.IsEnabled = $false
-    }
+    if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true; $lblPassword.IsEnabled = $true } else { $txtPassword.IsEnabled = $false; $lblPassword.IsEnabled = $false }
     $btnAbrirCarpeta.IsEnabled = $true
     $txtProgress.Text = $ProgressText
 }
-Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases',
-    'Backup-Database', 'Execute-SqlQuery', 'Show-ResultsConsole',
-    'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable',
-    'Show-BackupDialog', 'Reset-BackupUI')
+Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable', 'Show-BackupDialog', 'Reset-BackupUI')

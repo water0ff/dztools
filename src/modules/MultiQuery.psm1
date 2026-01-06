@@ -1,6 +1,5 @@
 ﻿#requires -Version 5.0
 $script:queryTabCounter = 1
-# SQL Keywords (source of truth)
 if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) {
     $global:DzSqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
 }
@@ -11,39 +10,32 @@ function Get-ActiveQueryTab {
     if ($tab -and $tab.Tag -and $tab.Tag.Type -eq 'QueryTab') { return $tab }
     $null
 }
-
 function Get-ActiveQueryRichTextBox {
     param([Parameter(Mandatory = $true)]$TabControl)
     $tab = Get-ActiveQueryTab -TabControl $TabControl
     if ($tab -and $tab.Tag -and $tab.Tag.RichTextBox) { return $tab.Tag.RichTextBox }
     $null
 }
-
 function Set-QueryTextInActiveTab {
     param(
         [Parameter(Mandatory = $true)]$TabControl,
         [Parameter(Mandatory = $true)][string]$Text
     )
-
     $rtb = Get-ActiveQueryRichTextBox -TabControl $TabControl
     if (-not $rtb) { return }
-
     $rtb.Document.Blocks.Clear()
     $paragraph = New-Object System.Windows.Documents.Paragraph
     $run = New-Object System.Windows.Documents.Run($Text)
     $paragraph.Inlines.Add($run)
     $rtb.Document.Blocks.Add($paragraph)
 }
-
 function Insert-TextIntoActiveQuery {
     param(
         [Parameter(Mandatory = $true)]$TabControl,
         [Parameter(Mandatory = $true)][string]$Text
     )
-
     $rtb = Get-ActiveQueryRichTextBox -TabControl $TabControl
     if (-not $rtb) { return }
-
     $caret = $rtb.CaretPosition
     if ($caret) {
         try {
@@ -55,7 +47,6 @@ function Insert-TextIntoActiveQuery {
     }
     $rtb.Focus()
 }
-
 function Clear-ActiveQueryTab {
     param([Parameter(Mandatory = $true)]$TabControl)
     $rtb = Get-ActiveQueryRichTextBox -TabControl $TabControl
@@ -69,7 +60,6 @@ function Clear-ActiveQueryTab {
         }
     }
 }
-
 function Update-QueryTabHeader {
     param([Parameter(Mandatory = $true)]$TabItem)
     if (-not $TabItem.Tag) { return }
@@ -77,25 +67,18 @@ function Update-QueryTabHeader {
     if ($TabItem.Tag.IsDirty) { $title = "*$title" }
     if ($TabItem.Tag.HeaderTextBlock) { $TabItem.Tag.HeaderTextBlock.Text = $title }
 }
-
 function New-QueryTab {
     [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]$TabControl
-    )
-
+    param([Parameter(Mandatory = $true)]$TabControl)
     $tabNumber = $script:queryTabCounter
     $script:queryTabCounter++
     $tabTitle = "Consulta $tabNumber"
-
     $tabItem = New-Object System.Windows.Controls.TabItem
     $headerPanel = New-Object System.Windows.Controls.StackPanel
     $headerPanel.Orientation = "Horizontal"
-
     $headerText = New-Object System.Windows.Controls.TextBlock
     $headerText.Text = $tabTitle
     $headerText.VerticalAlignment = "Center"
-
     $closeButton = New-Object System.Windows.Controls.Button
     $closeButton.Content = "×"
     $closeButton.Width = 20
@@ -103,23 +86,18 @@ function New-QueryTab {
     $closeButton.Margin = "6,0,0,0"
     $closeButton.Padding = "0"
     $closeButton.FontSize = 14
-
     [void]$headerPanel.Children.Add($headerText)
     [void]$headerPanel.Children.Add($closeButton)
     $tabItem.Header = $headerPanel
-
     $grid = New-Object System.Windows.Controls.Grid
     $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition))
-
     $rtb = New-Object System.Windows.Controls.RichTextBox
     $rtb.Margin = "0"
     $rtb.VerticalScrollBarVisibility = "Auto"
     $rtb.AcceptsReturn = $true
     $rtb.AcceptsTab = $true
-
     [void]$grid.Children.Add($rtb)
     $tabItem.Content = $grid
-
     $tabItem.Tag = [pscustomobject]@{
         Type            = "QueryTab"
         RichTextBox     = $rtb
@@ -130,31 +108,23 @@ function New-QueryTab {
     $updateHeader = {
         param([System.Windows.Controls.TabItem]$TabItem)
         if (-not $TabItem -or -not $TabItem.Tag) { return }
-
         $title = $TabItem.Tag.Title
         if ($TabItem.Tag.IsDirty) { $title = "*$title" }
-
         $htb = $TabItem.Tag.HeaderTextBlock
         if ($htb) { $htb.Text = $title }
     }.GetNewClosure()
-    # Asegúrate de que estas variables existan en el módulo MultiQuery.psm1
     if (-not $script:sqlKeywords -or [string]::IsNullOrWhiteSpace($script:sqlKeywords)) {
         $script:sqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
     }
     $rtb.Add_TextChanged({
             if ($global:isHighlightingQuery) { return }
-
             $global:isHighlightingQuery = $true
             try {
-                Write-DzDebug "`t[DEBUG] TextChanged fired (tab=$($tabItem.Tag.Title)) kwLen=$($global:DzSqlKeywords.Length)" -Color DarkGray
-
                 if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) {
                     Write-DzDebug "`t[DEBUG] DzSqlKeywords VACIO - no se puede resaltar" -Color Yellow
                     return
                 }
-
                 Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $global:DzSqlKeywords
-
                 $tabItem.Tag.IsDirty = $true
                 Update-QueryTabHeader -TabItem $tabItem
             } catch {
@@ -163,7 +133,6 @@ function New-QueryTab {
                 $global:isHighlightingQuery = $false
             }
         }.GetNewClosure())
-
     $tcRef = $TabControl
     $closeButton.Add_Click({
             Close-QueryTab -TabControl $tcRef -TabItem $tabItem
@@ -176,22 +145,17 @@ function New-QueryTab {
             break
         }
     }
-
     $TabControl.Items.Insert($insertIndex, $tabItem) | Out-Null
     $TabControl.SelectedItem = $tabItem
-
     return $tabItem
 }
-
 function Close-QueryTab {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]$TabControl,
         [Parameter(Mandatory = $true)]$TabItem
     )
-
     if (-not $TabItem -or $TabItem.Tag.Type -ne 'QueryTab') { return }
-
     if ($TabItem.Tag.IsDirty) {
         $owner = [System.Windows.Window]::GetWindow($TabControl)
         if (Get-Command Show-WpfMessageBoxSafe -ErrorAction SilentlyContinue) {
@@ -199,13 +163,10 @@ function Close-QueryTab {
         } else {
             $result = [System.Windows.MessageBox]::Show("La consulta tiene cambios sin guardar. ¿Deseas cerrar la pestaña?", "Confirmar", "YesNo", "Warning")
         }
-
         if ($result -ne [System.Windows.MessageBoxResult]::Yes) { return }
     }
-
     $TabControl.Items.Remove($TabItem)
 }
-
 function Execute-QueryInTab {
     [CmdletBinding()]
     param(
@@ -215,39 +176,41 @@ function Execute-QueryInTab {
         [Parameter(Mandatory = $true)][string]$Database,
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
     )
-
     $rtb = Get-ActiveQueryRichTextBox -TabControl $TabControl
     if (-not $rtb) { throw "No hay una pestaña de consulta activa." }
-
     $rawQuery = New-Object System.Windows.Documents.TextRange($rtb.Document.ContentStart, $rtb.Document.ContentEnd)
     $cleanQuery = Remove-SqlComments -Query $rawQuery.Text
-
     if ([string]::IsNullOrWhiteSpace($cleanQuery)) { throw "La consulta está vacía." }
-
     Write-DzDebug "`t[DEBUG][Execute-QueryInTab] Ejecutando consulta en '$Database'"
-
     $result = Invoke-SqlQueryMultiResultSet -Server $Server -Database $Database -Query $cleanQuery -Credential $Credential
-
-    # Mostrar mensajes de SQL en la consola
-    if ($result.Messages -and $result.Messages.Count -gt 0) {
-        Write-DzDebug "`t[DEBUG][Execute-QueryInTab] Mensajes de SQL:"
-        foreach ($msg in $result.Messages) {
-            Write-Host "  $msg" -ForegroundColor DarkGray
-        }
-    }
-
+    Write-DzDebug "`t[DEBUG][Execute-QueryInTab] Resultado recibido:"
+    Write-DzDebug "`t[DEBUG][Execute-QueryInTab] - Success: $($result.Success)"
+    Write-DzDebug "`t[DEBUG][Execute-QueryInTab] - ErrorMessage: $($result.ErrorMessage)"
+    Write-DzDebug "`t[DEBUG][Execute-QueryInTab] - ResultSets Count: $($result.ResultSets.Count)"
+    Write-DzDebug "`t[DEBUG][Execute-QueryInTab] - Type: $($result.Type)"
+    Write-DzDebug "`t[DEBUG][Execute-QueryInTab] - Tiene 'RowsAffected': $($result.ContainsKey('RowsAffected'))"
+    Write-DzDebug "`t[DEBUG][Execute-QueryInTab] - RowsAffected valor: $($result.RowsAffected)"
+    Write-DzDebug "`t[DEBUG][Execute-QueryInTab] Entrando a las condiciones de resultado..."
     if (-not $result.Success) {
-        # Mostrar el error real
         Write-Host "`n=============== ERROR SQL ==============" -ForegroundColor Red
         Write-Host "Mensaje: $($result.ErrorMessage)" -ForegroundColor Yellow
         Write-Host "====================================" -ForegroundColor Red
-
-        throw $result.ErrorMessage
+        $ResultsTabControl.Items.Clear()
+        $tab = New-Object System.Windows.Controls.TabItem
+        $tab.Header = "Error"
+        $text = New-Object System.Windows.Controls.TextBlock
+        $text.Text = $result.ErrorMessage
+        $text.Margin = "10"
+        $tab.Content = $text
+        [void]$ResultsTabControl.Items.Add($tab)
+        $ResultsTabControl.SelectedItem = $tab
+        return $result
     }
-
     if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
+        Write-DzDebug "`t[DEBUG][Execute-QueryInTab] CONDICIÓN 1: Entrando a mostrar ResultSets (count: $($result.ResultSets.Count))"
         Show-MultipleResultSets -TabControl $ResultsTabControl -ResultSets $result.ResultSets
     } elseif ($result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
+        Write-DzDebug "`t[DEBUG][Execute-QueryInTab] CONDICIÓN 2: Entrando a mostrar RowsAffected ($($result.RowsAffected))"
         $ResultsTabControl.Items.Clear()
         $tab = New-Object System.Windows.Controls.TabItem
         $tab.Header = "Resultado"
@@ -256,61 +219,48 @@ function Execute-QueryInTab {
         $text.Margin = "10"
         $tab.Content = $text
         [void]$ResultsTabControl.Items.Add($tab)
-
-        # También mostrar en consola
-        Write-Host "`nFilas afectadas: $($result.RowsAffected)" -ForegroundColor Green
+        $ResultsTabControl.SelectedItem = $tab
     } else {
+        Write-DzDebug "`t[DEBUG][Execute-QueryInTab] CONDICIÓN 3: Entrando a mostrar vacío (sin resultados)"
         Show-MultipleResultSets -TabControl $ResultsTabControl -ResultSets @()
     }
-
     return $result
 }
 function Show-MultipleResultSets {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
-        [System.Windows.Controls.TabControl]$TabControl,
-
-        [Parameter()]
-        [AllowEmptyCollection()]
-        [array]$ResultSets = @()
+        [Parameter(Mandatory)][System.Windows.Controls.TabControl]$TabControl,
+        [Parameter()][AllowEmptyCollection()][array]$ResultSets = @()
     )
-
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] INICIO"
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] ResultSets Count: $($ResultSets.Count)"
     $TabControl.Items.Clear()
-
     if (-not $ResultSets -or $ResultSets.Count -eq 0) {
+        Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Creando pestaña de 'No resultados'"
         $tab = New-Object System.Windows.Controls.TabItem
-
         $ht = New-Object System.Windows.Controls.TextBlock
         $ht.Text = "Resultado"
         $ht.VerticalAlignment = "Center"
         $tab.Header = $ht
-
         $text = New-Object System.Windows.Controls.TextBlock
         $text.Text = "La consulta no devolvió resultados."
         $text.Margin = "10"
         $tab.Content = $text
-
         [void]$TabControl.Items.Add($tab)
-
-        # Seleccionar el primero
         $TabControl.SelectedIndex = 0
+        Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña creada con mensaje 'No resultados'"
         return
     }
-
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Creando $($ResultSets.Count) pestañas de resultados"
     $i = 0
     foreach ($rs in $ResultSets) {
         $i++
         $tab = New-Object System.Windows.Controls.TabItem
-
         $rowCount = if ($rs.RowCount -ne $null) { $rs.RowCount } else { $rs.DataTable.Rows.Count }
-
-        # Header como TextBlock (no string)
         $ht = New-Object System.Windows.Controls.TextBlock
         $ht.Text = "Resultado $i ($rowCount filas)"
         $ht.VerticalAlignment = "Center"
         $tab.Header = $ht
-
         $dg = New-Object System.Windows.Controls.DataGrid
         $dg.ItemsSource = $rs.DataTable.DefaultView
         $dg.IsReadOnly = $true
@@ -318,24 +268,20 @@ function Show-MultipleResultSets {
         $dg.CanUserAddRows = $false
         $dg.CanUserDeleteRows = $false
         $dg.SelectionMode = "Extended"
-
         $tab.Content = $dg
         [void]$TabControl.Items.Add($tab)
+        Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i creada con $rowCount filas"
     }
-
-    # Mostrar el Resultado 1 por omisión
     $TabControl.SelectedIndex = 0
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN"
 }
-
 function Export-ResultSetToCsv {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]$ResultSet,
         [Parameter(Mandatory = $true)][string]$Path
     )
-
     if (-not $ResultSet -or -not $ResultSet.DataTable) { throw "No hay datos para exportar." }
-
     $ResultSet.DataTable | Export-Csv -Path $Path -NoTypeInformation -Encoding UTF8
 }
 function Get-TextPointerAtOffset {
@@ -349,9 +295,7 @@ function Get-TextPointerAtOffset {
         if ($navigator.GetPointerContext([System.Windows.Documents.LogicalDirection]::Forward) -eq [System.Windows.Documents.TextPointerContext]::Text) {
             $run = $navigator.GetTextInRun([System.Windows.Documents.LogicalDirection]::Forward)
             $remaining = $Offset - $count
-            if ($remaining -le $run.Length) {
-                return $navigator.GetPositionAtOffset($remaining)
-            }
+            if ($remaining -le $run.Length) { return $navigator.GetPositionAtOffset($remaining) }
             $count += $run.Length
         }
         $navigator = $navigator.GetNextContextPosition([System.Windows.Documents.LogicalDirection]::Forward)
@@ -359,7 +303,6 @@ function Get-TextPointerAtOffset {
     return $Start
 }
 #requires -Version 5.0
-
 function Get-PredefinedQueries {
     return @{
         "Monitor de Servicios | Ventas a subir"           = @"
@@ -532,19 +475,12 @@ WHERE
 "@
     }
 }
-
 function Get-DzThemeBrush {
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$Hex,
-        [Parameter(Mandatory = $true)]
-        [System.Windows.Media.Brush]$Fallback
+        [Parameter(Mandatory = $true)][string]$Hex,
+        [Parameter(Mandatory = $true)][System.Windows.Media.Brush]$Fallback
     )
-
-    if ([string]::IsNullOrWhiteSpace($Hex)) {
-        return $Fallback
-    }
-
+    if ([string]::IsNullOrWhiteSpace($Hex)) { return $Fallback }
     try {
         $brush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($Hex)
         if ($brush -is [System.Windows.Freezable] -and $brush.CanFreeze) { $brush.Freeze() }
@@ -553,63 +489,38 @@ function Get-DzThemeBrush {
         return $Fallback
     }
 }
-
-
 function Initialize-PredefinedQueries {
     param(
-        [Parameter(Mandatory = $true)]
-        $ComboQueries,
-        [Parameter(Mandatory = $true)]
-        $RichTextBox,
-        [Parameter(Mandatory = $true)]
-        [hashtable]$Queries,
-        [Parameter(Mandatory = $false)]
-        $Window
+        [Parameter(Mandatory = $true)]$ComboQueries,
+        [Parameter(Mandatory = $true)]$RichTextBox,
+        [Parameter(Mandatory = $true)][hashtable]$Queries,
+        [Parameter(Mandatory = $false)]$Window
     )
-
-    # Detectar si es WPF o WinForms
     $isWPF = $RichTextBox.GetType().FullName -like "*System.Windows.Controls*"
-
     if ($isWPF) {
         Write-DzDebug "`t[DEBUG] RichTextBox detectado: WPF"
         Write-DzDebug "`t[DEBUG] RichTextBox es null: $($null -eq $RichTextBox)"
     } else {
         Write-DzDebug "`t[DEBUG] RichTextBox detectado: Windows Forms"
     }
-
-    # Agregar queries al ComboBox
     $ComboQueries.Items.Clear()
     $ComboQueries.Items.Add("Selecciona una consulta predefinida") | Out-Null
-    foreach ($key in ($Queries.Keys | Sort-Object)) {
-        $ComboQueries.Items.Add($key) | Out-Null
-    }
+    foreach ($key in ($Queries.Keys | Sort-Object)) { $ComboQueries.Items.Add($key) | Out-Null }
     $ComboQueries.SelectedIndex = 0
-
-    # Definir las palabras clave SQL
     $sqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
-
-    # Variable para controlar el resaltado
     $isHighlightingQuery = $false
-
-    # Crear script blocks usando GetNewClosure para capturar las variables
     $selectionChangedScript = {
         param($sender, $e)
-
         try {
             $selectedQuery = $sender.SelectedItem
             if ($selectedQuery -and $selectedQuery -ne "Selecciona una consulta predefinida") {
-                # Usar la variable capturada
                 if ($this.Queries.ContainsKey($selectedQuery)) {
                     $queryText = $this.Queries[$selectedQuery]
-
-                    # Limpiar y establecer texto en WPF RichTextBox
                     $this.RichTextBox.Document.Blocks.Clear()
                     $paragraph = New-Object System.Windows.Documents.Paragraph
                     $run = New-Object System.Windows.Documents.Run($queryText)
                     $paragraph.Inlines.Add($run)
                     $this.RichTextBox.Document.Blocks.Add($paragraph)
-
-                    # Llamar a la función de resaltado
                     Set-WpfSqlHighlighting -RichTextBox $this.RichTextBox -Keywords $this.SqlKeywords
                 }
             }
@@ -617,40 +528,26 @@ function Initialize-PredefinedQueries {
             Write-Host "`t[DEBUG] Error en SelectionChanged: $_" -ForegroundColor Red
         }
     }.GetNewClosure()
-
-    # Preparar el objeto para almacenar referencias
     $comboData = New-Object PSObject -Property @{
         RichTextBox = $RichTextBox
         Queries     = $Queries
         SqlKeywords = $sqlKeywords
     }
-
-    # Asignar el objeto como Tag del ComboBox
     $ComboQueries.Tag = $comboData
-
-    # Agregar propiedades al ComboBox
     $ComboQueries | Add-Member -NotePropertyName Queries -NotePropertyValue $Queries -Force
     $ComboQueries | Add-Member -NotePropertyName SqlKeywords -NotePropertyValue $sqlKeywords -Force
     $ComboQueries | Add-Member -NotePropertyName RichTextBox -NotePropertyValue $RichTextBox -Force
-
-    # Asignar el evento con el contexto correcto
     $ComboQueries.Add_SelectionChanged($selectionChangedScript)
-
-    # Evento para resaltado en tiempo real - versión simplificada que evita el error
     $textChangedScript = {
         param($sender, $e)
-
-        # Solo procesar si no estamos en medio de otro resaltado
         if (-not $global:isHighlightingQuery) {
             try {
                 $global:isHighlightingQuery = $true
                 $keywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
-
                 if ([string]::IsNullOrEmpty($keywords)) {
                     Write-Host "`t[DEBUG] Advertencia: Keywords está vacío" -ForegroundColor Yellow
                     return
                 }
-
                 Set-WpfSqlHighlighting -RichTextBox $sender -Keywords $keywords
             } catch {
                 Write-Host "`t[DEBUG] Error en TextChanged: $_" -ForegroundColor Red
@@ -659,59 +556,37 @@ function Initialize-PredefinedQueries {
             }
         }
     }
-
-    # Asignar el evento
     $RichTextBox.Add_TextChanged($textChangedScript)
 }
-
 function Set-WpfSqlHighlighting {
     param(
-        [Parameter(Mandatory)]
-        [System.Windows.Controls.RichTextBox]$RichTextBox,
-
-        [Parameter(Mandatory)]
-        [string]$Keywords
+        [Parameter(Mandatory)][System.Windows.Controls.RichTextBox]$RichTextBox,
+        [Parameter(Mandatory)][string]$Keywords
     )
-
     if ($null -eq $RichTextBox -or $null -eq $RichTextBox.Document) { return }
     if ([string]::IsNullOrWhiteSpace($Keywords)) { return }
-
     $theme = Get-DzUiTheme
     $defaultBrush = Get-DzThemeBrush -Hex $theme.ControlForeground -Fallback ([System.Windows.Media.Brushes]::Black)
-    $commentBrush = Get-DzThemeBrush -Hex $theme.AccentMuted       -Fallback ([System.Windows.Media.Brushes]::DarkGreen)
-    $keywordBrush = Get-DzThemeBrush -Hex $theme.AccentPrimary     -Fallback ([System.Windows.Media.Brushes]::Blue)
-
+    $commentBrush = Get-DzThemeBrush -Hex $theme.AccentMuted -Fallback ([System.Windows.Media.Brushes]::DarkGreen)
+    $keywordBrush = Get-DzThemeBrush -Hex $theme.AccentPrimary -Fallback ([System.Windows.Media.Brushes]::Blue)
     $range = New-Object System.Windows.Documents.TextRange($RichTextBox.Document.ContentStart, $RichTextBox.Document.ContentEnd)
     $text = $range.Text
-
     if ([string]::IsNullOrWhiteSpace($text)) { return }
-
-    # reset
     $range.ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $defaultBrush)
-
-    # comentarios
     $commentRanges = @()
-
     foreach ($c in [regex]::Matches($text, '--.*', [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
         $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $c.Index
         $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($c.Index + $c.Length)
         if ($start -and $end) {
-            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
-                [System.Windows.Documents.TextElement]::ForegroundProperty,
-                $commentBrush
-            )
+            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $commentBrush)
             $commentRanges += [pscustomobject]@{ Start = $c.Index; End = $c.Index + $c.Length }
         }
     }
-
     foreach ($b in [regex]::Matches($text, '/\*[\s\S]*?\*/', [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
         $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $b.Index
         $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($b.Index + $b.Length)
         if ($start -and $end) {
-            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
-                [System.Windows.Documents.TextElement]::ForegroundProperty,
-                $commentBrush
-            )
+            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $commentBrush)
             $commentRanges += [pscustomobject]@{ Start = $b.Index; End = $b.Index + $b.Length }
         }
     }
@@ -720,78 +595,51 @@ function Set-WpfSqlHighlighting {
     foreach ($m in $matches) {
         $inComment = $commentRanges | Where-Object { $m.Index -ge $_.Start -and $m.Index -lt $_.End }
         if ($inComment) { continue }
-
         $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $m.Index
         $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($m.Index + $m.Length)
-
         if ($start -and $end) {
-            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue(
-                [System.Windows.Documents.TextElement]::ForegroundProperty,
-                $keywordBrush
-            )
+            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $keywordBrush)
         }
     }
 }
-
 function Get-TextPointerFromOffset {
     param(
-        [Parameter(Mandatory)]
-        [System.Windows.Controls.RichTextBox]$RichTextBox,
-
-        [Parameter(Mandatory)]
-        [int]$Offset
+        [Parameter(Mandatory)][System.Windows.Controls.RichTextBox]$RichTextBox,
+        [Parameter(Mandatory)][int]$Offset
     )
-
     if ($null -eq $RichTextBox.Document) { return $null }
-
     $pointer = $RichTextBox.Document.ContentStart
     $count = 0
-
     while ($pointer -ne $null) {
-
         $ctx = $pointer.GetPointerContext([System.Windows.Documents.LogicalDirection]::Forward)
-
         if ($ctx -eq [System.Windows.Documents.TextPointerContext]::Text) {
             $runText = $pointer.GetTextInRun([System.Windows.Documents.LogicalDirection]::Forward)
             $remaining = $Offset - $count
-
-            if ($remaining -le $runText.Length) {
-                return $pointer.GetPositionAtOffset($remaining)
-            }
-
+            if ($remaining -le $runText.Length) { return $pointer.GetPositionAtOffset($remaining) }
             $count += $runText.Length
             $pointer = $pointer.GetNextContextPosition([System.Windows.Documents.LogicalDirection]::Forward)
             continue
         }
-
         if ($ctx -eq [System.Windows.Documents.TextPointerContext]::ElementStart) {
             $el = $pointer.GetAdjacentElement([System.Windows.Documents.LogicalDirection]::Forward)
-
-            # LineBreak en FlowDocument se representa como "\r\n" en TextRange.Text
             if ($el -is [System.Windows.Documents.LineBreak]) {
                 if ($count + 2 -ge $Offset) { return $pointer }
                 $count += 2
             }
-
             $pointer = $pointer.GetNextContextPosition([System.Windows.Documents.LogicalDirection]::Forward)
             continue
         }
-
         if ($ctx -eq [System.Windows.Documents.TextPointerContext]::ElementEnd) {
-            # Fin de Paragraph también aparece como "\r\n" en TextRange.Text
             $parent = $pointer.Parent
             if ($parent -is [System.Windows.Documents.Paragraph]) {
                 if ($count + 2 -ge $Offset) { return $pointer }
                 $count += 2
             }
-
             $pointer = $pointer.GetNextContextPosition([System.Windows.Documents.LogicalDirection]::Forward)
             continue
         }
-
         $pointer = $pointer.GetNextContextPosition([System.Windows.Documents.LogicalDirection]::Forward)
     }
-
     return $RichTextBox.Document.ContentEnd
 }
 Export-ModuleMember -Function @(

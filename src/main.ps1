@@ -409,8 +409,10 @@ function New-MainForm {
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,370,0,0" Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Agregar usuario de Windows" Name="btnAddUser" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,410,0,0" Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Width="220" Height="30"
+                    <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,450,0,0" Style="{StaticResource SystemButtonStyle}"/>
+                    <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,490,0,0" Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Clear AnyDesk" Name="btnClearAnyDesk" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,50,0,0" Style="{StaticResource GeneralButtonStyle}"/>
                     <Button Content="Mostrar Impresoras" Name="btnShowPrinters" Width="220" Height="30"
@@ -636,6 +638,7 @@ function New-MainForm {
     $LZMAbtnBuscarCarpeta = $window.FindName("LZMAbtnBuscarCarpeta")
     $btnConfigurarIPs = $window.FindName("btnConfigurarIPs")
     $btnAddUser = $window.FindName("btnAddUser")
+    $btnFirewallConfig = $window.FindName("btnFirewallConfig")
     $btnForzarActualizacion = $window.FindName("btnForzarActualizacion")
     $btnClearAnyDesk = $window.FindName("btnClearAnyDesk")
     $btnShowPrinters = $window.FindName("btnShowPrinters")
@@ -794,7 +797,7 @@ function New-MainForm {
     }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
-    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller)
+    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnFirewallConfig, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
@@ -1257,6 +1260,8 @@ function New-MainForm {
             Write-Host "`t- - - Comenzando el proceso de 'Configurar IPs' - - -" -ForegroundColor Gray ; Show-IPConfigDialog })
     $btnAddUser.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Agregar Usuario' - {0}" -f (Get-Date -Format "HH:mm:ss"))
             Write-Host "`t- - - Comenzando el proceso de 'Agregar Usuario' - - -" -ForegroundColor Gray ; Show-AddUserDialog })
+    $btnFirewallConfig.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Configuraciones de Firewall' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Configuraciones de Firewall' - - -" -ForegroundColor Gray ; Show-FirewallConfigDialog })
     $btnCreateAPK.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Crear APK' - {0}" -f (Get-Date -Format "HH:mm:ss"))
             Write-Host "`t- - - Comenzando el proceso de 'Crear APK' - - -" -ForegroundColor Gray ; Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones })
     $btnExtractInstaller.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Extraer Instalador' - {0}" -f (Get-Date -Format "HH:mm:ss"))

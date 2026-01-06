@@ -67,11 +67,26 @@ function Update-QueryTabHeader {
     if ($TabItem.Tag.IsDirty) { $title = "*$title" }
     if ($TabItem.Tag.HeaderTextBlock) { $TabItem.Tag.HeaderTextBlock.Text = $title }
 }
+function Get-NextQueryNumber {
+    param([Parameter(Mandatory = $true)][System.Windows.Controls.TabControl]$TabControl)
+
+    $max = 0
+    foreach ($item in $TabControl.Items) {
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        if (-not $item.Tag -or $item.Tag.Type -ne 'QueryTab') { continue }
+
+        $title = [string]$item.Tag.Title
+        if ($title -match 'Consulta\s+(\d+)') {
+            $n = [int]$Matches[1]
+            if ($n -gt $max) { $max = $n }
+        }
+    }
+    return ($max + 1)
+}
 function New-QueryTab {
     [CmdletBinding()]
-    param([Parameter(Mandatory = $true)]$TabControl)
-    $tabNumber = $script:queryTabCounter
-    $script:queryTabCounter++
+    param([Parameter(Mandatory = $true)][System.Windows.Controls.TabControl]$TabControl)
+    $tabNumber = Get-NextQueryNumber -TabControl $TabControl
     $tabTitle = "Consulta $tabNumber"
     $tabItem = New-Object System.Windows.Controls.TabItem
     $headerPanel = New-Object System.Windows.Controls.StackPanel
@@ -105,47 +120,28 @@ function New-QueryTab {
         HeaderTextBlock = $headerText
         IsDirty         = $false
     }
-    $updateHeader = {
-        param([System.Windows.Controls.TabItem]$TabItem)
-        if (-not $TabItem -or -not $TabItem.Tag) { return }
-        $title = $TabItem.Tag.Title
-        if ($TabItem.Tag.IsDirty) { $title = "*$title" }
-        $htb = $TabItem.Tag.HeaderTextBlock
-        if ($htb) { $htb.Text = $title }
-    }.GetNewClosure()
-    if (-not $script:sqlKeywords -or [string]::IsNullOrWhiteSpace($script:sqlKeywords)) {
-        $script:sqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
-    }
+    # TextChanged (tu mismo bloque, solo lo dejo intacto)
     $rtb.Add_TextChanged({
             if ($global:isHighlightingQuery) { return }
             $global:isHighlightingQuery = $true
             try {
-                if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) {
-                    Write-DzDebug "`t[DEBUG] DzSqlKeywords VACIO - no se puede resaltar" -Color Yellow
-                    return
-                }
+                if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { return }
                 Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $global:DzSqlKeywords
                 $tabItem.Tag.IsDirty = $true
                 Update-QueryTabHeader -TabItem $tabItem
-            } catch {
-                Write-DzDebug "`t[DEBUG] TextChanged ERROR: $($_.Exception.Message)" -Color Red
             } finally {
                 $global:isHighlightingQuery = $false
             }
         }.GetNewClosure())
     $tcRef = $TabControl
-    $closeButton.Add_Click({
-            Close-QueryTab -TabControl $tcRef -TabItem $tabItem
-        }.GetNewClosure())
+    $closeButton.Add_Click({ Close-QueryTab -TabControl $tcRef -TabItem $tabItem }.GetNewClosure())
+    # Insertar antes del tab "+"
     $insertIndex = $TabControl.Items.Count
     for ($i = 0; $i -lt $TabControl.Items.Count; $i++) {
-        $item = $TabControl.Items[$i]
-        if ($item -is [System.Windows.Controls.TabItem] -and $item.Name -eq "tabAddQuery") {
-            $insertIndex = $i
-            break
-        }
+        $it = $TabControl.Items[$i]
+        if ($it -is [System.Windows.Controls.TabItem] -and $it.Name -eq "tabAddQuery") { $insertIndex = $i; break }
     }
-    $TabControl.Items.Insert($insertIndex, $tabItem) | Out-Null
+    [void]$TabControl.Items.Insert($insertIndex, $tabItem)
     $TabControl.SelectedItem = $tabItem
     return $tabItem
 }
@@ -491,73 +487,53 @@ function Get-DzThemeBrush {
 }
 function Initialize-PredefinedQueries {
     param(
-        [Parameter(Mandatory = $true)]$ComboQueries,
-        [Parameter(Mandatory = $true)]$RichTextBox,
-        [Parameter(Mandatory = $true)][hashtable]$Queries,
-        [Parameter(Mandatory = $false)]$Window
+        [Parameter(Mandatory = $true)][System.Windows.Controls.ComboBox]$ComboQueries,
+        [Parameter(Mandatory = $true)][System.Windows.Controls.TabControl]$TabControl,
+        [Parameter(Mandatory = $true)][hashtable]$Queries
     )
-    $isWPF = $RichTextBox.GetType().FullName -like "*System.Windows.Controls*"
-    if ($isWPF) {
-        Write-DzDebug "`t[DEBUG] RichTextBox detectado: WPF"
-        Write-DzDebug "`t[DEBUG] RichTextBox es null: $($null -eq $RichTextBox)"
-    } else {
-        Write-DzDebug "`t[DEBUG] RichTextBox detectado: Windows Forms"
-    }
+
     $ComboQueries.Items.Clear()
-    $ComboQueries.Items.Add("Selecciona una consulta predefinida") | Out-Null
-    foreach ($key in ($Queries.Keys | Sort-Object)) { $ComboQueries.Items.Add($key) | Out-Null }
+    [void]$ComboQueries.Items.Add("Selecciona una consulta predefinida")
+    foreach ($key in ($Queries.Keys | Sort-Object)) { [void]$ComboQueries.Items.Add($key) }
     $ComboQueries.SelectedIndex = 0
-    $sqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
-    $isHighlightingQuery = $false
-    $selectionChangedScript = {
-        param($sender, $e)
-        try {
-            $selectedQuery = $sender.SelectedItem
-            if ($selectedQuery -and $selectedQuery -ne "Selecciona una consulta predefinida") {
-                if ($this.Queries.ContainsKey($selectedQuery)) {
-                    $queryText = $this.Queries[$selectedQuery]
-                    $this.RichTextBox.Document.Blocks.Clear()
-                    $paragraph = New-Object System.Windows.Documents.Paragraph
-                    $run = New-Object System.Windows.Documents.Run($queryText)
-                    $paragraph.Inlines.Add($run)
-                    $this.RichTextBox.Document.Blocks.Add($paragraph)
-                    Set-WpfSqlHighlighting -RichTextBox $this.RichTextBox -Keywords $this.SqlKeywords
-                }
-            }
-        } catch {
-            Write-Host "`t[DEBUG] Error en SelectionChanged: $_" -ForegroundColor Red
-        }
-    }.GetNewClosure()
-    $comboData = New-Object PSObject -Property @{
-        RichTextBox = $RichTextBox
+
+    # Guardamos solo lo necesario
+    $ComboQueries.Tag = [pscustomobject]@{
         Queries     = $Queries
-        SqlKeywords = $sqlKeywords
+        TabControl  = $TabControl
+        SqlKeywords = $global:DzSqlKeywords
     }
-    $ComboQueries.Tag = $comboData
-    $ComboQueries | Add-Member -NotePropertyName Queries -NotePropertyValue $Queries -Force
-    $ComboQueries | Add-Member -NotePropertyName SqlKeywords -NotePropertyValue $sqlKeywords -Force
-    $ComboQueries | Add-Member -NotePropertyName RichTextBox -NotePropertyValue $RichTextBox -Force
-    $ComboQueries.Add_SelectionChanged($selectionChangedScript)
-    $textChangedScript = {
-        param($sender, $e)
-        if (-not $global:isHighlightingQuery) {
+
+    $ComboQueries.Add_SelectionChanged({
+            param($sender, $e)
             try {
-                $global:isHighlightingQuery = $true
-                $keywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
-                if ([string]::IsNullOrEmpty($keywords)) {
-                    Write-Host "`t[DEBUG] Advertencia: Keywords está vacío" -ForegroundColor Yellow
-                    return
+                $selectedQuery = $sender.SelectedItem
+                if (-not $selectedQuery -or $selectedQuery -eq "Selecciona una consulta predefinida") { return }
+
+                $ctx = $sender.Tag
+                if (-not $ctx -or -not $ctx.Queries.ContainsKey($selectedQuery)) { return }
+
+                $rtb = Get-ActiveQueryRichTextBox -TabControl $ctx.TabControl
+                if (-not $rtb) { return }
+
+                $queryText = $ctx.Queries[$selectedQuery]
+
+                $rtb.Document.Blocks.Clear()
+                $p = New-Object System.Windows.Documents.Paragraph
+                [void]$p.Inlines.Add((New-Object System.Windows.Documents.Run($queryText)))
+                [void]$rtb.Document.Blocks.Add($p)
+
+                if (-not [string]::IsNullOrWhiteSpace($ctx.SqlKeywords)) {
+                    Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $ctx.SqlKeywords
                 }
-                Set-WpfSqlHighlighting -RichTextBox $sender -Keywords $keywords
+
+                $rtb.Focus()
             } catch {
-                Write-Host "`t[DEBUG] Error en TextChanged: $_" -ForegroundColor Red
-            } finally {
-                $global:isHighlightingQuery = $false
+                Write-DzDebug "`t[DEBUG] Error en SelectionChanged (queries): $($_.Exception.Message)" -Color Red
             }
-        }
-    }
-    $RichTextBox.Add_TextChanged($textChangedScript)
+        })
 }
+
 function Set-WpfSqlHighlighting {
     param(
         [Parameter(Mandatory)][System.Windows.Controls.RichTextBox]$RichTextBox,

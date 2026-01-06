@@ -20,7 +20,14 @@ function Get-DzUiTheme {
             AccentPrimary = "#1976D2"; AccentSecondary = "#2E7D32"; AccentMuted = "#6B7280"
             UiFontFamily = "Segoe UI"; UiFontSize = 12
             CodeFontFamily = "Consolas"; CodeFontSize = 12
-            OnAccentForeground = "#000000"
+            #OnAccentForeground = "#000000"
+            AccentBlue = "#007ACC"
+            AccentBlueHover = "#006BB3"
+            AccentOrange = "#CE9178"
+            AccentOrangeHover = "#D19A66"
+            AccentMagenta = "#C586C0"
+            AccentMagentaHover = "#B267B3"
+            OnAccentForeground = "#FFFFFF"
         }
         Dark  = @{
             FormBackground = "#000000"; FormForeground = "#FFFFFF"
@@ -35,7 +42,14 @@ function Get-DzUiTheme {
             AccentPrimary = "#2196F3"; AccentSecondary = "#4CAF50"; AccentMuted = "#9CA3AF"
             UiFontFamily = "Segoe UI"; UiFontSize = 12
             CodeFontFamily = "Consolas"; CodeFontSize = 12
-            OnAccentForeground = "#000000"
+            #OnAccentForeground = "#000000"
+            AccentBlue = "#007ACC"
+            AccentBlueHover = "#006BB3"
+            AccentOrange = "#CE9178"
+            AccentOrangeHover = "#D19A66"
+            AccentMagenta = "#C586C0"
+            AccentMagentaHover = "#B267B3"
+            OnAccentForeground = "#FFFFFF"
         }
     }
     $selectedMode = if ($iniMode -match '^(dark|light)$') { ($iniMode.Substring(0, 1).ToUpper() + $iniMode.Substring(1).ToLower()) } else { "Dark" }
@@ -107,6 +121,13 @@ function Set-DzWpfThemeResources {
     Set-BrushResource -Resources $Window.Resources -Key "ComboBoxBorder"  -Hex $Theme.BorderColor
     Set-BrushResource -Resources $Window.Resources -Key "ComboBoxDropBg"  -Hex "#FFFFFF"
     Set-BrushResource -Resources $Window.Resources -Key "ComboBoxDropFg"  -Hex "#111111"
+    # VS Code accents (new)
+    Set-BrushResource -Resources $Window.Resources -Key "AccentBlue"         -Hex $Theme.AccentBlue
+    Set-BrushResource -Resources $Window.Resources -Key "AccentBlueHover"    -Hex $Theme.AccentBlueHover
+    Set-BrushResource -Resources $Window.Resources -Key "AccentOrange"       -Hex $Theme.AccentOrange
+    Set-BrushResource -Resources $Window.Resources -Key "AccentOrangeHover"  -Hex $Theme.AccentOrangeHover
+    Set-BrushResource -Resources $Window.Resources -Key "AccentMagenta"      -Hex $Theme.AccentMagenta
+    Set-BrushResource -Resources $Window.Resources -Key "AccentMagentaHover" -Hex $Theme.AccentMagentaHover
     $onAccent = "#000000"
     if ($Theme -and $Theme.PSObject -and ($Theme.PSObject.Properties.Match('OnAccentForeground').Count -gt 0)) {
         if (-not [string]::IsNullOrWhiteSpace([string]$Theme.OnAccentForeground)) { $onAccent = [string]$Theme.OnAccentForeground }
@@ -140,8 +161,7 @@ function Set-DzWpfThemeResources {
         [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $fg)))
         [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $brd)))
         [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, [System.Windows.Thickness]::new(1))))
-        [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, [System.Windows.Thickness]::new(6, 3, 6, 3))))
-
+        #[void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.FrameworkElement]::MarginProperty, [System.Windows.Thickness]::new(2))))
         # IMPORTANTE: si el ComboBox es editable, el TextBox interno a veces queda con Foreground "del tema"
         # Le aplicamos estilo al TextBox interno SOLO cuando vive dentro de un ComboBox editable.
         $editTbStyle = New-Object System.Windows.Style($tbType)
@@ -378,7 +398,10 @@ function Show-WpfProgressBar {
     <StackPanel>
       <TextBlock Text="$Title" FontWeight="Bold" Foreground="{DynamicResource AccentPrimary}" HorizontalAlignment="Center" Margin="0,0,0,20"/>
       <TextBlock Name="lblMessage" Text="$Message" Foreground="{DynamicResource FormFg}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,15" MinHeight="30"/>
-      <ProgressBar Name="progressBar" Height="25" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource AccentSecondary}" Background="{DynamicResource ControlBg}" Margin="0,0,0,10"/>
+      <ProgressBar Name="progressBar" Height="25" Minimum="0" Maximum="100"
+             IsIndeterminate="True" Value="0"
+             Foreground="{DynamicResource AccentSecondary}"
+             Background="{DynamicResource ControlBg}" Margin="0,0,0,10"/>
       <TextBlock Name="lblPercent" Text="0%" FontWeight="Bold" Foreground="{DynamicResource AccentPrimary}" HorizontalAlignment="Center"/>
     </StackPanel>
   </Border>

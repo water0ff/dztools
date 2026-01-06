@@ -298,17 +298,33 @@ function New-MainForm {
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="SystemButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-        </Style>
-        <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+        <Style x:Key="Column1ButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
             <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
                     <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentBlueHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentOrange}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentOrangeHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -390,34 +406,44 @@ function New-MainForm {
                              VerticalAlignment="Top" HorizontalAlignment="Left"
                              Style="{StaticResource InfoHeaderTextBoxStyle}"/>
                     <Button Content="Instalar Herramientas" Name="btnInstalarHerramientas" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Ejecutar ExpressProfiler" Name="btnProfiler" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,90,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,90,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Ejecutar Database4" Name="btnDatabase" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,130,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,130,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Ejecutar Manager" Name="btnSQLManager" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,170,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,170,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Ejecutar Management" Name="btnSQLManagement" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,210,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,210,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Printer Tools" Name="btnPrinterTool" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,250,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,250,0,0" Style="{StaticResource Column1ButtonStyle}"/>
+                    <Button Content="Clear AnyDesk" Name="btnClearAnyDesk" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,290,0,0"
+                            Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Lector DP - Permisos" Name="btnLectorDPicacls" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,290,0,0" Style="{StaticResource SystemButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,50,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Buscar Instalador LZMA" Name="LZMAbtnBuscarCarpeta" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,330,0,0" Style="{StaticResource SystemButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,90,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Agregar IPs" Name="btnConfigurarIPs" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,370,0,0" Style="{StaticResource SystemButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,130,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Agregar usuario de Windows" Name="btnAddUser" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,410,0,0" Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,450,0,0" Style="{StaticResource SystemButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,170,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
+                    <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Width="220" Height="30" IsEnabled="False"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,210,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,490,0,0" Style="{StaticResource SystemButtonStyle}"/>                    <Button Content="Clear AnyDesk" Name="btnClearAnyDesk" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,50,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,250,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Mostrar Impresoras" Name="btnShowPrinters" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,90,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,290,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Limpia y Reinicia Cola de Impresión" Name="btnClearPrintJobs" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,130,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,330,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Aplicaciones National Soft" Name="btnAplicacionesNS" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,50,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Cambiar OTM a SQL/DBF" Name="btnCambiarOTM" Width="220" Height="30"
@@ -677,7 +703,7 @@ function New-MainForm {
     $LZMAbtnBuscarCarpeta = $window.FindName("LZMAbtnBuscarCarpeta")
     $btnConfigurarIPs = $window.FindName("btnConfigurarIPs")
     $btnAddUser = $window.FindName("btnAddUser")
-        $btnFirewallConfig = $window.FindName("btnFirewallConfig")
+    $btnFirewallConfig = $window.FindName("btnFirewallConfig")
     $btnForzarActualizacion = $window.FindName("btnForzarActualizacion")
     $btnClearAnyDesk = $window.FindName("btnClearAnyDesk")
     $btnShowPrinters = $window.FindName("btnShowPrinters")
@@ -858,7 +884,7 @@ function New-MainForm {
     }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
-    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig,$btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller)
+    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }

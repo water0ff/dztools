@@ -3458,6 +3458,339 @@ function Set-ClipboardTextSafe {
     return $false
 }
 
+
+function Show-FirewallConfigDialog {
+    Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] INICIO"
+    if (-not (Test-Administrator)) {
+        Show-WpfMessageBox -Message "Esta acción requiere permisos de administrador.`n`nPor favor, ejecuta Gerardo Zermeño Tools como administrador." -Title "Permisos requeridos" -Buttons OK -Icon Warning | Out-Null
+        return
+    }
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Configuraciones de Firewall" Height="560" Width="760" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False" WindowStyle="None" AllowsTransparency="True" Background="Transparent" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
+  <Window.Resources>
+    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="$($theme.FormForeground)"/></Style>
+    <Style TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="6,2"/>
+    </Style>
+    <Style TargetType="CheckBox"><Setter Property="Foreground" Value="$($theme.FormForeground)"/></Style>
+    <Style TargetType="Button">
+      <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+      <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+  </Window.Resources>
+  <Border Background="{DynamicResource FormBg}" CornerRadius="12" BorderBrush="{DynamicResource AccentPrimary}" BorderThickness="2" Padding="0">
+    <Border.Effect><DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/></Border.Effect>
+    <Grid Margin="18">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="36"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <TextBlock Text="Configuraciones de Firewall" VerticalAlignment="Center" FontWeight="SemiBold"/>
+        <Button Name="btnClose" Grid.Column="1" Content="✕" Width="34" Height="26" Margin="8,0,0,0" ToolTip="Cerrar" Background="Transparent" BorderBrush="Transparent"/>
+      </Grid>
+      <TextBlock Grid.Row="1" Text="Busca y agrega puertos al Firewall de Windows (reglas de entrada/salida)." FontWeight="SemiBold" Margin="0,0,0,12"/>
+      <Border Grid.Row="2" Background="{DynamicResource ControlBg}" CornerRadius="10" Padding="12" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1">
+        <Grid>
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <TextBlock Text="Buscar puerto" FontWeight="SemiBold" Margin="0,0,0,8"/>
+          <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Puerto" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Name="txtSearchPort" Height="30" VerticalContentAlignment="Center"/>
+            <Button Grid.Column="2" Name="btnSearch" Content="Buscar" Width="110" Height="30" Margin="10,0,0,0"/>
+          </Grid>
+          <ListBox Grid.Row="2" Name="lbResults" Height="140" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Background="{DynamicResource PanelBg}" Foreground="{DynamicResource FormFg}"/>
+        </Grid>
+      </Border>
+      <Border Grid.Row="3" Background="{DynamicResource ControlBg}" CornerRadius="10" Padding="12" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Margin="0,12,0,0">
+        <Grid>
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <TextBlock Text="Agregar puerto" FontWeight="SemiBold" Margin="0,0,0,8"/>
+          <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Puerto" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Name="txtAddPort" Height="30" VerticalContentAlignment="Center"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+              <CheckBox Name="chkInbound" Content="Entrada" Margin="0,0,10,0" IsChecked="True"/>
+              <CheckBox Name="chkOutbound" Content="Salida" IsChecked="True"/>
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </Border>
+      <Grid Grid.Row="4" Margin="0,12,0,0">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <TextBlock Name="lblStatus" Grid.Column="0" Text="Listo." Foreground="#2E7D32" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,10,0"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+          <Button Name="btnAdd" Content="Agregar reglas" Width="140" Height="32" Margin="0,0,10,0"/>
+          <Button Name="btnCloseFooter" Content="Cerrar" Width="110" Height="32"/>
+        </StackPanel>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>
+"@
+    try {
+        $ui = New-WpfWindow -Xaml $stringXaml -PassThru
+    } catch {
+        Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] ERROR creando ventana: $($_.Exception.Message)" Red
+        Show-WpfMessageBox -Message "No se pudo crear la ventana de firewall." -Title "Error" -Buttons OK -Icon Error | Out-Null
+        return
+    }
+    $w = $ui.Window
+    $c = $ui.Controls
+    Set-DzWpfThemeResources -Window $w -Theme $theme
+    try { Set-WpfDialogOwner -Dialog $w } catch {}
+    if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
+    $SetStatus = {
+        param([string]$Text, [string]$Level = "Ok")
+        switch ($Level) {
+            "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen }
+            "Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod }
+            "Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick }
+        }
+        $c['lblStatus'].Text = $Text
+    }.GetNewClosure()
+    $GetPortValue = {
+        param([string]$Text)
+        $trim = ([string]$Text).Trim()
+        $val = 0
+        if (-not [int]::TryParse($trim, [ref]$val)) { return $null }
+        if ($val -lt 1 -or $val -gt 65535) { return $null }
+        return $val
+    }.GetNewClosure()
+    $TestPortMatch = {
+        param([string]$LocalPort, [int]$Port)
+        if ([string]::IsNullOrWhiteSpace($LocalPort)) { return $false }
+        if ($LocalPort -eq "Any") { return $true }
+        foreach ($segment in ($LocalPort -split ',')) {
+            $s = $segment.Trim()
+            if ([string]::IsNullOrWhiteSpace($s)) { continue }
+            if ($s -match '^\d+$') {
+                if ([int]$s -eq $Port) { return $true }
+            } elseif ($s -match '^(?<start>\d+)\s*-\s*(?<end>\d+)$') {
+                $start = [int]$Matches.start
+                $end = [int]$Matches.end
+                if ($Port -ge $start -and $Port -le $end) { return $true }
+            }
+        }
+        return $false
+    }.GetNewClosure()
+    $GetFirewallPortMatchesAsync = {
+        param([int]$Port, [System.Windows.Window]$ProgressWindow, [scriptblock]$OnComplete)
+        $rs = [runspacefactory]::CreateRunspace()
+        $rs.ApartmentState = "STA"
+        $rs.ThreadOptions = "ReuseThread"
+        $rs.Open()
+        $rs.SessionStateProxy.SetVariable("Port", $Port)
+        $rs.SessionStateProxy.SetVariable("ProgressWindow", $ProgressWindow)
+        $rs.SessionStateProxy.SetVariable("OnComplete", $OnComplete)
+        $rs.SessionStateProxy.SetVariable("TestPortMatchCode", $TestPortMatch)
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+        [void]$ps.AddScript({
+                function Update-ProgressSafe {
+                    param($Window, $Percent, $Message)
+                    if (-not $Window -or $Window.IsClosed) { return }
+                    try {
+                        $Window.Dispatcher.Invoke([action] {
+                                if (-not $Window.IsClosed) {
+                                    if ($Window.ProgressBar) {
+                                        $Window.ProgressBar.IsIndeterminate = $false
+                                        $Window.ProgressBar.Value = $Percent
+                                    }
+                                    if ($Window.PercentLabel) { $Window.PercentLabel.Text = "$Percent%" }
+                                    if ($Window.MessageLabel -and $Message) { $Window.MessageLabel.Text = $Message }
+                                    $Window.UpdateLayout()
+                                }
+                            }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                    } catch {}
+                }
+                try {
+                    Update-ProgressSafe -Window $ProgressWindow -Percent 5 -Message "Obteniendo reglas de Firewall..."
+                    Start-Sleep -Milliseconds 100
+                    $rules = Get-NetFirewallRule -ErrorAction Stop
+                    Update-ProgressSafe -Window $ProgressWindow -Percent 30 -Message "Filtrando puertos..."
+                    Start-Sleep -Milliseconds 100
+                    $filters = $rules | Get-NetFirewallPortFilter -ErrorAction Stop
+                    Update-ProgressSafe -Window $ProgressWindow -Percent 70 -Message "Procesando coincidencias..."
+                    Start-Sleep -Milliseconds 100
+                    $matches = @()
+                    $total = $filters.Count
+                    $current = 0
+                    $lastUpdate = [DateTime]::Now
+                    foreach ($f in $filters) {
+                        $current++
+                        $now = [DateTime]::Now
+                        if (($now - $lastUpdate).TotalMilliseconds -gt 200 -or $current -eq $total) {
+                            $percent = [Math]::Min(70 + [int](($current / $total) * 25), 95)
+                            Update-ProgressSafe -Window $ProgressWindow -Percent $percent -Message "Procesando $current de $total reglas..."
+                            $lastUpdate = $now
+                        }
+                        if ($f.Protocol -notin @('TCP', 'UDP')) { continue }
+                        $testResult = & $TestPortMatchCode -LocalPort $f.LocalPort -Port $Port
+                        if (-not $testResult) { continue }
+                        $r = $f.AssociatedNetFirewallRule
+                        if (-not $r) { continue }
+                        $matches += [pscustomobject]@{
+                            Direction = [string]$r.Direction
+                            Name      = [string]$r.DisplayName
+                            Enabled   = [string]$r.Enabled
+                            Action    = [string]$r.Action
+                            Profile   = [string]$r.Profile
+                            Protocol  = [string]$f.Protocol
+                            LocalPort = [string]$f.LocalPort
+                        }
+                    }
+                    Update-ProgressSafe -Window $ProgressWindow -Percent 100 -Message "Listo."
+                    if ($OnComplete) {
+                        $ProgressWindow.Dispatcher.Invoke([action] { & $OnComplete $matches }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                    }
+                } catch {
+                    $errMsg = $_.Exception.Message
+                    if ($OnComplete) {
+                        $ProgressWindow.Dispatcher.Invoke([action] { & $OnComplete @{ Error = $errMsg } }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                    }
+                }
+            })
+        $handle = $ps.BeginInvoke()
+        return @{ PowerShell = $ps; Runspace = $rs; Handle = $handle }
+    }.GetNewClosure()
+    $GetFirewallPortMatchesSync = {
+        param([int]$Port)
+        $oldPref = $ProgressPreference
+        $ProgressPreference = 'SilentlyContinue'
+        try {
+            $rules = Get-NetFirewallRule -ErrorAction Stop
+            $filters = $rules | Get-NetFirewallPortFilter -ErrorAction Stop
+        } finally {
+            $ProgressPreference = $oldPref
+        }
+        $matches = @()
+        foreach ($f in $filters) {
+            if ($f.Protocol -notin @('TCP', 'UDP')) { continue }
+            if (-not (& $TestPortMatch -LocalPort $f.LocalPort -Port $Port)) { continue }
+            $r = $f.AssociatedNetFirewallRule
+            if (-not $r) { continue }
+            $matches += [pscustomobject]@{
+                Direction = [string]$r.Direction
+                Name      = [string]$r.DisplayName
+                Enabled   = [string]$r.Enabled
+                Action    = [string]$r.Action
+                Profile   = [string]$r.Profile
+                Protocol  = [string]$f.Protocol
+                LocalPort = [string]$f.LocalPort
+            }
+        }
+        return $matches
+    }.GetNewClosure()
+    $RenderResults = {
+        param([array]$Matches, [int]$Port)
+        $c['lbResults'].Items.Clear()
+        if (-not $Matches -or $Matches.Count -eq 0) {
+            $c['lbResults'].Items.Add("No se encontraron reglas para el puerto $Port.") | Out-Null
+            & $SetStatus "Sin coincidencias para el puerto $Port." "Warn"
+            return
+        }
+        foreach ($m in $Matches) {
+            $label = "{0} | {1} | {2} | {3} | {4} | Puertos: {5}" -f $m.Direction, $m.Action, $m.Profile, $m.Protocol, $m.Name, $m.LocalPort
+            $c['lbResults'].Items.Add($label) | Out-Null
+        }
+        & $SetStatus "Se encontraron $($Matches.Count) regla(s) para el puerto $Port." "Ok"
+    }.GetNewClosure()
+    $c['btnClose'].Add_Click({ $w.Close() })
+    $c['btnCloseFooter'].Add_Click({ $w.Close() })
+    $c['HeaderBar'].Add_MouseLeftButtonDown({
+            if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() }
+        })
+    $c['btnSearch'].Add_Click({
+            Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] btnSearch click a las $([DateTime]::Now.ToString("o"))"
+            $port = & $GetPortValue $c['txtSearchPort'].Text
+            Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Buscar puerto='$($c['txtSearchPort'].Text)' port=$port"
+            if ($null -eq $port) { & $SetStatus "Ingresa un puerto válido (1-65535)." "Warn"; return }
+            $pb = Show-WpfProgressBar -Title "Buscando reglas de Firewall" -Message "Iniciando..."
+            if (-not $pb) { & $SetStatus "Error creando barra de progreso." "Error"; return }
+            $c['btnSearch'].IsEnabled = $false
+            $c['btnAdd'].IsEnabled = $false
+            $onComplete = {
+                param($result)
+                try {
+                    if ($result -is [hashtable] -and $result.ContainsKey('Error')) {
+                        Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Error buscando reglas: $($result.Error)" Red
+                        & $SetStatus "Error al buscar reglas: $($result.Error)" "Error"
+                    } else {
+                        $matches = $result
+                        Write-DzDebug "`t[DEBUG] Encontradas $($matches.Count) coincidencias para puerto $port"
+                        & $RenderResults $matches $port
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Error procesando resultados: $($_.Exception.Message)" Red
+                    & $SetStatus "Error procesando resultados: $($_.Exception.Message)" "Error"
+                } finally {
+                    if ($pb) { Close-WpfProgressBar -Window $pb }
+                    $c['btnSearch'].IsEnabled = $true
+                    $c['btnAdd'].IsEnabled = $true
+                }
+            }.GetNewClosure()
+            try {
+                $job = & $GetFirewallPortMatchesAsync $port $pb $onComplete
+            } catch {
+                Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Error iniciando búsqueda async: $($_.Exception.Message)" Red
+                & $SetStatus "Error al iniciar búsqueda: $($_.Exception.Message)" "Error"
+                if ($pb) { Close-WpfProgressBar -Window $pb }
+                $c['btnSearch'].IsEnabled = $true
+                $c['btnAdd'].IsEnabled = $true
+            }
+        }.GetNewClosure())
+    $c['btnAdd'].Add_Click({
+            Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] btnAdd click a las $([DateTime]::Now.ToString("o"))"
+            $port = & $GetPortValue $c['txtAddPort'].Text
+            if ($null -eq $port) { & $SetStatus "Ingresa un puerto válido (1-65535)." "Warn"; return }
+            $directions = @()
+            if ($c['chkInbound'].IsChecked) { $directions += "Inbound" }
+            if ($c['chkOutbound'].IsChecked) { $directions += "Outbound" }
+            if ($directions.Count -eq 0) { & $SetStatus "Selecciona al menos una dirección (Entrada/Salida)." "Warn"; return }
+            try {
+                $existing = & $GetFirewallPortMatchesSync $port
+                $created = 0
+                foreach ($dir in $directions) {
+                    $already = $existing | Where-Object { $_.Direction -eq $dir }
+                    if ($already) { Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Ya existe regla $dir para puerto $port"; continue }
+                    $ruleName = "DZTools Puerto $port ($dir)"
+                    $desc = "Regla creada desde DZTools para puerto $port ($dir)."
+                    New-NetFirewallRule -DisplayName $ruleName -Direction $dir -Action Allow -Protocol TCP -LocalPort $port -Profile Any -Description $desc | Out-Null
+                    $created++
+                }
+                if ($created -gt 0) { & $SetStatus "Se agregaron $created regla(s) para el puerto $port." "Ok" } else { & $SetStatus "No se crearon reglas nuevas: el puerto ya estaba configurado." "Warn" }
+                $matches = & $GetFirewallPortMatchesSync $port
+                & $RenderResults $matches $port
+            } catch {
+                Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Error agregando reglas: $($_.Exception.Message)" Red
+                & $SetStatus "Error al agregar reglas: $($_.Exception.Message)" "Error"
+            }
+        }.GetNewClosure())
+    try {
+        Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] ShowDialog()"
+        $w.ShowDialog() | Out-Null
+    } catch {
+        Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] ERROR ShowDialog: $($_.Exception.Message)" Red
+        throw
+    }
+    Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] FIN"
+}
+
+
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
@@ -3501,5 +3834,6 @@ Export-ModuleMember -Function @(
     'show-NSPrinters',
     'Invoke-ClearPrintJobs',
     'Show-AddUserDialog',
-    'Set-ClipboardTextSafe'
+    'Set-ClipboardTextSafe',
+    'Show-FirewallConfigDialog'
 )

@@ -20,7 +20,14 @@ function Get-DzUiTheme {
             AccentPrimary = "#1976D2"; AccentSecondary = "#2E7D32"; AccentMuted = "#6B7280"
             UiFontFamily = "Segoe UI"; UiFontSize = 12
             CodeFontFamily = "Consolas"; CodeFontSize = 12
-            OnAccentForeground = "#000000"
+            #OnAccentForeground = "#000000"
+            AccentBlue = "#007ACC"
+            AccentBlueHover = "#006BB3"
+            AccentOrange = "#CE9178"
+            AccentOrangeHover = "#D19A66"
+            AccentMagenta = "#C586C0"
+            AccentMagentaHover = "#B267B3"
+            OnAccentForeground = "#FFFFFF"
         }
         Dark  = @{
             FormBackground = "#000000"; FormForeground = "#FFFFFF"
@@ -35,7 +42,14 @@ function Get-DzUiTheme {
             AccentPrimary = "#2196F3"; AccentSecondary = "#4CAF50"; AccentMuted = "#9CA3AF"
             UiFontFamily = "Segoe UI"; UiFontSize = 12
             CodeFontFamily = "Consolas"; CodeFontSize = 12
-            OnAccentForeground = "#000000"
+            #OnAccentForeground = "#000000"
+            AccentBlue = "#007ACC"
+            AccentBlueHover = "#006BB3"
+            AccentOrange = "#CE9178"
+            AccentOrangeHover = "#D19A66"
+            AccentMagenta = "#C586C0"
+            AccentMagentaHover = "#B267B3"
+            OnAccentForeground = "#FFFFFF"
         }
     }
     $selectedMode = if ($iniMode -match '^(dark|light)$') { ($iniMode.Substring(0, 1).ToUpper() + $iniMode.Substring(1).ToLower()) } else { "Dark" }
@@ -101,6 +115,19 @@ function Set-DzWpfThemeResources {
     Set-BrushResource -Resources $Window.Resources -Key "AccentPrimary" -Hex $Theme.AccentPrimary
     Set-BrushResource -Resources $Window.Resources -Key "AccentSecondary" -Hex $Theme.AccentSecondary
     Set-BrushResource -Resources $Window.Resources -Key "AccentMuted" -Hex $Theme.AccentMuted
+    # ComboBox: forzar esquema claro SIEMPRE (dark y light)
+    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxBg"      -Hex "#FFFFFF"
+    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxFg"      -Hex "#111111"
+    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxBorder"  -Hex $Theme.BorderColor
+    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxDropBg"  -Hex "#FFFFFF"
+    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxDropFg"  -Hex "#111111"
+    # VS Code accents (new)
+    Set-BrushResource -Resources $Window.Resources -Key "AccentBlue"         -Hex $Theme.AccentBlue
+    Set-BrushResource -Resources $Window.Resources -Key "AccentBlueHover"    -Hex $Theme.AccentBlueHover
+    Set-BrushResource -Resources $Window.Resources -Key "AccentOrange"       -Hex $Theme.AccentOrange
+    Set-BrushResource -Resources $Window.Resources -Key "AccentOrangeHover"  -Hex $Theme.AccentOrangeHover
+    Set-BrushResource -Resources $Window.Resources -Key "AccentMagenta"      -Hex $Theme.AccentMagenta
+    Set-BrushResource -Resources $Window.Resources -Key "AccentMagentaHover" -Hex $Theme.AccentMagentaHover
     $onAccent = "#000000"
     if ($Theme -and $Theme.PSObject -and ($Theme.PSObject.Properties.Match('OnAccentForeground').Count -gt 0)) {
         if (-not [string]::IsNullOrWhiteSpace([string]$Theme.OnAccentForeground)) { $onAccent = [string]$Theme.OnAccentForeground }
@@ -110,6 +137,67 @@ function Set-DzWpfThemeResources {
     $Window.Resources["UiFontSize"] = [double]$Theme.UiFontSize
     $Window.Resources["CodeFontFamily"] = [System.Windows.Media.FontFamily]::new($Theme.CodeFontFamily)
     $Window.Resources["CodeFontSize"] = [double]$Theme.CodeFontSize
+    # ------------------------------------------------------------
+    # Global ComboBox styling (fix dropdown/items readability)
+    # ------------------------------------------------------------
+    try {
+        $cbType = [Type]'System.Windows.Controls.ComboBox'
+        $cbiType = [Type]'System.Windows.Controls.ComboBoxItem'
+        $tbType = [Type]'System.Windows.Controls.TextBox'
+
+        $bg = $Window.Resources["ComboBoxBg"]
+        $fg = $Window.Resources["ComboBoxFg"]
+        $brd = $Window.Resources["ComboBoxBorder"]
+        $dropBg = $Window.Resources["ComboBoxDropBg"]
+        $dropFg = $Window.Resources["ComboBoxDropFg"]
+
+        # Limpia estilos previos si existen (para evitar duplicados)
+        if ($Window.Resources.Contains($cbType)) { $Window.Resources.Remove($cbType) }
+        if ($Window.Resources.Contains($cbiType)) { $Window.Resources.Remove($cbiType) }
+
+        # ComboBox (la caja visible)
+        $comboStyle = New-Object System.Windows.Style($cbType)
+        [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $bg)))
+        [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $fg)))
+        [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $brd)))
+        [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, [System.Windows.Thickness]::new(1))))
+        #[void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.FrameworkElement]::MarginProperty, [System.Windows.Thickness]::new(2))))
+        # IMPORTANTE: si el ComboBox es editable, el TextBox interno a veces queda con Foreground "del tema"
+        # Le aplicamos estilo al TextBox interno SOLO cuando vive dentro de un ComboBox editable.
+        $editTbStyle = New-Object System.Windows.Style($tbType)
+        $editTbStyle.BasedOn = $Window.TryFindResource($tbType)  # respeta tu estilo global de TextBox si existe
+        [void]$editTbStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $bg)))
+        [void]$editTbStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $fg)))
+        [void]$editTbStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, [System.Windows.Thickness]::new(0))))
+        $comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.ComboBox]::TextBoxStyleProperty, $editTbStyle)))
+
+        # Dropdown items
+        $itemStyle = New-Object System.Windows.Style($cbiType)
+        [void]$itemStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $dropBg)))
+        [void]$itemStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $dropFg)))
+        [void]$itemStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, [System.Windows.Thickness]::new(6, 4, 6, 4))))
+
+        # Hover/Selected un poco más moderno sin meternos a ControlTemplate
+        $tHover = New-Object System.Windows.Trigger
+        $tHover.Property = [System.Windows.Controls.ComboBoxItem]::IsHighlightedProperty
+        $tHover.Value = $true
+        [void]$tHover.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $Window.Resources["AccentPrimary"])))
+        [void]$tHover.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $Window.Resources["OnAccentFg"])))
+
+        $tSel = New-Object System.Windows.Trigger
+        $tSel.Property = [System.Windows.Controls.Primitives.Selector]::IsSelectedProperty
+        $tSel.Value = $true
+        [void]$tSel.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $Window.Resources["AccentPrimary"])))
+        [void]$tSel.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $Window.Resources["OnAccentFg"])))
+
+        [void]$itemStyle.Triggers.Add($tHover)
+        [void]$itemStyle.Triggers.Add($tSel)
+
+        $Window.Resources.Add($cbType, $comboStyle)
+        $Window.Resources.Add($cbiType, $itemStyle)
+    } catch {
+        Write-DzDebug "`t[DEBUG] ComboBox unified (light-like) style failed: $($_.Exception.Message)" -Color DarkGray
+    }
 }
 function Set-WpfDialogOwner {
     param([Parameter(Mandatory)][System.Windows.Window]$Dialog)
@@ -310,7 +398,10 @@ function Show-WpfProgressBar {
     <StackPanel>
       <TextBlock Text="$Title" FontWeight="Bold" Foreground="{DynamicResource AccentPrimary}" HorizontalAlignment="Center" Margin="0,0,0,20"/>
       <TextBlock Name="lblMessage" Text="$Message" Foreground="{DynamicResource FormFg}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,15" MinHeight="30"/>
-      <ProgressBar Name="progressBar" Height="25" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource AccentSecondary}" Background="{DynamicResource ControlBg}" Margin="0,0,0,10"/>
+      <ProgressBar Name="progressBar" Height="25" Minimum="0" Maximum="100"
+             IsIndeterminate="True" Value="0"
+             Foreground="{DynamicResource AccentSecondary}"
+             Background="{DynamicResource ControlBg}" Margin="0,0,0,10"/>
       <TextBlock Name="lblPercent" Text="0%" FontWeight="Bold" Foreground="{DynamicResource AccentPrimary}" HorizontalAlignment="Center"/>
     </StackPanel>
   </Border>

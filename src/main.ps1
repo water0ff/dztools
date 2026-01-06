@@ -50,7 +50,7 @@ function Write-Log {
 }
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
-$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "Queries.psm1", "Installers.psm1")
+$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1")
 foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
@@ -129,8 +129,8 @@ function New-MainForm {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Gerardo Zermeño Tools"
-        Height="650" Width="980"
-        WindowStartupLocation="CenterScreen"
+        Height="650" Width="900" MinHeight="600" MinWidth="1000"
+        WindowStartupLocation="CenterScreen" WindowState="Normal"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
@@ -215,6 +215,10 @@ function New-MainForm {
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+        <Style TargetType="{x:Type Paragraph}">
+            <Setter Property="Margin" Value="0"/>
         </Style>
         <Style TargetType="{x:Type DataGrid}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
@@ -294,17 +298,33 @@ function New-MainForm {
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="SystemButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-        </Style>
-        <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+        <Style x:Key="Column1ButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
             <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
                     <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentBlueHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentOrange}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentOrangeHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -386,33 +406,44 @@ function New-MainForm {
                              VerticalAlignment="Top" HorizontalAlignment="Left"
                              Style="{StaticResource InfoHeaderTextBoxStyle}"/>
                     <Button Content="Instalar Herramientas" Name="btnInstalarHerramientas" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Ejecutar ExpressProfiler" Name="btnProfiler" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,90,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,90,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Ejecutar Database4" Name="btnDatabase" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,130,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,130,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Ejecutar Manager" Name="btnSQLManager" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,170,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,170,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Ejecutar Management" Name="btnSQLManagement" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,210,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,210,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Printer Tools" Name="btnPrinterTool" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,250,0,0" Style="{StaticResource GeneralButtonStyle}"/>
-                    <Button Content="Lector DP - Permisos" Name="btnLectorDPicacls" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,290,0,0" Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Buscar Instalador LZMA" Name="LZMAbtnBuscarCarpeta" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,330,0,0" Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Agregar IPs" Name="btnConfigurarIPs" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,370,0,0" Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Agregar usuario de Windows" Name="btnAddUser" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,410,0,0" Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,450,0,0" Style="{StaticResource SystemButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,250,0,0" Style="{StaticResource Column1ButtonStyle}"/>
                     <Button Content="Clear AnyDesk" Name="btnClearAnyDesk" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,50,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,290,0,0"
+                            Style="{StaticResource Column1ButtonStyle}"/>
+                    <Button Content="Lector DP - Permisos" Name="btnLectorDPicacls" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,50,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
+                    <Button Content="Buscar Instalador LZMA" Name="LZMAbtnBuscarCarpeta" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,90,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
+                    <Button Content="Agregar IPs" Name="btnConfigurarIPs" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,130,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
+                    <Button Content="Agregar usuario de Windows" Name="btnAddUser" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,170,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
+                    <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Width="220" Height="30" IsEnabled="False"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,210,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
+                    <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,250,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Mostrar Impresoras" Name="btnShowPrinters" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,90,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,290,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Limpia y Reinicia Cola de Impresión" Name="btnClearPrintJobs" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,130,0,0" Style="{StaticResource GeneralButtonStyle}"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,330,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Aplicaciones National Soft" Name="btnAplicacionesNS" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,50,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Cambiar OTM a SQL/DBF" Name="btnCambiarOTM" Width="220" Height="30"
@@ -473,44 +504,170 @@ function New-MainForm {
                     </Border>
                 </Grid>
             </TabItem>
-            <TabItem Header="Base de datos" Name="tabProSql">
-                <Grid Background="{DynamicResource PanelBg}">
-                    <Label Content="Instancia SQL:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,10,0,0"/>
-                    <ComboBox Name="txtServer" HorizontalAlignment="Left" VerticalAlignment="Top"
-                              Width="180" Margin="10,30,0,0" IsEditable="True" Text=".\NationalSoft"/>
-                    <Label Content="Usuario:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,60,0,0"/>
-                    <TextBox Name="txtUser" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="180" Margin="10,80,0,0" Text="sa"/>
-                    <Label Content="Contraseña:" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,110,0,0"/>
-                    <PasswordBox Name="txtPassword" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                 Width="180" Margin="10,130,0,0"/>
-                    <Label Content="Base de datos" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,160,0,0"/>
-                    <ComboBox Name="cmbDatabases" HorizontalAlignment="Left" VerticalAlignment="Top"
-                              Width="180" Margin="10,180,0,0" IsEnabled="False"/>
-                    <Button Content="Conectar a BDD" Name="btnConnectDb" Width="180" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,220,0,0" Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Desconectar de BDD" Name="btnDisconnectDb" Width="180" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,260,0,0" Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
-                    <Button Content="Backup BDD" Name="btnBackup" Width="180" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,300,0,0" Style="{StaticResource SystemButtonStyle}"/>
-                    <Label Name="lblConnectionStatus" Content="Conectado a BDD: Ninguna" HorizontalAlignment="Left"
-                           VerticalAlignment="Top" Width="180" Height="80" Margin="10,400,0,0"/>
-                    <Button Content="Ejecutar" Name="btnExecute" Width="100" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="220,20,0,0" Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
-                    <ComboBox Name="cmbQueries" HorizontalAlignment="Left" VerticalAlignment="Top"
-                              Width="350" Margin="330,25,0,0" IsEnabled="False"/>
-                    <RichTextBox Name="rtbQuery" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                 Width="740" Height="140" Margin="220,60,0,0" VerticalScrollBarVisibility="Auto"
-                                 IsEnabled="False"/>
-                    <DataGrid Name="dgvResults" HorizontalAlignment="Left" VerticalAlignment="Top"
-                              Width="740" Height="280" Margin="220,205,0,0" IsReadOnly="True"
-                              AutoGenerateColumns="True" CanUserAddRows="False" CanUserDeleteRows="False"
-                              SelectionMode="Extended"/>
-                </Grid>
-            </TabItem>
+<TabItem Header="Base de datos" Name="tabProSql">
+  <Grid Background="{DynamicResource PanelBg}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>  <!-- Conexión -->
+      <RowDefinition Height="Auto"/>  <!-- Barra intermedia -->
+      <RowDefinition Height="*"/>     <!-- Área principal -->
+      <RowDefinition Height="Auto"/>  <!-- StatusBar -->
+    </Grid.RowDefinitions>
+
+    <!-- 📊 Conexión -->
+    <Border Grid.Row="0" Margin="10" Padding="10"
+            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+            CornerRadius="6" Background="{DynamicResource ControlBg}">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Fila de datos -->
+        <WrapPanel Grid.Row="0">
+          <StackPanel Margin="0,0,16,0">
+            <TextBlock Text="Instancia SQL:"/>
+            <ComboBox Name="txtServer" Width="180" IsEditable="True" Text=".\NationalSoft"/>
+          </StackPanel>
+
+          <StackPanel Margin="0,0,16,0">
+            <TextBlock Text="Usuario:"/>
+            <TextBox Name="txtUser" Width="160" Text="sa"/>
+          </StackPanel>
+
+          <StackPanel Margin="0,0,16,0">
+            <TextBlock Text="Contraseña:"/>
+            <PasswordBox Name="txtPassword" Width="160"/>
+          </StackPanel>
+
+          <StackPanel Margin="0,0,16,0">
+            <TextBlock Text="Base de datos:"/>
+            <ComboBox Name="cmbDatabases" Width="180" IsEnabled="False"/>
+          </StackPanel>
+        </WrapPanel>
+
+        <!-- Fila de botones (horizontal debajo) -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+          <Button Content="Conectar" Name="btnConnectDb"
+                  Width="120" Height="30" Margin="0,0,8,0"
+                  Style="{StaticResource SystemButtonStyle}"/>
+
+          <Button Content="Desconectar" Name="btnDisconnectDb"
+                  Width="120" Height="30" Margin="0,0,8,0"
+                  Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+
+          <Button Content="Backup" Name="btnBackup"
+                  Width="120" Height="30"
+                  Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- 🧰 Barra intermedia: ejecutar/queries/limpiar -->
+    <Border Grid.Row="1" Margin="10,0,10,10" Padding="10"
+            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+            CornerRadius="6" Background="{DynamicResource ControlBg}">
+      <StackPanel Orientation="Horizontal">
+        <Button Content="Ejecutar (F5)" Name="btnExecute"
+                Width="110" Height="30" Margin="0,0,8,0"
+                Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+
+        <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0"
+                  IsEnabled="False" ToolTip="Consultas predefinidas"/>
+
+        <Button Content="Limpiar" Name="btnClearQuery"
+                Width="90" Height="30"
+                Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+      </StackPanel>
+    </Border>
+
+    <!-- 🪟 Área principal (Explorador + Consultas/Resultados) -->
+    <Grid Grid.Row="2" Margin="10">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="250" MinWidth="200"/>
+        <ColumnDefinition Width="5"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- 🌲 Explorador de objetos -->
+      <Border Grid.Column="0"
+              BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+              CornerRadius="6" Background="{DynamicResource ControlBg}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <TextBlock Grid.Row="0" Text="Explorador de Objetos"
+                     Padding="8" FontWeight="Bold"
+                     Background="{DynamicResource AccentPrimary}"
+                     Foreground="{DynamicResource OnAccentFg}"/>
+          <TreeView Grid.Row="1" Name="tvDatabases" Padding="4"/>
+        </Grid>
+      </Border>
+
+      <!-- Split -->
+      <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                    Background="{DynamicResource BorderBrushColor}"/>
+
+      <!-- 📝 Consultas + Resultados -->
+      <Grid Grid.Column="2">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*" MinHeight="150"/>
+          <RowDefinition Height="5"/>
+          <RowDefinition Height="2*" MinHeight="200"/>
+        </Grid.RowDefinitions>
+
+        <!-- Tabs de consultas (sin toolbar interna) -->
+        <TabControl Name="tcQueries" Grid.Row="0" Background="{DynamicResource ControlBg}">
+          <TabItem Header="Consulta 1">
+            <Border BorderBrush="{DynamicResource BorderBrushColor}"
+                    BorderThickness="1" Margin="5" CornerRadius="4">
+              <RichTextBox Name="rtbQueryEditor1"
+                           VerticalScrollBarVisibility="Auto"
+                           AcceptsReturn="True" AcceptsTab="True"
+                           FontFamily="Consolas" FontSize="12"/>
+            </Border>
+          </TabItem>
+          <TabItem Header="+" Name="tabAddQuery" IsEnabled="True"/>
         </TabControl>
-        <Button Content="Salir" Name="btnExit" Width="400" Height="30"
-                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="300,0,0,10" Style="{StaticResource GeneralButtonStyle}"/>
+
+        <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch"
+                      Background="{DynamicResource BorderBrushColor}"/>
+
+        <TabControl Name="tcResults" Grid.Row="2" Background="{DynamicResource ControlBg}">
+          <TabItem Header="Resultados">
+            <DataGrid Name="dgResults" IsReadOnly="True" AutoGenerateColumns="True"
+                      CanUserAddRows="False" CanUserDeleteRows="False"/>
+          </TabItem>
+          <TabItem Header="Mensajes">
+            <TextBox Name="txtMessages" IsReadOnly="True"
+                     VerticalScrollBarVisibility="Auto"
+                     FontFamily="Consolas" Background="Transparent"
+                     BorderThickness="0"/>
+          </TabItem>
+        </TabControl>
+      </Grid>
+    </Grid>
+
+    <!-- 📍 Barra de estado -->
+    <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
+      <StatusBarItem>
+        <TextBlock Name="lblConnectionStatus" Text="Desconectado"/>
+      </StatusBarItem>
+      <Separator/>
+      <StatusBarItem>
+        <TextBlock Name="lblExecutionTime" Text="Tiempo: --"/>
+      </StatusBarItem>
+      <Separator/>
+      <StatusBarItem>
+        <TextBlock Name="lblRowCount" Text="Filas: --"/>
+      </StatusBarItem>
+    </StatusBar>
+  </Grid>
+</TabItem>
+        </TabControl>
     </Grid>
 </Window>
 "@
@@ -546,6 +703,7 @@ function New-MainForm {
     $LZMAbtnBuscarCarpeta = $window.FindName("LZMAbtnBuscarCarpeta")
     $btnConfigurarIPs = $window.FindName("btnConfigurarIPs")
     $btnAddUser = $window.FindName("btnAddUser")
+    $btnFirewallConfig = $window.FindName("btnFirewallConfig")
     $btnForzarActualizacion = $window.FindName("btnForzarActualizacion")
     $btnClearAnyDesk = $window.FindName("btnClearAnyDesk")
     $btnShowPrinters = $window.FindName("btnShowPrinters")
@@ -564,14 +722,55 @@ function New-MainForm {
     $btnBackup = $window.FindName("btnBackup")
     $lblConnectionStatus = $window.FindName("lblConnectionStatus")
     $btnExecute = $window.FindName("btnExecute")
+    $btnClearQuery = $window.FindName("btnClearQuery")
     $cmbQueries = $window.FindName("cmbQueries")
-    $rtbQuery = $window.FindName("rtbQuery")
+    $tcQueries = $window.FindName("tcQueries")
+    $tcResults = $window.FindName("tcResults")
+    $tvDatabases = $window.FindName("tvDatabases")
+    $tabAddQuery = $window.FindName("tabAddQuery")
     $tglDarkMode = $window.FindName("tglDarkMode")
     $tglDebugMode = $window.FindName("tglDebugMode")
     $script:predefinedQueries = Get-PredefinedQueries
-    Initialize-PredefinedQueries -ComboQueries $cmbQueries -RichTextBox $rtbQuery -Queries $script:predefinedQueries -Window $window
-    $dgvResults = $window.FindName("dgvResults")
-    $btnExit = $window.FindName("btnExit")
+    $script:sqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
+    if ($cmbQueries) {
+        $cmbQueries.Items.Clear()
+        $cmbQueries.Items.Add("Selecciona una consulta predefinida") | Out-Null
+        foreach ($key in ($script:predefinedQueries.Keys | Sort-Object)) {
+            $cmbQueries.Items.Add($key) | Out-Null
+        }
+        $cmbQueries.SelectedIndex = 0
+        $cmbQueries.Add_SelectionChanged({
+                $selectedQuery = $cmbQueries.SelectedItem
+                if (-not $selectedQuery -or $selectedQuery -eq "Selecciona una consulta predefinida") { return }
+                if (-not $script:predefinedQueries.ContainsKey($selectedQuery)) { return }
+                $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
+                Write-DzDebug "Insertando consulta predefinida '$selectedQuery' en la pestaña consulta: $($rtb.Name)"
+                if (-not $rtb) { return }
+                $queryText = $script:predefinedQueries[$selectedQuery]
+                $rtb.Document.Blocks.Clear()
+                $paragraph = New-Object System.Windows.Documents.Paragraph
+                $run = New-Object System.Windows.Documents.Run($queryText)
+                $paragraph.Inlines.Add($run)
+                $rtb.Document.Blocks.Add($paragraph)
+                if ($script:sqlKeywords) {
+                    Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $script:sqlKeywords
+                }
+                $rtb.Focus() | Out-Null
+            })
+    }
+    if ($tabAddQuery) {
+        $tabAddQuery.Add_PreviewMouseLeftButtonDown({
+                New-QueryTab -TabControl $tcQueries | Out-Null
+                $_.Handled = $true
+            })
+    }
+    if ($tcQueries -and $tcQueries.Items.Count -eq 1) {
+        New-QueryTab -TabControl $tcQueries | Out-Null
+    }
+    if ($btnExecute -and -not $btnExecute.IsEnabled) {
+        if ($tcQueries) { $tcQueries.IsEnabled = $false }
+        if ($tcResults) { $tcResults.IsEnabled = $false }
+    }
     $global:txtServer = $txtServer
     $global:txtUser = $txtUser
     $global:txtPassword = $txtPassword
@@ -580,10 +779,42 @@ function New-MainForm {
     $global:btnDisconnectDb = $btnDisconnectDb
     $global:btnExecute = $btnExecute
     $global:btnBackup = $btnBackup
+    $global:btnClearQuery = $btnClearQuery
     $global:cmbQueries = $cmbQueries
-    $global:rtbQuery = $rtbQuery
+    $global:tcQueries = $tcQueries
+    $global:tcResults = $tcResults
+    $global:tvDatabases = $tvDatabases
+    $global:tabAddQuery = $tabAddQuery
+    $global:rtbQueryEditor1 = $window.FindName("rtbQueryEditor1")
+    $global:dgResults = $window.FindName("dgResults")
+    $global:txtMessages = $window.FindName("txtMessages")
+    $global:lblExecutionTime = $window.FindName("lblExecutionTime")
+    $global:lblRowCount = $window.FindName("lblRowCount")
     $global:lblConnectionStatus = $lblConnectionStatus
-    $global:dgvResults = $dgvResults
+    # --- FIX: Registrar pestaña XAML "Consulta 1" como QueryTab para que Get-ActiveQueryRichTextBox funcione ---
+    if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:rtbQueryEditor1) {
+        $firstTab = $global:tcQueries.Items[0]
+
+        if ($firstTab -is [System.Windows.Controls.TabItem]) {
+            if (-not $firstTab.Tag -or $firstTab.Tag.Type -ne 'QueryTab') {
+
+                $title = if ($firstTab.Header) { [string]$firstTab.Header } else { "Consulta 1" }
+
+                $firstTab.Tag = [pscustomobject]@{
+                    Type            = "QueryTab"
+                    RichTextBox     = $global:rtbQueryEditor1
+                    Title           = $title
+                    HeaderTextBlock = $null     # (no aplica en el tab XAML)
+                    IsDirty         = $false
+                }
+
+                # Asegurar selección válida
+                if (-not $global:tcQueries.SelectedItem) {
+                    $global:tcQueries.SelectedIndex = 0
+                }
+            }
+        }
+    }
     $global:txt_AdapterStatus = $txt_AdapterStatus
     $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
@@ -653,7 +884,7 @@ function New-MainForm {
     }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
-    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller)
+    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
@@ -1116,6 +1347,8 @@ function New-MainForm {
             Write-Host "`t- - - Comenzando el proceso de 'Configurar IPs' - - -" -ForegroundColor Gray ; Show-IPConfigDialog })
     $btnAddUser.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Agregar Usuario' - {0}" -f (Get-Date -Format "HH:mm:ss"))
             Write-Host "`t- - - Comenzando el proceso de 'Agregar Usuario' - - -" -ForegroundColor Gray ; Show-AddUserDialog })
+    $btnFirewallConfig.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Configuraciones de Firewall' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Comenzando el proceso de 'Configuraciones de Firewall' - - -" -ForegroundColor Gray ; Show-FirewallConfigDialog })
     $btnCreateAPK.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Crear APK' - {0}" -f (Get-Date -Format "HH:mm:ss"))
             Write-Host "`t- - - Comenzando el proceso de 'Crear APK' - - -" -ForegroundColor Gray ; Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones })
     $btnExtractInstaller.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Extraer Instalador' - {0}" -f (Get-Date -Format "HH:mm:ss"))
@@ -1125,123 +1358,295 @@ function New-MainForm {
             Write-Host "`t- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Gray
 
             try {
-                if ($null -eq $global:txtServer -or $null -eq $global:txtUser -or $null -eq $global:txtPassword) { throw "Error interno: controles de conexión no inicializados." }
+                if ($null -eq $global:txtServer -or $null -eq $global:txtUser -or $null -eq $global:txtPassword) {
+                    throw "Error interno: controles de conexión no inicializados."
+                }
+
                 $serverText = $global:txtServer.Text.Trim()
                 $userText = $global:txtUser.Text.Trim()
                 $passwordText = $global:txtPassword.Password
+
                 Write-DzDebug "`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
-                if ([string]::IsNullOrWhiteSpace($serverText) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordText)) { throw "Complete todos los campos de conexión" }
+
+                if ([string]::IsNullOrWhiteSpace($serverText) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordText)) {
+                    throw "Complete todos los campos de conexión"
+                }
+
                 $securePassword = (New-Object System.Net.NetworkCredential('', $passwordText)).SecurePassword
                 $credential = New-Object System.Management.Automation.PSCredential($userText, $securePassword)
+
                 $global:server = $serverText
                 $global:user = $userText
                 $global:password = $passwordText
                 $global:dbCredential = $credential
+
                 $databases = Get-SqlDatabases -Server $serverText -Credential $credential
-                if (-not $databases -or $databases.Count -eq 0) { throw "Conexión correcta, pero no se encontraron bases de datos disponibles." }
+
+                if (-not $databases -or $databases.Count -eq 0) {
+                    throw "Conexión correcta, pero no se encontraron bases de datos disponibles."
+                }
+
                 $global:cmbDatabases.Items.Clear()
-                foreach ($db in $databases) { [void]$global:cmbDatabases.Items.Add($db) }
+                foreach ($db in $databases) {
+                    [void]$global:cmbDatabases.Items.Add($db)
+                }
+
                 $global:cmbDatabases.IsEnabled = $true
                 $global:cmbDatabases.SelectedIndex = 0
-                $global:lblConnectionStatus.Content = @"
-Conectado a:
-Servidor: $serverText
-Base de datos: ((
-(global:database)
-"@.Trim()
-                $global:lblConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Green
+                $global:database = $global:cmbDatabases.SelectedItem
+
+                # Actualizar barra de estado
+                $global:lblConnectionStatus.Text = "✓ Conectado a: $serverText | DB: $($global:database)"
+
                 $global:txtServer.IsEnabled = $false
                 $global:txtUser.IsEnabled = $false
                 $global:txtPassword.IsEnabled = $false
                 $global:btnExecute.IsEnabled = $true
+                $global:btnClearQuery.IsEnabled = $true
                 $global:cmbQueries.IsEnabled = $true
                 $global:btnConnectDb.IsEnabled = $false
                 $global:btnBackup.IsEnabled = $true
                 $global:btnDisconnectDb.IsEnabled = $true
-                $global:rtbQuery.IsEnabled = $true
+                # ✅ Habilitar UI de trabajo al conectar
+                if ($global:tcQueries) { $global:tcQueries.IsEnabled = $true }
+                if ($global:tcResults) { $global:tcResults.IsEnabled = $true }
+
+                if ($global:rtbQueryEditor1) { $global:rtbQueryEditor1.IsEnabled = $true }
+                if ($global:dgResults) { $global:dgResults.IsEnabled = $true }
+                if ($global:txtMessages) { $global:txtMessages.IsEnabled = $true }
+
+                # Opcional: enfoque al editor
+                $global:rtbQueryEditor1.Focus() | Out-Null
+                Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential `
+                    -AutoExpand $true `
+                    -OnDatabaseSelected {
+                    param($dbName)
+
+                    if (-not $global:cmbDatabases) { return }
+
+                    # Selecciona en ComboBox (si existe)
+                    $global:cmbDatabases.SelectedItem = $dbName
+                    if (-not $global:cmbDatabases.SelectedItem) {
+                        # fallback por si el SelectedItem no matchea igual
+                        for ($i = 0; $i -lt $global:cmbDatabases.Items.Count; $i++) {
+                            if ([string]$global:cmbDatabases.Items[$i] -eq [string]$dbName) {
+                                $global:cmbDatabases.SelectedIndex = $i
+                                break
+                            }
+                        }
+                    }
+
+                    $global:database = $global:cmbDatabases.SelectedItem
+
+                    if ($global:lblConnectionStatus) {
+                        $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
+                    }
+
+                    Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($global:database)"
+                } `
+                    -InsertTextHandler {
+                    param($text)
+
+                    # ✅ IMPORTANTE: Insertar SIEMPRE en pestaña activa (NO rtbQueryEditor1)
+                    if ($global:tcQueries) {
+                        Insert-TextIntoActiveQuery -TabControl $global:tcQueries -Text $text
+                    }
+                }
+
             } catch {
-                Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: ((
-(_.Exception.Message)"
-                Write-DzDebug "`t[DEBUG][btnConnectDb] Tipo: ((
-(_.Exception.GetType().FullName)"
-                Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: ((
-(_.ScriptStackTrace)"
-                Ui-Error "Error: $($_.Exception.Message)" $global:MainWindow
-                Write-Host "Error | Error de conexión: ((
-(_.Exception.Message)" -ForegroundColor Red
+                Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: $($_.Exception.Message)"
+                Write-DzDebug "`t[DEBUG][btnConnectDb] Tipo: $($_.Exception.GetType().FullName)"
+                Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: $($_.ScriptStackTrace)"
+
+                Ui-Error "Error de conexión: $($_.Exception.Message)" $global:MainWindow
+                Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
             }
         })
     $btnDisconnectDb.Add_Click({
             try {
-                if ($global:connection -and $global:connection.State -ne [System.Data.ConnectionState]::Closed) { $global:connection.Close() ; $global:connection.Dispose() }
+                if ($global:connection -and $global:connection.State -ne [System.Data.ConnectionState]::Closed) {
+                    $global:connection.Close()
+                    $global:connection.Dispose()
+                }
                 $global:connection = $null
                 $global:dbCredential = $null
-                $global:lblConnectionStatus.Content = "Conectado a BDD: Ninguna"
-                $global:lblConnectionStatus.Foreground = [System.Windows.Media.Brushes]::Red
+
+                $global:lblConnectionStatus.Text = "Desconectado"
                 $global:btnConnectDb.IsEnabled = $true
                 $global:btnBackup.IsEnabled = $false
                 $global:btnDisconnectDb.IsEnabled = $false
                 $global:btnExecute.IsEnabled = $false
-                $global:rtbQuery.IsEnabled = $false
+                $global:btnClearQuery.IsEnabled = $false
                 $global:txtServer.IsEnabled = $true
                 $global:txtUser.IsEnabled = $true
                 $global:txtPassword.IsEnabled = $true
                 $global:cmbQueries.IsEnabled = $false
+                $global:rtbQueryEditor1.IsEnabled = $false
+                $global:dgResults.IsEnabled = $false
+                $global:txtMessages.IsEnabled = $false
+                if ($global:tcQueries) { $global:tcQueries.IsEnabled = $false }
+                if ($global:tcResults) { $global:tcResults.IsEnabled = $false }
+                $global:tvDatabases.Items.Clear()
                 $global:cmbDatabases.Items.Clear()
                 $global:cmbDatabases.IsEnabled = $false
+                $global:dgResults.ItemsSource = $null
+                $global:txtMessages.Text = ""
+
                 Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
-            } catch { Write-Host "`nError al desconectar: $($_.Exception.Message)" -ForegroundColor Red }
+            } catch {
+                Write-Host "`nError al desconectar: $($_.Exception.Message)" -ForegroundColor Red
+            }
+        })
+    $cmbDatabases.Add_SelectionChanged({
+            if ($global:cmbDatabases.SelectedItem) {
+                $global:database = $global:cmbDatabases.SelectedItem
+                if ($global:lblConnectionStatus.Content -like "Conectado a:*") {
+                    $global:lblConnectionStatus.Content = @"
+Conectado a:
+Servidor: $($global:server)
+Base de datos: $($global:database)
+"@.Trim()
+                }
+            }
         })
     $btnExecute.Add_Click({
-            Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+            Write-Host "`n`t- - - Ejecutando consulta - - -" -ForegroundColor Gray
+
             try {
+                # 1) Base de datos seleccionada
                 $selectedDb = $global:cmbDatabases.SelectedItem
                 if (-not $selectedDb) { throw "Selecciona una base de datos" }
-                $rawQuery = New-Object System.Windows.Documents.TextRange($global:rtbQuery.Document.ContentStart, $global:rtbQuery.Document.ContentEnd)
-                $cleanQuery = Remove-SqlComments -Query $rawQuery.Text
-                $result = Execute-SqlQuery -server $global:server -database $selectedDb -query $cleanQuery
-                if ($result -and $result.ContainsKey('Messages') -and $result.Messages) {
-                    if ($result.Messages.Count -gt 0) {
-                        Write-Host "`nMensajes de SQL:" -ForegroundColor Cyan
-                        $result.Messages | ForEach-Object { Write-Host $_ }
-                    }
+
+                # 2) Obtener RichTextBox ACTIVO (pestaña activa)
+                #    Asegúrate de que $global:tcQueries sea tu TabControl de consultas
+                $activeRtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
+                if (-not $activeRtb) { throw "No hay una pestaña de consulta activa." }
+
+                # 3) Obtener texto del RTB activo
+                $textRange = New-Object System.Windows.Documents.TextRange(
+                    $activeRtb.Document.ContentStart,
+                    $activeRtb.Document.ContentEnd
+                )
+
+                $query = $textRange.Text
+
+                # (Recomendado) Limpiar comentarios
+                $query = Remove-SqlComments -Query $query
+
+                if ([string]::IsNullOrWhiteSpace($query)) {
+                    throw "La consulta está vacía."
                 }
-                if ($result -and $result.ContainsKey('DataTable') -and $result.DataTable) {
-                    $global:dgvResults.ItemsSource = $result.DataTable.DefaultView
-                    $global:dgvResults.IsEnabled = $true
-                    Write-Host "`nColumnas obtenidas: $($result.DataTable.Columns.ColumnName -join ', ')" -ForegroundColor Cyan
-                    if ($result.DataTable.Rows.Count -eq 0) {
-                        Write-Host "La consulta no devolvió resultados" -ForegroundColor Yellow
-                    } else {
-                        $result.DataTable | Format-Table -AutoSize | Out-String | Write-Host
-                    }
-                } elseif ($result -and $result.ContainsKey('RowsAffected')) {
-                    Write-Host "`nFilas afectadas: $($result.RowsAffected)" -ForegroundColor Green
-                    $rowsAffectedTable = New-Object System.Data.DataTable
-                    $rowsAffectedTable.Columns.Add("Resultado") | Out-Null
-                    $rowsAffectedTable.Rows.Add("Filas afectadas: $($result.RowsAffected)") | Out-Null
-                    $global:dgvResults.ItemsSource = $rowsAffectedTable.DefaultView
-                    $global:dgvResults.IsEnabled = $true
+
+                # 4) Limpiar resultados anteriores
+                #    Si ya tienes TabControl de resultados úsalo; si no, cae al dgResults
+                if ($global:tcResults) {
+                    $global:tcResults.Items.Clear()
                 } else {
-                    Write-Host "`nNo se recibió DataTable ni RowsAffected en el resultado." -ForegroundColor Yellow
+                    $global:dgResults.ItemsSource = $null
                 }
+
+                $global:txtMessages.Text = ""
+                if ($global:lblRowCount) { $global:lblRowCount.Text = "" }
+
+                Write-Host "Ejecutando consulta en '$selectedDb'..." -ForegroundColor Cyan
+
+                # 5) Ejecutar (usa tu credencial global)
+                $result = Invoke-SqlQueryMultiResultSet -Server $global:server -Database $selectedDb -Query $query -Credential $global:dbCredential
+
+                if (-not $result.Success) {
+                    $global:txtMessages.Text = $result.ErrorMessage
+                    throw $result.ErrorMessage
+                }
+
+                # 6) Mostrar resultados
+                if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
+
+                    if ($global:tcResults) {
+                        # Mostrar múltiples resultsets como pestañas (si tienes MultiQuery.psm1 cargado)
+                        Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
+                    } else {
+                        # Fallback: solo primer resultset en DataGrid
+                        $global:dgResults.ItemsSource = $result.ResultSets[0].DataTable.DefaultView
+                    }
+
+                    if ($global:lblRowCount) {
+                        $global:lblRowCount.Text = "Filas: $($result.ResultSets[0].RowCount)"
+                    }
+
+                    Write-Host "✓ Consulta ejecutada: $($result.ResultSets[0].RowCount) filas" -ForegroundColor Green
+
+                } elseif ($result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
+
+                    $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)"
+                    if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas afectadas: $($result.RowsAffected)" }
+
+                    Write-Host "✓ Consulta ejecutada: $($result.RowsAffected) filas afectadas" -ForegroundColor Green
+
+                    if ($global:tcResults) {
+                        # Mostrar mensaje en una pestaña simple
+                        $tab = New-Object System.Windows.Controls.TabItem
+                        $tab.Header = "Resultado"
+                        $text = New-Object System.Windows.Controls.TextBlock
+                        $text.Text = "Filas afectadas: $($result.RowsAffected)"
+                        $text.Margin = "10"
+                        $tab.Content = $text
+                        [void]$global:tcResults.Items.Add($tab)
+                        $global:tcResults.SelectedItem = $tab
+                    }
+                } else {
+                    # Sin resultsets y sin rowsaffected: mostrar "sin resultados"
+                    if ($global:tcResults) {
+                        Show-MultipleResultSets -TabControl $global:tcResults -ResultSets @()
+                    } else {
+                        $global:txtMessages.Text = "La consulta no devolvió resultados."
+                    }
+                }
+
             } catch {
-                $errorTable = New-Object System.Data.DataTable
-                $errorTable.Columns.Add("Tipo") | Out-Null
-                $errorTable.Columns.Add("Mensaje") | Out-Null
-                $errorTable.Columns.Add("Detalle") | Out-Null
-                $rawText = New-Object System.Windows.Documents.TextRange($global:rtbQuery.Document.ContentStart, $global:rtbQuery.Document.ContentEnd)
-                $cleanQuery = $rawText.Text -replace '(?s)/\*.*?\*/', '' -replace '(?m)^\s*--.*'
-                $shortQuery = if ($cleanQuery.Length -gt 50) { $cleanQuery.Substring(0, 47) + "..." } else { $cleanQuery }
-                $errorTable.Rows.Add("ERROR SQL", $_.Exception.Message, $shortQuery) | Out-Null
-                $global:dgvResults.ItemsSource = $errorTable.DefaultView
+                $msg = $_.Exception.Message
+                $global:txtMessages.Text = $msg
+
                 Write-Host "`n=============== ERROR ==============" -ForegroundColor Red
-                Write-Host "Mensaje: $($_.Exception.Message)" -ForegroundColor Yellow
-                Write-Host "Consulta: $shortQuery" -ForegroundColor Cyan
+                Write-Host "Mensaje: $msg" -ForegroundColor Yellow
+                Write-Host "====================================" -ForegroundColor Red
+            }
+        })
+    $btnClearQuery.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            try {
+                # 1) Obtener RichTextBox ACTIVO (pestaña activa real)
+                $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
+                if (-not $rtb) {
+                    throw "No hay una pestaña de consulta activa."
+                }
+                # 2) Limpiar el editor activo
+                $rtb.Document.Blocks.Clear()
+                # 3) Limpiar resultados/mensajes
+                if ($global:dgResults) { $global:dgResults.ItemsSource = $null }
+                if ($global:txtMessages) { $global:txtMessages.Text = "" }
+                if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
+                # 4) Debug: nombre de pestaña (sirve para XAML y para tabs dinámicos)
+                $tab = Get-ActiveQueryTab -TabControl $global:tcQueries
+                $tabName = if ($tab -and $tab.Tag -and $tab.Tag.Title) { $tab.Tag.Title } else { "Desconocida" }
+                Write-DzDebug "`t[DEBUG] Se limpió la consulta en la pestaña: $tabName"
+                Write-Host "Consulta limpiada" -ForegroundColor Cyan
+
+            } catch {
+                $msg = $_.Exception.Message
+                if ($global:txtMessages) { $global:txtMessages.Text = $msg }
+                Write-Host "`n=============== ERROR ==============" -ForegroundColor Red
+                Write-Host "Mensaje: $msg" -ForegroundColor Yellow
                 Write-Host "====================================" -ForegroundColor Red
             }
         })
     $btnBackup.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso de Backup - - -" -ForegroundColor Gray ; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
+    $window.Add_KeyDown({
+            param($s, $e)
+            if ($e.Key -eq 'F5' -and $btnExecute.IsEnabled) {
+                $btnExecute.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent)))
+                $e.Handled = $true
+            }
+        })
     $closeWindowScript = {
         Write-Host "Cerrando aplicación..." -ForegroundColor Yellow
         Write-DzDebug "`t[DEBUG] Botón Salir presionado" -Color DarkGray
@@ -1260,7 +1665,6 @@ Base de datos: ((
             Write-DzDebug "`t[DEBUG] Error: $_" -Color Red
         }
     }.GetNewClosure()
-    $btnExit.Add_Click($closeWindowScript)
     Write-Host "✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     return $window
 }
@@ -1270,7 +1674,7 @@ function Start-Application {
     Show-GlobalProgress -Percent 10 -Status "Entorno listo"
     Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
     $modulesPath = Join-Path $PSScriptRoot "modules"
-    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "Queries.psm1", "Installers.psm1")
+    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1")
     $i = 0
     foreach ($module in $modules) {
         $i++

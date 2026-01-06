@@ -1,4 +1,6 @@
-﻿#param([string]$Branch = "release")
+﻿param(
+    [string]$Branch = "release"
+)
 # ===================== ADVERTENCIA DE VERSIÓN BETA =====================
 Write-Host "`n==============================================" -ForegroundColor Red
 Write-Host "           ADVERTENCIA DE VERSIÓN BETA " -ForegroundColor Red
@@ -9,7 +11,6 @@ Write-Host " - Su equipo" -ForegroundColor Red
 Write-Host " - Bases de datos" -ForegroundColor Red
 Write-Host " - Configuraciones del sistema`n" -ForegroundColor Red
 Write-Host "¿Acepta ejecutar esta aplicación bajo su propia responsabilidad? (Y/N)" -ForegroundColor Yellow
-# Leer una tecla (Y/N) sin hacer eco en pantalla
 $response = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 $answer = $response.Character.ToString().ToUpper()
 while ($answer -notin 'Y', 'N') {
@@ -18,7 +19,7 @@ while ($answer -notin 'Y', 'N') {
 }
 if ($answer -ne 'Y') {
     Write-Host "`nEjecución cancelada por el usuario.`n" -ForegroundColor Red
-    return   # Usamos return para no cerrar toda la consola del usuario
+    return
 }
 # ======================================================================
 Clear-Host
@@ -40,28 +41,21 @@ function Show-ProgressBar {
     $consoleWidth = $Host.UI.RawUI.WindowSize.Width
     $line = $line.PadRight($consoleWidth - 1)
     Write-Host "`r$line" -NoNewline
-    if ($Percent -ge 100) {
-        Write-Host ""
-    }
+    if ($Percent -ge 100) { Write-Host "" }
 }
 if (-not (Test-Path $baseRuntimePath)) {
     New-Item -ItemType Directory -Path $baseRuntimePath | Out-Null
 }
-Show-ProgressBar -Percent 5 -Message "Preparando entorno..."
+Show-ProgressBar -Percent 5  -Message "Preparando entorno..."
 $zipPath = Join-Path $baseRuntimePath "dztools.zip"
 Show-ProgressBar -Percent 10 -Message "Limpiando versión anterior..."
 try {
-    if (Test-Path $zipPath) {
-        Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
-    }
-
-    if (Test-Path $releasePath) {
-        Remove-Item $releasePath -Recurse -Force -ErrorAction SilentlyContinue
-    }
-} catch {
-    # Si algo truena limpiando, no es fatal, seguimos intentando
-}
+    if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
+    if (Test-Path $releasePath) { Remove-Item $releasePath -Recurse -Force -ErrorAction SilentlyContinue }
+} catch {}
+# Si 'Branch' en el futuro cambia URL, aquí es el punto
 $zipUrl = "https://github.com/$Owner/$Repo/releases/latest/download/dztools-release.zip"
+
 Show-ProgressBar -Percent 20 -Message "Descargando última versión..."
 try {
     Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
@@ -76,7 +70,6 @@ try {
     if (-not (Test-Path $releasePath)) {
         New-Item -ItemType Directory -Path $releasePath | Out-Null
     }
-
     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $releasePath)
 } catch {
@@ -103,4 +96,6 @@ Write-Host "   Canal: $Branch" -ForegroundColor DarkGray
 Write-Host "   Carpeta: $projectRoot" -ForegroundColor DarkGray
 Write-Host "=================================================" -ForegroundColor Gray
 Write-Host ""
-powershell -ExecutionPolicy Bypass -NoProfile -File $mainPath
+# Ejecutar con el MISMO host que está corriendo este bootstrapper
+$exe = if ($PSVersionTable.PSVersion.Major -ge 6) { "pwsh" } else { "powershell" }
+& $exe -NoProfile -ExecutionPolicy Bypass -File $mainPath

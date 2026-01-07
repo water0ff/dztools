@@ -203,6 +203,7 @@ function Set-DzWpfThemeResources {
 function Set-WpfDialogOwner {
     param([Parameter(Mandatory)][System.Windows.Window]$Dialog)
     try { if ($Global:window -is [System.Windows.Window]) { $Dialog.Owner = $Global:window; return } } catch {}
+    try { if ($Global:MainWindow -is [System.Windows.Window]) { $Dialog.Owner = $Global:MainWindow; return } } catch {}
     try { if ($script:window -is [System.Windows.Window]) { $Dialog.Owner = $script:window; return } } catch {}
 }
 

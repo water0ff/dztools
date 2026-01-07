@@ -169,8 +169,9 @@ function Set-DzWpfThemeResources {
         [void]$editTbStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $bg)))
         [void]$editTbStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $fg)))
         [void]$editTbStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, [System.Windows.Thickness]::new(0))))
-        $comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.ComboBox]::TextBoxStyleProperty, $editTbStyle)))
-
+        if ([System.Windows.Controls.ComboBox]::TextBoxStyleProperty -ne $null) {
+            $comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.ComboBox]::TextBoxStyleProperty, $editTbStyle)))
+        }
         # Dropdown items
         $itemStyle = New-Object System.Windows.Style($cbiType)
         [void]$itemStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $dropBg)))
@@ -425,28 +426,46 @@ function Show-WpfProgressBar {
     }
 }
 function Update-WpfProgressBar {
-    param([Parameter(Mandatory = $true)]$Window, [Parameter(Mandatory = $true)][ValidateRange(0, 100)][int]$Percent, [string]$Message = $null)
+    param(
+        [Parameter(Mandatory = $true)][System.Windows.Window]$Window,
+        [Parameter(Mandatory = $true)][ValidateRange(0, 100)][int]$Percent,
+        [string]$Message = $null
+    )
+
     if ($null -eq $Window) { return }
-    if (-not ($Window -is [System.Windows.Window])) { return }
     if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) { return }
-    $pLocal = [Math]::Min($Percent, 100)
-    $mLocal = $Message
-    $wLocal = $Window
-    try {
-        $action = [Action[object, int, string]] {
-            param($w, $p, $m)
-            if ($null -eq $w) { return }
-            if ($w.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $w.IsClosed) { return }
-            if ($w.PSObject.Properties.Match('ProgressBar').Count -gt 0 -and $w.ProgressBar) { $w.ProgressBar.IsIndeterminate = $false; $w.ProgressBar.Value = $p }
-            if ($w.PSObject.Properties.Match('PercentLabel').Count -gt 0 -and $w.PercentLabel) { $w.PercentLabel.Text = "$p%" }
-            if (-not [string]::IsNullOrWhiteSpace($m) -and $w.PSObject.Properties.Match('MessageLabel').Count -gt 0 -and $w.MessageLabel) { $w.MessageLabel.Text = $m }
-            $w.UpdateLayout()
+    if ($null -eq $Window.Dispatcher -or $Window.Dispatcher.HasShutdownStarted) { return }
+
+    $p = [Math]::Min($Percent, 100)
+    $m = $Message
+
+    $doUpdate = [action] {
+        if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) { return }
+        if ($Window.PSObject.Properties.Match('ProgressBar').Count -gt 0 -and $Window.ProgressBar) {
+            $Window.ProgressBar.IsIndeterminate = $false
+            $Window.ProgressBar.Value = $p
         }
-        $wLocal.Dispatcher.Invoke($action, [System.Windows.Threading.DispatcherPriority]::Render, $wLocal, $pLocal, $mLocal) | Out-Null
+        if ($Window.PSObject.Properties.Match('PercentLabel').Count -gt 0 -and $Window.PercentLabel) {
+            $Window.PercentLabel.Text = "$p%"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($m) -and $Window.PSObject.Properties.Match('MessageLabel').Count -gt 0 -and $Window.MessageLabel) {
+            $Window.MessageLabel.Text = $m
+        }
+        # Evita UpdateLayout() en cada tick: puede “ahogar” el render.
+    }
+
+    try {
+        if ($Window.Dispatcher.CheckAccess()) {
+            & $doUpdate
+        } else {
+            $null = $Window.Dispatcher.BeginInvoke($doUpdate, [System.Windows.Threading.DispatcherPriority]::Background)
+        }
     } catch {
-        Write-Warning "Error actualizando barra de progreso: $($_.Exception.Message)"
+        # Silenciar si ya se cerró
+        Write-DzDebug "DEBUG ProgressBar Silenciada"
     }
 }
+
 function Close-WpfProgressBar {
     param([Parameter(Mandatory = $true)]$Window)
     if ($null -eq $Window) { return }

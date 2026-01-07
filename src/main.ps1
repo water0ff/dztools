@@ -69,21 +69,31 @@ foreach ($module in $modules) {
 }
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
+- Configuraciones de Firewall
+    * Buscar reglas existentes "deshabilitada termporalmente"
+    * Agregar reglas nuevas
+- Version Base de datos 2.0.0
+    * Nueva conexión a SQL Server
+    * Backup de bases de datos
+    * Ejecución de queries
+    * Queries predefinidas
+    * Mejoras en seguridad y manejo de errores
+    * Carga de INIS en la conexión a BDD.
+    * Multiples Queries (MultiQuery)
 - Nueva interfaz WPF
     * Fuentes y colores actualizados.
-- Switch para modo oscuro
-- Switch para modo debug
-- Se agregó una mejor busqueda para SQL Server Management Studio.
-- Migración completa a WPF
-- Carga de INIS en la conexión a BDD.
-- Se cambió la instalación de SSMS14 a SSMS21.
-- Se deshabilitó la subida a mega.
+    * Modo oscuro
+    * Modo debug
+- Instalador de herramientas (Choco)
+    * Nuevo form para buscar paquetes choco.
+    * Permite instalar paquetes.
+    * Permite desinstalar paquetes.
+    * Ver estado de paquetes instalados.
 - Restructura del proceso de Backups (choco).
-- Se agregó subida a megaupload.
-- Se agregó compresión con contraseña de respaldos
-- Se agregó compresión con contraseña de respaldos
+    * Progressbar animada
+    * Se agregó compresión con contraseña de respaldos
 - Se agregó consola de cambios y tool tip para botones
-- Reorganización de botones
+- Busqueda avanzada de puertos SQL
 - Query Browser para SQL en pestaña: Base de datos
 - - Ahora se pueden agregar comentarios con "-" y entre "/* */"
 - - Tabla en consola
@@ -115,7 +125,6 @@ function Initialize-Environment {
     }
     try {
         $debugEnabled = Initialize-DzToolsConfig
-        Write-DzDebug "`t[DEBUG]Configuración de debug cargada (debug=$debugEnabled)" -Color DarkGray
     } catch {
         Write-Host "Advertencia: No se pudo inicializar la configuración de debug. $_" -ForegroundColor Yellow
     }
@@ -432,7 +441,7 @@ function New-MainForm {
                     <Button Content="Agregar usuario de Windows" Name="btnAddUser" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,170,0,0"
                             Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Width="220" Height="30" IsEnabled="False"
+                    <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,210,0,0"
                             Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Width="220" Height="30"

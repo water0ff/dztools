@@ -3508,27 +3508,43 @@ function Show-FirewallConfigDialog {
           <Grid Grid.Row="1" Margin="0,0,0,8">
             <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="Puerto" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Name="txtSearchPort" Height="30" VerticalContentAlignment="Center"/>
-            <Button Grid.Column="2" Name="btnSearch" Content="Buscar" Width="110" Height="30" Margin="10,0,0,0"/>
+            <TextBox Grid.Column="1" Name="txtSearchPort" Height="30" IsEnabled="False" VerticalContentAlignment="Center"/>
+            <Button Grid.Column="2" Name="btnSearch" IsEnabled="False" Content="Buscar" Width="110" Height="30" Margin="10,0,0,0"/>
           </Grid>
           <ListBox Grid.Row="2" Name="lbResults" Height="140" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Background="{DynamicResource PanelBg}" Foreground="{DynamicResource FormFg}"/>
         </Grid>
       </Border>
       <Border Grid.Row="3" Background="{DynamicResource ControlBg}" CornerRadius="10" Padding="12" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Margin="0,12,0,0">
         <Grid>
-          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-          <TextBlock Text="Agregar puerto" FontWeight="SemiBold" Margin="0,0,0,8"/>
-          <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Agregar regla de puerto" FontWeight="SemiBold" Margin="0,0,0,8"/>
+            <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="Puerto" VerticalAlignment="Center"/>
             <TextBox Grid.Column="1" Name="txtAddPort" Height="30" VerticalContentAlignment="Center"/>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
-              <CheckBox Name="chkInbound" Content="Entrada" Margin="0,0,10,0" IsChecked="True"/>
-              <CheckBox Name="chkOutbound" Content="Salida" IsChecked="True"/>
+                <CheckBox Name="chkInbound" Content="Entrada" Margin="0,0,10,0" IsChecked="True"/>
+                <CheckBox Name="chkOutbound" Content="Salida" IsChecked="True"/>
             </StackPanel>
-          </Grid>
+            </Grid>
+            <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Nombre de regla" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Name="txtRuleName" Height="30" VerticalContentAlignment="Center" Text="Regla de puerto"/>
+            </Grid>
         </Grid>
-      </Border>
+        </Border>
       <Grid Grid.Row="4" Margin="0,12,0,0">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <TextBlock Name="lblStatus" Grid.Column="0" Text="Listo." Foreground="#2E7D32" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,10,0"/>
@@ -3761,20 +3777,43 @@ function Show-FirewallConfigDialog {
             if ($c['chkInbound'].IsChecked) { $directions += "Inbound" }
             if ($c['chkOutbound'].IsChecked) { $directions += "Outbound" }
             if ($directions.Count -eq 0) { & $SetStatus "Selecciona al menos una dirección (Entrada/Salida)." "Warn"; return }
+            $ruleName = $c['txtRuleName'].Text.Trim()
+            if ([string]::IsNullOrWhiteSpace($ruleName)) { $ruleName = "Puerto $port" }
             try {
-                $existing = & $GetFirewallPortMatchesSync $port
                 $created = 0
+                $createdRules = @()
+                $errors = @()
                 foreach ($dir in $directions) {
-                    $already = $existing | Where-Object { $_.Direction -eq $dir }
-                    if ($already) { Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Ya existe regla $dir para puerto $port"; continue }
-                    $ruleName = "DZTools Puerto $port ($dir)"
-                    $desc = "Regla creada desde DZTools para puerto $port ($dir)."
-                    New-NetFirewallRule -DisplayName $ruleName -Direction $dir -Action Allow -Protocol TCP -LocalPort $port -Profile Any -Description $desc | Out-Null
-                    $created++
+                    $dirLabel = if ($dir -eq "Inbound") { "Entrada" } else { "Salida" }
+                    $finalRuleName = "$ruleName ($dirLabel)"
+                    $desc = "Regla creada para puerto $port ($dirLabel)."
+                    try {
+                        New-NetFirewallRule -DisplayName $finalRuleName -Direction $dir -Action Allow -Protocol TCP -LocalPort $port -Profile Any -Description $desc -ErrorAction Stop | Out-Null
+                        $created++
+                        $createdRules += $finalRuleName
+                        Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Regla creada: $finalRuleName"
+                    } catch {
+                        if ($_.Exception.Message -like "*already exists*" -or $_.Exception.Message -like "*ya existe*") {
+                            Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Ya existe regla $dir para puerto $port"
+                        } else {
+                            $errors += "Error en $dirLabel`: $($_.Exception.Message)"
+                            Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Error creando regla $dir`: $($_.Exception.Message)" Red
+                        }
+                    }
                 }
-                if ($created -gt 0) { & $SetStatus "Se agregaron $created regla(s) para el puerto $port." "Ok" } else { & $SetStatus "No se crearon reglas nuevas: el puerto ya estaba configurado." "Warn" }
-                $matches = & $GetFirewallPortMatchesSync $port
-                & $RenderResults $matches $port
+                if ($errors.Count -gt 0) {
+                    & $SetStatus "Errores al crear reglas: $($errors -join '; ')" "Error"
+                } elseif ($created -gt 0) {
+                    & $SetStatus "Se agregaron $created regla(s) para el puerto $port." "Ok"
+                    $dirText = ($directions | ForEach-Object { if ($_ -eq "Inbound") { "Entrada" } else { "Salida" } }) -join " y "
+                    $msg = "Regla(s) agregada(s) exitosamente:`n`nNombre: $($createdRules -join ', ')`nPuerto: $port`nDirección: $dirText"
+                    $result = Show-WpfMessageBox -Message $msg -Title "Regla agregada" -Buttons "OK" -Icon "Information" -Owner $w
+                    if ($result -eq [System.Windows.MessageBoxResult]::OK) {
+                        $w.Close()
+                    }
+                } else {
+                    & $SetStatus "No se crearon reglas nuevas: ya existen reglas con ese nombre." "Warn"
+                }
             } catch {
                 Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Error agregando reglas: $($_.Exception.Message)" Red
                 & $SetStatus "Error al agregar reglas: $($_.Exception.Message)" "Error"
@@ -3789,7 +3828,6 @@ function Show-FirewallConfigDialog {
     }
     Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] FIN"
 }
-
 
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',

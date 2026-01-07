@@ -50,7 +50,7 @@ function Write-Log {
 }
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
-$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1")
+$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1")
 foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
@@ -69,21 +69,31 @@ foreach ($module in $modules) {
 }
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
+- Configuraciones de Firewall
+    * Buscar reglas existentes "deshabilitada termporalmente"
+    * Agregar reglas nuevas
+- Version Base de datos 2.0.0
+    * Nueva conexión a SQL Server
+    * Backup de bases de datos
+    * Ejecución de queries
+    * Queries predefinidas
+    * Mejoras en seguridad y manejo de errores
+    * Carga de INIS en la conexión a BDD.
+    * Multiples Queries (MultiQuery)
 - Nueva interfaz WPF
     * Fuentes y colores actualizados.
-- Switch para modo oscuro
-- Switch para modo debug
-- Se agregó una mejor busqueda para SQL Server Management Studio.
-- Migración completa a WPF
-- Carga de INIS en la conexión a BDD.
-- Se cambió la instalación de SSMS14 a SSMS21.
-- Se deshabilitó la subida a mega.
+    * Modo oscuro
+    * Modo debug
+- Instalador de herramientas (Choco)
+    * Nuevo form para buscar paquetes choco.
+    * Permite instalar paquetes.
+    * Permite desinstalar paquetes.
+    * Ver estado de paquetes instalados.
 - Restructura del proceso de Backups (choco).
-- Se agregó subida a megaupload.
-- Se agregó compresión con contraseña de respaldos
-- Se agregó compresión con contraseña de respaldos
+    * Progressbar animada
+    * Se agregó compresión con contraseña de respaldos
 - Se agregó consola de cambios y tool tip para botones
-- Reorganización de botones
+- Busqueda avanzada de puertos SQL
 - Query Browser para SQL en pestaña: Base de datos
 - - Ahora se pueden agregar comentarios con "-" y entre "/* */"
 - - Tabla en consola
@@ -115,7 +125,6 @@ function Initialize-Environment {
     }
     try {
         $debugEnabled = Initialize-DzToolsConfig
-        Write-DzDebug "`t[DEBUG]Configuración de debug cargada (debug=$debugEnabled)" -Color DarkGray
     } catch {
         Write-Host "Advertencia: No se pudo inicializar la configuración de debug. $_" -ForegroundColor Yellow
     }
@@ -432,7 +441,7 @@ function New-MainForm {
                     <Button Content="Agregar usuario de Windows" Name="btnAddUser" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,170,0,0"
                             Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Width="220" Height="30" IsEnabled="False"
+                    <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,210,0,0"
                             Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Width="220" Height="30"
@@ -454,6 +463,8 @@ function New-MainForm {
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,170,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Extractor de Instalador" Name="btnExtractInstaller" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
+                    <Button Content="Instaladores NS" Name="btnInstaladoresNS" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,250,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
                              Width="220" Height="300" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
@@ -713,6 +724,7 @@ function New-MainForm {
     $btnCheckPermissions = $window.FindName("btnCheckPermissions")
     $btnCreateAPK = $window.FindName("btnCreateAPK")
     $btnExtractInstaller = $window.FindName("btnExtractInstaller")
+    $btnInstaladoresNS = $window.FindName("btnInstaladoresNS")
     $txtServer = $window.FindName("txtServer")
     $txtUser = $window.FindName("txtUser")
     $txtPassword = $window.FindName("txtPassword")
@@ -884,7 +896,10 @@ function New-MainForm {
     }
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
-    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller)
+    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler,
+    $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
+    $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
+    $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
@@ -1353,6 +1368,9 @@ function New-MainForm {
             Write-Host "`t- - - Comenzando el proceso de 'Crear APK' - - -" -ForegroundColor Gray ; Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones })
     $btnExtractInstaller.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Extraer Instalador' - {0}" -f (Get-Date -Format "HH:mm:ss"))
             Write-Host "`t- - - Comenzando el proceso de 'Extraer Instalador' - - -" -ForegroundColor Gray ; Show-InstallerExtractorDialog })
+    $btnInstaladoresNS.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Instaladores NS' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-Host "`t- - - Abriendo 'Instaladores NS' - - -" -ForegroundColor Gray
+            Start-Process "https://nationalsoft-my.sharepoint.com/:f:/g/personal/gerardo_zermeno_softrestaurant_com/IgC3tKgxlNw9S7JmBk935kCrAVq9jkz06CJek9ljNOrr_Hw?e=xf2dFh" })
     $btnConnectDb.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss"))
             Write-Host "`t- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Gray
@@ -1674,7 +1692,7 @@ function Start-Application {
     Show-GlobalProgress -Percent 10 -Status "Entorno listo"
     Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
     $modulesPath = Join-Path $PSScriptRoot "modules"
-    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1")
+    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1")
     $i = 0
     foreach ($module in $modules) {
         $i++

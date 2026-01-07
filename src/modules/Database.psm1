@@ -719,6 +719,348 @@ WITH CHECKSUM, STATS = 1, FORMAT, INIT
     $null = $window.ShowDialog()
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Después de ShowDialog()"
 }
+function Show-RestoreDialog {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database)
+    $script:RestoreRunning = $false
+    $script:RestoreDone = $false
+    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
+    function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null }
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
+    function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) { (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes }
+    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] INICIO"
+    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Server='$Server' Database='$Database' User='$User'"
+    Add-Type -AssemblyName PresentationFramework
+    Add-Type -AssemblyName System.Windows.Forms
+    $theme = Get-DzUiTheme
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Restauración" Height="540" Width="620" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)">
+    <Window.Resources>
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="ProgressBar">
+            <Setter Property="Foreground" Value="$($theme.AccentSecondary)"/>
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="20" Background="$($theme.FormBackground)">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Label Grid.Row="0" Content="Archivo de respaldo (.bak):"/>
+        <Grid Grid.Row="1" Margin="0,5,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="txtBackupPath" Grid.Column="0" Height="25"/>
+            <Button x:Name="btnBrowseBackup" Grid.Column="1" Content="Examinar..." Width="90" Margin="5,0,0,0" Style="{StaticResource SystemButtonStyle}"/>
+        </Grid>
+        <Label Grid.Row="2" Content="Nombre destino:"/>
+        <TextBox x:Name="txtDestino" Grid.Row="3" Height="25" Margin="0,5,0,10"/>
+        <Label Grid.Row="4" Content="Ruta MDF (datos):"/>
+        <TextBox x:Name="txtMdfPath" Grid.Row="5" Height="25" Margin="0,5,0,10"/>
+        <Label Grid.Row="6" Content="Ruta LDF (log):"/>
+        <TextBox x:Name="txtLdfPath" Grid.Row="7" Height="25" Margin="0,5,0,10"/>
+        <GroupBox Grid.Row="8" Header="Progreso" Margin="0,0,0,10">
+            <StackPanel>
+                <ProgressBar x:Name="pbRestore" Height="20" Margin="5" Minimum="0" Maximum="100" Value="0"/>
+                <TextBlock x:Name="txtProgress" Text="Esperando..." Margin="5,5,5,10" TextWrapping="Wrap"/>
+            </StackPanel>
+        </GroupBox>
+        <GroupBox Grid.Row="9" Header="Log">
+            <TextBox x:Name="txtLog" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="140"/>
+        </GroupBox>
+        <StackPanel Grid.Row="10" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button x:Name="btnAceptar" Content="Iniciar Restauración" Width="140" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/>
+            <Button x:Name="btnCerrar" Content="Cerrar" Width="80" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/>
+        </StackPanel>
+    </Grid>
+</Window>
+"@
+    $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
+    $window = [System.Windows.Markup.XamlReader]::Load($reader)
+    if (-not $window) { Write-DzDebug "`t[DEBUG][Show-RestoreDialog] ERROR: window=NULL"; throw "No se pudo crear la ventana (XAML)." }
+    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Ventana creada OK"
+    $txtBackupPath = $window.FindName("txtBackupPath")
+    $btnBrowseBackup = $window.FindName("btnBrowseBackup")
+    $txtDestino = $window.FindName("txtDestino")
+    $txtMdfPath = $window.FindName("txtMdfPath")
+    $txtLdfPath = $window.FindName("txtLdfPath")
+    $pbRestore = $window.FindName("pbRestore")
+    $txtProgress = $window.FindName("txtProgress")
+    $txtLog = $window.FindName("txtLog")
+    $btnAceptar = $window.FindName("btnAceptar")
+    $btnCerrar = $window.FindName("btnCerrar")
+    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Controles: txtBackupPath=$([bool]$txtBackupPath) btnBrowseBackup=$([bool]$btnBrowseBackup) txtDestino=$([bool]$txtDestino) txtMdfPath=$([bool]$txtMdfPath) txtLdfPath=$([bool]$txtLdfPath) pbRestore=$([bool]$pbRestore) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnCerrar=$([bool]$btnCerrar)"
+    if (-not $txtBackupPath -or -not $btnBrowseBackup -or -not $txtDestino -or -not $txtMdfPath -or -not $txtLdfPath -or -not $pbRestore -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnCerrar) { Write-DzDebug "`t[DEBUG][Show-RestoreDialog] ERROR: controles NULL"; throw "Controles WPF incompletos (FindName devolvió NULL)." }
+    $txtDestino.Text = $Database
+    $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
+    $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
+    function Paint-Progress { param([int]$Percent, [string]$Message) $pbRestore.Value = $Percent; $txtProgress.Text = $Message }
+    function Add-Log { param([string]$Message) $logQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $Message)) }
+    function New-SafeCredential { param([string]$Username, [string]$PlainPassword) $secure = New-Object System.Security.SecureString; foreach ($ch in $PlainPassword.ToCharArray()) { $secure.AppendChar($ch) }; $secure.MakeReadOnly(); New-Object System.Management.Automation.PSCredential($Username, $secure) }
+    function Start-RestoreWorkAsync {
+        param(
+            [string]$Server,
+            [string]$RestoreQuery,
+            [System.Management.Automation.PSCredential]$Credential,
+            [System.Collections.Concurrent.ConcurrentQueue[string]]$LogQueue,
+            [System.Collections.Concurrent.ConcurrentQueue[hashtable]]$ProgressQueue
+        )
+        Write-DzDebug "`t[DEBUG][Start-RestoreWorkAsync] Preparando runspace..."
+        $worker = {
+            param($Server, $RestoreQuery, $Credential, $LogQueue, $ProgressQueue)
+            function EnqLog([string]$m) { $LogQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $m)) }
+            function EnqProg([int]$p, [string]$m) { $ProgressQueue.Enqueue(@{Percent = $p; Message = $m }) }
+            function Invoke-SqlQueryLite {
+                param([string]$Server, [string]$Database, [string]$Query, [System.Management.Automation.PSCredential]$Credential, [scriptblock]$InfoMessageCallback)
+                $connection = $null
+                $passwordBstr = [IntPtr]::Zero
+                $plainPassword = $null
+                try {
+                    $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+                    $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+                    $cs = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
+                    $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
+                    if ($InfoMessageCallback) { $connection.add_InfoMessage({ param($sender, $e) try { & $InfoMessageCallback $e.Message } catch {} }); $connection.FireInfoMessageEventOnUserErrors = $true }
+                    $connection.Open()
+                    $cmd = $connection.CreateCommand()
+                    $cmd.CommandText = $Query
+                    $cmd.CommandTimeout = 0
+                    [void]$cmd.ExecuteNonQuery()
+                    @{Success = $true }
+                } catch { @{Success = $false; ErrorMessage = $_.Exception.Message } } finally {
+                    if ($plainPassword) { $plainPassword = $null }
+                    if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
+                    if ($connection) { try { $connection.Close() } catch {}; try { $connection.Dispose() } catch {} }
+                }
+            }
+            try {
+                EnqLog "Enviando comando de restauración a SQL Server..."
+                EnqProg 10 "Iniciando restauración..."
+                $progressCb = {
+                    param([string]$Message)
+                    $m = ($Message -replace '\s+', ' ').Trim()
+                    if ($m) { EnqLog ("[SQL] {0}" -f $m) }
+                    if ($Message -match '(?i)\b(\d{1,3})\s*(percent|porcentaje|por\s+ciento)\b') {
+                        $p = [int]$Matches[1]
+                        if ($p -gt 100) { $p = 100 }
+                        if ($p -lt 0) { $p = 0 }
+                        EnqProg $p ("Progreso restauración: {0}%" -f $p)
+                        return
+                    }
+                    if ($Message -match '(?i)\b(successfully processed|procesad[oa]\s+correctamente|completad[oa])\b') {
+                        EnqProg 100 "¡Restauración completada!"
+                        EnqLog "✅ Restauración completada (mensaje SQL)"
+                        return
+                    }
+                }
+                $r = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $RestoreQuery -Credential $Credential -InfoMessageCallback $progressCb
+                if (-not $r.Success) { EnqProg 0 "Error en restauración"; EnqLog ("❌ Error de SQL: {0}" -f $r.ErrorMessage); EnqLog "__DONE__"; return }
+                EnqProg 100 "Restauración finalizada."
+                EnqLog "✅ Comando RESTORE finalizó (ExecuteNonQuery)"
+                EnqLog "__DONE__"
+            } catch {
+                EnqProg 0 "Error"
+                EnqLog ("❌ Error inesperado (worker): {0}" -f $_.Exception.Message)
+                EnqLog "__DONE__"
+            }
+        }
+        $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+        $rs.ApartmentState = 'MTA'
+        $rs.ThreadOptions = 'ReuseThread'
+        $rs.Open()
+        $ps = [PowerShell]::Create()
+        $ps.Runspace = $rs
+        [void]$ps.AddScript($worker).AddArgument($Server).AddArgument($RestoreQuery).AddArgument($Credential).AddArgument($LogQueue).AddArgument($ProgressQueue)
+        $null = $ps.BeginInvoke()
+        Write-DzDebug "`t[DEBUG][Start-RestoreWorkAsync] Worker lanzado"
+    }
+    $logTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $logTimer.Interval = [TimeSpan]::FromMilliseconds(200)
+    $logTimer.Add_Tick({
+            try {
+                $count = 0
+                $doneThisTick = $false
+                while ($count -lt 50) {
+                    $line = $null
+                    if (-not $logQueue.TryDequeue([ref]$line)) { break }
+                    $txtLog.Text = "$line`n" + $txtLog.Text
+                    if ($line -like "*__DONE__*") {
+                        Write-DzDebug "`t[DEBUG][UI] Señal DONE recibida (restore)"
+                        $doneThisTick = $true
+                        $script:RestoreRunning = $false
+                        $btnAceptar.IsEnabled = $true
+                        $btnAceptar.Content = "Iniciar Restauración"
+                        $txtBackupPath.IsEnabled = $true
+                        $btnBrowseBackup.IsEnabled = $true
+                        $txtDestino.IsEnabled = $true
+                        $txtMdfPath.IsEnabled = $true
+                        $txtLdfPath.IsEnabled = $true
+                        $tmp = $null
+                        while ($progressQueue.TryDequeue([ref]$tmp)) { }
+                        Paint-Progress -Percent 100 -Message "Completado"
+                        $script:RestoreDone = $true
+                    }
+                    $count++
+                }
+                if ($count -gt 0) { $txtLog.ScrollToLine(0) }
+                if (-not $doneThisTick) {
+                    $last = $null
+                    while ($true) {
+                        $p = $null
+                        if (-not $progressQueue.TryDequeue([ref]$p)) { break }
+                        $last = $p
+                    }
+                    if ($last) { Paint-Progress -Percent $last.Percent -Message $last.Message }
+                }
+            } catch { Write-DzDebug "`t[DEBUG][UI][logTimer][restore] ERROR: $($_.Exception.Message)" }
+            if ($script:RestoreDone) {
+                $tmpLine = $null
+                $tmpProg = $null
+                if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) { $logTimer.Stop(); $script:RestoreDone = $false }
+            }
+        })
+    $logTimer.Start()
+    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] logTimer iniciado"
+    $btnBrowseBackup.Add_Click({
+            try {
+                $dlg = New-Object System.Windows.Forms.OpenFileDialog
+                $dlg.Filter = "SQL Backup (*.bak)|*.bak|Todos los archivos (*.*)|*.*"
+                $dlg.Multiselect = $false
+                if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                    $txtBackupPath.Text = $dlg.FileName
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][UI] Error btnBrowseBackup: $($_.Exception.Message)"
+                Ui-Error "No se pudo abrir el selector de archivos: $($_.Exception.Message)" "Error" $window
+            }
+        })
+    $btnAceptar.Add_Click({
+            Write-DzDebug "`t[DEBUG][UI] btnAceptar Restore Click"
+            if ($script:RestoreRunning) { return }
+            $script:RestoreDone = $false
+            if (-not $logTimer.IsEnabled) { $logTimer.Start() }
+            try {
+                $btnAceptar.IsEnabled = $false
+                $btnAceptar.Content = "Procesando..."
+                $txtLog.Text = ""
+                $pbRestore.Value = 0
+                $txtProgress.Text = "Esperando..."
+                Add-Log "Iniciando proceso de restauración..."
+                $backupPath = $txtBackupPath.Text.Trim()
+                $destName = $txtDestino.Text.Trim()
+                $mdfPath = $txtMdfPath.Text.Trim()
+                $ldfPath = $txtLdfPath.Text.Trim()
+                if ([string]::IsNullOrWhiteSpace($backupPath)) { Ui-Warn "Selecciona el archivo .bak a restaurar." "Atención" $window; Reset-RestoreUI -ProgressText "Archivo de respaldo requerido"; return }
+                if ([string]::IsNullOrWhiteSpace($destName)) { Ui-Warn "Indica el nombre destino de la base de datos." "Atención" $window; Reset-RestoreUI -ProgressText "Nombre destino requerido"; return }
+                if ([string]::IsNullOrWhiteSpace($mdfPath) -or [string]::IsNullOrWhiteSpace($ldfPath)) { Ui-Warn "Indica las rutas de destino para MDF y LDF." "Atención" $window; Reset-RestoreUI -ProgressText "Rutas MDF/LDF requeridas"; return }
+                Add-Log "Servidor: $Server"
+                Add-Log "Base de datos destino: $destName"
+                Add-Log "Backup: $backupPath"
+                Add-Log "MDF: $mdfPath"
+                Add-Log "LDF: $ldfPath"
+                $credential = New-SafeCredential -Username $User -PlainPassword $Password
+                Add-Log "✓ Credenciales listas"
+                $escapedBackup = $backupPath -replace "'", "''"
+                $escapedMdf = $mdfPath -replace "'", "''"
+                $escapedLdf = $ldfPath -replace "'", "''"
+                $escapedDest = $destName -replace "'", "''"
+                $destNameSafe = $destName -replace ']', ']]'
+                Paint-Progress -Percent 5 -Message "Leyendo metadatos del backup..."
+                $fileListQuery = "RESTORE FILELISTONLY FROM DISK = N'$escapedBackup'"
+                $fileListResult = Invoke-SqlQuery -Server $Server -Database "master" -Query $fileListQuery -Credential $credential
+                if (-not $fileListResult.Success) {
+                    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Error FILELISTONLY: $($fileListResult.ErrorMessage)"
+                    Ui-Error "No se pudo leer el contenido del backup: $($fileListResult.ErrorMessage)" "Error" $window
+                    Reset-RestoreUI -ProgressText "Error leyendo backup"
+                    return
+                }
+                $logicalData = $null
+                $logicalLog = $null
+                foreach ($row in $fileListResult.DataTable.Rows) {
+                    $type = [string]$row["Type"]
+                    $logicalName = [string]$row["LogicalName"]
+                    if (-not $logicalData -and $type -eq "D") { $logicalData = $logicalName }
+                    if (-not $logicalLog -and $type -eq "L") { $logicalLog = $logicalName }
+                }
+                if (-not $logicalData -or -not $logicalLog) {
+                    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Logical names missing. Data='$logicalData' Log='$logicalLog'"
+                    Ui-Error "No se encontraron nombres lógicos válidos en el backup." "Error" $window
+                    Reset-RestoreUI -ProgressText "Error en nombres lógicos"
+                    return
+                }
+                Add-Log ("Logical Data: {0}" -f $logicalData)
+                Add-Log ("Logical Log: {0}" -f $logicalLog)
+                $restoreQuery = @"
+IF DB_ID(N'$escapedDest') IS NOT NULL
+BEGIN
+    ALTER DATABASE [$destNameSafe] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+END
+RESTORE DATABASE [$destNameSafe]
+FROM DISK = N'$escapedBackup'
+WITH MOVE N'$logicalData' TO N'$escapedMdf',
+     MOVE N'$logicalLog' TO N'$escapedLdf',
+     REPLACE, RECOVERY, STATS = 1;
+IF DB_ID(N'$escapedDest') IS NOT NULL
+BEGIN
+    ALTER DATABASE [$destNameSafe] SET MULTI_USER;
+END
+"@
+                Paint-Progress -Percent 10 -Message "Conectando a SQL Server..."
+                Write-DzDebug "`t[DEBUG][UI] Llamando Start-RestoreWorkAsync"
+                Start-RestoreWorkAsync -Server $Server -RestoreQuery $restoreQuery -Credential $credential -LogQueue $logQueue -ProgressQueue $progressQueue
+                $script:RestoreRunning = $true
+                $txtBackupPath.IsEnabled = $false
+                $btnBrowseBackup.IsEnabled = $false
+                $txtDestino.IsEnabled = $false
+                $txtMdfPath.IsEnabled = $false
+                $txtLdfPath.IsEnabled = $false
+            } catch {
+                Write-DzDebug "`t[DEBUG][UI] ERROR btnAceptar Restore: $($_.Exception.Message)"
+                Add-Log "❌ Error: $($_.Exception.Message)"
+                Reset-RestoreUI -ProgressText "Error inesperado"
+            }
+        })
+    $btnCerrar.Add_Click({
+            Write-DzDebug "`t[DEBUG][UI] btnCerrar Restore Click"
+            try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch {}
+            $window.DialogResult = $false
+            $window.Close()
+        })
+    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Antes de ShowDialog()"
+    $null = $window.ShowDialog()
+    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Después de ShowDialog()"
+}
 function Reset-BackupUI {
     param([string]$ButtonText = "Iniciar Respaldo", [string]$ProgressText = "Esperando...")
     $script:BackupRunning = $false
@@ -730,4 +1072,16 @@ function Reset-BackupUI {
     $btnAbrirCarpeta.IsEnabled = $true
     $txtProgress.Text = $ProgressText
 }
-Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable', 'Show-BackupDialog', 'Reset-BackupUI')
+function Reset-RestoreUI {
+    param([string]$ButtonText = "Iniciar Restauración", [string]$ProgressText = "Esperando...")
+    $script:RestoreRunning = $false
+    $btnAceptar.IsEnabled = $true
+    $btnAceptar.Content = $ButtonText
+    $txtBackupPath.IsEnabled = $true
+    $btnBrowseBackup.IsEnabled = $true
+    $txtDestino.IsEnabled = $true
+    $txtMdfPath.IsEnabled = $true
+    $txtLdfPath.IsEnabled = $true
+    $txtProgress.Text = $ProgressText
+}
+Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable', 'Show-BackupDialog', 'Show-RestoreDialog', 'Reset-BackupUI', 'Reset-RestoreUI')

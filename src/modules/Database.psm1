@@ -719,6 +719,17 @@ WITH CHECKSUM, STATS = 1, FORMAT, INIT
     $null = $window.ShowDialog()
     Write-DzDebug "`t[DEBUG][Show-BackupDialog] Después de ShowDialog()"
 }
+function Reset-BackupUI {
+    param([string]$ButtonText = "Iniciar Respaldo", [string]$ProgressText = "Esperando...")
+    $script:BackupRunning = $false
+    $btnAceptar.IsEnabled = $true
+    $btnAceptar.Content = $ButtonText
+    $txtNombre.IsEnabled = $true
+    $chkComprimir.IsEnabled = $true
+    if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true; $lblPassword.IsEnabled = $true } else { $txtPassword.IsEnabled = $false; $lblPassword.IsEnabled = $false }
+    $btnAbrirCarpeta.IsEnabled = $true
+    $txtProgress.Text = $ProgressText
+}
 function Show-RestoreDialog {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database)
@@ -871,20 +882,40 @@ function Show-RestoreDialog {
                     $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
                     $cs = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
                     $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
+                    # Estado compartido (reference type) para que el handler pueda modificarlo
+                    $state = [pscustomobject]@{
+                        HasError = $false
+                        Errors   = New-Object System.Collections.Generic.List[string]
+                    }
 
                     if ($InfoMessageCallback) {
-                        $connection.add_InfoMessage({
-                                param($sender, $e)
-                                try {
-                                    $msg = $e.Message
-                                    # Detectar mensajes de error críticos
-                                    if ($msg -match '(?i)(error|err\s|failed|no es compatible|not compatible|cannot|imposible|fin an[oó]malo|version|versi[oó]n.*no.*compatible)') {
-                                        $script:hasError = $true
-                                        $script:errorMessages += $msg
+
+                        $handler = [System.Data.SqlClient.SqlInfoMessageEventHandler] {
+                            param($sender, $e)
+
+                            try {
+                                $msg = [string]$e.Message
+                                if ([string]::IsNullOrWhiteSpace($msg)) { return }
+
+                                # Progreso: soporta "10 percent", "10% ", "10 por ciento"
+                                $isProgressMsg = $msg -match '(?i)\b\d{1,3}\s*(%|percent|porcentaje|por\s+ciento)\b'
+
+                                # Mensajes "ok" comunes
+                                $isSuccessMsg = $msg -match '(?i)(successfully processed|procesad[oa]\s+correctamente|se proces[oó]\s+correctamente)'
+
+                                # Errores críticos (sin confundir progreso)
+                                if (-not $isProgressMsg -and -not $isSuccessMsg) {
+                                    if ($msg -match '(?i)(abnormal termination|not compatible|no es compatible|cannot restore|failed|restore failed|imposible|\berror\b)') {
+                                        $state.HasError = $true
+                                        $null = $state.Errors.Add($msg)
                                     }
-                                    & $InfoMessageCallback $msg $script:hasError
-                                } catch {}
-                            })
+                                }
+
+                                & $InfoMessageCallback $msg $state.HasError
+                            } catch { }
+                        }
+
+                        $connection.add_InfoMessage($handler)
                         $connection.FireInfoMessageEventOnUserErrors = $true
                     }
 
@@ -893,13 +924,10 @@ function Show-RestoreDialog {
                     $cmd.CommandText = $Query
                     $cmd.CommandTimeout = 0
                     [void]$cmd.ExecuteNonQuery()
-
-                    # Si hubo errores detectados en InfoMessages, reportarlos
-                    if ($hasError) {
-                        $combinedErrors = $errorMessages -join "`n"
-                        return @{Success = $false; ErrorMessage = $combinedErrors; IsInfoMessageError = $true }
+                    if ($state.HasError) {
+                        $combinedErrors = $state.Errors -join "`n"
+                        return @{ Success = $false; ErrorMessage = $combinedErrors; IsInfoMessageError = $true }
                     }
-
                     @{Success = $true }
                 } catch {
                     @{Success = $false; ErrorMessage = $_.Exception.Message; IsInfoMessageError = $false }
@@ -915,45 +943,43 @@ function Show-RestoreDialog {
 
                 $hasErrorFlag = $false
                 $errorDetails = ""
+                $allErrors = @()
 
                 $progressCb = {
                     param([string]$Message, [bool]$IsError)
+
                     $m = ($Message -replace '\s+', ' ').Trim()
-                    if ($m) {
-                        if ($IsError) {
-                            EnqLog ("[SQL ERROR] {0}" -f $m)
-                            $script:hasErrorFlag = $true
-                            $script:errorDetails = $m
-                        } else {
-                            EnqLog ("[SQL] {0}" -f $m)
-                        }
-                    }
-
-                    # Detectar progreso
-                    if ($Message -match '(?i)\b(\d{1,3})\s*(percent|porcentaje|por\s+ciento)\b') {
+                    if (-not $m) { return }
+                    if ($m -match '(?i)\b(\d{1,3})\s*(%|percent|porcentaje|por\s+ciento)\b') {
                         $p = [int]$Matches[1]
-                        if ($p -gt 100) { $p = 100 }
-                        if ($p -lt 0) { $p = 0 }
-                        EnqProg $p ("Progreso restauración: {0}%" -f $p)
+                        $p = [math]::Max(0, [math]::Min(100, $p))
+                        EnqProg $p ("Progreso restauración: $p%")
+                        EnqLog ("[SQL] Progreso: $p%  ($m)")
+                        return
+                    }
+                    # 2) Éxito del paso
+                    if ($m -match '(?i)\b(processed\s+\d{1,3}\s*percent\b|se proces[oó] correctamente|completad[oa])') {
+                        EnqProg 100 "Restauración completada."
+                        EnqLog "✅ Restauración finalizada"
                         return
                     }
 
-                    # Detectar finalización exitosa
-                    if ($Message -match '(?i)\b(successfully processed|procesad[oa]\s+correctamente|completad[oa]|se proces[oó] correctamente)\b') {
-                        if (-not $script:hasErrorFlag) {
-                            EnqProg 100 "¡Restauración completada!"
-                            EnqLog "✅ Restauración completada (mensaje SQL)"
-                        }
-                        return
-                    }
+                    # 3) Errores
+                    $isCriticalError = $m -match '(?i)(abnormal termination|failed to|error|cannot restore|not compatible|no es compatible|imposible|terminado an[oó]malo)'
 
-                    # Detectar errores explícitos
-                    if ($Message -match '(?i)(fin an[oó]malo|abnormal termination|error|failed|cannot)') {
+                    if ($IsError -or $isCriticalError) {
                         $script:hasErrorFlag = $true
-                        $script:errorDetails = $m
+                        $script:allErrors += $m
+                        if (-not $script:errorDetails -or $m.Length -gt $script:errorDetails.Length) {
+                            $script:errorDetails = $m
+                        }
+                        EnqLog ("[SQL ERROR] $m")
+                        return
                     }
-                }
 
+                    # 4) Info normal
+                    EnqLog ("[SQL] $m")
+                }
                 $r = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $RestoreQuery -Credential $Credential -InfoMessageCallback $progressCb
 
                 # Verificar el resultado
@@ -969,8 +995,18 @@ function Show-RestoreDialog {
                 if ($hasErrorFlag) {
                     EnqProg 0 "❌ Restauración falló"
                     EnqLog "❌ La restauración no se completó correctamente"
-                    if ($errorDetails) {
-                        EnqLog "ERROR_RESULT|$errorDetails"
+
+                    # Construir mensaje de error detallado
+                    if ($allErrors.Count -gt 0) {
+                        # Usar todos los errores si son pocos, o los más importantes
+                        if ($allErrors.Count -le 3) {
+                            $finalErrorMsg = $allErrors -join "`n`n"
+                        } else {
+                            # Si hay muchos errores, usar solo los únicos más descriptivos
+                            $uniqueErrors = $allErrors | Select-Object -Unique | Select-Object -First 3
+                            $finalErrorMsg = $uniqueErrors -join "`n`n"
+                        }
+                        EnqLog "ERROR_RESULT|$finalErrorMsg"
                     } else {
                         EnqLog "ERROR_RESULT|Error detectado durante la restauración. Revisa el log para más detalles."
                     }
@@ -1287,17 +1323,7 @@ END
     $null = $window.ShowDialog()
     Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Después de ShowDialog()"
 }
-function Reset-BackupUI {
-    param([string]$ButtonText = "Iniciar Respaldo", [string]$ProgressText = "Esperando...")
-    $script:BackupRunning = $false
-    $btnAceptar.IsEnabled = $true
-    $btnAceptar.Content = $ButtonText
-    $txtNombre.IsEnabled = $true
-    $chkComprimir.IsEnabled = $true
-    if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true; $lblPassword.IsEnabled = $true } else { $txtPassword.IsEnabled = $false; $lblPassword.IsEnabled = $false }
-    $btnAbrirCarpeta.IsEnabled = $true
-    $txtProgress.Text = $ProgressText
-}
+
 function Reset-RestoreUI {
     param([string]$ButtonText = "Iniciar Restauración", [string]$ProgressText = "Esperando...")
     $script:RestoreRunning = $false

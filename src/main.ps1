@@ -50,7 +50,7 @@ function Write-Log {
 }
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
-$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1")
+$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1", "SqliteViewer.psm1")
 foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
@@ -386,7 +386,7 @@ function New-MainForm {
     </Window.Resources>
     <Grid Background="{DynamicResource FormBg}">
         <TabControl Name="tabControl" Margin="5">
-            <TabItem Header="Aplicaciones" Name="tabAplicaciones">
+            <TabItem Header="🧰 Aplicaciones" Name="tabAplicaciones">
                 <Grid Background="{DynamicResource PanelBg}">
                     <TextBox Name="lblHostname"
                              Width="220" Height="40" Margin="10,1,0,0"
@@ -515,7 +515,7 @@ function New-MainForm {
                     </Border>
                 </Grid>
             </TabItem>
-<TabItem Header="Base de datos" Name="tabProSql">
+<TabItem Header="🗄️ SSMS Lite" Name="tabProSql">
   <Grid Background="{DynamicResource PanelBg}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>  <!-- Conexión -->
@@ -682,6 +682,129 @@ function New-MainForm {
     </StatusBar>
   </Grid>
 </TabItem>
+<TabItem Header="🪶 SQL Lite" Name="tabSqlite">
+  <Grid Background="{DynamicResource PanelBg}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>  <!-- Conexión -->
+      <RowDefinition Height="Auto"/>  <!-- Barra de consultas -->
+      <RowDefinition Height="*"/>     <!-- Área principal -->
+      <RowDefinition Height="Auto"/>  <!-- StatusBar -->
+    </Grid.RowDefinitions>
+
+    <Border Grid.Row="0" Margin="10" Padding="10"
+            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+            CornerRadius="6" Background="{DynamicResource ControlBg}">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <WrapPanel Grid.Row="0">
+          <StackPanel Margin="0,0,16,0">
+            <TextBlock Text="Archivo SQLite:"/>
+            <TextBox Name="txtSqlitePath" Width="320" Text="nspfmsync.db"/>
+          </StackPanel>
+        </WrapPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+          <Button Content="Buscar" Name="btnSqliteBrowse"
+                  Width="110" Height="30" Margin="0,0,8,0"
+                  Style="{StaticResource SystemButtonStyle}"/>
+          <Button Content="Abrir" Name="btnSqliteOpen"
+                  Width="110" Height="30" Margin="0,0,8,0"
+                  Style="{StaticResource SystemButtonStyle}"/>
+          <Button Content="Refrescar" Name="btnSqliteRefresh"
+                  Width="110" Height="30"
+                  Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Margin="10,0,10,10" Padding="10"
+            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+            CornerRadius="6" Background="{DynamicResource ControlBg}">
+      <StackPanel Orientation="Horizontal">
+        <Button Content="Ejecutar (F5)" Name="btnSqliteExecute"
+                Width="120" Height="30" Margin="0,0,8,0"
+                Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+        <Button Content="Limpiar" Name="btnSqliteClear"
+                Width="100" Height="30"
+                Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+      </StackPanel>
+    </Border>
+
+    <Grid Grid.Row="2" Margin="10">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="250" MinWidth="200"/>
+        <ColumnDefinition Width="5"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <Border Grid.Column="0"
+              BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+              CornerRadius="6" Background="{DynamicResource ControlBg}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <TextBlock Grid.Row="0" Text="Tablas"
+                     Padding="8" FontWeight="Bold"
+                     Background="{DynamicResource AccentPrimary}"
+                     Foreground="{DynamicResource OnAccentFg}"/>
+          <TreeView Grid.Row="1" Name="tvSqliteTables" Padding="4"/>
+        </Grid>
+      </Border>
+
+      <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                    Background="{DynamicResource BorderBrushColor}"/>
+
+      <Grid Grid.Column="2">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*" MinHeight="150"/>
+          <RowDefinition Height="5"/>
+          <RowDefinition Height="2*" MinHeight="200"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1" Margin="5" CornerRadius="4"
+                Background="{DynamicResource ControlBg}">
+          <RichTextBox Name="rtbSqliteQuery"
+                       VerticalScrollBarVisibility="Auto"
+                       AcceptsReturn="True" AcceptsTab="True"
+                       FontFamily="Consolas" FontSize="12"/>
+        </Border>
+
+        <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch"
+                      Background="{DynamicResource BorderBrushColor}"/>
+
+        <TabControl Name="tcSqliteResults" Grid.Row="2" Background="{DynamicResource ControlBg}">
+          <TabItem Header="Resultados">
+            <DataGrid Name="dgSqliteResults" IsReadOnly="True" AutoGenerateColumns="True"
+                      CanUserAddRows="False" CanUserDeleteRows="False"/>
+          </TabItem>
+          <TabItem Header="Mensajes">
+            <TextBox Name="txtSqliteMessages" IsReadOnly="True"
+                     VerticalScrollBarVisibility="Auto"
+                     FontFamily="Consolas" Background="Transparent"
+                     BorderThickness="0"/>
+          </TabItem>
+        </TabControl>
+      </Grid>
+    </Grid>
+
+    <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
+      <StatusBarItem>
+        <TextBlock Name="lblSqliteStatus" Text="Desconectado"/>
+      </StatusBarItem>
+      <Separator/>
+      <StatusBarItem>
+        <TextBlock Name="lblSqliteRowCount" Text="Filas: --"/>
+      </StatusBarItem>
+    </StatusBar>
+  </Grid>
+</TabItem>
         </TabControl>
     </Grid>
 </Window>
@@ -745,6 +868,20 @@ function New-MainForm {
     $tcResults = $window.FindName("tcResults")
     $tvDatabases = $window.FindName("tvDatabases")
     $tabAddQuery = $window.FindName("tabAddQuery")
+    $tabSqlite = $window.FindName("tabSqlite")
+    $txtSqlitePath = $window.FindName("txtSqlitePath")
+    $btnSqliteBrowse = $window.FindName("btnSqliteBrowse")
+    $btnSqliteOpen = $window.FindName("btnSqliteOpen")
+    $btnSqliteRefresh = $window.FindName("btnSqliteRefresh")
+    $btnSqliteExecute = $window.FindName("btnSqliteExecute")
+    $btnSqliteClear = $window.FindName("btnSqliteClear")
+    $tvSqliteTables = $window.FindName("tvSqliteTables")
+    $rtbSqliteQuery = $window.FindName("rtbSqliteQuery")
+    $tcSqliteResults = $window.FindName("tcSqliteResults")
+    $dgSqliteResults = $window.FindName("dgSqliteResults")
+    $txtSqliteMessages = $window.FindName("txtSqliteMessages")
+    $lblSqliteStatus = $window.FindName("lblSqliteStatus")
+    $lblSqliteRowCount = $window.FindName("lblSqliteRowCount")
     $tglDarkMode = $window.FindName("tglDarkMode")
     $tglDebugMode = $window.FindName("tglDebugMode")
     $script:predefinedQueries = Get-PredefinedQueries
@@ -788,6 +925,12 @@ function New-MainForm {
         if ($tcQueries) { $tcQueries.IsEnabled = $false }
         if ($tcResults) { $tcResults.IsEnabled = $false }
     }
+    if ($btnSqliteExecute -and -not $btnSqliteExecute.IsEnabled) {
+        if ($rtbSqliteQuery) { $rtbSqliteQuery.IsEnabled = $false }
+        if ($tcSqliteResults) { $tcSqliteResults.IsEnabled = $false }
+        if ($dgSqliteResults) { $dgSqliteResults.IsEnabled = $false }
+        if ($txtSqliteMessages) { $txtSqliteMessages.IsEnabled = $false }
+    }
     $global:txtServer = $txtServer
     $global:txtUser = $txtUser
     $global:txtPassword = $txtPassword
@@ -809,6 +952,20 @@ function New-MainForm {
     $global:lblExecutionTime = $window.FindName("lblExecutionTime")
     $global:lblRowCount = $window.FindName("lblRowCount")
     $global:lblConnectionStatus = $lblConnectionStatus
+    $global:tabSqlite = $tabSqlite
+    $global:txtSqlitePath = $txtSqlitePath
+    $global:btnSqliteBrowse = $btnSqliteBrowse
+    $global:btnSqliteOpen = $btnSqliteOpen
+    $global:btnSqliteRefresh = $btnSqliteRefresh
+    $global:btnSqliteExecute = $btnSqliteExecute
+    $global:btnSqliteClear = $btnSqliteClear
+    $global:tvSqliteTables = $tvSqliteTables
+    $global:rtbSqliteQuery = $rtbSqliteQuery
+    $global:tcSqliteResults = $tcSqliteResults
+    $global:dgSqliteResults = $dgSqliteResults
+    $global:txtSqliteMessages = $txtSqliteMessages
+    $global:lblSqliteStatus = $lblSqliteStatus
+    $global:lblSqliteRowCount = $lblSqliteRowCount
     # --- FIX: Registrar pestaña XAML "Consulta 1" como QueryTab para que Get-ActiveQueryRichTextBox funcione ---
     if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:rtbQueryEditor1) {
         $firstTab = $global:tcQueries.Items[0]
@@ -1377,6 +1534,120 @@ function New-MainForm {
     $btnInstaladoresNS.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Instaladores NS' - {0}" -f (Get-Date -Format "HH:mm:ss"))
             Write-Host "`t- - - Abriendo 'Instaladores NS' - - -" -ForegroundColor Gray
             Start-Process "https://nationalsoft-my.sharepoint.com/:f:/g/personal/gerardo_zermeno_softrestaurant_com/IgC3tKgxlNw9S7JmBk935kCrAVq9jkz06CJek9ljNOrr_Hw?e=xf2dFh" })
+    $btnSqliteBrowse.Add_Click({
+            $dialog = New-Object System.Windows.Forms.OpenFileDialog
+            $dialog.Filter = "SQLite (*.db;*.sqlite;*.sqlite3)|*.db;*.sqlite;*.sqlite3|Todos los archivos (*.*)|*.*"
+            if ($global:txtSqlitePath -and -not [string]::IsNullOrWhiteSpace($global:txtSqlitePath.Text)) {
+                $currentDir = Split-Path -Path $global:txtSqlitePath.Text -Parent
+                if ($currentDir -and (Test-Path -LiteralPath $currentDir)) { $dialog.InitialDirectory = $currentDir }
+            }
+            if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                $global:txtSqlitePath.Text = $dialog.FileName
+            }
+        })
+    $btnSqliteOpen.Add_Click({
+            try {
+                $path = $global:txtSqlitePath.Text.Trim()
+                if ([string]::IsNullOrWhiteSpace($path)) { throw "Selecciona un archivo SQLite." }
+                if ($global:sqliteConnection) {
+                    Close-SqliteConnection -Connection $global:sqliteConnection
+                    $global:sqliteConnection = $null
+                }
+                $result = Open-SqliteConnection -Path $path
+                if (-not $result.Success) { throw $result.ErrorMessage }
+
+                $global:sqliteConnection = $result.Connection
+                $global:sqliteProvider = $result.Provider
+
+                $tables = Get-SqliteTables -Connection $global:sqliteConnection
+                Initialize-SqliteTreeView -TreeView $global:tvSqliteTables -Tables $tables -OnTableSelected {
+                    param($tableName)
+                    if (-not $global:rtbSqliteQuery) { return }
+                    $queryText = "SELECT * FROM `"$tableName`" LIMIT 200;"
+                    $global:rtbSqliteQuery.Document.Blocks.Clear()
+                    $paragraph = New-Object System.Windows.Documents.Paragraph
+                    $paragraph.Inlines.Add((New-Object System.Windows.Documents.Run($queryText)))
+                    $global:rtbSqliteQuery.Document.Blocks.Add($paragraph)
+                    Set-WpfSqlHighlighting -RichTextBox $global:rtbSqliteQuery -Keywords $global:DzSqlKeywords
+                    $global:rtbSqliteQuery.Focus() | Out-Null
+                }
+
+                $global:lblSqliteStatus.Text = "✓ Conectado: $path ($($result.Provider))"
+                $global:lblSqliteRowCount.Text = "Filas: --"
+                $global:txtSqliteMessages.Text = ""
+                $global:btnSqliteExecute.IsEnabled = $true
+                $global:btnSqliteClear.IsEnabled = $true
+                $global:btnSqliteRefresh.IsEnabled = $true
+                $global:rtbSqliteQuery.IsEnabled = $true
+                $global:tcSqliteResults.IsEnabled = $true
+                $global:dgSqliteResults.IsEnabled = $true
+                $global:txtSqliteMessages.IsEnabled = $true
+            } catch {
+                $msg = $_.Exception.Message
+                if ($global:lblSqliteStatus) { $global:lblSqliteStatus.Text = "Error: $msg" }
+                Ui-Error $msg $global:MainWindow
+            }
+        })
+    $btnSqliteRefresh.Add_Click({
+            try {
+                if (-not $global:sqliteConnection) { throw "No hay conexión SQLite activa." }
+                $tables = Get-SqliteTables -Connection $global:sqliteConnection
+                Initialize-SqliteTreeView -TreeView $global:tvSqliteTables -Tables $tables -OnTableSelected {
+                    param($tableName)
+                    if (-not $global:rtbSqliteQuery) { return }
+                    $queryText = "SELECT * FROM `"$tableName`" LIMIT 200;"
+                    $global:rtbSqliteQuery.Document.Blocks.Clear()
+                    $paragraph = New-Object System.Windows.Documents.Paragraph
+                    $paragraph.Inlines.Add((New-Object System.Windows.Documents.Run($queryText)))
+                    $global:rtbSqliteQuery.Document.Blocks.Add($paragraph)
+                    Set-WpfSqlHighlighting -RichTextBox $global:rtbSqliteQuery -Keywords $global:DzSqlKeywords
+                }
+            } catch {
+                Ui-Error $_.Exception.Message $global:MainWindow
+            }
+        })
+    $btnSqliteExecute.Add_Click({
+            Write-Host "`n`t- - - Ejecutando consulta SQLite - - -" -ForegroundColor Gray
+            try {
+                if (-not $global:sqliteConnection) { throw "Conéctate a un archivo SQLite primero." }
+                $textRange = New-Object System.Windows.Documents.TextRange(
+                    $global:rtbSqliteQuery.Document.ContentStart,
+                    $global:rtbSqliteQuery.Document.ContentEnd
+                )
+                $query = $textRange.Text
+                $query = Remove-SqlComments -Query $query
+                if ([string]::IsNullOrWhiteSpace($query)) { throw "La consulta está vacía." }
+
+                $global:dgSqliteResults.ItemsSource = $null
+                $global:txtSqliteMessages.Text = ""
+                $global:lblSqliteRowCount.Text = "Filas: --"
+
+                $result = Invoke-SqliteQuery -Connection $global:sqliteConnection -Query $query
+                if (-not $result.Success) { throw $result.ErrorMessage }
+
+                if ($result.DataTable) {
+                    $global:dgSqliteResults.ItemsSource = $result.DataTable.DefaultView
+                    $global:lblSqliteRowCount.Text = "Filas: $($result.DataTable.Rows.Count)"
+                } elseif ($result.ContainsKey('RowsAffected')) {
+                    $global:txtSqliteMessages.Text = "Filas afectadas: $($result.RowsAffected)"
+                    $global:lblSqliteRowCount.Text = "Filas afectadas: $($result.RowsAffected)"
+                }
+            } catch {
+                $msg = $_.Exception.Message
+                $global:txtSqliteMessages.Text = $msg
+                Write-Host "Error SQLite: $msg" -ForegroundColor Red
+            }
+        })
+    $btnSqliteClear.Add_Click({
+            try {
+                $global:rtbSqliteQuery.Document.Blocks.Clear()
+                $global:dgSqliteResults.ItemsSource = $null
+                $global:txtSqliteMessages.Text = ""
+                $global:lblSqliteRowCount.Text = "Filas: --"
+            } catch {
+                Ui-Error $_.Exception.Message $global:MainWindow
+            }
+        })
     $btnConnectDb.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss"))
             Write-Host "`t- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Gray
@@ -1669,7 +1940,11 @@ Base de datos: $($global:database)
     $btnRestore.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso de Restauración - - -" -ForegroundColor Gray ; Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
     $window.Add_KeyDown({
             param($s, $e)
-            if ($e.Key -eq 'F5' -and $btnExecute.IsEnabled) {
+            if ($e.Key -ne 'F5') { return }
+            if ($global:tabSqlite -and $global:tabSqlite.IsSelected -and $global:btnSqliteExecute.IsEnabled) {
+                $global:btnSqliteExecute.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent)))
+                $e.Handled = $true
+            } elseif ($btnExecute.IsEnabled) {
                 $btnExecute.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent)))
                 $e.Handled = $true
             }
@@ -1701,7 +1976,7 @@ function Start-Application {
     Show-GlobalProgress -Percent 10 -Status "Entorno listo"
     Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
     $modulesPath = Join-Path $PSScriptRoot "modules"
-    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1")
+    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1", "SqliteViewer.psm1")
     $i = 0
     foreach ($module in $modules) {
         $i++

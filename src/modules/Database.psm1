@@ -822,7 +822,23 @@ function Show-RestoreDialog {
     $btnCerrar = $window.FindName("btnCerrar")
     Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Controles: txtBackupPath=$([bool]$txtBackupPath) btnBrowseBackup=$([bool]$btnBrowseBackup) txtDestino=$([bool]$txtDestino) txtMdfPath=$([bool]$txtMdfPath) txtLdfPath=$([bool]$txtLdfPath) pbRestore=$([bool]$pbRestore) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnCerrar=$([bool]$btnCerrar)"
     if (-not $txtBackupPath -or -not $btnBrowseBackup -or -not $txtDestino -or -not $txtMdfPath -or -not $txtLdfPath -or -not $pbRestore -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnCerrar) { Write-DzDebug "`t[DEBUG][Show-RestoreDialog] ERROR: controles NULL"; throw "Controles WPF incompletos (FindName devolvió NULL)." }
+    $defaultRestoreFolder = "C:\NationalSoft\DATABASES"
     $txtDestino.Text = $Database
+    function Normalize-RestoreFolder {
+        param([string]$BasePath)
+        if ([string]::IsNullOrWhiteSpace($BasePath)) { return $BasePath }
+        $trimmed = $BasePath.Trim()
+        if ($trimmed.EndsWith('\')) { return $trimmed.TrimEnd('\') }
+        $trimmed
+    }
+    function Update-RestorePaths {
+        param([string]$DatabaseName)
+        if ([string]::IsNullOrWhiteSpace($DatabaseName)) { return }
+        $baseFolder = Normalize-RestoreFolder -BasePath $defaultRestoreFolder
+        $txtMdfPath.Text = Join-Path $baseFolder "$DatabaseName.mdf"
+        $txtLdfPath.Text = Join-Path $baseFolder "$DatabaseName.ldf"
+    }
+    Update-RestorePaths -DatabaseName $txtDestino.Text
     $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
     $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
     function Paint-Progress { param([int]$Percent, [string]$Message) $pbRestore.Value = $Percent; $txtProgress.Text = $Message }
@@ -959,10 +975,20 @@ function Show-RestoreDialog {
                 $dlg.Multiselect = $false
                 if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
                     $txtBackupPath.Text = $dlg.FileName
+                    if ([string]::IsNullOrWhiteSpace($txtDestino.Text)) {
+                        $txtDestino.Text = [System.IO.Path]::GetFileNameWithoutExtension($dlg.FileName)
+                    }
                 }
             } catch {
                 Write-DzDebug "`t[DEBUG][UI] Error btnBrowseBackup: $($_.Exception.Message)"
                 Ui-Error "No se pudo abrir el selector de archivos: $($_.Exception.Message)" "Error" $window
+            }
+        })
+    $txtDestino.Add_TextChanged({
+            try {
+                Update-RestorePaths -DatabaseName $txtDestino.Text
+            } catch {
+                Write-DzDebug "`t[DEBUG][UI] Error actualizando rutas: $($_.Exception.Message)"
             }
         })
     $btnAceptar.Add_Click({

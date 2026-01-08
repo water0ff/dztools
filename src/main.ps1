@@ -1442,7 +1442,7 @@ function New-MainForm {
 
                 # Opcional: enfoque al editor
                 $global:rtbQueryEditor1.Focus() | Out-Null
-                Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential `
+                Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential -User $userText -Password $passwordText -GetCurrentDatabase { $global:database } `
                     -AutoExpand $true `
                     -OnDatabaseSelected {
                     param($dbName)
@@ -1665,8 +1665,16 @@ Base de datos: $($global:database)
                 Write-Host "====================================" -ForegroundColor Red
             }
         })
-    $btnBackup.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso de Backup - - -" -ForegroundColor Gray ; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
-    $btnRestore.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso de Restauración - - -" -ForegroundColor Gray ; Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
+    $btnBackup.Add_Click({ Write-DzDebug "`t[DEBUG] Click en 'Backup'"; Write-Host "`n`t- - - Comenzando el proceso de Backup - - -" -ForegroundColor Gray ; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
+    $btnRestore.Add_Click({
+            Write-DzDebug "`t[DEBUG] Click en 'Restaurar'"
+            Write-Host "`n`t- - - Comenzando el proceso de Restauración - - -" -ForegroundColor Gray
+            Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem -OnRestoreCompleted {
+                param($dbName)
+                Write-DzDebug "`t[DEBUG] Restore completado. Refrescando TreeView."
+                if ($global:tvDatabases -and $global:server) { Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $global:server }
+            }
+        })
     $window.Add_KeyDown({
             param($s, $e)
             if ($e.Key -eq 'F5' -and $btnExecute.IsEnabled) {

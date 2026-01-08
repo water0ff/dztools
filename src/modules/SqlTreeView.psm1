@@ -14,9 +14,25 @@ function New-SqlTreeNode {
 }
 function Initialize-SqlTreeView {
     [CmdletBinding()]
-    param([Parameter(Mandatory = $true)]$TreeView, [Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential, [Parameter(Mandatory = $false)][scriptblock]$InsertTextHandler, [Parameter(Mandatory = $false)][scriptblock]$OnDatabaseSelected, [Parameter(Mandatory = $false)][bool]$AutoExpand = $true)
+    param(
+        [Parameter(Mandatory = $true)]$TreeView,
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory = $false)][string[]]$Databases,
+        [Parameter(Mandatory = $false)][scriptblock]$InsertTextHandler,
+        [Parameter(Mandatory = $false)][scriptblock]$OnDatabaseSelected,
+        [Parameter(Mandatory = $false)][bool]$AutoExpand = $true
+    )
     $TreeView.Items.Clear()
-    $serverTag = @{Type = "Server"; Server = $Server; Credential = $Credential; InsertTextHandler = $InsertTextHandler; OnDatabaseSelected = $OnDatabaseSelected; Loaded = $false }
+    $serverTag = @{
+        Type               = "Server"
+        Server             = $Server
+        Credential         = $Credential
+        InsertTextHandler  = $InsertTextHandler
+        OnDatabaseSelected = $OnDatabaseSelected
+        Loaded             = $false
+        Databases          = $Databases
+    }
     $serverNode = New-SqlTreeNode -Header "📊 $Server" -Tag $serverTag -HasPlaceholder $true
     $serverNode.Add_Expanded({
             param($sender, $e)
@@ -42,7 +58,24 @@ function Load-DatabasesIntoTree {
     $credential = $ServerNode.Tag.Credential
     Write-DzDebug "`t[DEBUG][TreeView] Load DBs: Server='$server'"
     try {
-        $databases = Get-SqlDatabases -Server $server -Credential $credential
+        # ✅ 1) Intentar usar la lista precargada (sin consultar SQL)
+        $databases = $ServerNode.Tag.Databases
+
+        # ✅ 2) Si no viene (ej: refresco, o expand manual sin precarga), entonces sí consulta
+        if (-not $databases -or $databases.Count -eq 0) {
+            Write-DzDebug "`t[DEBUG][TreeView] No hay Databases precargadas, consultando a SQL..."
+            try {
+                $databases = Get-SqlDatabases -Server $server -Credential $credential
+                # opcional: guardar para siguientes usos
+                $ServerNode.Tag.Databases = $databases
+            } catch {
+                $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{Type = "Error" } -HasPlaceholder $false
+                [void]$ServerNode.Items.Add($errorNode)
+                return
+            }
+        } else {
+            Write-DzDebug "`t[DEBUG][TreeView] Usando Databases precargadas: $($databases.Count)"
+        }
     } catch {
         $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{Type = "Error" } -HasPlaceholder $false
         [void]$ServerNode.Items.Add($errorNode)

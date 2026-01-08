@@ -631,7 +631,7 @@ function Show-AddUserDialog {
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] FIN"
 }
 function Show-IPConfigDialog {
-    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    Write-Host "`n- - - Comenzando el proceso - - -" -ForegroundColor Magenta
     $theme = Get-DzUiTheme
     function Test-IPv4 {
         param([string]$Ip)
@@ -1349,4 +1349,4 @@ function Show-FirewallConfigDialog {
 }
 Export-ModuleMember -Function @('Show-SystemComponents', 'Start-SystemUpdate', 'show-NSPrinters', 'Invoke-ClearPrintJobs',
     'Invoke-CreateApk',
-'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog')
+    'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog')

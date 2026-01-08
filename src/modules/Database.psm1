@@ -81,25 +81,28 @@ function Invoke-SqlQueryMultiResultSet {
         $script:HadSqlError = $false
         $connection.add_InfoMessage({
                 param($sender, $e)
-                Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] InfoMessage recibido: $($e.Message)" -Color DarkYellow
-                $isError = $false
+                $msg = [string]$e.Message
+                if (-not [string]::IsNullOrWhiteSpace($msg)) {
+                    Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] InfoMessage: $msg" -Color DarkYellow
+                    [void]$messages.Add($msg)
+                }
                 if ($e.Errors) {
                     foreach ($err in $e.Errors) {
-                        Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - Error detallado: $($err.Message) (Class: $($err.Class), State: $($err.State))" -Color Red
+                        # Evita imprimir basura vacía
+                        $em = [string]$err.Message
+                        if ([string]::IsNullOrWhiteSpace($em)) { continue }
+                        # Solo severidad >= 11 es error “real”
                         if ($err.Class -ge 11) {
                             $script:HadSqlError = $true
-                            $isError = $true
-                            Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - ERROR SQL detectado (Class >= 11)" -Color Red
+                            Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] SQL ERROR: $em (Class:$($err.Class), State:$($err.State))" -Color Red
+                        } else {
+                            # Es info / warning leve
+                            Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] SQL INFO: $em (Class:$($err.Class), State:$($err.State))" -Color Gray
                         }
                     }
                 }
-                if ($e.Message -match '(?i)\b(no es válido|invalid object name|incorrect syntax|error\s+de\s+sql|msg\s+\d+|level\s+\d+|sintaxis incorrecta)\b') {
-                    Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] - ERROR detectado por patrón en mensaje" -Color Red
-                    $isError = $true
-                }
-                [void]$messages.Add($e.Message)
-                if ($InfoMessageCallback) {
-                    try { & $InfoMessageCallback $e.Message } catch { }
+                if ($InfoMessageCallback -and -not [string]::IsNullOrWhiteSpace($msg)) {
+                    try { & $InfoMessageCallback $msg } catch { }
                 }
             })
         $connection.FireInfoMessageEventOnUserErrors = $true
@@ -640,7 +643,6 @@ Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
         })
     $chkComprimir.Add_Unchecked({ Write-DzDebug "`t[DEBUG][UI] chkComprimir UNCHECKED"; Disable-CompressionUI })
     $btnAceptar.Add_Click({
-            Write-DzDebug "`t[DEBUG][UI] btnAceptar Click"
             if ($script:BackupRunning) { return }
             $script:BackupDone = $false
             if ($script:BackupRunning) { return }

@@ -69,10 +69,9 @@ foreach ($module in $modules) {
 }
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
-- Configuraciones de Firewall
-    * Buscar reglas existentes "deshabilitada termporalmente"
-    * Agregar reglas nuevas
 - Version Base de datos 2.0.0
+    * TreeView Permite Eliminar bases de datos
+    * Restaurar permite seleccionar ruta de archivos logicos
     * Nueva conexión a SQL Server
     * Backup de bases de datos
     * Ejecución de queries
@@ -80,6 +79,9 @@ $global:defaultInstructions = @"
     * Mejoras en seguridad y manejo de errores
     * Carga de INIS en la conexión a BDD.
     * Multiples Queries (MultiQuery)
+- Configuraciones de Firewall
+    * Buscar reglas existentes "deshabilitada termporalmente"
+    * Agregar reglas nuevas
 - Nueva interfaz WPF
     * Fuentes y colores actualizados.
     * Modo oscuro
@@ -903,9 +905,9 @@ function New-MainForm {
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
     $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler,
-    $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
-    $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
-    $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS)
+        $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
+        $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
+        $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
@@ -1033,8 +1035,8 @@ function New-MainForm {
             $e.Handled = $true
         })
     $btnInstalarHerramientas.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Instalar Herramientas' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Instalar Herramientas' - - -" -ForegroundColor Magenta
             if (-not (Check-Chocolatey)) {
                 Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
                 return
@@ -1042,23 +1044,23 @@ function New-MainForm {
             Show-ChocolateyInstallerMenu
         })
     $btnProfiler.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Profiler' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Profiler' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Profiler' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Profiler' - - -" -ForegroundColor Magenta
             Invoke-PortableTool -ToolName "ExpressProfiler" -Url "https://github.com/ststeiger/ExpressProfiler/releases/download/1.0/ExpressProfiler20.zip" -ZipPath "C:\Temp\ExpressProfiler22wAddinSigned.zip" -ExtractPath "C:\Temp\ExpressProfiler2" -ExeName "ExpressProfiler.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
     $btnDatabase.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Database' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Database' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Database' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Database' - - -" -ForegroundColor Magenta
             Invoke-PortableTool -ToolName "Database4" -Url "https://fishcodelib.com/files/DatabaseNet4.zip" -ZipPath "C:\Temp\DatabaseNet4.zip" -ExtractPath "C:\Temp\Database4" -ExeName "Database4.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
     $btnPrinterTool.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Printer Tool' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Printer Tool' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Printer Tool' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Printer Tool' - - -" -ForegroundColor Magenta
             Invoke-PortableTool -ToolName "POS Printer Test" -Url "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip" -ZipPath "C:\Temp\RPT-RPI-Printer-Tool-1.zip" -ExtractPath "C:\Temp\RPT-RPI-Printer-Tool-1" -ExeName "POS Printer Test.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
     $btnLectorDPicacls.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Lector DP + icacls' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Lector DP + icacls' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Lector DP + icacls' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Lector DP + icacls' - - -" -ForegroundColor Magenta
             $pwPs = $null
             $pwDrv = $null
             try {
@@ -1218,8 +1220,8 @@ function New-MainForm {
             }
         })
     $btnSQLManager.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'SQL Manager' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'SQL Manager' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'SQL Manager' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'SQL Manager' - - -" -ForegroundColor Magenta
             function Get-SQLServerManagers {
                 $possiblePaths = @("${env:SystemRoot}\System32\SQLServerManager*.msc", "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc")
                 $managers = foreach ($pattern in $possiblePaths) { Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | ForEach-Object FullName }
@@ -1230,8 +1232,8 @@ function New-MainForm {
             Show-SQLselector -Managers $managers
         })
     $btnSQLManagement.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'SQL Management' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'SQL Management' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'SQL Management' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'SQL Management' - - -" -ForegroundColor Magenta
             function Get-SSMSVersions {
                 $ssmsPaths = @()
                 $fixedPaths = @(
@@ -1309,15 +1311,15 @@ function New-MainForm {
             Show-SQLselector -SSMSVersions $filteredVersions
         })
     $btnForzarActualizacion.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Forzar Actualización' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Forzar Actualización' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Forzar Actualización' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Forzar Actualización' - - -" -ForegroundColor Magenta
             Show-SystemComponents
             $ok = Ui-Confirm "¿Desea forzar la actualización de datos?" "Confirmación" $global:MainWindow
             if ($ok) { Start-SystemUpdate ; Ui-Info "Actualización completada" "Éxito" $global:MainWindow } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
         })
     $btnClearAnyDesk.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Clear AnyDesk' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Clear AnyDesk' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Clear AnyDesk' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Clear AnyDesk' - - -" -ForegroundColor Magenta
             $ok = Ui-Confirm "¿Estás seguro de renovar AnyDesk?" "Confirmar renovación" $global:MainWindow
             if ($ok) {
                 $filesToDelete = @("C:\ProgramData\AnyDesk\system.conf", "C:\ProgramData\AnyDesk\service.conf", "$env:APPDATA\AnyDesk\system.conf", "$env:APPDATA\AnyDesk\service.conf")
@@ -1346,40 +1348,73 @@ function New-MainForm {
             } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
         })
     $btnShowPrinters.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Show Printers' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Show Printers' - - -" -ForegroundColor Gray; Show-NSPrinters })
+            Write-DzDebug ("`t[DEBUG] Click en 'Show Printers' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Show Printers' - - -" -ForegroundColor Magenta
+            Show-NSPrinters
+        })
     $btnClearPrintJobs.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Clear Print Jobs' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Clear Print Jobs' - - -" -ForegroundColor Gray ; Invoke-ClearPrintJobs -InfoTextBlock $txt_InfoInstrucciones })
+            Write-DzDebug ("`t[DEBUG] Click en 'Clear Print Jobs' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Clear Print Jobs' - - -" -ForegroundColor Magenta
+            Invoke-ClearPrintJobs -InfoTextBlock $txt_InfoInstrucciones
+        })
     $btnCheckPermissions.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Revisar Permisos' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Revisar Permisos' - - -" -ForegroundColor Gray
-            if (-not (Test-Administrator)) { Ui-Error "Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador." $global:MainWindow ; return }
+            Write-DzDebug ("`t[DEBUG] Click en 'Revisar Permisos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Revisar Permisos' - - -" -ForegroundColor Magenta
+            if (-not (Test-Administrator)) {
+                Ui-Error "Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador." $global:MainWindow
+                return
+            }
             Check-Permissions
         })
-    $btnAplicacionesNS.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Aplicaciones NS' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Aplicaciones NS' - - -" -ForegroundColor Gray; $res = Get-NSApplicationsIniReport ; Show-NSApplicationsIniReport -Resultados $res })
-    $btnCambiarOTM.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Cambiar OTM' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Cambiar OTM' - - -" -ForegroundColor Gray ; Invoke-CambiarOTMConfig -InfoTextBlock $txt_InfoInstrucciones })
+    $btnAplicacionesNS.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Aplicaciones NS' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Aplicaciones NS' - - -" -ForegroundColor Magenta
+            $res = Get-NSApplicationsIniReport
+            Show-NSApplicationsIniReport -Resultados $res
+        })
+    $btnCambiarOTM.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Cambiar OTM' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Cambiar OTM' - - -" -ForegroundColor Magenta
+            Invoke-CambiarOTMConfig -InfoTextBlock $txt_InfoInstrucciones
+        })
     $LZMAbtnBuscarCarpeta.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Buscar Instaladores LZMA' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Buscar Instaladores LZMA' - - -" -ForegroundColor Gray; Show-LZMADialog })
-    $btnConfigurarIPs.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Configurar IPs' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Configurar IPs' - - -" -ForegroundColor Gray ; Show-IPConfigDialog })
-    $btnAddUser.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Agregar Usuario' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Agregar Usuario' - - -" -ForegroundColor Gray ; Show-AddUserDialog })
-    $btnFirewallConfig.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Configuraciones de Firewall' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Configuraciones de Firewall' - - -" -ForegroundColor Gray ; Show-FirewallConfigDialog })
-    $btnCreateAPK.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Crear APK' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Crear APK' - - -" -ForegroundColor Gray ; Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones })
-    $btnExtractInstaller.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Extraer Instalador' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Extraer Instalador' - - -" -ForegroundColor Gray ; Show-InstallerExtractorDialog })
-    $btnInstaladoresNS.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Instaladores NS' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-DzDebug ("`t[DEBUG] Click en 'Buscar Instaladores LZMA' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Buscar Instaladores LZMA' - - -" -ForegroundColor Magenta
+            Show-LZMADialog
+        })
+    $btnConfigurarIPs.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Configurar IPs' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Configurar IPs' - - -" -ForegroundColor Magenta
+            Show-IPConfigDialog
+        })
+    $btnAddUser.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Agregar Usuario' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Agregar Usuario' - - -" -ForegroundColor Magenta
+            Show-AddUserDialog
+        })
+    $btnFirewallConfig.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Configuraciones de Firewall' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Configuraciones de Firewall' - - -" -ForegroundColor Magenta
+            Show-FirewallConfigDialog
+        })
+    $btnCreateAPK.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Crear APK' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Crear APK' - - -" -ForegroundColor Magenta
+            Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones
+        })
+    $btnExtractInstaller.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Extraer Instalador' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Extraer Instalador' - - -" -ForegroundColor Magenta
+            Show-InstallerExtractorDialog
+        })
+    $btnInstaladoresNS.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Instaladores NS' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`t- - - Abriendo 'Instaladores NS' - - -" -ForegroundColor Gray
-            Start-Process "https://nationalsoft-my.sharepoint.com/:f:/g/personal/gerardo_zermeno_softrestaurant_com/IgC3tKgxlNw9S7JmBk935kCrAVq9jkz06CJek9ljNOrr_Hw?e=xf2dFh" })
+            Start-Process "https://nationalsoft-my.sharepoint.com/:f:/g/personal/gerardo_zermeno_softrestaurant_com/IgC3tKgxlNw9S7JmBk935kCrAVq9jkz06CJek9ljNOrr_Hw?e=xf2dFh"
+        })
     $btnConnectDb.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Magenta
 
             try {
                 if ($null -eq $global:txtServer -or $null -eq $global:txtUser -or $null -eq $global:txtPassword) {
@@ -1442,7 +1477,10 @@ function New-MainForm {
 
                 # Opcional: enfoque al editor
                 $global:rtbQueryEditor1.Focus() | Out-Null
-                Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential `
+                Initialize-SqlTreeView -TreeView $global:tvDatabases `
+                    -Server $serverText `
+                    -Credential $credential `
+                    -Databases $databases `
                     -AutoExpand $true `
                     -OnDatabaseSelected {
                     param($dbName)
@@ -1488,6 +1526,7 @@ function New-MainForm {
             }
         })
     $btnDisconnectDb.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Desconectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
                 if ($global:connection -and $global:connection.State -ne [System.Data.ConnectionState]::Closed) {
                     $global:connection.Close()
@@ -1536,8 +1575,8 @@ Base de datos: $($global:database)
             }
         })
     $btnExecute.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Ejecutar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n`t- - - Ejecutando consulta - - -" -ForegroundColor Gray
-
             try {
                 # 1) Base de datos seleccionada
                 $selectedDb = $global:cmbDatabases.SelectedItem
@@ -1599,7 +1638,29 @@ Base de datos: $($global:database)
                         $global:lblRowCount.Text = "Filas: $($result.ResultSets[0].RowCount)"
                     }
 
-                    Write-Host "✓ Consulta ejecutada: $($result.ResultSets[0].RowCount) filas" -ForegroundColor Green
+                    if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
+
+                        if ($global:tcResults) {
+                            Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
+                        } else {
+                            $global:dgResults.ItemsSource = $result.ResultSets[0].DataTable.DefaultView
+                        }
+
+                        # Resumen por resultset
+                        $parts = New-Object System.Collections.Generic.List[string]
+                        for ($i = 0; $i -lt $result.ResultSets.Count; $i++) {
+                            $rows = $result.ResultSets[$i].RowCount
+                            $label = if ($rows -eq 1) { "fila" } else { "filas" }
+                            $parts.Add(("Resultado {0}: {1} {2}" -f ($i + 1), $rows, $label))
+                        }
+
+                        $summary = ($parts -join " | ")
+                        Write-Host "✓ Consulta ejecutada: $summary" -ForegroundColor Green
+
+                        # (Opcional) también a la UI
+                        if ($global:lblRowCount) { $global:lblRowCount.Text = $summary }
+                    }
+
 
                 } elseif ($result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
 
@@ -1638,7 +1699,7 @@ Base de datos: $($global:database)
             }
         })
     $btnClearQuery.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
                 # 1) Obtener RichTextBox ACTIVO (pestaña activa real)
                 $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
@@ -1665,8 +1726,8 @@ Base de datos: $($global:database)
                 Write-Host "====================================" -ForegroundColor Red
             }
         })
-    $btnBackup.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso de Backup - - -" -ForegroundColor Gray ; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
-    $btnRestore.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso de Restauración - - -" -ForegroundColor Gray ; Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
+    $btnBackup.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Backup - - -" -ForegroundColor Magenta ; Write-DzDebug ("`t[DEBUG] Click en 'Respaldar Base de datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
+    $btnRestore.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Restauración - - -" -ForegroundColor Magenta ; Write-DzDebug ("`t[DEBUG] Click en 'Restaurar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow; Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
     $window.Add_KeyDown({
             param($s, $e)
             if ($e.Key -eq 'F5' -and $btnExecute.IsEnabled) {

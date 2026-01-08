@@ -57,6 +57,7 @@ function Load-DatabasesIntoTree {
                 if ($s.Tag.OnDatabaseSelected) { & $s.Tag.OnDatabaseSelected $s.Tag.Database }
                 $e.Handled = $true
             })
+        Add-DatabaseContextMenu -DatabaseNode $dbNode
         $tablesTag = @{Type = "TablesRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $ServerNode.Tag.InsertTextHandler; OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected; Loaded = $false }
         $viewsTag = @{Type = "ViewsRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $ServerNode.Tag.InsertTextHandler; OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected; Loaded = $false }
         $procsTag = @{Type = "ProceduresRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $ServerNode.Tag.InsertTextHandler; OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected; Loaded = $false }
@@ -336,4 +337,273 @@ function Add-TreeNodeContextMenu {
     [void]$menu.Items.Add($menuCopy)
     $TableNode.ContextMenu = $menu
 }
-Export-ModuleMember -Function @("Initialize-SqlTreeView", "Load-DatabasesIntoTree", "Load-TablesIntoNode", "Load-ColumnsIntoTableNode", "Add-TreeNodeContextMenu")
+
+# AGREGAR esta función al módulo SqlTreeView.psm1
+
+function Add-DatabaseContextMenu {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)]$DatabaseNode)
+
+    $menu = New-Object System.Windows.Controls.ContextMenu
+
+    # Opción: Eliminar base de datos
+    $menuDelete = New-Object System.Windows.Controls.MenuItem
+    $menuDelete.Header = "🗑️ Eliminar base de datos..."
+    $menuDelete.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+
+            Write-DzDebug "`t[DEBUG][TreeView] Context DELETE DB: Server='$server' DB='$dbName'"
+
+            # Mostrar diálogo de confirmación con opciones
+            Show-DeleteDatabaseDialog -Server $server -Database $dbName -Credential $credential -ParentNode $node
+        })
+
+    # Separador
+    $separator = New-Object System.Windows.Controls.Separator
+
+    # Opción: Refresh
+    $menuRefresh = New-Object System.Windows.Controls.MenuItem
+    $menuRefresh.Header = "🔄 Actualizar"
+    $menuRefresh.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+
+            Write-DzDebug "`t[DEBUG][TreeView] Context REFRESH DB: $($node.Tag.Database)"
+
+            # Limpiar y recargar los hijos
+            $node.Items.Clear()
+
+            $db = $node.Tag.Database
+            $server = $node.Tag.Server
+            $credential = $node.Tag.Credential
+            $insertHandler = $node.Tag.InsertTextHandler
+            $dbSelectedHandler = $node.Tag.OnDatabaseSelected
+
+            # Recrear nodos de tablas, vistas, procedimientos
+            $tablesTag = @{Type = "TablesRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $insertHandler; OnDatabaseSelected = $dbSelectedHandler; Loaded = $false }
+            $viewsTag = @{Type = "ViewsRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $insertHandler; OnDatabaseSelected = $dbSelectedHandler; Loaded = $false }
+            $procsTag = @{Type = "ProceduresRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $insertHandler; OnDatabaseSelected = $dbSelectedHandler; Loaded = $false }
+
+            $tablesNode = New-SqlTreeNode -Header "📋 Tablas" -Tag $tablesTag -HasPlaceholder $true
+            $viewsNode = New-SqlTreeNode -Header "👁️ Vistas" -Tag $viewsTag -HasPlaceholder $true
+            $procsNode = New-SqlTreeNode -Header "⚙️ Procedimientos" -Tag $procsTag -HasPlaceholder $true
+
+            $tablesNode.Add_Expanded({ param($s, $e) Load-TablesIntoNode -RootNode $s })
+            $viewsNode.Add_Expanded({ param($s, $e) Load-TablesIntoNode -RootNode $s })
+            $procsNode.Add_Expanded({ param($s, $e) Load-TablesIntoNode -RootNode $s })
+
+            [void]$node.Items.Add($tablesNode)
+            [void]$node.Items.Add($viewsNode)
+            [void]$node.Items.Add($procsNode)
+        })
+
+    [void]$menu.Items.Add($menuDelete)
+    [void]$menu.Items.Add($separator)
+    [void]$menu.Items.Add($menuRefresh)
+
+    $DatabaseNode.ContextMenu = $menu
+}
+
+# REEMPLAZAR la función Show-DeleteDatabaseDialog completa
+
+function Show-DeleteDatabaseDialog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory = $true)]$ParentNode
+    )
+
+    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
+
+    Write-DzDebug "`t[DEBUG][DeleteDB] INICIO: Server='$Server' Database='$Database'"
+
+    Add-Type -AssemblyName PresentationFramework
+
+    $theme = Get-DzUiTheme
+
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Eliminar Base de Datos"
+        Height="280"
+        Width="500"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="$($theme.FormBackground)">
+    <Window.Resources>
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="20" Background="$($theme.FormBackground)">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" FontWeight="Bold" FontSize="14" Margin="0,0,0,15">
+            ⚠️ Advertencia: Eliminar Base de Datos
+        </TextBlock>
+
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="0,0,0,15">
+            Estás a punto de eliminar permanentemente la base de datos:
+        </TextBlock>
+
+        <TextBlock Grid.Row="2" FontWeight="Bold" FontSize="13" Margin="10,0,0,20"
+                   Foreground="$($theme.AccentPrimary)">
+            🗄️ $Database
+        </TextBlock>
+
+        <StackPanel Grid.Row="3" Margin="0,0,0,15">
+            <CheckBox x:Name="chkDeleteBackupHistory" IsChecked="True" Margin="0,0,0,8">
+                <TextBlock Text="Eliminar historial de backup y restore" TextWrapping="Wrap"/>
+            </CheckBox>
+            <CheckBox x:Name="chkCloseConnections" IsChecked="True">
+                <TextBlock Text="Cerrar conexiones existentes" TextWrapping="Wrap"/>
+            </CheckBox>
+        </StackPanel>
+
+        <TextBlock Grid.Row="4" FontSize="11" Foreground="Gray" TextWrapping="Wrap" VerticalAlignment="Center">
+            Esta acción es irreversible. Asegúrate de tener un respaldo antes de continuar.
+        </TextBlock>
+
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button x:Name="btnEliminar" Content="Eliminar" Width="100" Height="30" Margin="5,0"
+                    Style="{StaticResource SystemButtonStyle}"/>
+            <Button x:Name="btnCancelar" Content="Cancelar" Width="100" Height="30" Margin="5,0"
+                    Style="{StaticResource SystemButtonStyle}"/>
+        </StackPanel>
+    </Grid>
+</Window>
+"@
+
+    $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
+    $window = [System.Windows.Markup.XamlReader]::Load($reader)
+
+    if (-not $window) {
+        Write-DzDebug "`t[DEBUG][DeleteDB] ERROR: window=NULL"
+        throw "No se pudo crear la ventana (XAML)."
+    }
+
+    $chkDeleteBackupHistory = $window.FindName("chkDeleteBackupHistory")
+    $chkCloseConnections = $window.FindName("chkCloseConnections")
+    $btnEliminar = $window.FindName("btnEliminar")
+    $btnCancelar = $window.FindName("btnCancelar")
+
+    # Botón Eliminar
+    $btnEliminar.Add_Click({
+            Write-DzDebug "`t[DEBUG][DeleteDB] btnEliminar Click"
+
+            $deleteBackupHistory = $chkDeleteBackupHistory.IsChecked -eq $true
+            $closeConnections = $chkCloseConnections.IsChecked -eq $true
+
+            try {
+                # SOLUCIÓN: Ejecutar comandos en LOTES SEPARADOS (sin GO)
+                # Los comandos se ejecutan uno por uno
+
+                $escapedDb = $Database -replace "'", "''"
+                $safeName = $Database -replace ']', ']]'
+
+                # 1. Cerrar conexiones existentes si está marcado
+                if ($closeConnections) {
+                    Write-DzDebug "`t[DEBUG][DeleteDB] Paso 1: Cerrando conexiones"
+                    $closeQuery = "ALTER DATABASE [$safeName] SET SINGLE_USER WITH ROLLBACK IMMEDIATE"
+                    $result1 = Invoke-SqlQuery -Server $Server -Database "master" -Query $closeQuery -Credential $Credential
+
+                    if (-not $result1.Success) {
+                        Write-DzDebug "`t[DEBUG][DeleteDB] Error cerrando conexiones: $($result1.ErrorMessage)"
+                        Ui-Error "Error al cerrar conexiones existentes:`n`n$($result1.ErrorMessage)" "Error" $window
+                        return
+                    }
+                    Write-DzDebug "`t[DEBUG][DeleteDB] Conexiones cerradas OK"
+                }
+
+                # 2. Eliminar la base de datos
+                Write-DzDebug "`t[DEBUG][DeleteDB] Paso 2: Eliminando base de datos"
+                $dropQuery = "DROP DATABASE [$safeName]"
+                $result2 = Invoke-SqlQuery -Server $Server -Database "master" -Query $dropQuery -Credential $Credential
+
+                if (-not $result2.Success) {
+                    Write-DzDebug "`t[DEBUG][DeleteDB] Error eliminando DB: $($result2.ErrorMessage)"
+                    Ui-Error "Error al eliminar la base de datos:`n`n$($result2.ErrorMessage)" "Error" $window
+                    return
+                }
+                Write-DzDebug "`t[DEBUG][DeleteDB] Base de datos eliminada OK"
+
+                # 3. Eliminar historial de backup/restore si está marcado
+                if ($deleteBackupHistory) {
+                    Write-DzDebug "`t[DEBUG][DeleteDB] Paso 3: Eliminando historial de backup"
+                    $historyQuery = "EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'$escapedDb'"
+                    $result3 = Invoke-SqlQuery -Server $Server -Database "master" -Query $historyQuery -Credential $Credential
+
+                    # El historial puede no existir, así que no es crítico si falla
+                    if ($result3.Success) {
+                        Write-DzDebug "`t[DEBUG][DeleteDB] Historial eliminado OK"
+                    } else {
+                        Write-DzDebug "`t[DEBUG][DeleteDB] Historial no eliminado (puede no existir): $($result3.ErrorMessage)"
+                    }
+                }
+
+                # Todo salió bien
+                Write-DzDebug "`t[DEBUG][DeleteDB] Base de datos eliminada exitosamente"
+                Ui-Info "La base de datos '$Database' ha sido eliminada exitosamente." "✓ Éxito" $window
+
+                # Remover el nodo del TreeView
+                if ($ParentNode.Parent -is [System.Windows.Controls.ItemsControl]) {
+                    $window.Dispatcher.Invoke([action] {
+                            try {
+                                [void]$ParentNode.Parent.Items.Remove($ParentNode)
+                                Write-DzDebug "`t[DEBUG][DeleteDB] Nodo removido del TreeView"
+                            } catch {
+                                Write-DzDebug "`t[DEBUG][DeleteDB] Error removiendo nodo: $($_.Exception.Message)"
+                            }
+                        })
+                }
+
+                $window.DialogResult = $true
+                $window.Close()
+
+            } catch {
+                Write-DzDebug "`t[DEBUG][DeleteDB] Excepción: $($_.Exception.Message)"
+                Ui-Error "Error inesperado al eliminar la base de datos:`n`n$($_.Exception.Message)" "Error" $window
+            }
+        })
+
+    # Botón Cancelar
+    $btnCancelar.Add_Click({
+            Write-DzDebug "`t[DEBUG][DeleteDB] btnCancelar Click"
+            $window.DialogResult = $false
+            $window.Close()
+        })
+
+    Write-DzDebug "`t[DEBUG][DeleteDB] Mostrando ventana"
+    $null = $window.ShowDialog()
+}
+
+Export-ModuleMember -Function @("Initialize-SqlTreeView", "Load-DatabasesIntoTree", "Load-TablesIntoNode", "Load-ColumnsIntoTableNode", "Add-TreeNodeContextMenu", "Add-DatabaseContextMenu", "Show-DeleteDatabaseDialog")

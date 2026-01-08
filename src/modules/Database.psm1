@@ -847,6 +847,7 @@ function Show-RestoreDialog {
     function Start-RestoreWorkAsync {
         param(
             [string]$Server,
+            [string]$DatabaseName,
             [string]$RestoreQuery,
             [System.Management.Automation.PSCredential]$Credential,
             [System.Collections.Concurrent.ConcurrentQueue[string]]$LogQueue,
@@ -854,7 +855,7 @@ function Show-RestoreDialog {
         )
         Write-DzDebug "`t[DEBUG][Start-RestoreWorkAsync] Preparando runspace..."
         $worker = {
-            param($Server, $RestoreQuery, $Credential, $LogQueue, $ProgressQueue)
+            param($Server, $DatabaseName, $RestoreQuery, $Credential, $LogQueue, $ProgressQueue)
             function EnqLog([string]$m) { $LogQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $m)) }
             function EnqProg([int]$p, [string]$m) { $ProgressQueue.Enqueue(@{Percent = $p; Message = $m }) }
             function Invoke-SqlQueryLite {
@@ -862,19 +863,47 @@ function Show-RestoreDialog {
                 $connection = $null
                 $passwordBstr = [IntPtr]::Zero
                 $plainPassword = $null
+                $hasError = $false
+                $errorMessages = @()
+
                 try {
                     $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
                     $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
                     $cs = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
                     $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
-                    if ($InfoMessageCallback) { $connection.add_InfoMessage({ param($sender, $e) try { & $InfoMessageCallback $e.Message } catch {} }); $connection.FireInfoMessageEventOnUserErrors = $true }
+
+                    if ($InfoMessageCallback) {
+                        $connection.add_InfoMessage({
+                                param($sender, $e)
+                                try {
+                                    $msg = $e.Message
+                                    # Detectar mensajes de error críticos
+                                    if ($msg -match '(?i)(error|err\s|failed|no es compatible|not compatible|cannot|imposible|fin an[oó]malo|version|versi[oó]n.*no.*compatible)') {
+                                        $script:hasError = $true
+                                        $script:errorMessages += $msg
+                                    }
+                                    & $InfoMessageCallback $msg $script:hasError
+                                } catch {}
+                            })
+                        $connection.FireInfoMessageEventOnUserErrors = $true
+                    }
+
                     $connection.Open()
                     $cmd = $connection.CreateCommand()
                     $cmd.CommandText = $Query
                     $cmd.CommandTimeout = 0
                     [void]$cmd.ExecuteNonQuery()
+
+                    # Si hubo errores detectados en InfoMessages, reportarlos
+                    if ($hasError) {
+                        $combinedErrors = $errorMessages -join "`n"
+                        return @{Success = $false; ErrorMessage = $combinedErrors; IsInfoMessageError = $true }
+                    }
+
                     @{Success = $true }
-                } catch { @{Success = $false; ErrorMessage = $_.Exception.Message } } finally {
+                } catch {
+                    @{Success = $false; ErrorMessage = $_.Exception.Message; IsInfoMessageError = $false }
+                } finally {
                     if ($plainPassword) { $plainPassword = $null }
                     if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
                     if ($connection) { try { $connection.Close() } catch {}; try { $connection.Dispose() } catch {} }
@@ -883,10 +912,24 @@ function Show-RestoreDialog {
             try {
                 EnqLog "Enviando comando de restauración a SQL Server..."
                 EnqProg 10 "Iniciando restauración..."
+
+                $hasErrorFlag = $false
+                $errorDetails = ""
+
                 $progressCb = {
-                    param([string]$Message)
+                    param([string]$Message, [bool]$IsError)
                     $m = ($Message -replace '\s+', ' ').Trim()
-                    if ($m) { EnqLog ("[SQL] {0}" -f $m) }
+                    if ($m) {
+                        if ($IsError) {
+                            EnqLog ("[SQL ERROR] {0}" -f $m)
+                            $script:hasErrorFlag = $true
+                            $script:errorDetails = $m
+                        } else {
+                            EnqLog ("[SQL] {0}" -f $m)
+                        }
+                    }
+
+                    # Detectar progreso
                     if ($Message -match '(?i)\b(\d{1,3})\s*(percent|porcentaje|por\s+ciento)\b') {
                         $p = [int]$Matches[1]
                         if ($p -gt 100) { $p = 100 }
@@ -894,20 +937,57 @@ function Show-RestoreDialog {
                         EnqProg $p ("Progreso restauración: {0}%" -f $p)
                         return
                     }
-                    if ($Message -match '(?i)\b(successfully processed|procesad[oa]\s+correctamente|completad[oa])\b') {
-                        EnqProg 100 "¡Restauración completada!"
-                        EnqLog "✅ Restauración completada (mensaje SQL)"
+
+                    # Detectar finalización exitosa
+                    if ($Message -match '(?i)\b(successfully processed|procesad[oa]\s+correctamente|completad[oa]|se proces[oó] correctamente)\b') {
+                        if (-not $script:hasErrorFlag) {
+                            EnqProg 100 "¡Restauración completada!"
+                            EnqLog "✅ Restauración completada (mensaje SQL)"
+                        }
                         return
                     }
+
+                    # Detectar errores explícitos
+                    if ($Message -match '(?i)(fin an[oó]malo|abnormal termination|error|failed|cannot)') {
+                        $script:hasErrorFlag = $true
+                        $script:errorDetails = $m
+                    }
                 }
+
                 $r = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $RestoreQuery -Credential $Credential -InfoMessageCallback $progressCb
-                if (-not $r.Success) { EnqProg 0 "Error en restauración"; EnqLog ("❌ Error de SQL: {0}" -f $r.ErrorMessage); EnqLog "__DONE__"; return }
+
+                # Verificar el resultado
+                if (-not $r.Success) {
+                    EnqProg 0 "❌ Error en restauración"
+                    EnqLog ("❌ Error de SQL: {0}" -f $r.ErrorMessage)
+                    EnqLog "ERROR_RESULT|$($r.ErrorMessage)"
+                    EnqLog "__DONE__"
+                    return
+                }
+
+                # Verificar si hubo errores en InfoMessages
+                if ($hasErrorFlag) {
+                    EnqProg 0 "❌ Restauración falló"
+                    EnqLog "❌ La restauración no se completó correctamente"
+                    if ($errorDetails) {
+                        EnqLog "ERROR_RESULT|$errorDetails"
+                    } else {
+                        EnqLog "ERROR_RESULT|Error detectado durante la restauración. Revisa el log para más detalles."
+                    }
+                    EnqLog "__DONE__"
+                    return
+                }
+
+                # Si llegamos aquí, todo salió bien
                 EnqProg 100 "Restauración finalizada."
-                EnqLog "✅ Comando RESTORE finalizó (ExecuteNonQuery)"
+                EnqLog "✅ Comando RESTORE finalizó correctamente"
+                EnqLog "SUCCESS_RESULT|Base de datos restaurada exitosamente"
                 EnqLog "__DONE__"
+
             } catch {
                 EnqProg 0 "Error"
                 EnqLog ("❌ Error inesperado (worker): {0}" -f $_.Exception.Message)
+                EnqLog "ERROR_RESULT|$($_.Exception.Message)"
                 EnqLog "__DONE__"
             }
         }
@@ -917,7 +997,7 @@ function Show-RestoreDialog {
         $rs.Open()
         $ps = [PowerShell]::Create()
         $ps.Runspace = $rs
-        [void]$ps.AddScript($worker).AddArgument($Server).AddArgument($RestoreQuery).AddArgument($Credential).AddArgument($LogQueue).AddArgument($ProgressQueue)
+        [void]$ps.AddScript($worker).AddArgument($Server).AddArgument($DatabaseName).AddArgument($RestoreQuery).AddArgument($Credential).AddArgument($LogQueue).AddArgument($ProgressQueue)
         $null = $ps.BeginInvoke()
         Write-DzDebug "`t[DEBUG][Start-RestoreWorkAsync] Worker lanzado"
     }
@@ -927,10 +1007,31 @@ function Show-RestoreDialog {
             try {
                 $count = 0
                 $doneThisTick = $false
+                $finalResult = $null
+
                 while ($count -lt 50) {
                     $line = $null
                     if (-not $logQueue.TryDequeue([ref]$line)) { break }
-                    $txtLog.Text = "$line`n" + $txtLog.Text
+
+                    # Capturar el resultado final
+                    if ($line -like "*SUCCESS_RESULT|*") {
+                        $finalResult = @{
+                            Success = $true
+                            Message = $line -replace '^.*SUCCESS_RESULT\|', ''
+                        }
+                    }
+                    if ($line -like "*ERROR_RESULT|*") {
+                        $finalResult = @{
+                            Success = $false
+                            Message = $line -replace '^.*ERROR_RESULT\|', ''
+                        }
+                    }
+
+                    # Filtrar las líneas de resultado del log visual
+                    if ($line -notmatch '(SUCCESS_RESULT|ERROR_RESULT)') {
+                        $txtLog.Text = "$line`n" + $txtLog.Text
+                    }
+
                     if ($line -like "*__DONE__*") {
                         Write-DzDebug "`t[DEBUG][UI] Señal DONE recibida (restore)"
                         $doneThisTick = $true
@@ -946,6 +1047,17 @@ function Show-RestoreDialog {
                         while ($progressQueue.TryDequeue([ref]$tmp)) { }
                         Paint-Progress -Percent 100 -Message "Completado"
                         $script:RestoreDone = $true
+
+                        # Mostrar mensaje final al usuario
+                        if ($finalResult) {
+                            $window.Dispatcher.Invoke([action] {
+                                    if ($finalResult.Success) {
+                                        Ui-Info "Base de datos '$($txtDestino.Text)' restaurada con éxito.`n`n$($finalResult.Message)" "✓ Restauración Exitosa" $window
+                                    } else {
+                                        Ui-Error "La restauración falló:`n`n$($finalResult.Message)" "✗ Error en Restauración" $window
+                                    }
+                                }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                        }
                     }
                     $count++
                 }
@@ -1022,31 +1134,119 @@ function Show-RestoreDialog {
                 $escapedLdf = $ldfPath -replace "'", "''"
                 $escapedDest = $destName -replace "'", "''"
                 $destNameSafe = $destName -replace ']', ']]'
+                # Reemplaza esta sección en tu función Show-RestoreDialog
+                # Busca donde dice: Paint-Progress -Percent 5 -Message "Leyendo metadatos del backup..."
+
                 Paint-Progress -Percent 5 -Message "Leyendo metadatos del backup..."
                 $fileListQuery = "RESTORE FILELISTONLY FROM DISK = N'$escapedBackup'"
-                $fileListResult = Invoke-SqlQuery -Server $Server -Database "master" -Query $fileListQuery -Credential $credential
+
+                # SOLUCIÓN: Crear una función inline que use ExecuteReader para FILELISTONLY
+                function Get-BackupFileList {
+                    param(
+                        [string]$Server,
+                        [string]$Query,
+                        [System.Management.Automation.PSCredential]$Credential
+                    )
+
+                    $connection = $null
+                    $passwordBstr = [IntPtr]::Zero
+                    $plainPassword = $null
+
+                    try {
+                        # Extraer la contraseña de forma segura
+                        $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+                        $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+
+                        # Crear conexión
+                        $cs = "Server=$Server;Database=master;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
+                        $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
+                        $connection.Open()
+
+                        # Ejecutar query
+                        $cmd = $connection.CreateCommand()
+                        $cmd.CommandText = $Query
+                        $cmd.CommandTimeout = 60
+
+                        # CRÍTICO: Usar ExecuteReader para obtener resultados
+                        $reader = $cmd.ExecuteReader()
+                        $dataTable = New-Object System.Data.DataTable
+                        $dataTable.Load($reader)
+                        $reader.Close()
+
+                        return @{
+                            Success   = $true
+                            DataTable = $dataTable
+                        }
+
+                    } catch {
+                        return @{
+                            Success      = $false
+                            ErrorMessage = $_.Exception.Message
+                            DataTable    = $null
+                        }
+                    } finally {
+                        # Limpiar credenciales de memoria
+                        if ($plainPassword) {
+                            $plainPassword = $null
+                        }
+                        if ($passwordBstr -ne [IntPtr]::Zero) {
+                            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr)
+                        }
+                        if ($connection) {
+                            try { $connection.Close() } catch {}
+                            try { $connection.Dispose() } catch {}
+                        }
+                    }
+                }
+
+                # Usar la nueva función
+                $fileListResult = Get-BackupFileList -Server $Server -Query $fileListQuery -Credential $credential
+
                 if (-not $fileListResult.Success) {
                     Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Error FILELISTONLY: $($fileListResult.ErrorMessage)"
                     Ui-Error "No se pudo leer el contenido del backup: $($fileListResult.ErrorMessage)" "Error" $window
                     Reset-RestoreUI -ProgressText "Error leyendo backup"
                     return
                 }
+
+                # Validar que se obtuvieron resultados
+                if (-not $fileListResult.DataTable -or $fileListResult.DataTable.Rows.Count -eq 0) {
+                    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] FILELISTONLY no devolvió filas"
+                    Ui-Error "El archivo de backup no contiene información de archivos válida." "Error" $window
+                    Reset-RestoreUI -ProgressText "Backup sin información"
+                    return
+                }
+
+                Add-Log "Archivos en backup: $($fileListResult.DataTable.Rows.Count)"
+
                 $logicalData = $null
                 $logicalLog = $null
+
                 foreach ($row in $fileListResult.DataTable.Rows) {
                     $type = [string]$row["Type"]
                     $logicalName = [string]$row["LogicalName"]
-                    if (-not $logicalData -and $type -eq "D") { $logicalData = $logicalName }
-                    if (-not $logicalLog -and $type -eq "L") { $logicalLog = $logicalName }
+
+                    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Archivo: LogicalName='$logicalName' Type='$type'"
+
+                    if (-not $logicalData -and $type -eq "D") {
+                        $logicalData = $logicalName
+                        Add-Log "Encontrado archivo de datos: $logicalName"
+                    }
+                    if (-not $logicalLog -and $type -eq "L") {
+                        $logicalLog = $logicalName
+                        Add-Log "Encontrado archivo de log: $logicalName"
+                    }
                 }
+
                 if (-not $logicalData -or -not $logicalLog) {
                     Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Logical names missing. Data='$logicalData' Log='$logicalLog'"
-                    Ui-Error "No se encontraron nombres lógicos válidos en el backup." "Error" $window
+                    Ui-Error "No se encontraron nombres lógicos válidos en el backup.`n`nData: $logicalData`nLog: $logicalLog" "Error" $window
                     Reset-RestoreUI -ProgressText "Error en nombres lógicos"
                     return
                 }
-                Add-Log ("Logical Data: {0}" -f $logicalData)
-                Add-Log ("Logical Log: {0}" -f $logicalLog)
+
+                Add-Log ("✓ Logical Data: {0}" -f $logicalData)
+                Add-Log ("✓ Logical Log: {0}" -f $logicalLog)
                 $restoreQuery = @"
 IF DB_ID(N'$escapedDest') IS NOT NULL
 BEGIN
@@ -1064,7 +1264,7 @@ END
 "@
                 Paint-Progress -Percent 10 -Message "Conectando a SQL Server..."
                 Write-DzDebug "`t[DEBUG][UI] Llamando Start-RestoreWorkAsync"
-                Start-RestoreWorkAsync -Server $Server -RestoreQuery $restoreQuery -Credential $credential -LogQueue $logQueue -ProgressQueue $progressQueue
+                Start-RestoreWorkAsync -Server $Server -DatabaseName $destName -RestoreQuery $restoreQuery -Credential $credential -LogQueue $logQueue -ProgressQueue $progressQueue
                 $script:RestoreRunning = $true
                 $txtBackupPath.IsEnabled = $false
                 $btnBrowseBackup.IsEnabled = $false

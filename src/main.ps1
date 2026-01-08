@@ -568,6 +568,10 @@ function New-MainForm {
                   Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
 
           <Button Content="Backup" Name="btnBackup"
+                  Width="120" Height="30" Margin="0,0,8,0"
+                  Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+
+          <Button Content="Restaurar" Name="btnRestore"
                   Width="120" Height="30"
                   Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
         </StackPanel>
@@ -732,6 +736,7 @@ function New-MainForm {
     $btnConnectDb = $window.FindName("btnConnectDb")
     $btnDisconnectDb = $window.FindName("btnDisconnectDb")
     $btnBackup = $window.FindName("btnBackup")
+    $btnRestore = $window.FindName("btnRestore")
     $lblConnectionStatus = $window.FindName("lblConnectionStatus")
     $btnExecute = $window.FindName("btnExecute")
     $btnClearQuery = $window.FindName("btnClearQuery")
@@ -792,6 +797,7 @@ function New-MainForm {
     $global:btnExecute = $btnExecute
     $global:btnBackup = $btnBackup
     $global:btnClearQuery = $btnClearQuery
+    $global:btnRestore = $btnRestore
     $global:cmbQueries = $cmbQueries
     $global:tcQueries = $tcQueries
     $global:tcResults = $tcResults
@@ -1425,6 +1431,7 @@ function New-MainForm {
                 $global:btnConnectDb.IsEnabled = $false
                 $global:btnBackup.IsEnabled = $true
                 $global:btnDisconnectDb.IsEnabled = $true
+                $global:btnRestore.IsEnabled = $true
                 # ✅ Habilitar UI de trabajo al conectar
                 if ($global:tcQueries) { $global:tcQueries.IsEnabled = $true }
                 if ($global:tcResults) { $global:tcResults.IsEnabled = $true }
@@ -1493,6 +1500,7 @@ function New-MainForm {
                 $global:btnConnectDb.IsEnabled = $true
                 $global:btnBackup.IsEnabled = $false
                 $global:btnDisconnectDb.IsEnabled = $false
+                $global:btnRestore.IsEnabled = $false
                 $global:btnExecute.IsEnabled = $false
                 $global:btnClearQuery.IsEnabled = $false
                 $global:txtServer.IsEnabled = $true
@@ -1658,6 +1666,7 @@ Base de datos: $($global:database)
             }
         })
     $btnBackup.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso de Backup - - -" -ForegroundColor Gray ; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
+    $btnRestore.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso de Restauración - - -" -ForegroundColor Gray ; Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
     $window.Add_KeyDown({
             param($s, $e)
             if ($e.Key -eq 'F5' -and $btnExecute.IsEnabled) {

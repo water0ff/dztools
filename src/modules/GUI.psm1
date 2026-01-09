@@ -14,18 +14,20 @@ function Get-DzUiTheme {
             ControlBackground = "#FFFFFF"; ControlForeground = "#111111"
             BorderColor = "#CFCFCF"
             ButtonGeneralBackground = "#E6E6E6"; ButtonGeneralForeground = "#111111"
-            ButtonSystemBackground = "#96C8FF"; ButtonSystemForeground = "#111111"
-            ButtonNationalBackground = "#FFC896"; ButtonNationalForeground = "#111111"
+            ButtonSystemBackground = "#FFB000"; ButtonSystemForeground = "#111111"
+            ButtonNationalBackground = "#EA5C00"; ButtonNationalForeground = "#111111"
             ConsoleBackground = "#FFFFFF"; ConsoleForeground = "#111111"
             AccentPrimary = "#1976D2"; AccentSecondary = "#2E7D32"; AccentMuted = "#6B7280"
             UiFontFamily = "Segoe UI"; UiFontSize = 12
             CodeFontFamily = "Consolas"; CodeFontSize = 12
-            AccentBlue = "#007ACC"
-            AccentBlueHover = "#006BB3"
-            AccentOrange = "#CE9178"
-            AccentOrangeHover = "#D19A66"
-            AccentMagenta = "#C586C0"
-            AccentMagentaHover = "#B267B3"
+            AccentBlue = "#FFB000"
+            AccentBlueHover = "#E09B00"
+            AccentOrange = "#EA5C00"
+            AccentOrangeHover = "#D45200"
+            AccentMagenta = "#DC267F"
+            AccentMagentaHover = "#C21F72"
+            AccentDatabase = "#A7C6DB"
+            AccentDatabaseHover = "#93B4CC"
             OnAccentForeground = "#FFFFFF"
         }
         Dark  = @{
@@ -35,18 +37,20 @@ function Get-DzUiTheme {
             ControlBackground = "#1C1C1C"; ControlForeground = "#FFFFFF"
             BorderColor = "#4C4C4C"
             ButtonGeneralBackground = "#2F2F2F"; ButtonGeneralForeground = "#FFFFFF"
-            ButtonSystemBackground = "#96C8FF"; ButtonSystemForeground = "#000000"
-            ButtonNationalBackground = "#FFC896"; ButtonNationalForeground = "#000000"
+            ButtonSystemBackground = "#FFB000"; ButtonSystemForeground = "#000000"
+            ButtonNationalBackground = "#EA5C00"; ButtonNationalForeground = "#000000"
             ConsoleBackground = "#012456"; ConsoleForeground = "#FFFFFF"
             AccentPrimary = "#2196F3"; AccentSecondary = "#4CAF50"; AccentMuted = "#9CA3AF"
             UiFontFamily = "Segoe UI"; UiFontSize = 12
             CodeFontFamily = "Consolas"; CodeFontSize = 12
-            AccentBlue = "#007ACC"
-            AccentBlueHover = "#006BB3"
-            AccentOrange = "#CE9178"
-            AccentOrangeHover = "#D19A66"
-            AccentMagenta = "#C586C0"
-            AccentMagentaHover = "#B267B3"
+            AccentBlue = "#FFB000"
+            AccentBlueHover = "#E09B00"
+            AccentOrange = "#EA5C00"
+            AccentOrangeHover = "#D45200"
+            AccentMagenta = "#DC267F"
+            AccentMagentaHover = "#C21F72"
+            AccentDatabase = "#A7C6DB"
+            AccentDatabaseHover = "#93B4CC"
             OnAccentForeground = "#FFFFFF"
         }
     }
@@ -121,6 +125,8 @@ function Set-DzWpfThemeResources {
     Set-BrushResource -Resources $Window.Resources -Key "AccentOrangeHover" -Hex $Theme.AccentOrangeHover
     Set-BrushResource -Resources $Window.Resources -Key "AccentMagenta" -Hex $Theme.AccentMagenta
     Set-BrushResource -Resources $Window.Resources -Key "AccentMagentaHover" -Hex $Theme.AccentMagentaHover
+    Set-BrushResource -Resources $Window.Resources -Key "AccentDatabase" -Hex $Theme.AccentDatabase
+    Set-BrushResource -Resources $Window.Resources -Key "AccentDatabaseHover" -Hex $Theme.AccentDatabaseHover
     $onAccent = "#000000"
     if ($Theme -and $Theme.PSObject -and ($Theme.PSObject.Properties.Match('OnAccentForeground').Count -gt 0)) {
         if (-not [string]::IsNullOrWhiteSpace([string]$Theme.OnAccentForeground)) { $onAccent = [string]$Theme.OnAccentForeground }

@@ -437,93 +437,7 @@ function Show-InstallPrinterDialog {
     }
     Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] FIN"
 }
-function Invoke-CreateApk {
-    [CmdletBinding()]
-    param(
-        [string]$DllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll",
-        [string]$InfoPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\info.txt",
-        [System.Windows.Controls.TextBlock]$InfoTextBlock
-    )
 
-    Write-DzDebug "`t[DEBUG][Invoke-CreateApk] INICIO" ([System.ConsoleColor]::DarkGray)
-
-    try {
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Validando componentes..." }
-        Write-Host "`nIniciando proceso de creación de APK..." -ForegroundColor Cyan
-
-        if (-not (Test-Path -LiteralPath $DllPath)) {
-            $msg = "Componente necesario no encontrado:`n$DllPath`n`nVerifique la instalación del Enlace Android."
-            Write-Host $msg -ForegroundColor Red
-            Show-WpfMessageBox -Message $msg -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe up.dll" }
-            return $false
-        }
-
-        if (-not (Test-Path -LiteralPath $InfoPath)) {
-            $msg = "Archivo de configuración no encontrado:`n$InfoPath`n`nVerifique la instalación del Enlace Android."
-            Write-Host $msg -ForegroundColor Red
-            Show-WpfMessageBox -Message $msg -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe info.txt" }
-            return $false
-        }
-
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Leyendo versión..." }
-
-        $jsonContent = Get-Content -LiteralPath $InfoPath -Raw -ErrorAction Stop | ConvertFrom-Json
-        $versionApp = [string]$jsonContent.versionApp
-
-        if ([string]::IsNullOrWhiteSpace($versionApp)) {
-            $msg = "No se pudo leer 'versionApp' desde:`n$InfoPath"
-            Write-Host $msg -ForegroundColor Red
-            Show-WpfMessageBox -Message $msg -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: versionApp vacío" }
-            return $false
-        }
-
-        Write-Host "Versión detectada: $versionApp" -ForegroundColor Green
-
-        $confirmMsg = "Se creará el APK versión: $versionApp`n¿Desea continuar?"
-        $confirmation = Show-WpfMessageBox -Message $confirmMsg -Title "Confirmación" -Buttons "YesNo" -Icon "Question"
-
-        if ($confirmation -ne [System.Windows.MessageBoxResult]::Yes) {
-            Write-Host "Proceso cancelado por el usuario" -ForegroundColor Yellow
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Cancelado." }
-            return $false
-        }
-
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Selecciona dónde guardar..." }
-
-        $saveDialog = New-Object Microsoft.Win32.SaveFileDialog
-        $saveDialog.Filter = "Archivo APK (*.apk)|*.apk"
-        $saveDialog.FileName = "SRM_$versionApp.apk"
-        $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
-
-        if ($saveDialog.ShowDialog() -ne $true) {
-            Write-Host "Guardado cancelado por el usuario" -ForegroundColor Yellow
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Guardado cancelado." }
-            return $false
-        }
-
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Copiando APK..." }
-
-        Copy-Item -LiteralPath $DllPath -Destination $saveDialog.FileName -Force -ErrorAction Stop
-
-        $okMsg = "APK generado exitosamente en:`n$($saveDialog.FileName)"
-        Write-Host $okMsg -ForegroundColor Green
-        Show-WpfMessageBox -Message "APK creado correctamente!" -Title "Éxito" -Buttons "OK" -Icon "Information" | Out-Null
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Listo: APK creado." }
-
-        return $true
-
-    } catch {
-        $err = $_.Exception.Message
-        Write-Host "Error durante el proceso: $err" -ForegroundColor Red
-        Write-DzDebug "`t[DEBUG][Invoke-CreateApk] ERROR: $err`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
-        Show-WpfMessageBox -Message "Error durante la creación del APK:`n$err" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: $err" }
-        return $false
-    }
-}
 function Invoke-ClearPrintJobs {
     [CmdletBinding()]param([System.Windows.Controls.TextBlock]$InfoTextBlock)
     try {
@@ -1606,6 +1520,5 @@ function Show-FirewallConfigDialog {
     Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] FIN"
 }
 Export-ModuleMember -Function @('Show-SystemComponents', 'Start-SystemUpdate', 'show-NSPrinters', 'Invoke-ClearPrintJobs',
-    'Invoke-CreateApk',
     'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog',
     'Show-InstallPrinterDialog')

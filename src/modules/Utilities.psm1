@@ -1322,83 +1322,6 @@ function Rename-OtmIniForTarget {
     }
 }
 
-# --- Función pública (exportar) ---
-function Invoke-CambiarOTMConfig {
-    [CmdletBinding()]
-    param(
-        [string]$SyscfgPath = "C:\Windows\SysWOW64\Syscfg45_2.0.dll",
-        [string]$IniPath = "C:\NationalSoft\OnTheMinute4.5",
-        [System.Windows.Controls.TextBlock]$InfoTextBlock
-    )
-
-    Write-DzDebug "`t[DEBUG][Invoke-CambiarOTMConfig] INICIO" ([System.ConsoleColor]::DarkGray)
-
-    try {
-        if (-not (Test-Path -LiteralPath $SyscfgPath)) {
-            Show-WpfMessageBox -Message "El archivo de configuración no existe:`n$SyscfgPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            Write-DzDebug "`t[DEBUG][OTM] Syscfg no existe: $SyscfgPath" ([System.ConsoleColor]::Red)
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe Syscfg." }
-            return $false
-        }
-
-        if (-not (Test-Path -LiteralPath $IniPath)) {
-            Show-WpfMessageBox -Message "No existe la ruta de INIs:`n$IniPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            Write-DzDebug "`t[DEBUG][OTM] IniPath no existe: $IniPath" ([System.ConsoleColor]::Red)
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe ruta INI." }
-            return $false
-        }
-
-        $current = Get-OtmConfigFromSyscfg -SyscfgPath $SyscfgPath
-        if (-not $current) {
-            Show-WpfMessageBox -Message "No se detectó una configuración válida de SQL o DBF en:`n$SyscfgPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            Write-DzDebug "`t[DEBUG][OTM] No se detectó config válida" ([System.ConsoleColor]::Red)
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: config inválida." }
-            return $false
-        }
-
-        $ini = Get-OtmIniFiles -IniPath $IniPath
-        if (-not $ini) {
-            Show-WpfMessageBox -Message "No se encontraron los archivos INI esperados en:`n$IniPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            Write-DzDebug "`t[DEBUG][OTM] No se encontraron INIs esperados" ([System.ConsoleColor]::Red)
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: faltan INIs." }
-            return $false
-        }
-
-        $new = if ($current -eq "SQL") { "DBF" } else { "SQL" }
-
-        $msg = "Actualmente tienes configurado: $current.`n¿Quieres cambiar a $new?"
-        $res = Show-WpfMessageBox -Message $msg -Title "Cambiar Configuración" -Buttons "YesNo" -Icon "Question"
-
-        if ($res -ne [System.Windows.MessageBoxResult]::Yes) {
-            Write-DzDebug "`t[DEBUG][OTM] Usuario canceló" ([System.ConsoleColor]::Cyan)
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Operación cancelada." }
-            return $false
-        }
-
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Aplicando cambios..." }
-
-        # 1) Cambiar syscfg
-        Set-OtmSyscfgConfig -SyscfgPath $SyscfgPath -Target $new
-
-        # 2) Renombrar INIs (activa el correcto)
-        Rename-OtmIniForTarget -Target $new -IniSqlFile $ini.SQL -IniDbfFile $ini.DBF
-
-        Show-WpfMessageBox -Message "Configuración cambiada exitosamente a $new." -Title "Éxito" -Buttons "OK" -Icon "Information" | Out-Null
-        Write-DzDebug "`t[DEBUG][OTM] OK cambiado a $new" ([System.ConsoleColor]::Green)
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Listo: cambiado a $new." }
-
-        return $true
-
-    } catch {
-        $err = $_.Exception.Message
-        Write-DzDebug "`t[DEBUG][Invoke-CambiarOTMConfig] ERROR: $err`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: $err" }
-        Show-WpfMessageBox -Message "Error: $err" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-        return $false
-    }
-}
-
-
 function Get-NSIniConnectionInfo {
     [CmdletBinding()]
     param(
@@ -1537,108 +1460,7 @@ function Get-NSApplicationsIniReport {
     return $resultados
 }
 
-function Show-NSApplicationsIniReport {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]$Resultados
-    )
-    $columnas = @("Aplicacion", "INI", "DataSource", "Catalog", "Usuario")
-    $anchos = @{}
 
-    foreach ($col in $columnas) { $anchos[$col] = $col.Length }
-
-    foreach ($res in $Resultados) {
-        foreach ($col in $columnas) {
-            $val = [string]$res.$col
-            if ($val.Length -gt $anchos[$col]) { $anchos[$col] = $val.Length }
-        }
-    }
-
-    $titulos = $columnas | ForEach-Object { $_.PadRight($anchos[$_] + 2) }
-    Write-Host ($titulos -join "") -ForegroundColor Cyan
-
-    $separador = $columnas | ForEach-Object { ("-" * $anchos[$_]).PadRight($anchos[$_] + 2) }
-    Write-Host ($separador -join "") -ForegroundColor Cyan
-
-    foreach ($res in $Resultados) {
-        $fila = $columnas | ForEach-Object { ([string]$res.$_).PadRight($anchos[$_] + 2) }
-
-        if ($res.INI -eq "No encontrado") {
-            Write-Host ($fila -join "") -ForegroundColor Red
-        } else {
-            Write-Host ($fila -join "")
-        }
-    }
-
-    $found = @($Resultados | Where-Object { $_.INI -ne "No encontrado" })
-    if (-not $found -or $found.Count -eq 0) { return }
-
-    $theme = Get-DzUiTheme
-    $stringXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Aplicaciones National Soft"
-        Height="420" Width="860"
-        WindowStartupLocation="CenterOwner"
-        Topmost="True">
-    <Window.Resources>
-        <Style x:Key="GeneralButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-    </Window.Resources>
-    <Grid Background="{DynamicResource FormBg}" Margin="10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
-            <Button Name="btnCopyApp" Content="Copiar Aplicación" Width="140" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-            <Button Name="btnCopyIni" Content="Copiar INI" Width="110" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-            <Button Name="btnCopyDataSource" Content="Copiar DataSource" Width="150" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-            <Button Name="btnCopyCatalog" Content="Copiar Catalog" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-            <Button Name="btnCopyUsuario" Content="Copiar Usuario" Width="130" Height="30" Style="{StaticResource GeneralButtonStyle}"/>
-        </StackPanel>
-        <TextBlock Grid.Row="1" Text="Más detalles en consola." Margin="2,0,0,6" Foreground="{DynamicResource AccentMuted}"/>
-        <DataGrid Grid.Row="2" Name="dgApps" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Aplicación" Binding="{Binding Aplicacion}" Width="160"/>
-                <DataGridTextColumn Header="INI" Binding="{Binding INI}" Width="180"/>
-                <DataGridTextColumn Header="DataSource" Binding="{Binding DataSource}" Width="180"/>
-                <DataGridTextColumn Header="Catalog" Binding="{Binding Catalog}" Width="160"/>
-                <DataGridTextColumn Header="Usuario" Binding="{Binding Usuario}" Width="140"/>
-            </DataGrid.Columns>
-        </DataGrid>
-    </Grid>
-</Window>
-"@
-    try {
-        $ui = New-WpfWindow -Xaml $stringXaml -PassThru
-        $w = $ui.Window
-        $c = $ui.Controls
-        Set-DzWpfThemeResources -Window $w -Theme $theme
-        try { Set-WpfDialogOwner -Dialog $w } catch {}
-        $c['dgApps'].ItemsSource = $found
-        $copyColumn = {
-            param($name)
-            $values = $found | ForEach-Object { [string]$_.($name) }
-            Set-ClipboardTextSafe -Text ($values -join "`r`n") -Owner $w | Out-Null
-        }.GetNewClosure()
-        $c['btnCopyApp'].Add_Click({ & $copyColumn 'Aplicacion' })
-        $c['btnCopyIni'].Add_Click({ & $copyColumn 'INI' })
-        $c['btnCopyDataSource'].Add_Click({ & $copyColumn 'DataSource' })
-        $c['btnCopyCatalog'].Add_Click({ & $copyColumn 'Catalog' })
-        $c['btnCopyUsuario'].Add_Click({ & $copyColumn 'Usuario' })
-        $w.Show() | Out-Null
-    } catch {
-        Write-DzDebug "`t[DEBUG][Show-NSApplicationsIniReport] ERROR creando ventana: $($_.Exception.Message)" Red
-    }
-}
 
 
 function Show-WpfPathSelectionDialog {
@@ -1884,8 +1706,6 @@ Export-ModuleMember -Function @(
     'Get-7ZipPath',
     'Install-7ZipWithChoco',
     'Show-SQLselector',
-    'Invoke-CambiarOTMConfig',
     'get-NSApplicationsIniReport',
-    'Show-NSApplicationsIniReport',
     'Set-ClipboardTextSafe'
 )

@@ -946,7 +946,15 @@ function New-MainForm {
     # Captura $lblPort en el scriptblock usando GetNewClosure()
     $updateSqlPortsUi = {
         param($portsResult)
-        $portsArray = @($portsResult)
+        $portsArray = @(
+            $portsResult |
+            Where-Object {
+                $_ -ne $null -and
+                $_.PSObject.Properties.Match('Port').Count -gt 0 -and
+                $_.PSObject.Properties.Match('Instance').Count -gt 0 -and
+                [string]::IsNullOrWhiteSpace([string]$_.Port) -eq $false
+            }
+        )
         $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
 
         # Verificar si $lblPort es accesible
@@ -1058,8 +1066,8 @@ function New-MainForm {
                         $portsTimer.Stop()
                         $portsResult = @()
                         try {
-                            $portsResult = Receive-Job $portsJob -ErrorAction SilentlyContinue
-                            Write-DzDebug "`t[DEBUG] Resultados recibidos del job: $($portsResult.Count)" -Color Cyan
+                            $portsResult = @(Receive-Job $portsJob -ErrorAction SilentlyContinue)
+                            Write-DzDebug "`t[DEBUG] Resultados recibidos del job (raw count): $($portsResult.Count)" -Color Cyan
                         } catch {
                             Write-DzDebug "`t[DEBUG] Error recibiendo resultados del job: $($_.Exception.Message)" -Color Red
                         }
@@ -1652,8 +1660,6 @@ function New-MainForm {
                 } `
                     -InsertTextHandler {
                     param($text)
-
-                    # ✅ IMPORTANTE: Insertar SIEMPRE en pestaña activa (NO rtbQueryEditor1)
                     if ($global:tcQueries) {
                         Insert-TextIntoActiveQuery -TabControl $global:tcQueries -Text $text
                     }

@@ -266,7 +266,6 @@ function Show-NSPrinters {
         Write-DzDebug "`t[DEBUG][Show-NSPrinters] ERROR creando ventana: $($_.Exception.Message)" Red
     }
 }
-
 function Show-InstallPrinterDialog {
     [CmdletBinding()]
     param()
@@ -279,38 +278,69 @@ function Show-InstallPrinterDialog {
         Title="Instalar impresora"
         Height="260" Width="560"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize">
-    <Window.Resources>
-        <Style x:Key="SystemButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
-            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-    </Window.Resources>
-    <Grid Background="{DynamicResource FormBg}" Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Text="Usaremos el driver 'Generic / Text Only'." Margin="0,0,0,8"/>
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
-            <TextBlock Text="Nombre:" Width="90" VerticalAlignment="Center"/>
-            <TextBox Name="txtPrinterName" Width="380" Height="28"/>
-        </StackPanel>
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
-            <TextBlock Text="IP:" Width="90" VerticalAlignment="Center"/>
-            <TextBox Name="txtPrinterIp" Width="200" Height="28"/>
-        </StackPanel>
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Name="btnInstall" Content="Instalar" Width="120" Height="32" Margin="0,0,10,0" Style="{StaticResource SystemButtonStyle}"/>
-            <Button Name="btnClose" Content="Cerrar" Width="110" Height="32" Style="{StaticResource SystemButtonStyle}"/>
-        </StackPanel>
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True">
+
+  <Window.Resources>
+    <Style x:Key="SystemButtonStyle" TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+
+    <Style TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="6,4"/>
+    </Style>
+  </Window.Resources>
+
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="8"
+          Padding="12">
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <TextBlock Grid.Row="0" Text="Usaremos el driver 'Generic / Text Only'." Margin="0,0,0,8"/>
+
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+        <TextBlock Text="Nombre:" Width="90" VerticalAlignment="Center"/>
+        <TextBox Name="txtPrinterName" Width="380" Height="28"/>
+      </StackPanel>
+
+      <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
+        <TextBlock Text="IP:" Width="90" VerticalAlignment="Center"/>
+        <TextBox Name="txtPrinterIp" Width="200" Height="28"/>
+      </StackPanel>
+
+      <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button Name="btnInstall" Content="Instalar" Width="120" Height="32" Margin="0,0,10,0"
+                Style="{StaticResource SystemButtonStyle}"/>
+        <Button Name="btnClose" Content="Cerrar" Width="110" Height="32"
+                Style="{StaticResource SystemButtonStyle}"/>
+      </StackPanel>
     </Grid>
+  </Border>
 </Window>
 "@
     try {
@@ -319,8 +349,40 @@ function Show-InstallPrinterDialog {
         $c = $ui.Controls
         Set-DzWpfThemeResources -Window $w -Theme $theme
         try { Set-WpfDialogOwner -Dialog $w } catch {}
+        $ensureDriverSb = {
+            param([string]$DriverName = "Generic / Text Only")
+
+            # 1) ¿Ya existe?
+            if (Get-PrinterDriver -Name $DriverName -ErrorAction SilentlyContinue) {
+                return @{ Ok = $true; DriverName = $DriverName; InstalledNow = $false; Message = "Driver ya estaba instalado." }
+            }
+
+            # 2) Intentar instalarlo automáticamente (requiere admin: tú ya validas antes)
+            try {
+                $inf = Join-Path $env:WINDIR "INF\ntprint.inf"
+                if (-not (Test-Path -LiteralPath $inf -PathType Leaf)) {
+                    return @{ Ok = $false; DriverName = $DriverName; InstalledNow = $false; Message = "No se encontró ntprint.inf en: $inf" }
+                }
+
+                $arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+                $args = "printui.dll,PrintUIEntry /ia /m `"$DriverName`" /f `"$inf`" /h `"$arch`" /v `"Type 3 - User Mode`""
+
+                Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] Instalando driver via rundll32: $DriverName ($arch)"
+                $p = Start-Process -FilePath "rundll32.exe" -ArgumentList $args -Wait -NoNewWindow -PassThru -WindowStyle Hidden
+
+                # 3) Re-verificar
+                if (Get-PrinterDriver -Name $DriverName -ErrorAction SilentlyContinue) {
+                    return @{ Ok = $true; DriverName = $DriverName; InstalledNow = $true; Message = "Driver instalado correctamente." }
+                }
+
+                return @{ Ok = $false; DriverName = $DriverName; InstalledNow = $false; Message = "Se ejecutó la instalación, pero el driver no apareció. ExitCode: $($p.ExitCode)" }
+            } catch {
+                return @{ Ok = $false; DriverName = $DriverName; InstalledNow = $false; Message = "Error instalando driver: $($_.Exception.Message)" }
+            }
+        }.GetNewClosure()
 
         $c['btnInstall'].Add_Click({
+                Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] Clic en Instalar"
                 $name = [string]$c['txtPrinterName'].Text
                 $ip = [string]$c['txtPrinterIp'].Text
                 if ([string]::IsNullOrWhiteSpace($name) -or [string]::IsNullOrWhiteSpace($ip)) {
@@ -335,10 +397,16 @@ function Show-InstallPrinterDialog {
                     Show-WpfMessageBox -Message "Ya existe una impresora con el nombre '$name'." -Title "Nombre duplicado" -Buttons OK -Icon Warning | Out-Null
                     return
                 }
-                $driverName = "Generic / Text Only"
-                if (-not (Get-PrinterDriver -Name $driverName -ErrorAction SilentlyContinue)) {
-                    Show-WpfMessageBox -Message "No se encontró el driver '$driverName'." -Title "Driver no encontrado" -Buttons OK -Icon Error | Out-Null
+                $driverCheck = & $ensureDriverSb "Generic / Text Only"
+                $driverName = $driverCheck.DriverName
+
+                if (-not $driverCheck.Ok) {
+                    Show-WpfMessageBox -Message "No se pudo asegurar el driver '$driverName'.`n`n$($driverCheck.Message)" -Title "Driver no disponible" -Buttons OK -Icon Error | Out-Null
                     return
+                }
+
+                if ($driverCheck.InstalledNow) {
+                    Show-WpfMessageBox -Message "Se instaló automáticamente el driver '$driverName'.`nContinuaremos con la instalación de la impresora." -Title "Driver instalado" -Buttons OK -Icon Information | Out-Null
                 }
                 $basePortName = "IP_$ip"
                 $portName = $basePortName

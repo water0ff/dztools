@@ -429,8 +429,21 @@ function Show-AddUserDialog {
     $c['btnClose'].Add_Click({ $w.DialogResult = $false; $w.Close() })
     $c['HeaderBar'].Add_MouseLeftButtonDown({ if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() } })
     try { $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name; $userGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name }catch { Show-WpfMessageBox -Message "No se pudieron obtener los grupos locales (requiere permisos).`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null; $w.Close(); return }
-    function Set-Status { param([string]$Text, [string]$Level = "Ok"); switch ($Level) { "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen }"Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod }"Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick } }; $c['lblStatus'].Text = $Text }
-    function Get-PasswordText { if ($c['txtPasswordVisible'].Visibility -eq 'Visible') { return [string]$c['txtPasswordVisible'].Text }; return [string]$c['pwdPassword'].Password }
+    $SetStatus = {
+        param([string]$Text, [string]$Level = "Ok")
+        switch ($Level) {
+            "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen }
+            "Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod }
+            "Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick }
+        }
+        $c['lblStatus'].Text = $Text
+    }.GetNewClosure()
+    $GetPasswordText = {
+        if ($c['txtPasswordVisible'].Visibility -eq 'Visible') {
+            return [string]$c['txtPasswordVisible'].Text
+        }
+        return [string]$c['pwdPassword'].Password
+    }.GetNewClosure()
     $WriteUsersTableConsoleSb = {
         param([Parameter(Mandatory)]$Rows)
         Write-Host ""
@@ -565,28 +578,31 @@ function Show-AddUserDialog {
         $ctrl['btnClose'].Add_Click({ $win.Close() })
         $null = $win.ShowDialog()
     }.GetNewClosure()
-    function Validate-Form {
+    $ValidateForm = {
         $username = ([string]$c['txtUsername'].Text).Trim()
-        $pass = (Get-PasswordText).Trim()
+        $pass = (& $GetPasswordText).Trim()
         Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Validate username='$username' passLen=$($pass.Length)"
-        if ([string]::IsNullOrWhiteSpace($username)) { Set-Status "Escriba un nombre de usuario." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
-        if ($username -match "\s") { Set-Status "El nombre no debe contener espacios." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
-        if ([string]::IsNullOrWhiteSpace($pass)) { Set-Status "Escriba una contraseña." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
-        if ($pass.Length -lt 8) { Set-Status "La contraseña debe tener al menos 8 caracteres." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
-        try { $exists = Get-LocalUser -Name $username -ErrorAction SilentlyContinue; if ($exists) { Set-Status "El usuario '$username' ya existe." "Error"; $c['btnCreate'].IsEnabled = $false; return } }catch {
+        if ([string]::IsNullOrWhiteSpace($username)) { & $SetStatus "Escriba un nombre de usuario." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        if ($username -match "\s") { & $SetStatus "El nombre no debe contener espacios." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        if ([string]::IsNullOrWhiteSpace($pass)) { & $SetStatus "Escriba una contraseña." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        if ($pass.Length -lt 8) { & $SetStatus "La contraseña debe tener al menos 8 caracteres." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        try {
+            $exists = Get-LocalUser -Name $username -ErrorAction SilentlyContinue
+            if ($exists) { & $SetStatus "El usuario '$username' ya existe." "Error"; $c['btnCreate'].IsEnabled = $false; return }
+        } catch {
             Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Validate existencia falló: $($_.Exception.Message)" Yellow
-            Set-Status "Aviso: no se pudo validar si el usuario ya existe (permisos)." "Warn"
+            & $SetStatus "Aviso: no se pudo validar si el usuario ya existe (permisos)." "Warn"
         }
-        Set-Status "Listo para crear usuario." "Ok"
+        & $SetStatus "Listo para crear usuario." "Ok"
         $c['btnCreate'].IsEnabled = $true
-    }
-    $c['tglShowPassword'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword ON"; $c['txtPasswordVisible'].Text = [string]$c['pwdPassword'].Password; $c['pwdPassword'].Visibility = 'Collapsed'; $c['txtPasswordVisible'].Visibility = 'Visible'; Validate-Form }.GetNewClosure())
-    $c['tglShowPassword'].Add_Unchecked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword OFF"; $c['pwdPassword'].Password = [string]$c['txtPasswordVisible'].Text; $c['txtPasswordVisible'].Visibility = 'Collapsed'; $c['pwdPassword'].Visibility = 'Visible'; Validate-Form }.GetNewClosure())
-    $c['txtUsername'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtUsername changed"; Validate-Form }.GetNewClosure())
-    $c['pwdPassword'].Add_PasswordChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] pwdPassword changed"; Validate-Form }.GetNewClosure())
-    $c['txtPasswordVisible'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtPasswordVisible changed"; Validate-Form }.GetNewClosure())
-    $c['rbStandard'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Standard"; Validate-Form }.GetNewClosure())
-    $c['rbAdmin'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Admin"; Validate-Form }.GetNewClosure())
+    }.GetNewClosure()
+    $c['tglShowPassword'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword ON"; $c['txtPasswordVisible'].Text = [string]$c['pwdPassword'].Password; $c['pwdPassword'].Visibility = 'Collapsed'; $c['txtPasswordVisible'].Visibility = 'Visible'; & $ValidateForm }.GetNewClosure())
+    $c['tglShowPassword'].Add_Unchecked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword OFF"; $c['pwdPassword'].Password = [string]$c['txtPasswordVisible'].Text; $c['txtPasswordVisible'].Visibility = 'Collapsed'; $c['pwdPassword'].Visibility = 'Visible'; & $ValidateForm }.GetNewClosure())
+    $c['txtUsername'].Add_TextChanged({ & $ValidateForm }.GetNewClosure())
+    $c['pwdPassword'].Add_PasswordChanged({ & $ValidateForm }.GetNewClosure())
+    $c['txtPasswordVisible'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtPasswordVisible changed"; & $ValidateForm }.GetNewClosure())
+    $c['rbStandard'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Standard"; & $ValidateForm }.GetNewClosure())
+    $c['rbAdmin'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Admin"; & $ValidateForm }.GetNewClosure())
     $c['btnShowUsers'].Add_Click({
             Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnShowUsers click (tabla)"
             try {
@@ -604,7 +620,7 @@ function Show-AddUserDialog {
     $c['btnCreate'].Add_Click({
             Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnCreate click"
             $username = ([string]$c['txtUsername'].Text).Trim()
-            $password = Get-PasswordText
+            $password = & $GetPasswordText
             $isAdmin = $false; try { $isAdmin = [bool]$c['rbAdmin'].IsChecked }catch {}
             $tipo = if ($isAdmin) { "Administrador" }else { "Usuario estándar" }
             $group = if ($isAdmin) { $adminGroup }else { $userGroup }
@@ -612,7 +628,7 @@ function Show-AddUserDialog {
             $conf = Show-WpfMessageBoxSafe -Message $confirmMsg -Title "Confirmar creación" -Buttons YesNo -Icon Warning -Owner $w
             if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Creación cancelada"; return }
             try {
-                if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) { Set-Status "El usuario '$username' ya existe." "Error"; Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Ya existe: $username" Yellow; return }
+                if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) { & $SetStatus "El usuario '$username' ya existe." "Error"; Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Ya existe: $username" Yellow; return }
                 $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
                 New-LocalUser -Name $username -Password $securePassword -AccountNeverExpires -PasswordNeverExpires | Out-Null
                 Add-LocalGroupMember -Group $group -Member $username
@@ -621,12 +637,12 @@ function Show-AddUserDialog {
                 $w.DialogResult = $true; $w.Close()
             } catch {
                 Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando usuario: $($_.Exception.Message)" Red
-                Set-Status "Error: $($_.Exception.Message)" "Error"
+                & $SetStatus "Error: $($_.Exception.Message)" "Error"
                 Show-WpfMessageBox -Message "Error al crear usuario:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
             }
         }.GetNewClosure())
     $c['btnCancel'].Add_Click({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnCancel"; $w.DialogResult = $false; $w.Close() }.GetNewClosure())
-    Validate-Form
+    & $ValidateForm
     try { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowDialog()"; $w.ShowDialog() | Out-Null }catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR ShowDialog: $($_.Exception.Message)" Red; throw }
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] FIN"
 }

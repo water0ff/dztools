@@ -78,6 +78,7 @@ function Refresh-SqlTreeServerNode {
     param([Parameter(Mandatory = $true)]$ServerNode)
     if (-not $ServerNode -or -not $ServerNode.Tag) { return }
     Write-DzDebug "`t[DEBUG][TreeView] Refresh Server: $($ServerNode.Tag.Server)"
+    $ServerNode.Tag.Databases = $null
     $ServerNode.Tag.Loaded = $true
     $ServerNode.Items.Clear()
     Load-DatabasesIntoTree -ServerNode $ServerNode
@@ -695,7 +696,7 @@ function Show-DeleteDatabaseDialog {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Eliminar Base de Datos"
-        Height="280"
+        Height="320"
         Width="500"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"

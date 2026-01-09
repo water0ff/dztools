@@ -20,7 +20,6 @@ function Get-DzUiTheme {
             AccentPrimary = "#1976D2"; AccentSecondary = "#2E7D32"; AccentMuted = "#6B7280"
             UiFontFamily = "Segoe UI"; UiFontSize = 12
             CodeFontFamily = "Consolas"; CodeFontSize = 12
-            #OnAccentForeground = "#000000"
             AccentBlue = "#007ACC"
             AccentBlueHover = "#006BB3"
             AccentOrange = "#CE9178"
@@ -42,7 +41,6 @@ function Get-DzUiTheme {
             AccentPrimary = "#2196F3"; AccentSecondary = "#4CAF50"; AccentMuted = "#9CA3AF"
             UiFontFamily = "Segoe UI"; UiFontSize = 12
             CodeFontFamily = "Consolas"; CodeFontSize = 12
-            #OnAccentForeground = "#000000"
             AccentBlue = "#007ACC"
             AccentBlueHover = "#006BB3"
             AccentOrange = "#CE9178"
@@ -55,7 +53,6 @@ function Get-DzUiTheme {
     $selectedMode = if ($iniMode -match '^(dark|light)$') { ($iniMode.Substring(0, 1).ToUpper() + $iniMode.Substring(1).ToLower()) } else { "Dark" }
     $themes[$selectedMode]
 }
-
 function New-WpfWindow {
     param([Parameter(Mandatory)][object]$Xaml, [switch]$PassThru)
     $xmlReader = $null; $stringReader = $null
@@ -75,7 +72,6 @@ function New-WpfWindow {
         if ($PassThru) {
             [xml]$xmlDoc = $xamlText
             $controls = @{}
-
             $nodes = $xmlDoc.SelectNodes("//*[@Name]")
             foreach ($node in $nodes) {
                 $n = $node.GetAttribute("Name")
@@ -83,7 +79,6 @@ function New-WpfWindow {
                     $controls[$n] = $window.FindName($n)
                 }
             }
-
             return @{ Window = $window; Controls = $controls }
         }
         $window
@@ -115,18 +110,16 @@ function Set-DzWpfThemeResources {
     Set-BrushResource -Resources $Window.Resources -Key "AccentPrimary" -Hex $Theme.AccentPrimary
     Set-BrushResource -Resources $Window.Resources -Key "AccentSecondary" -Hex $Theme.AccentSecondary
     Set-BrushResource -Resources $Window.Resources -Key "AccentMuted" -Hex $Theme.AccentMuted
-    # ComboBox: forzar esquema claro SIEMPRE (dark y light)
-    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxBg"      -Hex "#FFFFFF"
-    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxFg"      -Hex "#111111"
-    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxBorder"  -Hex $Theme.BorderColor
-    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxDropBg"  -Hex "#FFFFFF"
-    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxDropFg"  -Hex "#111111"
-    # VS Code accents (new)
-    Set-BrushResource -Resources $Window.Resources -Key "AccentBlue"         -Hex $Theme.AccentBlue
-    Set-BrushResource -Resources $Window.Resources -Key "AccentBlueHover"    -Hex $Theme.AccentBlueHover
-    Set-BrushResource -Resources $Window.Resources -Key "AccentOrange"       -Hex $Theme.AccentOrange
-    Set-BrushResource -Resources $Window.Resources -Key "AccentOrangeHover"  -Hex $Theme.AccentOrangeHover
-    Set-BrushResource -Resources $Window.Resources -Key "AccentMagenta"      -Hex $Theme.AccentMagenta
+    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxBg" -Hex "#FFFFFF"
+    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxFg" -Hex "#111111"
+    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxBorder" -Hex $Theme.BorderColor
+    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxDropBg" -Hex "#FFFFFF"
+    Set-BrushResource -Resources $Window.Resources -Key "ComboBoxDropFg" -Hex "#111111"
+    Set-BrushResource -Resources $Window.Resources -Key "AccentBlue" -Hex $Theme.AccentBlue
+    Set-BrushResource -Resources $Window.Resources -Key "AccentBlueHover" -Hex $Theme.AccentBlueHover
+    Set-BrushResource -Resources $Window.Resources -Key "AccentOrange" -Hex $Theme.AccentOrange
+    Set-BrushResource -Resources $Window.Resources -Key "AccentOrangeHover" -Hex $Theme.AccentOrangeHover
+    Set-BrushResource -Resources $Window.Resources -Key "AccentMagenta" -Hex $Theme.AccentMagenta
     Set-BrushResource -Resources $Window.Resources -Key "AccentMagentaHover" -Hex $Theme.AccentMagentaHover
     $onAccent = "#000000"
     if ($Theme -and $Theme.PSObject -and ($Theme.PSObject.Properties.Match('OnAccentForeground').Count -gt 0)) {
@@ -137,63 +130,46 @@ function Set-DzWpfThemeResources {
     $Window.Resources["UiFontSize"] = [double]$Theme.UiFontSize
     $Window.Resources["CodeFontFamily"] = [System.Windows.Media.FontFamily]::new($Theme.CodeFontFamily)
     $Window.Resources["CodeFontSize"] = [double]$Theme.CodeFontSize
-    # ------------------------------------------------------------
-    # Global ComboBox styling (fix dropdown/items readability)
-    # ------------------------------------------------------------
     try {
         $cbType = [Type]'System.Windows.Controls.ComboBox'
         $cbiType = [Type]'System.Windows.Controls.ComboBoxItem'
         $tbType = [Type]'System.Windows.Controls.TextBox'
-
         $bg = $Window.Resources["ComboBoxBg"]
         $fg = $Window.Resources["ComboBoxFg"]
         $brd = $Window.Resources["ComboBoxBorder"]
         $dropBg = $Window.Resources["ComboBoxDropBg"]
         $dropFg = $Window.Resources["ComboBoxDropFg"]
-
-        # Limpia estilos previos si existen (para evitar duplicados)
         if ($Window.Resources.Contains($cbType)) { $Window.Resources.Remove($cbType) }
         if ($Window.Resources.Contains($cbiType)) { $Window.Resources.Remove($cbiType) }
-
-        # ComboBox (la caja visible)
         $comboStyle = New-Object System.Windows.Style($cbType)
         [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $bg)))
         [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $fg)))
         [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $brd)))
         [void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, [System.Windows.Thickness]::new(1))))
-        #[void]$comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.FrameworkElement]::MarginProperty, [System.Windows.Thickness]::new(2))))
-        # IMPORTANTE: si el ComboBox es editable, el TextBox interno a veces queda con Foreground "del tema"
-        # Le aplicamos estilo al TextBox interno SOLO cuando vive dentro de un ComboBox editable.
         $editTbStyle = New-Object System.Windows.Style($tbType)
-        $editTbStyle.BasedOn = $Window.TryFindResource($tbType)  # respeta tu estilo global de TextBox si existe
+        $editTbStyle.BasedOn = $Window.TryFindResource($tbType)
         [void]$editTbStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $bg)))
         [void]$editTbStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $fg)))
         [void]$editTbStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, [System.Windows.Thickness]::new(0))))
         if ([System.Windows.Controls.ComboBox]::TextBoxStyleProperty -ne $null) {
             $comboStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.ComboBox]::TextBoxStyleProperty, $editTbStyle)))
         }
-        # Dropdown items
         $itemStyle = New-Object System.Windows.Style($cbiType)
         [void]$itemStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $dropBg)))
         [void]$itemStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $dropFg)))
         [void]$itemStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, [System.Windows.Thickness]::new(6, 4, 6, 4))))
-
-        # Hover/Selected un poco más moderno sin meternos a ControlTemplate
         $tHover = New-Object System.Windows.Trigger
         $tHover.Property = [System.Windows.Controls.ComboBoxItem]::IsHighlightedProperty
         $tHover.Value = $true
         [void]$tHover.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $Window.Resources["AccentPrimary"])))
         [void]$tHover.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $Window.Resources["OnAccentFg"])))
-
         $tSel = New-Object System.Windows.Trigger
         $tSel.Property = [System.Windows.Controls.Primitives.Selector]::IsSelectedProperty
         $tSel.Value = $true
         [void]$tSel.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $Window.Resources["AccentPrimary"])))
         [void]$tSel.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $Window.Resources["OnAccentFg"])))
-
         [void]$itemStyle.Triggers.Add($tHover)
         [void]$itemStyle.Triggers.Add($tSel)
-
         $Window.Resources.Add($cbType, $comboStyle)
         $Window.Resources.Add($cbiType, $itemStyle)
     } catch {
@@ -206,7 +182,6 @@ function Set-WpfDialogOwner {
     try { if ($Global:MainWindow -is [System.Windows.Window]) { $Dialog.Owner = $Global:MainWindow; return } } catch {}
     try { if ($script:window -is [System.Windows.Window]) { $Dialog.Owner = $script:window; return } } catch {}
 }
-
 function ConvertTo-MessageBoxResult {
     param([object]$Value)
     if ($null -eq $Value) { return [System.Windows.MessageBoxResult]::None }
@@ -378,7 +353,6 @@ function Show-WpfMessageBox {
         }
     }
 }
-
 function Show-WpfMessageBoxSafe {
     param(
         [Parameter(Mandatory)][string]$Message,
@@ -389,7 +363,6 @@ function Show-WpfMessageBoxSafe {
     )
     ConvertTo-MessageBoxResult (Show-WpfMessageBox -Message $Message -Title $Title -Buttons $Buttons -Icon $Icon -Owner $Owner)
 }
-
 function Show-WpfProgressBar {
     param([string]$Title = "Procesando", [string]$Message = "Por favor espere...")
     $theme = Get-DzUiTheme
@@ -400,10 +373,7 @@ function Show-WpfProgressBar {
     <StackPanel>
       <TextBlock Text="$Title" FontWeight="Bold" Foreground="{DynamicResource AccentPrimary}" HorizontalAlignment="Center" Margin="0,0,0,20"/>
       <TextBlock Name="lblMessage" Text="$Message" Foreground="{DynamicResource FormFg}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,15" MinHeight="30"/>
-      <ProgressBar Name="progressBar" Height="25" Minimum="0" Maximum="100"
-             IsIndeterminate="True" Value="0"
-             Foreground="{DynamicResource AccentSecondary}"
-             Background="{DynamicResource ControlBg}" Margin="0,0,0,10"/>
+      <ProgressBar Name="progressBar" Height="25" Minimum="0" Maximum="100" IsIndeterminate="True" Value="0" Foreground="{DynamicResource AccentSecondary}" Background="{DynamicResource ControlBg}" Margin="0,0,0,10"/>
       <TextBlock Name="lblPercent" Text="0%" FontWeight="Bold" Foreground="{DynamicResource AccentPrimary}" HorizontalAlignment="Center"/>
     </StackPanel>
   </Border>
@@ -432,62 +402,39 @@ function Update-WpfProgressBar {
         [Parameter(Mandatory = $true)][ValidateRange(0, 100)][int]$Percent,
         [string]$Message = $null
     )
-
-    if ($null -eq $Window) {
-        return
-    }
-
-    if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) {
-        return
-    }
-
-    if ($null -eq $Window.Dispatcher -or $Window.Dispatcher.HasShutdownStarted) {
-        return
-    }
-
+    if ($null -eq $Window) { return }
+    if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) { return }
+    if ($null -eq $Window.Dispatcher -or $Window.Dispatcher.HasShutdownStarted) { return }
     $p = [Math]::Min($Percent, 100)
     $m = $Message
-
     $doUpdate = {
         try {
-            if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) {
-                return
-            }
-
+            if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) { return }
             if ($Window.PSObject.Properties.Match('ProgressBar').Count -gt 0 -and $Window.ProgressBar) {
                 $Window.ProgressBar.IsIndeterminate = $false
                 $Window.ProgressBar.Value = $p
             }
-
             if ($Window.PSObject.Properties.Match('PercentLabel').Count -gt 0 -and $Window.PercentLabel) {
                 $Window.PercentLabel.Text = "$p%"
             }
-
-            if (-not [string]::IsNullOrWhiteSpace($m) -and
-                $Window.PSObject.Properties.Match('MessageLabel').Count -gt 0 -and
-                $Window.MessageLabel) {
+            if (-not [string]::IsNullOrWhiteSpace($m) -and $Window.PSObject.Properties.Match('MessageLabel').Count -gt 0 -and $Window.MessageLabel) {
                 $Window.MessageLabel.Text = $m
             }
         } catch {
-            # Solo silenciar si la ventana ya está cerrada
             if (-not ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed)) {
                 Write-Warning "Error actualizando ProgressBar: $($_.Exception.Message)"
             }
         }
     }
-
     try {
-        if ($Window.Dispatcher.CheckAccess()) {
-            & $doUpdate
-        } else {
-            # Usar Invoke con scriptblock directamente
+        if ($Window.Dispatcher.CheckAccess()) { & $doUpdate }
+        else {
             $Window.Dispatcher.Invoke(
                 [System.Windows.Threading.DispatcherPriority]::Normal,
                 $doUpdate
             )
         }
     } catch {
-        # Solo silenciar si la ventana está cerrada
         if (-not ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed)) {
             Write-DzDebug "ERROR actualizando ProgressBar: $($_.Exception.Message)" -Color Red
         }
@@ -573,7 +520,6 @@ function Ui-Info { param([string]$Message, [string]$Title = "Información", [Sys
 function Ui-Warn { param([string]$Message, [string]$Title = "Atención", [System.Windows.Window]$Owner) Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Warning" -Owner $Owner | Out-Null }
 function Ui-Error { param([string]$Message, [string]$Title = "Error", [System.Windows.Window]$Owner) Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Error" -Owner $Owner | Out-Null }
 function Ui-Confirm { param([string]$Message, [string]$Title = "Confirmar", [System.Windows.Window]$Owner) (Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "YesNo" -Icon "Question" -Owner $Owner) -eq [System.Windows.MessageBoxResult]::Yes }
-
 Export-ModuleMember -Function @(
     'Get-DzUiTheme', 'New-WpfWindow', 'Show-WpfMessageBox', 'Show-WpfMessageBoxSafe', 'ConvertTo-MessageBoxResult',
     'New-WpfInputDialog', 'Show-WpfProgressBar', 'Update-WpfProgressBar', 'Close-WpfProgressBar', 'Show-ProgressBar',

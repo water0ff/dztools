@@ -742,7 +742,7 @@ function Show-RestoreDialog {
         New-Item -Path $defaultPath -ItemType Directory -Force | Out-Null
         Write-Host "Directorio creado: $defaultPath" -ForegroundColor Green
     } else {
-        Write-DzDebug "El directorio $defaultPath ya existe" -ForegroundColor Yellow
+        Write-DzDebug "`t[DEBUG][Show-RestoreDialog] El directorio $defaultPath ya existe" -Color DarkYellow
     }
     function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
     function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null }

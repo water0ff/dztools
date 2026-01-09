@@ -71,6 +71,7 @@ $global:defaultInstructions = @"
 ----- CAMBIOS -----
 - Version Base de datos 2.0.0
     * TreeView Permite Eliminar bases de datos
+    * Ahora puedes crear bases de datos
     * Restaurar permite seleccionar ruta de archivos logicos
     * Nueva conexión a SQL Server
     * Backup de bases de datos
@@ -79,6 +80,8 @@ $global:defaultInstructions = @"
     * Mejoras en seguridad y manejo de errores
     * Carga de INIS en la conexión a BDD.
     * Multiples Queries (MultiQuery)
+- Instalador de impresoras Generic Text por IP
+- Registro y deregistro de Dlls
 - Configuraciones de Firewall
     * Buscar reglas existentes "deshabilitada termporalmente"
     * Agregar reglas nuevas

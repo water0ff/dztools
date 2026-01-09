@@ -50,7 +50,7 @@ function Write-Log {
 }
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
-$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1")
+$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1")
 foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
@@ -486,7 +486,7 @@ function New-MainForm {
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Instaladores NS" Name="btnInstaladoresNS" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,250,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
-                    <Button Content="Registro registro de dlls" Name="btnRegisterDlls" Width="220" Height="30"
+                    <Button Content="Registro de dlls" Name="btnRegisterDlls" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,290,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
                              Width="220" Height="300" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
@@ -1938,7 +1938,7 @@ function Start-Application {
     Show-GlobalProgress -Percent 10 -Status "Entorno listo"
     Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
     $modulesPath = Join-Path $PSScriptRoot "modules"
-    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1")
+    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1")
     $i = 0
     foreach ($module in $modules) {
         $i++

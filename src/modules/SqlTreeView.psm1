@@ -613,7 +613,7 @@ function Show-DeleteDatabaseDialog {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Eliminar Base de Datos"
-        Height="280"
+        Height="310"
         Width="500"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"

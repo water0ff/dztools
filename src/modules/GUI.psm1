@@ -432,41 +432,55 @@ function Update-WpfProgressBar {
         [Parameter(Mandatory = $true)][ValidateRange(0, 100)][int]$Percent,
         [string]$Message = $null
     )
-
-    if ($null -eq $Window) { return }
-    if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) { return }
-    if ($null -eq $Window.Dispatcher -or $Window.Dispatcher.HasShutdownStarted) { return }
-
+    if ($null -eq $Window) {
+        return
+    }
+    if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) {
+        return
+    }
+    if ($null -eq $Window.Dispatcher -or $Window.Dispatcher.HasShutdownStarted) {
+        return
+    }
     $p = [Math]::Min($Percent, 100)
     $m = $Message
-
-    $doUpdate = [action] {
-        if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) { return }
-        if ($Window.PSObject.Properties.Match('ProgressBar').Count -gt 0 -and $Window.ProgressBar) {
-            $Window.ProgressBar.IsIndeterminate = $false
-            $Window.ProgressBar.Value = $p
+    $doUpdate = {
+        try {
+            if ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed) {
+                return
+            }
+            if ($Window.PSObject.Properties.Match('ProgressBar').Count -gt 0 -and $Window.ProgressBar) {
+                $Window.ProgressBar.IsIndeterminate = $false
+                $Window.ProgressBar.Value = $p
+            }
+            if ($Window.PSObject.Properties.Match('PercentLabel').Count -gt 0 -and $Window.PercentLabel) {
+                $Window.PercentLabel.Text = "$p%"
+            }
+            if (-not [string]::IsNullOrWhiteSpace($m) -and
+                $Window.PSObject.Properties.Match('MessageLabel').Count -gt 0 -and
+                $Window.MessageLabel) {
+                $Window.MessageLabel.Text = $m
+            }
+        } catch {
+            if (-not ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed)) {
+                Write-Warning "Error actualizando ProgressBar: $($_.Exception.Message)"
+            }
         }
-        if ($Window.PSObject.Properties.Match('PercentLabel').Count -gt 0 -and $Window.PercentLabel) {
-            $Window.PercentLabel.Text = "$p%"
-        }
-        if (-not [string]::IsNullOrWhiteSpace($m) -and $Window.PSObject.Properties.Match('MessageLabel').Count -gt 0 -and $Window.MessageLabel) {
-            $Window.MessageLabel.Text = $m
-        }
-        # Evita UpdateLayout() en cada tick: puede “ahogar” el render.
     }
-
     try {
         if ($Window.Dispatcher.CheckAccess()) {
             & $doUpdate
         } else {
-            $null = $Window.Dispatcher.BeginInvoke($doUpdate, [System.Windows.Threading.DispatcherPriority]::Background)
+            $Window.Dispatcher.Invoke(
+                [System.Windows.Threading.DispatcherPriority]::Normal,
+                $doUpdate
+            )
         }
     } catch {
-        # Silenciar si ya se cerró
-        Write-DzDebug "DEBUG ProgressBar Silenciada"
+        if (-not ($Window.PSObject.Properties.Match('IsClosed').Count -gt 0 -and $Window.IsClosed)) {
+            Write-DzDebug "ERROR actualizando ProgressBar: $($_.Exception.Message)" -Color Red
+        }
     }
 }
-
 function Close-WpfProgressBar {
     param([Parameter(Mandatory = $true)]$Window)
     if ($null -eq $Window) { return }

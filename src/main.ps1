@@ -329,6 +329,16 @@ function New-MainForm {
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="DatabaseButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentDatabase}"/>
+            <Setter Property="Foreground" Value="#111111"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentDatabaseHover}"/>
+                    <Setter Property="Foreground" Value="#111111"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource AccentOrange}"/>
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
@@ -388,7 +398,13 @@ function New-MainForm {
     </Window.Resources>
     <Grid Background="{DynamicResource FormBg}">
         <TabControl Name="tabControl" Margin="5">
-            <TabItem Header="Aplicaciones" Name="tabAplicaciones">
+            <TabItem Name="tabAplicaciones">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🧩" Margin="0,0,6,0"/>
+                        <TextBlock Text="Aplicaciones"/>
+                    </StackPanel>
+                </TabItem.Header>
                 <Grid Background="{DynamicResource PanelBg}">
                     <TextBox Name="lblHostname"
                              Width="220" Height="40" Margin="10,1,0,0"
@@ -452,8 +468,11 @@ function New-MainForm {
                     <Button Content="Mostrar Impresoras" Name="btnShowPrinters" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,290,0,0"
                             Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Limpia y Reinicia Cola de Impresión" Name="btnClearPrintJobs" Width="220" Height="30"
+                    <Button Content="Instalar impresora" Name="btnInstallPrinter" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,330,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
+                    <Button Content="Limpia y Reinicia Cola de Impresión" Name="btnClearPrintJobs" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,370,0,0"
                             Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Aplicaciones National Soft" Name="btnAplicacionesNS" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,50,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
@@ -467,6 +486,8 @@ function New-MainForm {
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Instaladores NS" Name="btnInstaladoresNS" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,250,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
+                    <Button Content="Registro registro de dlls" Name="btnRegisterDlls" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,290,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
                              Width="220" Height="300" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
@@ -517,7 +538,13 @@ function New-MainForm {
                     </Border>
                 </Grid>
             </TabItem>
-<TabItem Header="Base de datos" Name="tabProSql">
+<TabItem Name="tabProSql">
+  <TabItem.Header>
+    <StackPanel Orientation="Horizontal">
+      <TextBlock Text="🗄️" Margin="0,0,6,0"/>
+      <TextBlock Text="SSMS portable"/>
+    </StackPanel>
+  </TabItem.Header>
   <Grid Background="{DynamicResource PanelBg}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>  <!-- Conexión -->
@@ -563,19 +590,19 @@ function New-MainForm {
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
           <Button Content="Conectar" Name="btnConnectDb"
                   Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource SystemButtonStyle}"/>
+                  Style="{StaticResource DatabaseButtonStyle}"/>
 
           <Button Content="Desconectar" Name="btnDisconnectDb"
                   Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
 
           <Button Content="Backup" Name="btnBackup"
                   Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
 
           <Button Content="Restaurar" Name="btnRestore"
                   Width="120" Height="30"
-                  Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
         </StackPanel>
       </Grid>
     </Border>
@@ -587,14 +614,14 @@ function New-MainForm {
       <StackPanel Orientation="Horizontal">
         <Button Content="Ejecutar (F5)" Name="btnExecute"
                 Width="110" Height="30" Margin="0,0,8,0"
-                Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+                Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
 
         <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0"
                   IsEnabled="False" ToolTip="Consultas predefinidas"/>
 
         <Button Content="Limpiar" Name="btnClearQuery"
                 Width="90" Height="30"
-                Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+                Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
       </StackPanel>
     </Border>
 
@@ -724,6 +751,7 @@ function New-MainForm {
     $btnForzarActualizacion = $window.FindName("btnForzarActualizacion")
     $btnClearAnyDesk = $window.FindName("btnClearAnyDesk")
     $btnShowPrinters = $window.FindName("btnShowPrinters")
+    $btnInstallPrinter = $window.FindName("btnInstallPrinter")
     $btnClearPrintJobs = $window.FindName("btnClearPrintJobs")
     $btnAplicacionesNS = $window.FindName("btnAplicacionesNS")
     $btnCambiarOTM = $window.FindName("btnCambiarOTM")
@@ -731,6 +759,7 @@ function New-MainForm {
     $btnCreateAPK = $window.FindName("btnCreateAPK")
     $btnExtractInstaller = $window.FindName("btnExtractInstaller")
     $btnInstaladoresNS = $window.FindName("btnInstaladoresNS")
+    $btnRegisterDlls = $window.FindName("btnRegisterDlls")
     $txtServer = $window.FindName("txtServer")
     $txtUser = $window.FindName("txtUser")
     $txtPassword = $window.FindName("txtPassword")
@@ -906,48 +935,80 @@ function New-MainForm {
     Load-IniConnectionsToComboBox -Combo $txtServer
     $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler,
         $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
-        $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
-        $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS)
+        $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnInstallPrinter, $btnClearPrintJobs, $btnAplicacionesNS,
+        $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS, $btnRegisterDlls)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
-    $portsResult = Get-SqlPortWithDebug
-    $portsArray = @($portsResult)
-    $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
-    if ($portsArray.Count -gt 0) {
-        $sortedPorts = $portsArray | Sort-Object -Property Instance
-        $displayParts = @()
-        foreach ($port in $sortedPorts) {
-            $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
-            $displayParts += "$instanceName : $($port.Port)"
+    $updateSqlPortsUi = {
+        param($portsResult)
+        $portsArray = @($portsResult)
+        $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
+        if ($portsArray.Count -gt 0) {
+            $sortedPorts = $portsArray | Sort-Object -Property Instance
+            $displayParts = @()
+            foreach ($port in $sortedPorts) {
+                $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
+                $displayParts += "$instanceName : $($port.Port)"
+            }
+            $global:sqlPortsData.DisplayText = $displayParts -join " | "
+            $global:sqlPortsData.DetailedText = $sortedPorts | ForEach-Object {
+                $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
+                "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
+            } | Out-String
+            $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
+            $lblPort.Text = $global:sqlPortsData.DisplayText
+            $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
+            $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) { "Haz clic para mostrar en consola y copiar al portapapeles" } else { "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles" }
+            Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
+            Write-Host $global:sqlPortsData.Summary -ForegroundColor White
+            Write-Host "Puertos: " -ForegroundColor White -NoNewline
+            foreach ($port in $sortedPorts) {
+                $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
+                Write-Host "$instanceName : " -ForegroundColor White -NoNewline
+                Write-Host "$($port.Port) " -ForegroundColor Magenta -NoNewline
+                if ($port -ne $sortedPorts[-1]) { Write-Host "| " -ForegroundColor Gray -NoNewline }
+            }
+            Write-Host ""
+            Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
+        } else {
+            $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
+            $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
+            $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
+            $lblPort.Text = "No se encontraron puertos SQL"
+            $lblPort.Tag = $global:sqlPortsData.DetailedText
+            $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
         }
-        $global:sqlPortsData.DisplayText = $displayParts -join " | "
-        $global:sqlPortsData.DetailedText = $sortedPorts | ForEach-Object {
-            $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
-            "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
-        } | Out-String
-        $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
-        $lblPort.Text = $global:sqlPortsData.DisplayText
-        $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
-        $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) { "Haz clic para mostrar en consola y copiar al portapapeles" } else { "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles" }
-        Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
-        Write-Host $global:sqlPortsData.Summary -ForegroundColor White
-        Write-Host "Puertos: " -ForegroundColor White -NoNewline
-        foreach ($port in $sortedPorts) {
-            $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
-            Write-Host "$instanceName : " -ForegroundColor White -NoNewline
-            Write-Host "$($port.Port) " -ForegroundColor Magenta -NoNewline
-            if ($port -ne $sortedPorts[-1]) { Write-Host "| " -ForegroundColor Gray -NoNewline }
+    }
+    $lblPort.Text = "Buscando puertos SQL..."
+    $lblPort.ToolTip = "Buscando puertos SQL..."
+    try {
+        $portsJob = Start-Job -ScriptBlock {
+            param($modulePath)
+            Import-Module $modulePath -Force -DisableNameChecking
+            Get-SqlPortWithDebug
+        } -ArgumentList (Join-Path $modulesPath "Utilities.psm1")
+        if ($portsJob) {
+            $portsTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $portsTimer.Interval = [TimeSpan]::FromMilliseconds(300)
+            $portsTimer.Add_Tick({
+                    if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
+                        $portsTimer.Stop()
+                        $portsResult = @()
+                        try { $portsResult = Receive-Job $portsJob -ErrorAction SilentlyContinue } catch {}
+                        Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
+                        & $updateSqlPortsUi $portsResult
+                    }
+                }.GetNewClosure())
+            $portsTimer.Start()
+        } else {
+            $portsResult = Get-SqlPortWithDebug
+            & $updateSqlPortsUi $portsResult
         }
-        Write-Host ""
-        Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
-    } else {
-        $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
-        $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
-        $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
-        $lblPort.Text = "No se encontraron puertos SQL"
-        $lblPort.Tag = $global:sqlPortsData.DetailedText
-        $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
+    } catch {
+        Write-DzDebug "`t[DEBUG] Error iniciando búsqueda de puertos SQL async: $($_.Exception.Message)" -Color Yellow
+        $portsResult = Get-SqlPortWithDebug
+        & $updateSqlPortsUi $portsResult
     }
     $lblPort.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
@@ -1352,6 +1413,11 @@ function New-MainForm {
             Write-Host "`n- - - Comenzando el proceso de 'Show Printers' - - -" -ForegroundColor Magenta
             Show-NSPrinters
         })
+    $btnInstallPrinter.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Instalar impresora' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Instalar impresora' - - -" -ForegroundColor Magenta
+            Show-InstallPrinterDialog
+        })
     $btnClearPrintJobs.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Clear Print Jobs' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n- - - Comenzando el proceso de 'Clear Print Jobs' - - -" -ForegroundColor Magenta
@@ -1371,6 +1437,11 @@ function New-MainForm {
             Write-Host "`n- - - Comenzando el proceso de 'Aplicaciones NS' - - -" -ForegroundColor Magenta
             $res = Get-NSApplicationsIniReport
             Show-NSApplicationsIniReport -Resultados $res
+        })
+    $btnRegisterDlls.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Registro registro de dlls' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Registro registro de dlls' - - -" -ForegroundColor Magenta
+            Show-DllRegistrationDialog
         })
     $btnCambiarOTM.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Cambiar OTM' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow

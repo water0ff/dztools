@@ -191,9 +191,183 @@ function Show-NSPrinters {
             IsShared   = if ($_.Shared) { "Sí" }else { "No" }
         }
     }
+    $uiItems = $printers | ForEach-Object {
+        [PSCustomObject]@{
+            Name       = [string]$_.Name
+            PortName   = [string]$_.PortName
+            DriverName = [string]$_.DriverName
+            IsShared   = if ($_.Shared) { "Sí" }else { "No" }
+        }
+    }
     Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "Nombre", "Puerto", "Driver", "Compartida")
     Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "------", "------", "------", "---------")
     $view | ForEach-Object { Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f $_.Name, $_.PortName, $_.DriverName, $_.IsShared) }
+
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Impresoras instaladas"
+        Height="420" Width="820"
+        WindowStartupLocation="CenterOwner"
+        Topmost="True">
+    <Window.Resources>
+        <Style x:Key="GeneralButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="{DynamicResource FormBg}" Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
+            <Button Name="btnCopyName" Content="Copiar Nombre" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
+            <Button Name="btnCopyPort" Content="Copiar Puerto" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
+            <Button Name="btnCopyDriver" Content="Copiar Driver" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
+            <Button Name="btnCopyShared" Content="Copiar Compartida" Width="150" Height="30" Style="{StaticResource GeneralButtonStyle}"/>
+        </StackPanel>
+        <TextBlock Grid.Row="1" Text="Más detalles en consola." Margin="2,0,0,6" Foreground="{DynamicResource AccentMuted}"/>
+        <DataGrid Grid.Row="2" Name="dgPrinters" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Nombre" Binding="{Binding Name}" Width="220"/>
+                <DataGridTextColumn Header="Puerto" Binding="{Binding PortName}" Width="160"/>
+                <DataGridTextColumn Header="Driver" Binding="{Binding DriverName}" Width="180"/>
+                <DataGridTextColumn Header="Compartida" Binding="{Binding IsShared}" Width="100"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Window>
+"@
+    try {
+        $ui = New-WpfWindow -Xaml $stringXaml -PassThru
+        $w = $ui.Window
+        $c = $ui.Controls
+        Set-DzWpfThemeResources -Window $w -Theme $theme
+        try { Set-WpfDialogOwner -Dialog $w } catch {}
+        $c['dgPrinters'].ItemsSource = $uiItems
+        $copyColumn = {
+            param($name)
+            $values = $uiItems | ForEach-Object { [string]$_.($name) }
+            Set-ClipboardTextSafe -Text ($values -join "`r`n") -Owner $w | Out-Null
+        }.GetNewClosure()
+        $c['btnCopyName'].Add_Click({ & $copyColumn 'Name' })
+        $c['btnCopyPort'].Add_Click({ & $copyColumn 'PortName' })
+        $c['btnCopyDriver'].Add_Click({ & $copyColumn 'DriverName' })
+        $c['btnCopyShared'].Add_Click({ & $copyColumn 'IsShared' })
+        $w.Show() | Out-Null
+    } catch {
+        Write-DzDebug "`t[DEBUG][Show-NSPrinters] ERROR creando ventana: $($_.Exception.Message)" Red
+    }
+}
+
+function Show-InstallPrinterDialog {
+    [CmdletBinding()]
+    param()
+
+    Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] INICIO"
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Instalar impresora"
+        Height="260" Width="560"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Window.Resources>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="{DynamicResource FormBg}" Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="Usaremos el driver 'Generic / Text Only'." Margin="0,0,0,8"/>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="Nombre:" Width="90" VerticalAlignment="Center"/>
+            <TextBox Name="txtPrinterName" Width="380" Height="28"/>
+        </StackPanel>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
+            <TextBlock Text="IP:" Width="90" VerticalAlignment="Center"/>
+            <TextBox Name="txtPrinterIp" Width="200" Height="28"/>
+        </StackPanel>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Name="btnInstall" Content="Instalar" Width="120" Height="32" Margin="0,0,10,0" Style="{StaticResource SystemButtonStyle}"/>
+            <Button Name="btnClose" Content="Cerrar" Width="110" Height="32" Style="{StaticResource SystemButtonStyle}"/>
+        </StackPanel>
+    </Grid>
+</Window>
+"@
+    try {
+        $ui = New-WpfWindow -Xaml $stringXaml -PassThru
+        $w = $ui.Window
+        $c = $ui.Controls
+        Set-DzWpfThemeResources -Window $w -Theme $theme
+        try { Set-WpfDialogOwner -Dialog $w } catch {}
+
+        $c['btnInstall'].Add_Click({
+                $name = [string]$c['txtPrinterName'].Text
+                $ip = [string]$c['txtPrinterIp'].Text
+                if ([string]::IsNullOrWhiteSpace($name) -or [string]::IsNullOrWhiteSpace($ip)) {
+                    Show-WpfMessageBox -Message "Ingresa el nombre de la impresora y la IP." -Title "Datos requeridos" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+                if (-not (Test-Administrator)) {
+                    Show-WpfMessageBox -Message "Esta acción requiere permisos de administrador." -Title "Permisos requeridos" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+                if (Get-Printer -Name $name -ErrorAction SilentlyContinue) {
+                    Show-WpfMessageBox -Message "Ya existe una impresora con el nombre '$name'." -Title "Nombre duplicado" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+                $driverName = "Generic / Text Only"
+                if (-not (Get-PrinterDriver -Name $driverName -ErrorAction SilentlyContinue)) {
+                    Show-WpfMessageBox -Message "No se encontró el driver '$driverName'." -Title "Driver no encontrado" -Buttons OK -Icon Error | Out-Null
+                    return
+                }
+                $basePortName = "IP_$ip"
+                $portName = $basePortName
+                $suffix = 0
+                while (Get-PrinterPort -Name $portName -ErrorAction SilentlyContinue) {
+                    $suffix++
+                    $portName = "${basePortName}_$suffix"
+                }
+                try {
+                    Add-PrinterPort -Name $portName -PrinterHostAddress $ip -ErrorAction Stop | Out-Null
+                } catch {
+                    Show-WpfMessageBox -Message "No se pudo crear el puerto '$portName':`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+                    return
+                }
+                try {
+                    Add-Printer -Name $name -DriverName $driverName -PortName $portName -ErrorAction Stop | Out-Null
+                    Show-WpfMessageBox -Message "Impresora instalada correctamente.`nPuerto: $portName" -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+                    $w.Close()
+                } catch {
+                    Show-WpfMessageBox -Message "No se pudo instalar la impresora:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+                }
+            })
+        $c['btnClose'].Add_Click({ $w.Close() })
+        $w.ShowDialog() | Out-Null
+    } catch {
+        Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] ERROR creando ventana: $($_.Exception.Message)" Red
+        Show-WpfMessageBox -Message "No se pudo crear la ventana de impresoras." -Title "Error" -Buttons OK -Icon Error | Out-Null
+    }
+    Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] FIN"
 }
 function Invoke-CreateApk {
     [CmdletBinding()]
@@ -1365,4 +1539,5 @@ function Show-FirewallConfigDialog {
 }
 Export-ModuleMember -Function @('Show-SystemComponents', 'Start-SystemUpdate', 'show-NSPrinters', 'Invoke-ClearPrintJobs',
     'Invoke-CreateApk',
-    'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog')
+    'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog',
+    'Show-InstallPrinterDialog')

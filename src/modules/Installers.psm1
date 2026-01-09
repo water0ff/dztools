@@ -505,12 +505,12 @@ function Show-ChocolateyInstallerMenu {
                 </Style.Triggers>
             </Style>
         <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter Property="Background" Value="{DynamicResource ControlBg}"/>

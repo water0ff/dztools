@@ -940,10 +940,32 @@ function New-MainForm {
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
+    # Sección de puerto, después moverlo a National.psm1
+    Write-DzDebug "`t[DEBUG] lblPort encontrado: $($lblPort -ne $null)" -Color Cyan
+
+    # Captura $lblPort en el scriptblock usando GetNewClosure()
     $updateSqlPortsUi = {
         param($portsResult)
         $portsArray = @($portsResult)
         $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
+
+        # Verificar si $lblPort es accesible
+        Write-DzDebug "`t[DEBUG] En updateSqlPortsUi, lblPort es null: $($null -eq $lblPort)" -Color Yellow
+
+        if ($null -eq $lblPort) {
+            Write-DzDebug "`t[DEBUG] ERROR: lblPort es NULL en updateSqlPortsUi" -Color Red
+            # Intentar obtener lblPort desde la ventana
+            if ($global:MainWindow -and $global:MainWindow.IsLoaded) {
+                $lblPort = $global:MainWindow.FindName("lblPort")
+                Write-DzDebug "`t[DEBUG] lblPort obtenido de MainWindow: $($lblPort -ne $null)" -Color Yellow
+            }
+        }
+
+        if ($null -eq $lblPort) {
+            Write-DzDebug "`t[DEBUG] No se pudo obtener lblPort, saliendo..." -Color Red
+            return
+        }
+
         if ($portsArray.Count -gt 0) {
             $sortedPorts = $portsArray | Sort-Object -Property Instance
             $displayParts = @()
@@ -957,9 +979,24 @@ function New-MainForm {
                 "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
             } | Out-String
             $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
-            $lblPort.Text = $global:sqlPortsData.DisplayText
-            $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
-            $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) { "Haz clic para mostrar en consola y copiar al portapapeles" } else { "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles" }
+
+            Write-DzDebug "`t[DEBUG] lblPort type: $($lblPort.GetType().FullName)" -Color Cyan
+            Write-DzDebug "`t[DEBUG] lblPort.Name: $($lblPort.Name)" -Color Cyan
+
+            # Actualizar la UI usando el dispatcher - FORZAR la actualización
+            $lblPort.Dispatcher.Invoke([action] {
+                    Write-DzDebug "`t[DEBUG] Actualizando UI con puertos encontrados" -Color Green
+                    $lblPort.Text = $global:sqlPortsData.DisplayText
+                    $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
+                    $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) {
+                        "Haz clic para mostrar en consola y copiar al portapapeles"
+                    } else {
+                        "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles"
+                    }
+                    # Forzar actualización de la UI
+                    $lblPort.UpdateLayout()
+                }, [System.Windows.Threading.DispatcherPriority]::Render)
+
             Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
             Write-Host $global:sqlPortsData.Summary -ForegroundColor White
             Write-Host "Puertos: " -ForegroundColor White -NoNewline
@@ -972,36 +1009,73 @@ function New-MainForm {
             Write-Host ""
             Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
         } else {
+            Write-DzDebug "`t[DEBUG] No se encontraron puertos, actualizando UI..." -Color Yellow
             $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
             $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
             $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
-            $lblPort.Text = "No se encontraron puertos SQL"
-            $lblPort.Tag = $global:sqlPortsData.DetailedText
-            $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
+
+            # Actualizar la UI usando el dispatcher - FORZAR la actualización
+            $lblPort.Dispatcher.Invoke([action] {
+                    Write-DzDebug "`t[DEBUG] Dentro del dispatcher: Estableciendo 'No se encontraron puertos SQL'" -Color Green
+                    $lblPort.Text = "No se encontraron puertos SQL"
+                    $lblPort.Tag = $global:sqlPortsData.DetailedText
+                    $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
+                    # Forzar actualización de la UI
+                    $lblPort.UpdateLayout()
+                    Write-DzDebug "`t[DEBUG] lblPort.Text después de actualizar: $($lblPort.Text)" -Color Green
+                }, [System.Windows.Threading.DispatcherPriority]::Render)
         }
-    }
-    $lblPort.Text = "Buscando puertos SQL..."
-    $lblPort.ToolTip = "Buscando puertos SQL..."
+    }.GetNewClosure()  # ¡IMPORTANTE! Captura las variables del scope actual
+
+    # Actualizar el texto inicial usando el dispatcher también
+    $lblPort.Dispatcher.Invoke([action] {
+            $lblPort.Text = "Buscando puertos SQL..."
+            $lblPort.ToolTip = "Buscando puertos SQL..."
+            # Forzar actualización inmediata
+            $lblPort.UpdateLayout()
+        }, [System.Windows.Threading.DispatcherPriority]::Render)
+
     try {
         $portsJob = Start-Job -ScriptBlock {
             param($modulePath)
             Import-Module $modulePath -Force -DisableNameChecking
             Get-SqlPortWithDebug
         } -ArgumentList (Join-Path $modulesPath "Utilities.psm1")
+
         if ($portsJob) {
             $portsTimer = New-Object System.Windows.Threading.DispatcherTimer
             $portsTimer.Interval = [TimeSpan]::FromMilliseconds(300)
             $portsTimer.Add_Tick({
+                    # Verificar si la ventana principal aún está activa
+                    if ($null -eq $global:MainWindow -or -not $global:MainWindow.IsLoaded) {
+                        $portsTimer.Stop()
+                        Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
+                        Write-DzDebug "`t[DEBUG] Ventana cerrada, deteniendo búsqueda de puertos" -Color Yellow
+                        return
+                    }
+
                     if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
                         $portsTimer.Stop()
                         $portsResult = @()
-                        try { $portsResult = Receive-Job $portsJob -ErrorAction SilentlyContinue } catch {}
+                        try {
+                            $portsResult = Receive-Job $portsJob -ErrorAction SilentlyContinue
+                            Write-DzDebug "`t[DEBUG] Resultados recibidos del job: $($portsResult.Count)" -Color Cyan
+                        } catch {
+                            Write-DzDebug "`t[DEBUG] Error recibiendo resultados del job: $($_.Exception.Message)" -Color Red
+                        }
                         Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
-                        & $updateSqlPortsUi $portsResult
+
+                        # Asegurarse de que la UI todavía existe antes de actualizar
+                        if ($global:MainWindow -and $global:MainWindow.IsLoaded -and $lblPort -and $lblPort.IsLoaded) {
+                            & $updateSqlPortsUi $portsResult
+                        } else {
+                            Write-DzDebug "`t[DEBUG] UI no disponible para actualizar resultados" -Color Yellow
+                        }
                     }
                 }.GetNewClosure())
             $portsTimer.Start()
         } else {
+            Write-DzDebug "`t[DEBUG] No se pudo iniciar job, ejecutando sincrónicamente" -Color Yellow
             $portsResult = Get-SqlPortWithDebug
             & $updateSqlPortsUi $portsResult
         }
@@ -1010,6 +1084,7 @@ function New-MainForm {
         $portsResult = Get-SqlPortWithDebug
         & $updateSqlPortsUi $portsResult
     }
+
     $lblPort.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
@@ -1828,6 +1903,33 @@ Base de datos: $($global:database)
         }
     }.GetNewClosure()
     Write-Host "✓ Formulario WPF creado exitosamente" -ForegroundColor Green
+    # ---- CAPTURAR EXCEPCIONES NO MANEJADAS DE WPF (Dispatcher) ----
+    $window.Dispatcher.Add_UnhandledException({
+            param($sender, $e)
+
+            $ex = $e.Exception
+            Write-Host "`n[WPF Dispatcher ERROR]" -ForegroundColor Red
+            Write-Host "Mensaje: $($ex.Message)" -ForegroundColor Yellow
+            Write-Host "Tipo   : $($ex.GetType().FullName)" -ForegroundColor Yellow
+            Write-Host "Stack  : $($ex.StackTrace)" -ForegroundColor DarkYellow
+
+            # Si viene de un ScriptBlock (eventos/timer), aquí suele venir la línea exacta:
+            if ($ex -is [System.Management.Automation.RuntimeException] -and $ex.ErrorRecord) {
+                $er = $ex.ErrorRecord
+                if ($er.InvocationInfo) {
+                    Write-Host "Archivo : $($er.InvocationInfo.ScriptName)" -ForegroundColor Cyan
+                    Write-Host "Línea   : $($er.InvocationInfo.ScriptLineNumber)" -ForegroundColor Cyan
+                    Write-Host "Código  : $($er.InvocationInfo.Line)" -ForegroundColor Cyan
+                    Write-Host "Pos     : $($er.InvocationInfo.PositionMessage)" -ForegroundColor DarkCyan
+                }
+                Write-Host "PSScriptStackTrace:" -ForegroundColor Magenta
+                Write-Host $er.ScriptStackTrace -ForegroundColor Magenta
+            }
+
+            # para que NO cierre toda la app mientras depuras
+            $e.Handled = $true
+        })
+
     return $window
 }
 function Start-Application {
@@ -1854,8 +1956,22 @@ function Start-Application {
 try {
     Start-Application
 } catch {
-    Write-Host "Error fatal: $_" -ForegroundColor Red
-    Write-Host "Stack Trace: $($_.Exception.StackTrace)" -ForegroundColor Red
+    Write-Host "Error fatal: $($_.Exception.Message)" -ForegroundColor Red
+
+    if ($_.InvocationInfo) {
+        Write-Host "Archivo : $($_.InvocationInfo.ScriptName)" -ForegroundColor Yellow
+        Write-Host "Línea   : $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor Yellow
+        Write-Host "Col     : $($_.InvocationInfo.OffsetInLine)" -ForegroundColor Yellow
+        Write-Host "Código  : $($_.InvocationInfo.Line)" -ForegroundColor Yellow
+        Write-Host "Pos     : $($_.InvocationInfo.PositionMessage)" -ForegroundColor DarkYellow
+    }
+
+    Write-Host "ScriptStackTrace:" -ForegroundColor Magenta
+    Write-Host $_.ScriptStackTrace -ForegroundColor Magenta
+
+    Write-Host "Stack Trace .NET:" -ForegroundColor DarkRed
+    Write-Host $_.Exception.StackTrace -ForegroundColor DarkRed
+
     pause
     exit 1
 }

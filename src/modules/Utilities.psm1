@@ -765,7 +765,7 @@ function Get-NetworkAdapterStatus {
 }
 
 function Get-SqlPortWithDebug {
-    Write-DzDebug "`n[DEBUG] === INICIANDO BÚSQUEDA DE PUERTOS SQL ==="
+    Write-DzDebug "`t[DEBUG] === INICIANDO BÚSQUEDA DE PUERTOS SQL ==="
     Write-DzDebug "`t[DEBUG] Fecha/Hora: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 
     $ports = @()

@@ -161,7 +161,21 @@ function Close-QueryTab {
         }
         if ($result -ne [System.Windows.MessageBoxResult]::Yes) { return }
     }
+    $removedIndex = $TabControl.Items.IndexOf($TabItem)
     $TabControl.Items.Remove($TabItem)
+    if ($TabControl.Items.Count -lt 1) { return }
+    $targetTab = $null
+    for ($i = ($removedIndex - 1); $i -ge 0; $i--) {
+        $candidate = $TabControl.Items[$i]
+        if ($candidate -and $candidate.Tag -and $candidate.Tag.Type -eq 'QueryTab') { $targetTab = $candidate; break }
+    }
+    if (-not $targetTab) {
+        for ($i = $removedIndex; $i -lt $TabControl.Items.Count; $i++) {
+            $candidate = $TabControl.Items[$i]
+            if ($candidate -and $candidate.Tag -and $candidate.Tag.Type -eq 'QueryTab') { $targetTab = $candidate; break }
+        }
+    }
+    if ($targetTab) { $TabControl.SelectedItem = $targetTab }
 }
 function Execute-QueryInTab {
     [CmdletBinding()]

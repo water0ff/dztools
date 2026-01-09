@@ -734,9 +734,16 @@ function Reset-BackupUI {
 }
 function Show-RestoreDialog {
     [CmdletBinding()]
-    param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database)
+    param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database, [Parameter(Mandatory = $false)][scriptblock]$OnRestoreCompleted)
     $script:RestoreRunning = $false
     $script:RestoreDone = $false
+    $defaultPath = "C:\NationalSoft\DATABASES"
+    if (-not (Test-Path -Path $defaultPath)) {
+        New-Item -Path $defaultPath -ItemType Directory -Force | Out-Null
+        Write-Host "Directorio creado: $defaultPath" -ForegroundColor Green
+    } else {
+        Write-DzDebug "El directorio $defaultPath ya existe" -ForegroundColor Yellow
+    }
     function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
     function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null }
     function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
@@ -1085,12 +1092,15 @@ function Show-RestoreDialog {
                         while ($progressQueue.TryDequeue([ref]$tmp)) { }
                         Paint-Progress -Percent 100 -Message "Completado"
                         $script:RestoreDone = $true
-
                         # Mostrar mensaje final al usuario
                         if ($finalResult) {
                             $window.Dispatcher.Invoke([action] {
                                     if ($finalResult.Success) {
                                         Ui-Info "Base de datos '$($txtDestino.Text)' restaurada con éxito.`n`n$($finalResult.Message)" "✓ Restauración Exitosa" $window
+                                        if ($OnRestoreCompleted) {
+                                            Write-DzDebug "`t[DEBUG][Show-RestoreDialog] OnRestoreCompleted: DB='$($txtDestino.Text)'"
+                                            try { & $OnRestoreCompleted $txtDestino.Text } catch { Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Error OnRestoreCompleted: $($_.Exception.Message)" }
+                                        }
                                     } else {
                                         Ui-Error "La restauración falló:`n`n$($finalResult.Message)" "✗ Error en Restauración" $window
                                     }
@@ -1325,7 +1335,6 @@ END
     $null = $window.ShowDialog()
     Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Después de ShowDialog()"
 }
-
 function Reset-RestoreUI {
     param([string]$ButtonText = "Iniciar Restauración", [string]$ProgressText = "Esperando...")
     $script:RestoreRunning = $false

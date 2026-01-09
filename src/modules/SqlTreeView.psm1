@@ -1,26 +1,33 @@
 ﻿#requires -Version 5.0
 function New-SqlTreeNode {
-    param([Parameter(Mandatory = $true)][string]$Header, [Parameter(Mandatory = $true)][hashtable]$Tag, [Parameter(Mandatory = $false)][bool]$HasPlaceholder)
+    param(
+        [Parameter(Mandatory = $true)][string]$Header,
+        [Parameter(Mandatory = $true)][hashtable]$Tag,
+        [Parameter(Mandatory = $false)][bool]$HasPlaceholder
+    )
     $node = New-Object System.Windows.Controls.TreeViewItem
     $node.Header = $Header
     $node.Tag = $Tag
     if ($HasPlaceholder) {
         $placeholder = New-Object System.Windows.Controls.TreeViewItem
         $placeholder.Header = "Cargando..."
-        $placeholder.Tag = @{Type = "Placeholder" }
+        $placeholder.Tag = @{ Type = "Placeholder" }
         [void]$node.Items.Add($placeholder)
     }
     $node
 }
+
 function Initialize-SqlTreeView {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]$TreeView,
         [Parameter(Mandatory = $true)][string]$Server,
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
-        [Parameter(Mandatory = $false)][string[]]$Databases,
+        [Parameter(Mandatory = $false)][string]$User,
+        [Parameter(Mandatory = $false)][string]$Password,
         [Parameter(Mandatory = $false)][scriptblock]$InsertTextHandler,
         [Parameter(Mandatory = $false)][scriptblock]$OnDatabaseSelected,
+        [Parameter(Mandatory = $false)][scriptblock]$GetCurrentDatabase,
         [Parameter(Mandatory = $false)][bool]$AutoExpand = $true
     )
     $TreeView.Items.Clear()
@@ -28,12 +35,15 @@ function Initialize-SqlTreeView {
         Type               = "Server"
         Server             = $Server
         Credential         = $Credential
+        User               = $User
+        Password           = $Password
         InsertTextHandler  = $InsertTextHandler
         OnDatabaseSelected = $OnDatabaseSelected
+        GetCurrentDatabase = $GetCurrentDatabase
         Loaded             = $false
-        Databases          = $Databases
     }
     $serverNode = New-SqlTreeNode -Header "📊 $Server" -Tag $serverTag -HasPlaceholder $true
+    Add-ServerContextMenu -ServerNode $serverNode
     $serverNode.Add_Expanded({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG][TreeView] Expand Server: $($sender.Tag.Server) Loaded=$($sender.Tag.Loaded)"
@@ -43,6 +53,18 @@ function Initialize-SqlTreeView {
             }
         })
     [void]$TreeView.Items.Add($serverNode)
+    if (-not $TreeView.Tag -or -not $TreeView.Tag.TreeViewKeyHandlerAdded) {
+        $TreeView.Add_KeyDown({
+                param($sender, $e)
+                if ($e.Key -ne 'F5') { return }
+                $selected = $sender.SelectedItem
+                if (-not $selected -or -not $selected.Tag -or $selected.Tag.Type -ne 'Server') { return }
+                Write-DzDebug "`t[DEBUG][TreeView] F5 Refresh Server: $($selected.Tag.Server)"
+                Refresh-SqlTreeServerNode -ServerNode $selected
+                $e.Handled = $true
+            })
+        $TreeView.Tag = [pscustomobject]@{ TreeViewKeyHandlerAdded = $true }
+    }
     if ($AutoExpand) {
         Write-DzDebug "`t[DEBUG][TreeView] AutoExpand Server: $Server"
         $serverNode.Tag.Loaded = $true
@@ -50,6 +72,36 @@ function Initialize-SqlTreeView {
         $serverNode.IsExpanded = $true
     }
 }
+
+function Refresh-SqlTreeServerNode {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)]$ServerNode)
+    if (-not $ServerNode -or -not $ServerNode.Tag) { return }
+    Write-DzDebug "`t[DEBUG][TreeView] Refresh Server: $($ServerNode.Tag.Server)"
+    $ServerNode.Tag.Loaded = $true
+    $ServerNode.Items.Clear()
+    Load-DatabasesIntoTree -ServerNode $ServerNode
+    $ServerNode.IsExpanded = $true
+}
+
+function Refresh-SqlTreeView {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]$TreeView,
+        [Parameter(Mandatory = $true)][string]$Server
+    )
+    if (-not $TreeView) { return }
+    Write-DzDebug "`t[DEBUG][TreeView] Refresh TreeView Server='$Server'"
+    $targetNode = $null
+    foreach ($item in $TreeView.Items) {
+        if ($item -is [System.Windows.Controls.TreeViewItem] -and $item.Tag -and $item.Tag.Type -eq "Server" -and $item.Tag.Server -eq $Server) {
+            $targetNode = $item
+            break
+        }
+    }
+    if ($targetNode) { Refresh-SqlTreeServerNode -ServerNode $targetNode }
+}
+
 function Load-DatabasesIntoTree {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$ServerNode)
@@ -58,18 +110,14 @@ function Load-DatabasesIntoTree {
     $credential = $ServerNode.Tag.Credential
     Write-DzDebug "`t[DEBUG][TreeView] Load DBs: Server='$server'"
     try {
-        # ✅ 1) Intentar usar la lista precargada (sin consultar SQL)
         $databases = $ServerNode.Tag.Databases
-
-        # ✅ 2) Si no viene (ej: refresco, o expand manual sin precarga), entonces sí consulta
         if (-not $databases -or $databases.Count -eq 0) {
             Write-DzDebug "`t[DEBUG][TreeView] No hay Databases precargadas, consultando a SQL..."
             try {
                 $databases = Get-SqlDatabases -Server $server -Credential $credential
-                # opcional: guardar para siguientes usos
                 $ServerNode.Tag.Databases = $databases
             } catch {
-                $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{Type = "Error" } -HasPlaceholder $false
+                $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{ Type = "Error" } -HasPlaceholder $false
                 [void]$ServerNode.Items.Add($errorNode)
                 return
             }
@@ -77,12 +125,21 @@ function Load-DatabasesIntoTree {
             Write-DzDebug "`t[DEBUG][TreeView] Usando Databases precargadas: $($databases.Count)"
         }
     } catch {
-        $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{Type = "Error" } -HasPlaceholder $false
+        $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{ Type = "Error" } -HasPlaceholder $false
         [void]$ServerNode.Items.Add($errorNode)
         return
     }
     foreach ($db in $databases) {
-        $dbTag = @{Type = "Database"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $ServerNode.Tag.InsertTextHandler; OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected }
+        $dbTag = @{
+            Type               = "Database"
+            Database           = $db
+            Server             = $server
+            Credential         = $credential
+            User               = $ServerNode.Tag.User
+            Password           = $ServerNode.Tag.Password
+            InsertTextHandler  = $ServerNode.Tag.InsertTextHandler
+            OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected
+        }
         $dbNode = New-SqlTreeNode -Header "🗄️ $db" -Tag $dbTag -HasPlaceholder $false
         $dbNode.Add_MouseDoubleClick({
                 param($s, $e)
@@ -91,21 +148,46 @@ function Load-DatabasesIntoTree {
                 $e.Handled = $true
             })
         Add-DatabaseContextMenu -DatabaseNode $dbNode
-        $tablesTag = @{Type = "TablesRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $ServerNode.Tag.InsertTextHandler; OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected; Loaded = $false }
-        $viewsTag = @{Type = "ViewsRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $ServerNode.Tag.InsertTextHandler; OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected; Loaded = $false }
-        $procsTag = @{Type = "ProceduresRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $ServerNode.Tag.InsertTextHandler; OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected; Loaded = $false }
+        $tablesTag = @{
+            Type               = "TablesRoot"
+            Database           = $db
+            Server             = $server
+            Credential         = $credential
+            InsertTextHandler  = $ServerNode.Tag.InsertTextHandler
+            OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected
+            Loaded             = $false
+        }
+        $viewsTag = @{
+            Type               = "ViewsRoot"
+            Database           = $db
+            Server             = $server
+            Credential         = $credential
+            InsertTextHandler  = $ServerNode.Tag.InsertTextHandler
+            OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected
+            Loaded             = $false
+        }
+        $procsTag = @{
+            Type               = "ProceduresRoot"
+            Database           = $db
+            Server             = $server
+            Credential         = $credential
+            InsertTextHandler  = $ServerNode.Tag.InsertTextHandler
+            OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected
+            Loaded             = $false
+        }
         $tablesNode = New-SqlTreeNode -Header "📋 Tablas" -Tag $tablesTag -HasPlaceholder $true
         $viewsNode = New-SqlTreeNode -Header "👁️ Vistas" -Tag $viewsTag -HasPlaceholder $true
         $procsNode = New-SqlTreeNode -Header "⚙️ Procedimientos" -Tag $procsTag -HasPlaceholder $true
-        $tablesNode.Add_Expanded({ param($s, $e)Write-DzDebug "`t[DEBUG][TreeView] Expand TablasRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
-        $viewsNode.Add_Expanded({ param($s, $e)Write-DzDebug "`t[DEBUG][TreeView] Expand VistasRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
-        $procsNode.Add_Expanded({ param($s, $e)Write-DzDebug "`t[DEBUG][TreeView] Expand ProcsRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
+        $tablesNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand TablasRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
+        $viewsNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand VistasRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
+        $procsNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand ProcsRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
         [void]$dbNode.Items.Add($tablesNode)
         [void]$dbNode.Items.Add($viewsNode)
         [void]$dbNode.Items.Add($procsNode)
         [void]$ServerNode.Items.Add($dbNode)
     }
 }
+
 function Load-TablesIntoNode {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$RootNode)
@@ -130,9 +212,19 @@ ORDER BY TABLE_SCHEMA, TABLE_NAME
             foreach ($row in $result.DataTable.Rows) {
                 $schema = $row.TABLE_SCHEMA
                 $table = $row.TABLE_NAME
-                $tag = @{Type = "Table"; Database = $database; Schema = $schema; Table = $table; Server = $server; Credential = $credential; InsertTextHandler = $RootNode.Tag.InsertTextHandler; OnDatabaseSelected = $RootNode.Tag.OnDatabaseSelected; Loaded = $false }
+                $tag = @{
+                    Type               = "Table"
+                    Database           = $database
+                    Schema             = $schema
+                    Table              = $table
+                    Server             = $server
+                    Credential         = $credential
+                    InsertTextHandler  = $RootNode.Tag.InsertTextHandler
+                    OnDatabaseSelected = $RootNode.Tag.OnDatabaseSelected
+                    Loaded             = $false
+                }
                 $tableNode = New-SqlTreeNode -Header "📋 [$schema].[$table]" -Tag $tag -HasPlaceholder $true
-                $tableNode.Add_Expanded({ param($s, $e)Write-DzDebug "`t[DEBUG][TreeView] Expand Table: $($s.Tag.Database) [$($s.Tag.Schema)].[$($s.Tag.Table)]"; Load-ColumnsIntoTableNode -TableNode $s })
+                $tableNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand Table: $($s.Tag.Database) [$($s.Tag.Schema)].[$($s.Tag.Table)]"; Load-ColumnsIntoTableNode -TableNode $s })
                 $tableNode.Add_MouseDoubleClick({
                         param($s, $e)
                         Write-DzDebug "`t[DEBUG][TreeView] Doble clic Table: DB=$($s.Tag.Database) [$($s.Tag.Schema)].[$($s.Tag.Table)]"
@@ -156,7 +248,16 @@ ORDER BY TABLE_SCHEMA, TABLE_NAME
             foreach ($row in $result.DataTable.Rows) {
                 $schema = $row.TABLE_SCHEMA
                 $view = $row.TABLE_NAME
-                $tag = @{Type = "View"; Database = $database; Schema = $schema; View = $view; Server = $server; Credential = $credential; InsertTextHandler = $RootNode.Tag.InsertTextHandler; OnDatabaseSelected = $RootNode.Tag.OnDatabaseSelected }
+                $tag = @{
+                    Type               = "View"
+                    Database           = $database
+                    Schema             = $schema
+                    View               = $view
+                    Server             = $server
+                    Credential         = $credential
+                    InsertTextHandler  = $RootNode.Tag.InsertTextHandler
+                    OnDatabaseSelected = $RootNode.Tag.OnDatabaseSelected
+                }
                 $viewNode = New-SqlTreeNode -Header "👁️ [$schema].[$view]" -Tag $tag -HasPlaceholder $false
                 $viewNode.Add_MouseDoubleClick({
                         param($s, $e)
@@ -181,7 +282,16 @@ ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME
             foreach ($row in $result.DataTable.Rows) {
                 $schema = $row.SPECIFIC_SCHEMA
                 $proc = $row.SPECIFIC_NAME
-                $tag = @{Type = "Procedure"; Database = $database; Schema = $schema; Procedure = $proc; Server = $server; Credential = $credential; InsertTextHandler = $RootNode.Tag.InsertTextHandler; OnDatabaseSelected = $RootNode.Tag.OnDatabaseSelected }
+                $tag = @{
+                    Type               = "Procedure"
+                    Database           = $database
+                    Schema             = $schema
+                    Procedure          = $proc
+                    Server             = $server
+                    Credential         = $credential
+                    InsertTextHandler  = $RootNode.Tag.InsertTextHandler
+                    OnDatabaseSelected = $RootNode.Tag.OnDatabaseSelected
+                }
                 $procNode = New-SqlTreeNode -Header "⚙️ [$schema].[$proc]" -Tag $tag -HasPlaceholder $false
                 $procNode.Add_MouseDoubleClick({
                         param($s, $e)
@@ -196,6 +306,7 @@ ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME
         }
     }
 }
+
 function Load-ColumnsIntoTableNode {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$TableNode)
@@ -234,8 +345,8 @@ ORDER BY c.ORDINAL_POSITION
         $name = $row.COLUMN_NAME
         $type = $row.DATA_TYPE
         $isPk = ([int]$row.IS_PRIMARY_KEY -eq 1)
-        $label = if ($isPk) { "🔑 $name ($type)" }else { "• $name ($type)" }
-        $tag = @{Type = "Column"; Column = $name; InsertTextHandler = $TableNode.Tag.InsertTextHandler }
+        $label = if ($isPk) { "🔑 $name ($type)" } else { "• $name ($type)" }
+        $tag = @{ Type = "Column"; Column = $name; InsertTextHandler = $TableNode.Tag.InsertTextHandler }
         $colNode = New-SqlTreeNode -Header $label -Tag $tag -HasPlaceholder $false
         $colNode.Add_MouseDoubleClick({
                 param($s, $e)
@@ -246,8 +357,15 @@ ORDER BY c.ORDINAL_POSITION
         [void]$TableNode.Items.Add($colNode)
     }
 }
+
 function Get-CreateTableScript {
-    param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$Database, [Parameter(Mandatory = $true)][string]$Schema, [Parameter(Mandatory = $true)][string]$Table, [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential)
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][string]$Schema,
+        [Parameter(Mandatory = $true)][string]$Table,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
+    )
     $query = @"
 SELECT
     c.COLUMN_NAME,
@@ -281,11 +399,11 @@ ORDER BY c.ORDINAL_POSITION
         $nullable = ($row.IS_NULLABLE -eq "YES")
         $typeSuffix = ""
         if ($dataType -in @("char", "varchar", "nchar", "nvarchar", "binary", "varbinary")) {
-            if ($len -eq -1) { $typeSuffix = "(MAX)" }else { $typeSuffix = "($len)" }
+            if ($len -eq -1) { $typeSuffix = "(MAX)" } else { $typeSuffix = "($len)" }
         } elseif ($dataType -in @("decimal", "numeric")) {
             $typeSuffix = "($precision,$scale)"
         }
-        $nullText = if ($nullable) { "NULL" }else { "NOT NULL" }
+        $nullText = if ($nullable) { "NULL" } else { "NOT NULL" }
         $lines.Add("    [$colName] $dataType$typeSuffix $nullText")
         if ([int]$row.IS_PRIMARY_KEY -eq 1) { $pkColumns.Add("[$colName]") }
     }
@@ -299,6 +417,7 @@ ORDER BY c.ORDINAL_POSITION
     $script += ")"
     ($script -join "`n")
 }
+
 function Add-TreeNodeContextMenu {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$TableNode)
@@ -371,15 +490,74 @@ function Add-TreeNodeContextMenu {
     $TableNode.ContextMenu = $menu
 }
 
-# AGREGAR esta función al módulo SqlTreeView.psm1
-
 function Add-DatabaseContextMenu {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$DatabaseNode)
-
+    if ($DatabaseNode -and $DatabaseNode.Tag) { Write-DzDebug "`t[DEBUG][TreeView] Init DB ContextMenu: $($DatabaseNode.Tag.Database)" }
     $menu = New-Object System.Windows.Controls.ContextMenu
-
-    # Opción: Eliminar base de datos
+    $menuBackup = New-Object System.Windows.Controls.MenuItem
+    $menuBackup.Header = "💾 Respaldar..."
+    $menuBackup.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $user = [string]$node.Tag.User
+            $password = [string]$node.Tag.Password
+            Write-DzDebug "`t[DEBUG][TreeView] Context BACKUP DB: Server='$server' DB='$dbName'"
+            if ([string]::IsNullOrWhiteSpace($user) -or [string]::IsNullOrWhiteSpace($password)) {
+                Ui-Error "No se encontraron credenciales para respaldar la base de datos." $global:MainWindow
+                return
+            }
+            Show-BackupDialog -Server $server -User $user -Password $password -Database $dbName
+        })
+    $menuRename = New-Object System.Windows.Controls.MenuItem
+    $menuRename.Header = "✏️ Renombrar..."
+    $menuRename.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $newName = New-WpfInputDialog -Title "Renombrar base de datos" -Prompt "Nuevo nombre para la base de datos:" -DefaultValue $dbName
+            if ($null -eq $newName) { Write-DzDebug "`t[DEBUG][TreeView] Rename cancelado"; return }
+            $newName = $newName.Trim()
+            if ([string]::IsNullOrWhiteSpace($newName)) { Ui-Error "El nombre no puede estar vacío." $global:MainWindow; return }
+            if ($newName -eq $dbName) { Write-DzDebug "`t[DEBUG][TreeView] Rename sin cambios"; return }
+            Write-DzDebug "`t[DEBUG][TreeView] Context RENAME DB: Server='$server' Old='$dbName' New='$newName'"
+            $safeOld = $dbName -replace ']', ']]'
+            $safeNew = $newName -replace ']', ']]'
+            $query = @"
+ALTER DATABASE [$safeOld] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+ALTER DATABASE [$safeOld] MODIFY NAME = [$safeNew];
+ALTER DATABASE [$safeNew] SET MULTI_USER;
+"@
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "Error al renombrar la base de datos:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $server
+        })
+    $menuNewQuery = New-Object System.Windows.Controls.MenuItem
+    $menuNewQuery.Header = "🧾 Nuevo Query"
+    $menuNewQuery.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $dbName = [string]$node.Tag.Database
+            Write-DzDebug "`t[DEBUG][TreeView] Context NEW QUERY: DB='$dbName'"
+            if ($node.Tag.OnDatabaseSelected) { & $node.Tag.OnDatabaseSelected $dbName }
+            if (-not $global:tcQueries) { return }
+            $tab = New-QueryTab -TabControl $global:tcQueries
+            $safeDb = $dbName -replace ']', ']]'
+            Set-QueryTextInActiveTab -TabControl $global:tcQueries -Text "USE [$safeDb]`n`n"
+        })
     $menuDelete = New-Object System.Windows.Controls.MenuItem
     $menuDelete.Header = "🗑️ Eliminar base de datos..."
     $menuDelete.Add_Click({
@@ -387,21 +565,14 @@ function Add-DatabaseContextMenu {
             $node = $null
             if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
             if ($null -eq $node -or $null -eq $node.Tag) { return }
-
             $dbName = [string]$node.Tag.Database
             $server = [string]$node.Tag.Server
             $credential = $node.Tag.Credential
-
             Write-DzDebug "`t[DEBUG][TreeView] Context DELETE DB: Server='$server' DB='$dbName'"
-
-            # Mostrar diálogo de confirmación con opciones
             Show-DeleteDatabaseDialog -Server $server -Database $dbName -Credential $credential -ParentNode $node
         })
-
-    # Separador
-    $separator = New-Object System.Windows.Controls.Separator
-
-    # Opción: Refresh
+    $separator1 = New-Object System.Windows.Controls.Separator
+    $separator2 = New-Object System.Windows.Controls.Separator
     $menuRefresh = New-Object System.Windows.Controls.MenuItem
     $menuRefresh.Header = "🔄 Actualizar"
     $menuRefresh.Add_Click({
@@ -409,44 +580,103 @@ function Add-DatabaseContextMenu {
             $node = $null
             if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
             if ($null -eq $node -or $null -eq $node.Tag) { return }
-
             Write-DzDebug "`t[DEBUG][TreeView] Context REFRESH DB: $($node.Tag.Database)"
-
-            # Limpiar y recargar los hijos
             $node.Items.Clear()
-
             $db = $node.Tag.Database
             $server = $node.Tag.Server
             $credential = $node.Tag.Credential
             $insertHandler = $node.Tag.InsertTextHandler
             $dbSelectedHandler = $node.Tag.OnDatabaseSelected
-
-            # Recrear nodos de tablas, vistas, procedimientos
-            $tablesTag = @{Type = "TablesRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $insertHandler; OnDatabaseSelected = $dbSelectedHandler; Loaded = $false }
-            $viewsTag = @{Type = "ViewsRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $insertHandler; OnDatabaseSelected = $dbSelectedHandler; Loaded = $false }
-            $procsTag = @{Type = "ProceduresRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $insertHandler; OnDatabaseSelected = $dbSelectedHandler; Loaded = $false }
-
+            $tablesTag = @{ Type = "TablesRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $insertHandler; OnDatabaseSelected = $dbSelectedHandler; Loaded = $false }
+            $viewsTag = @{ Type = "ViewsRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $insertHandler; OnDatabaseSelected = $dbSelectedHandler; Loaded = $false }
+            $procsTag = @{ Type = "ProceduresRoot"; Database = $db; Server = $server; Credential = $credential; InsertTextHandler = $insertHandler; OnDatabaseSelected = $dbSelectedHandler; Loaded = $false }
             $tablesNode = New-SqlTreeNode -Header "📋 Tablas" -Tag $tablesTag -HasPlaceholder $true
             $viewsNode = New-SqlTreeNode -Header "👁️ Vistas" -Tag $viewsTag -HasPlaceholder $true
             $procsNode = New-SqlTreeNode -Header "⚙️ Procedimientos" -Tag $procsTag -HasPlaceholder $true
-
             $tablesNode.Add_Expanded({ param($s, $e) Load-TablesIntoNode -RootNode $s })
             $viewsNode.Add_Expanded({ param($s, $e) Load-TablesIntoNode -RootNode $s })
             $procsNode.Add_Expanded({ param($s, $e) Load-TablesIntoNode -RootNode $s })
-
             [void]$node.Items.Add($tablesNode)
             [void]$node.Items.Add($viewsNode)
             [void]$node.Items.Add($procsNode)
         })
-
+    [void]$menu.Items.Add($menuBackup)
+    [void]$menu.Items.Add($menuRename)
+    [void]$menu.Items.Add($menuNewQuery)
+    [void]$menu.Items.Add($separator1)
     [void]$menu.Items.Add($menuDelete)
-    [void]$menu.Items.Add($separator)
+    [void]$menu.Items.Add($separator2)
     [void]$menu.Items.Add($menuRefresh)
-
     $DatabaseNode.ContextMenu = $menu
 }
 
-# REEMPLAZAR la función Show-DeleteDatabaseDialog completa
+function Add-ServerContextMenu {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)]$ServerNode)
+    if ($ServerNode -and $ServerNode.Tag) { Write-DzDebug "`t[DEBUG][TreeView] Init Server ContextMenu: $($ServerNode.Tag.Server)" }
+    $menu = New-Object System.Windows.Controls.ContextMenu
+    $menuRefresh = New-Object System.Windows.Controls.MenuItem
+    $menuRefresh.Header = "🔄 Actualizar"
+    $menuRefresh.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            Write-DzDebug "`t[DEBUG][TreeView] Context REFRESH Server: $($node.Tag.Server)"
+            Refresh-SqlTreeServerNode -ServerNode $node
+        })
+    $menuRestore = New-Object System.Windows.Controls.MenuItem
+    $menuRestore.Header = "♻️ Restaurar..."
+    $serverNodeRef = $ServerNode
+    $menuRestore.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $server = [string]$node.Tag.Server
+            $user = [string]$node.Tag.User
+            $password = [string]$node.Tag.Password
+            $defaultDb = "master"
+            if ($node.Tag.GetCurrentDatabase) { $defaultDb = & $node.Tag.GetCurrentDatabase }
+            Write-DzDebug "`t[DEBUG][TreeView] Context RESTORE Server: $server DefaultDB='$defaultDb'"
+            if ([string]::IsNullOrWhiteSpace($user) -or [string]::IsNullOrWhiteSpace($password)) {
+                Ui-Error "No se encontraron credenciales para restaurar." $global:MainWindow
+                return
+            }
+            Show-RestoreDialog -Server $server -User $user -Password $password -Database $defaultDb -OnRestoreCompleted {
+                param($dbName)
+                Write-DzDebug "`t[DEBUG][TreeView] Restore completed. Refresh Server: $server"
+                Refresh-SqlTreeServerNode -ServerNode $serverNodeRef
+            }
+        }.GetNewClosure())
+    $menuCreateDb = New-Object System.Windows.Controls.MenuItem
+    $menuCreateDb.Header = "🆕 Crear base de datos..."
+    $menuCreateDb.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $dbName = New-WpfInputDialog -Title "Crear base de datos" -Prompt "Nombre de la nueva base de datos:" -DefaultValue ""
+            if ($null -eq $dbName) { Write-DzDebug "`t[DEBUG][TreeView] Create DB cancelado"; return }
+            $dbName = $dbName.Trim()
+            if ([string]::IsNullOrWhiteSpace($dbName)) { Ui-Error "El nombre no puede estar vacío." $global:MainWindow; return }
+            Write-DzDebug "`t[DEBUG][TreeView] Context CREATE DB: Server='$server' DB='$dbName'"
+            $safeName = $dbName -replace ']', ']]'
+            $query = "CREATE DATABASE [$safeName]"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "Error al crear la base de datos:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Refresh-SqlTreeServerNode -ServerNode $node
+        })
+    [void]$menu.Items.Add($menuRefresh)
+    [void]$menu.Items.Add($menuRestore)
+    [void]$menu.Items.Add($menuCreateDb)
+    $ServerNode.ContextMenu = $menu
+}
 
 function Show-DeleteDatabaseDialog {
     [CmdletBinding()]
@@ -456,16 +686,11 @@ function Show-DeleteDatabaseDialog {
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
         [Parameter(Mandatory = $true)]$ParentNode
     )
-
     function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
     function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
-
     Write-DzDebug "`t[DEBUG][DeleteDB] INICIO: Server='$Server' Database='$Database'"
-
     Add-Type -AssemblyName PresentationFramework
-
     $theme = Get-DzUiTheme
-
     $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -499,20 +724,16 @@ function Show-DeleteDatabaseDialog {
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-
         <TextBlock Grid.Row="0" FontWeight="Bold" FontSize="14" Margin="0,0,0,15">
             ⚠️ Advertencia: Eliminar Base de Datos
         </TextBlock>
-
         <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="0,0,0,15">
             Estás a punto de eliminar permanentemente la base de datos:
         </TextBlock>
-
         <TextBlock Grid.Row="2" FontWeight="Bold" FontSize="13" Margin="10,0,0,20"
                    Foreground="$($theme.AccentPrimary)">
             🗄️ $Database
         </TextBlock>
-
         <StackPanel Grid.Row="3" Margin="0,0,0,15">
             <CheckBox x:Name="chkDeleteBackupHistory" IsChecked="True" Margin="0,0,0,8">
                 <TextBlock Text="Eliminar historial de backup y restore" TextWrapping="Wrap"/>
@@ -521,11 +742,9 @@ function Show-DeleteDatabaseDialog {
                 <TextBlock Text="Cerrar conexiones existentes" TextWrapping="Wrap"/>
             </CheckBox>
         </StackPanel>
-
         <TextBlock Grid.Row="4" FontSize="11" Foreground="Gray" TextWrapping="Wrap" VerticalAlignment="Center">
             Esta acción es irreversible. Asegúrate de tener un respaldo antes de continuar.
         </TextBlock>
-
         <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
             <Button x:Name="btnEliminar" Content="Eliminar" Width="100" Height="30" Margin="5,0"
                     Style="{StaticResource SystemButtonStyle}"/>
@@ -535,40 +754,27 @@ function Show-DeleteDatabaseDialog {
     </Grid>
 </Window>
 "@
-
     $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
     $window = [System.Windows.Markup.XamlReader]::Load($reader)
-
     if (-not $window) {
         Write-DzDebug "`t[DEBUG][DeleteDB] ERROR: window=NULL"
         throw "No se pudo crear la ventana (XAML)."
     }
-
     $chkDeleteBackupHistory = $window.FindName("chkDeleteBackupHistory")
     $chkCloseConnections = $window.FindName("chkCloseConnections")
     $btnEliminar = $window.FindName("btnEliminar")
     $btnCancelar = $window.FindName("btnCancelar")
-
-    # Botón Eliminar
     $btnEliminar.Add_Click({
             Write-DzDebug "`t[DEBUG][DeleteDB] btnEliminar Click"
-
             $deleteBackupHistory = $chkDeleteBackupHistory.IsChecked -eq $true
             $closeConnections = $chkCloseConnections.IsChecked -eq $true
-
             try {
-                # SOLUCIÓN: Ejecutar comandos en LOTES SEPARADOS (sin GO)
-                # Los comandos se ejecutan uno por uno
-
                 $escapedDb = $Database -replace "'", "''"
                 $safeName = $Database -replace ']', ']]'
-
-                # 1. Cerrar conexiones existentes si está marcado
                 if ($closeConnections) {
                     Write-DzDebug "`t[DEBUG][DeleteDB] Paso 1: Cerrando conexiones"
                     $closeQuery = "ALTER DATABASE [$safeName] SET SINGLE_USER WITH ROLLBACK IMMEDIATE"
                     $result1 = Invoke-SqlQuery -Server $Server -Database "master" -Query $closeQuery -Credential $Credential
-
                     if (-not $result1.Success) {
                         Write-DzDebug "`t[DEBUG][DeleteDB] Error cerrando conexiones: $($result1.ErrorMessage)"
                         Ui-Error "Error al cerrar conexiones existentes:`n`n$($result1.ErrorMessage)" "Error" $window
@@ -576,38 +782,27 @@ function Show-DeleteDatabaseDialog {
                     }
                     Write-DzDebug "`t[DEBUG][DeleteDB] Conexiones cerradas OK"
                 }
-
-                # 2. Eliminar la base de datos
                 Write-DzDebug "`t[DEBUG][DeleteDB] Paso 2: Eliminando base de datos"
                 $dropQuery = "DROP DATABASE [$safeName]"
                 $result2 = Invoke-SqlQuery -Server $Server -Database "master" -Query $dropQuery -Credential $Credential
-
                 if (-not $result2.Success) {
                     Write-DzDebug "`t[DEBUG][DeleteDB] Error eliminando DB: $($result2.ErrorMessage)"
                     Ui-Error "Error al eliminar la base de datos:`n`n$($result2.ErrorMessage)" "Error" $window
                     return
                 }
                 Write-DzDebug "`t[DEBUG][DeleteDB] Base de datos eliminada OK"
-
-                # 3. Eliminar historial de backup/restore si está marcado
                 if ($deleteBackupHistory) {
                     Write-DzDebug "`t[DEBUG][DeleteDB] Paso 3: Eliminando historial de backup"
                     $historyQuery = "EXEC msdb.dbo.sp_delete_database_backuphistory @database_name = N'$escapedDb'"
                     $result3 = Invoke-SqlQuery -Server $Server -Database "master" -Query $historyQuery -Credential $Credential
-
-                    # El historial puede no existir, así que no es crítico si falla
                     if ($result3.Success) {
                         Write-DzDebug "`t[DEBUG][DeleteDB] Historial eliminado OK"
                     } else {
                         Write-DzDebug "`t[DEBUG][DeleteDB] Historial no eliminado (puede no existir): $($result3.ErrorMessage)"
                     }
                 }
-
-                # Todo salió bien
                 Write-DzDebug "`t[DEBUG][DeleteDB] Base de datos eliminada exitosamente"
                 Ui-Info "La base de datos '$Database' ha sido eliminada exitosamente." "✓ Éxito" $window
-
-                # Remover el nodo del TreeView
                 if ($ParentNode.Parent -is [System.Windows.Controls.ItemsControl]) {
                     $window.Dispatcher.Invoke([action] {
                             try {
@@ -618,25 +813,31 @@ function Show-DeleteDatabaseDialog {
                             }
                         })
                 }
-
                 $window.DialogResult = $true
                 $window.Close()
-
             } catch {
                 Write-DzDebug "`t[DEBUG][DeleteDB] Excepción: $($_.Exception.Message)"
                 Ui-Error "Error inesperado al eliminar la base de datos:`n`n$($_.Exception.Message)" "Error" $window
             }
         })
-
-    # Botón Cancelar
     $btnCancelar.Add_Click({
             Write-DzDebug "`t[DEBUG][DeleteDB] btnCancelar Click"
             $window.DialogResult = $false
             $window.Close()
         })
-
     Write-DzDebug "`t[DEBUG][DeleteDB] Mostrando ventana"
     $null = $window.ShowDialog()
 }
 
-Export-ModuleMember -Function @("Initialize-SqlTreeView", "Load-DatabasesIntoTree", "Load-TablesIntoNode", "Load-ColumnsIntoTableNode", "Add-TreeNodeContextMenu", "Add-DatabaseContextMenu", "Show-DeleteDatabaseDialog")
+Export-ModuleMember -Function @(
+    "Initialize-SqlTreeView",
+    "Refresh-SqlTreeServerNode",
+    "Refresh-SqlTreeView",
+    "Load-DatabasesIntoTree",
+    "Load-TablesIntoNode",
+    "Load-ColumnsIntoTableNode",
+    "Add-TreeNodeContextMenu",
+    "Add-DatabaseContextMenu",
+    "Add-ServerContextMenu",
+    "Show-DeleteDatabaseDialog"
+)

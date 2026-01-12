@@ -262,8 +262,12 @@ function Apply-ResultGridStyling {
     $DataGrid.AlternatingRowBackground = $alt
     $DataGrid.CanUserResizeColumns = $true
     $cellStyle = New-Object System.Windows.Style([System.Windows.Controls.DataGridCell])
+<<<<<<< HEAD
     $padding = New-Object System.Windows.Thickness 6, 2, 6, 2
     $cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, $padding)))
+=======
+    $cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, "6,2,6,2")))
+>>>>>>> CorrecionDeErroresTreeView
     $DataGrid.CellStyle = $cellStyle
     $DataGrid.Add_AutoGeneratingColumn({
             param($sender, $e)

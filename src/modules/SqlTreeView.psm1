@@ -16,7 +16,249 @@ function New-SqlTreeNode {
     }
     $node
 }
-
+function bdd_RenameFromTree {
+    param(
+        [Parameter(Mandatory = $true)][string]$Title,
+        [Parameter(Mandatory = $true)][string]$Prompt,
+        [Parameter(Mandatory = $false)][string]$DefaultValue = ""
+    )
+    $safeTitle = [Security.SecurityElement]::Escape($Title)
+    $safePrompt = [Security.SecurityElement]::Escape($Prompt)
+    $safeDefault = [Security.SecurityElement]::Escape($DefaultValue)
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="$safeTitle"
+        Height="260"
+        Width="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        Background="Transparent"
+        AllowsTransparency="True"
+        ShowInTaskbar="False"
+        Topmost="True">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+        </Style>
+        <Style x:Key="BaseButtonStyle" TargetType="Button">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="1"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Content" Value="×"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="{DynamicResource FormBg}" Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0"
+                Name="brdTitleBar"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12"
+                Margin="0,0,0,10">
+            <DockPanel LastChildFill="True">
+                <TextBlock DockPanel.Dock="Left"
+                           Text="$safeTitle"
+                           Foreground="{DynamicResource FormFg}"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+                <Button DockPanel.Dock="Right"
+                        Name="btnClose"
+                        Style="{StaticResource CloseButtonStyle}"/>
+            </DockPanel>
+        </Border>
+        <Border Grid.Row="1"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0"
+                           Text="$safePrompt"
+                           Margin="0,0,0,10"
+                           FontWeight="SemiBold"/>
+                <TextBox Grid.Row="1"
+                         Name="txtInput"
+                         Height="34"
+                         Text="$safeDefault"
+                         VerticalContentAlignment="Center"/>
+            </Grid>
+        </Border>
+        <Border Grid.Row="2"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10"
+                Margin="0,10,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Enter: Aceptar   |   Esc: Cerrar"
+                           VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal">
+                    <Button Name="btnCancel"
+                            Content="Cancelar"
+                            Width="120"
+                            Height="34"
+                            Margin="0,0,10,0"
+                            Style="{StaticResource OutlineButtonStyle}"/>
+                    <Button Name="btnOk"
+                            Content="Aceptar"
+                            Width="140"
+                            Height="34"
+                            IsDefault="True"
+                            Style="{StaticResource ActionButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+"@
+    try {
+        $ui = New-WpfWindow -Xaml $xaml -PassThru
+        $w = $ui.Window
+        $c = $ui.Controls
+        $theme = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $w -Theme $theme
+        try { Set-WpfDialogOwner -Dialog $w } catch {}
+        $txtInput = $c['txtInput']
+        $btnOk = $c['btnOk']
+        $btnCancel = $c['btnCancel']
+        $btnClose = $c['btnClose']
+        $brdTitleBar = $w.FindName("brdTitleBar")
+        if ($brdTitleBar) {
+            $brdTitleBar.Add_MouseLeftButtonDown({
+                    param($sender, $e)
+                    if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                        try { $w.DragMove() } catch {}
+                    }
+                })
+        }
+        $script:renameResult = $null
+        $w.Add_Loaded({
+                $txtInput.Focus()
+                $txtInput.SelectAll()
+            })
+        $btnClose.Add_Click({
+                $script:renameResult = $null
+                $w.DialogResult = $false
+                $w.Close()
+            })
+        $btnCancel.Add_Click({
+                $script:renameResult = $null
+                $w.DialogResult = $false
+                $w.Close()
+            })
+        $w.Add_PreviewKeyDown({
+                param($sender, $e)
+                if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                    $script:renameResult = $null
+                    $w.DialogResult = $false
+                    $w.Close()
+                }
+            })
+        $btnOk.Add_Click({
+                $script:renameResult = $txtInput.Text
+                $w.DialogResult = $true
+                $w.Close()
+            })
+        $result = $w.ShowDialog()
+        if ($result -eq $true) { return $script:renameResult }
+        return $null
+    } catch {
+        Write-Error "Error creando diálogo de renombrar: $($_.Exception.Message)"
+        return $null
+    }
+}
 function Initialize-SqlTreeView {
     [CmdletBinding()]
     param(
@@ -56,12 +298,58 @@ function Initialize-SqlTreeView {
     if (-not $TreeView.Tag -or -not $TreeView.Tag.TreeViewKeyHandlerAdded) {
         $TreeView.Add_KeyDown({
                 param($sender, $e)
-                if ($e.Key -ne 'F5') { return }
-                $selected = $sender.SelectedItem
-                if (-not $selected -or -not $selected.Tag -or $selected.Tag.Type -ne 'Server') { return }
-                Write-DzDebug "`t[DEBUG][TreeView] F5 Refresh Server: $($selected.Tag.Server)"
-                Refresh-SqlTreeServerNode -ServerNode $selected
-                $e.Handled = $true
+                if ($e.Key -eq 'F5') {
+                    $selected = $sender.SelectedItem
+                    if (-not $selected -or -not $selected.Tag -or $selected.Tag.Type -ne 'Server') { return }
+                    Write-DzDebug "`t[DEBUG][TreeView] F5 Refresh Server: $($selected.Tag.Server)"
+                    Refresh-SqlTreeServerNode -ServerNode $selected
+                    $e.Handled = $true
+                    return
+                }
+                if ($e.Key -eq 'F2') {
+                    $selected = $sender.SelectedItem
+                    if (-not $selected -or -not $selected.Tag -or $selected.Tag.Type -ne 'Database') { return }
+                    Write-DzDebug "`t[DEBUG][TreeView] F2 Rename Database: $($selected.Tag.Database)"
+                    $dbName = [string]$selected.Tag.Database
+                    $server = [string]$selected.Tag.Server
+                    $credential = $selected.Tag.Credential
+                    $newName = bdd_RenameFromTree -Title "Renombrar base de datos" `
+                        -Prompt "Nuevo nombre para la base de datos:" `
+                        -DefaultValue $dbName
+                    if ($null -eq $newName) {
+                        Write-DzDebug "`t[DEBUG][TreeView] Rename cancelado"
+                        $e.Handled = $true
+                        return
+                    }
+                    $newName = $newName.Trim()
+                    if ([string]::IsNullOrWhiteSpace($newName)) {
+                        Ui-Error "El nombre no puede estar vacío." $global:MainWindow
+                        $e.Handled = $true
+                        return
+                    }
+                    if ($newName -eq $dbName) {
+                        Write-DzDebug "`t[DEBUG][TreeView] Rename sin cambios"
+                        $e.Handled = $true
+                        return
+                    }
+                    Write-DzDebug "`t[DEBUG][TreeView] F2 RENAME DB: Server='$server' Old='$dbName' New='$newName'"
+                    $safeOld = $dbName -replace ']', ']]'
+                    $safeNew = $newName -replace ']', ']]'
+                    $query = @"
+ALTER DATABASE [$safeOld] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+ALTER DATABASE [$safeOld] MODIFY NAME = [$safeNew];
+ALTER DATABASE [$safeNew] SET MULTI_USER;
+"@
+                    $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+                    if (-not $result.Success) {
+                        Ui-Error "Error al renombrar la base de datos:`n`n$($result.ErrorMessage)" $global:MainWindow
+                        $e.Handled = $true
+                        return
+                    }
+                    Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $server
+                    $e.Handled = $true
+                    return
+                }
             })
         $TreeView.Tag = [pscustomobject]@{ TreeViewKeyHandlerAdded = $true }
     }
@@ -72,7 +360,6 @@ function Initialize-SqlTreeView {
         $serverNode.IsExpanded = $true
     }
 }
-
 function Refresh-SqlTreeServerNode {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$ServerNode)
@@ -84,7 +371,6 @@ function Refresh-SqlTreeServerNode {
     Load-DatabasesIntoTree -ServerNode $ServerNode
     $ServerNode.IsExpanded = $true
 }
-
 function Refresh-SqlTreeView {
     [CmdletBinding()]
     param(
@@ -102,7 +388,6 @@ function Refresh-SqlTreeView {
     }
     if ($targetNode) { Refresh-SqlTreeServerNode -ServerNode $targetNode }
 }
-
 function Load-DatabasesIntoTree {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$ServerNode)
@@ -188,7 +473,6 @@ function Load-DatabasesIntoTree {
         [void]$ServerNode.Items.Add($dbNode)
     }
 }
-
 function Load-TablesIntoNode {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$RootNode)
@@ -307,7 +591,6 @@ ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME
         }
     }
 }
-
 function Load-ColumnsIntoTableNode {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$TableNode)
@@ -358,7 +641,6 @@ ORDER BY c.ORDINAL_POSITION
         [void]$TableNode.Items.Add($colNode)
     }
 }
-
 function Get-CreateTableScript {
     param(
         [Parameter(Mandatory = $true)][string]$Server,
@@ -418,7 +700,6 @@ ORDER BY c.ORDINAL_POSITION
     $script += ")"
     ($script -join "`n")
 }
-
 function Add-TreeNodeContextMenu {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$TableNode)
@@ -490,11 +771,12 @@ function Add-TreeNodeContextMenu {
     [void]$menu.Items.Add($menuCopy)
     $TableNode.ContextMenu = $menu
 }
-
 function Add-DatabaseContextMenu {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$DatabaseNode)
-    if ($DatabaseNode -and $DatabaseNode.Tag) { Write-DzDebug "`t[DEBUG][TreeView] Init DB ContextMenu: $($DatabaseNode.Tag.Database)" }
+    if ($DatabaseNode -and $DatabaseNode.Tag) {
+        Write-DzDebug "`t[DEBUG][TreeView] Init DB ContextMenu: $($DatabaseNode.Tag.Database)"
+    }
     $menu = New-Object System.Windows.Controls.ContextMenu
     $menuBackup = New-Object System.Windows.Controls.MenuItem
     $menuBackup.Header = "💾 Respaldar..."
@@ -524,11 +806,22 @@ function Add-DatabaseContextMenu {
             $dbName = [string]$node.Tag.Database
             $server = [string]$node.Tag.Server
             $credential = $node.Tag.Credential
-            $newName = New-WpfInputDialog -Title "Renombrar base de datos" -Prompt "Nuevo nombre para la base de datos:" -DefaultValue $dbName
-            if ($null -eq $newName) { Write-DzDebug "`t[DEBUG][TreeView] Rename cancelado"; return }
+            $newName = bdd_RenameFromTree -Title "Renombrar base de datos" `
+                -Prompt "Nuevo nombre para la base de datos:" `
+                -DefaultValue $dbName
+            if ($null -eq $newName) {
+                Write-DzDebug "`t[DEBUG][TreeView] Rename cancelado"
+                return
+            }
             $newName = $newName.Trim()
-            if ([string]::IsNullOrWhiteSpace($newName)) { Ui-Error "El nombre no puede estar vacío." $global:MainWindow; return }
-            if ($newName -eq $dbName) { Write-DzDebug "`t[DEBUG][TreeView] Rename sin cambios"; return }
+            if ([string]::IsNullOrWhiteSpace($newName)) {
+                Ui-Error "El nombre no puede estar vacío." $global:MainWindow
+                return
+            }
+            if ($newName -eq $dbName) {
+                Write-DzDebug "`t[DEBUG][TreeView] Rename sin cambios"
+                return
+            }
             Write-DzDebug "`t[DEBUG][TreeView] Context RENAME DB: Server='$server' Old='$dbName' New='$newName'"
             $safeOld = $dbName -replace ']', ']]'
             $safeNew = $newName -replace ']', ']]'
@@ -610,7 +903,6 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
     [void]$menu.Items.Add($menuRefresh)
     $DatabaseNode.ContextMenu = $menu
 }
-
 function Add-ServerContextMenu {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$ServerNode)
@@ -678,7 +970,6 @@ function Add-ServerContextMenu {
     [void]$menu.Items.Add($menuCreateDb)
     $ServerNode.ContextMenu = $menu
 }
-
 function Show-DeleteDatabaseDialog {
     [CmdletBinding()]
     param(
@@ -687,84 +978,269 @@ function Show-DeleteDatabaseDialog {
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
         [Parameter(Mandatory = $true)]$ParentNode
     )
-    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
-    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
+    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null
+    }
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null
+    }
     Write-DzDebug "`t[DEBUG][DeleteDB] INICIO: Server='$Server' Database='$Database'"
     Add-Type -AssemblyName PresentationFramework
-    $theme = Get-DzUiTheme
+    $safeDb = [Security.SecurityElement]::Escape($Database)
     $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Eliminar Base de Datos"
-        Height="320"
-        Width="500"
-        WindowStartupLocation="CenterScreen"
+        Height="360" Width="560"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
         ResizeMode="NoResize"
-        Background="$($theme.FormBackground)">
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="True">
     <Window.Resources>
-        <Style TargetType="Label">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-        </Style>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
         </Style>
         <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
         </Style>
-        <Style x:Key="SystemButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+        </Style>
+        <Style x:Key="BaseButtonStyle" TargetType="Button">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="1"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Content" Value="×"/>
         </Style>
     </Window.Resources>
-    <Grid Margin="20" Background="$($theme.FormBackground)">
+    <Grid Background="{DynamicResource FormBg}" Margin="12">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" FontWeight="Bold" FontSize="14" Margin="0,0,0,15">
-            ⚠️ Advertencia: Eliminar Base de Datos
-        </TextBlock>
-        <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="0,0,0,15">
-            Estás a punto de eliminar permanentemente la base de datos:
-        </TextBlock>
-        <TextBlock Grid.Row="2" FontWeight="Bold" FontSize="13" Margin="10,0,0,20"
-                   Foreground="$($theme.AccentPrimary)">
-            🗄️ $Database
-        </TextBlock>
-        <StackPanel Grid.Row="3" Margin="0,0,0,15">
-            <CheckBox x:Name="chkDeleteBackupHistory" IsChecked="True" Margin="0,0,0,8">
-                <TextBlock Text="Eliminar historial de backup y restore" TextWrapping="Wrap"/>
-            </CheckBox>
-            <CheckBox x:Name="chkCloseConnections" IsChecked="True">
-                <TextBlock Text="Cerrar conexiones existentes" TextWrapping="Wrap"/>
-            </CheckBox>
-        </StackPanel>
-        <TextBlock Grid.Row="4" FontSize="11" Foreground="Gray" TextWrapping="Wrap" VerticalAlignment="Center">
-            Esta acción es irreversible. Asegúrate de tener un respaldo antes de continuar.
-        </TextBlock>
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-            <Button x:Name="btnEliminar" Content="Eliminar" Width="100" Height="30" Margin="5,0"
-                    Style="{StaticResource SystemButtonStyle}"/>
-            <Button x:Name="btnCancelar" Content="Cancelar" Width="100" Height="30" Margin="5,0"
-                    Style="{StaticResource SystemButtonStyle}"/>
-        </StackPanel>
+        <Border Grid.Row="0"
+                Name="brdTitleBar"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12"
+                Margin="0,0,0,10">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock Text="⚠️ Advertencia: Eliminar Base de Datos"
+                               Foreground="{DynamicResource FormFg}"
+                               FontSize="16"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="Esta acción es irreversible. Verifica antes de continuar."
+                               Foreground="{DynamicResource PanelFg}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+                <Button DockPanel.Dock="Right"
+                        Name="btnClose"
+                        Style="{StaticResource CloseButtonStyle}"/>
+            </DockPanel>
+        </Border>
+        <Border Grid.Row="1"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0"
+                           Text="Estás a punto de eliminar permanentemente la base de datos:"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,10"/>
+                <Border Grid.Row="1"
+                        Background="{DynamicResource ControlBg}"
+                        BorderBrush="{DynamicResource BorderBrushColor}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="10"
+                        Margin="0,0,0,12">
+                    <TextBlock Text="🗄️ $safeDb"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentPrimary}"/>
+                </Border>
+                <StackPanel Grid.Row="2" Margin="0,0,0,10">
+                    <CheckBox x:Name="chkDeleteBackupHistory" IsChecked="True" Margin="0,0,0,8">
+                        <TextBlock Text="Eliminar historial de backup y restore" TextWrapping="Wrap"/>
+                    </CheckBox>
+                    <CheckBox x:Name="chkCloseConnections" IsChecked="True">
+                        <TextBlock Text="Cerrar conexiones existentes (SINGLE_USER + ROLLBACK IMMEDIATE)" TextWrapping="Wrap"/>
+                    </CheckBox>
+                </StackPanel>
+                <Border Grid.Row="3"
+                        Background="{DynamicResource FormBg}"
+                        BorderBrush="{DynamicResource BorderBrushColor}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="10">
+                    <TextBlock FontSize="11"
+                               Foreground="{DynamicResource AccentMuted}"
+                               TextWrapping="Wrap">
+                        Recomendación: realiza un respaldo antes de continuar. Si la base de datos está en uso,
+                        se forzará el cierre de sesiones para poder eliminarla.
+                    </TextBlock>
+                </Border>
+            </Grid>
+        </Border>
+        <Border Grid.Row="2"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10"
+                Margin="0,10,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Enter: Eliminar   |   Esc: Cerrar"
+                           VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="btnCancelar"
+                            Content="Cancelar"
+                            Width="120"
+                            Height="34"
+                            Margin="0,0,10,0"
+                            IsCancel="True"
+                            Style="{StaticResource OutlineButtonStyle}"/>
+                    <Button x:Name="btnEliminar"
+                            Content="Eliminar"
+                            Width="140"
+                            Height="34"
+                            IsDefault="True"
+                            Style="{StaticResource ActionButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
 "@
-    $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
-    $window = [System.Windows.Markup.XamlReader]::Load($reader)
-    if (-not $window) {
-        Write-DzDebug "`t[DEBUG][DeleteDB] ERROR: window=NULL"
-        throw "No se pudo crear la ventana (XAML)."
+    try {
+        $ui = New-WpfWindow -Xaml $xaml -PassThru
+        $window = $ui.Window
+        $theme = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $window -Theme $theme
+        try { Set-WpfDialogOwner -Dialog $window } catch {}
+        $brdTitleBar = $window.FindName("brdTitleBar")
+        if ($brdTitleBar) {
+            $brdTitleBar.Add_MouseLeftButtonDown({
+                    param($sender, $e)
+                    if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                        try { $window.DragMove() } catch {}
+                    }
+                })
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG][DeleteDB] ERROR creando ventana: $($_.Exception.Message)" -Color Red
+        throw "No se pudo crear la ventana (XAML). $($_.Exception.Message)"
     }
     $chkDeleteBackupHistory = $window.FindName("chkDeleteBackupHistory")
     $chkCloseConnections = $window.FindName("chkCloseConnections")
     $btnEliminar = $window.FindName("btnEliminar")
     $btnCancelar = $window.FindName("btnCancelar")
+    $btnClose = $window.FindName("btnClose")
+    $btnClose.Add_Click({
+            Write-DzDebug "`t[DEBUG][DeleteDB] btnClose Click"
+            $window.DialogResult = $false
+            $window.Close()
+        })
+    $btnCancelar.Add_Click({
+            Write-DzDebug "`t[DEBUG][DeleteDB] btnCancelar Click"
+            $window.DialogResult = $false
+            $window.Close()
+        })
+    $window.Add_PreviewKeyDown({
+            param($sender, $e)
+            if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                $window.DialogResult = $false
+                $window.Close()
+            }
+        })
     $btnEliminar.Add_Click({
             Write-DzDebug "`t[DEBUG][DeleteDB] btnEliminar Click"
             $deleteBackupHistory = $chkDeleteBackupHistory.IsChecked -eq $true
@@ -802,7 +1278,6 @@ function Show-DeleteDatabaseDialog {
                         Write-DzDebug "`t[DEBUG][DeleteDB] Historial no eliminado (puede no existir): $($result3.ErrorMessage)"
                     }
                 }
-                Write-DzDebug "`t[DEBUG][DeleteDB] Base de datos eliminada exitosamente"
                 Ui-Info "La base de datos '$Database' ha sido eliminada exitosamente." "✓ Éxito" $window
                 if ($ParentNode.Parent -is [System.Windows.Controls.ItemsControl]) {
                     $window.Dispatcher.Invoke([action] {
@@ -821,16 +1296,11 @@ function Show-DeleteDatabaseDialog {
                 Ui-Error "Error inesperado al eliminar la base de datos:`n`n$($_.Exception.Message)" "Error" $window
             }
         })
-    $btnCancelar.Add_Click({
-            Write-DzDebug "`t[DEBUG][DeleteDB] btnCancelar Click"
-            $window.DialogResult = $false
-            $window.Close()
-        })
     Write-DzDebug "`t[DEBUG][DeleteDB] Mostrando ventana"
     $null = $window.ShowDialog()
 }
-
 Export-ModuleMember -Function @(
+    "bdd_RenameFromTree",
     "Initialize-SqlTreeView",
     "Refresh-SqlTreeServerNode",
     "Refresh-SqlTreeView",

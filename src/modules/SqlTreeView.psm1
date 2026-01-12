@@ -56,12 +56,19 @@ function Initialize-SqlTreeView {
     if (-not $TreeView.Tag -or -not $TreeView.Tag.TreeViewKeyHandlerAdded) {
         $TreeView.Add_KeyDown({
                 param($sender, $e)
-                if ($e.Key -ne 'F5') { return }
                 $selected = $sender.SelectedItem
-                if (-not $selected -or -not $selected.Tag -or $selected.Tag.Type -ne 'Server') { return }
-                Write-DzDebug "`t[DEBUG][TreeView] F5 Refresh Server: $($selected.Tag.Server)"
-                Refresh-SqlTreeServerNode -ServerNode $selected
-                $e.Handled = $true
+                if (-not $selected -or -not $selected.Tag) { return }
+                if ($e.Key -eq 'F5' -and $selected.Tag.Type -eq 'Server') {
+                    Write-DzDebug "`t[DEBUG][TreeView] F5 Refresh Server: $($selected.Tag.Server)"
+                    Refresh-SqlTreeServerNode -ServerNode $selected
+                    $e.Handled = $true
+                    return
+                }
+                if ($e.Key -eq 'F2' -and $selected.Tag.Type -eq 'Database') {
+                    Write-DzDebug "`t[DEBUG][TreeView] F2 Rename DB: $($selected.Tag.Database)"
+                    Invoke-DatabaseRenameFromNode -DatabaseNode $selected
+                    $e.Handled = $true
+                }
             })
         $TreeView.Tag = [pscustomobject]@{ TreeViewKeyHandlerAdded = $true }
     }
@@ -231,7 +238,7 @@ ORDER BY TABLE_SCHEMA, TABLE_NAME
                         Write-DzDebug "`t[DEBUG][TreeView] Doble clic Table: DB=$($s.Tag.Database) [$($s.Tag.Schema)].[$($s.Tag.Table)]"
                         if ($s.Tag.OnDatabaseSelected) { & $s.Tag.OnDatabaseSelected $s.Tag.Database }
                         $queryText = "SELECT TOP 100 * FROM [$($s.Tag.Schema)].[$($s.Tag.Table)]"
-                        if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler $queryText }
+                        if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler $queryText $true }
                         $e.Handled = $true
                     })
                 Add-TreeNodeContextMenu -TableNode $tableNode
@@ -265,7 +272,7 @@ ORDER BY TABLE_SCHEMA, TABLE_NAME
                         Write-DzDebug "`t[DEBUG][TreeView] Doble clic View: DB=$($s.Tag.Database) [$($s.Tag.Schema)].[$($s.Tag.View)]"
                         if ($s.Tag.OnDatabaseSelected) { & $s.Tag.OnDatabaseSelected $s.Tag.Database }
                         $queryText = "SELECT TOP 100 * FROM [$($s.Tag.Schema)].[$($s.Tag.View)]"
-                        if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler $queryText }
+                        if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler $queryText $true }
                         $e.Handled = $true
                     })
                 [void]$RootNode.Items.Add($viewNode)
@@ -299,7 +306,7 @@ ORDER BY SPECIFIC_SCHEMA, SPECIFIC_NAME
                         Write-DzDebug "`t[DEBUG][TreeView] Doble clic Proc: DB=$($s.Tag.Database) [$($s.Tag.Schema)].[$($s.Tag.Procedure)]"
                         if ($s.Tag.OnDatabaseSelected) { & $s.Tag.OnDatabaseSelected $s.Tag.Database }
                         $queryText = "EXEC [$($s.Tag.Schema)].[$($s.Tag.Procedure)]"
-                        if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler $queryText }
+                        if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler $queryText $true }
                         $e.Handled = $true
                     })
                 [void]$RootNode.Items.Add($procNode)
@@ -352,11 +359,44 @@ ORDER BY c.ORDINAL_POSITION
         $colNode.Add_MouseDoubleClick({
                 param($s, $e)
                 Write-DzDebug "`t[DEBUG][TreeView] Doble clic Column: [$($s.Tag.Column)]"
-                if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler "[$($s.Tag.Column)]" }
+                if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler "[$($s.Tag.Column)]" $false }
                 $e.Handled = $true
             })
         [void]$TableNode.Items.Add($colNode)
     }
+}
+
+function Invoke-DatabaseRenameFromNode {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)]$DatabaseNode)
+    if (-not $DatabaseNode -or -not $DatabaseNode.Tag) { return }
+    $dbName = [string]$DatabaseNode.Tag.Database
+    $server = [string]$DatabaseNode.Tag.Server
+    $credential = $DatabaseNode.Tag.Credential
+    $newName = New-WpfInputDialog -Title "Renombrar base de datos" -Prompt "Nuevo nombre para la base de datos:" -DefaultValue $dbName
+    if ($null -eq $newName) { Write-DzDebug "`t[DEBUG][TreeView] Rename cancelado"; return }
+    $newName = $newName.Trim()
+    if ([string]::IsNullOrWhiteSpace($newName)) { Ui-Error "El nombre no puede estar vacío." $global:MainWindow; return }
+    if ($newName -eq $dbName) { Write-DzDebug "`t[DEBUG][TreeView] Rename sin cambios"; return }
+    Write-DzDebug "`t[DEBUG][TreeView] Rename DB: Server='$server' Old='$dbName' New='$newName'"
+    $safeOld = $dbName -replace ']', ']]'
+    $safeNew = $newName -replace ']', ']]'
+    $query = @"
+ALTER DATABASE [$safeOld] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+ALTER DATABASE [$safeOld] MODIFY NAME = [$safeNew];
+ALTER DATABASE [$safeNew] SET MULTI_USER;
+"@
+    $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+    if (-not $result.Success) {
+        Ui-Error "Error al renombrar la base de datos:`n`n$($result.ErrorMessage)" $global:MainWindow
+        return
+    }
+    Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $server
+    if (Get-Command Update-DatabaseComboBox -ErrorAction SilentlyContinue) {
+        $selected = Update-DatabaseComboBox -ComboBox $global:cmbDatabases -Server $server -Credential $credential -SelectedDatabase $newName
+        if ($selected) { $global:database = $selected }
+    }
+    if ($DatabaseNode.Tag.OnDatabaseSelected) { & $DatabaseNode.Tag.OnDatabaseSelected $newName }
 }
 
 function Get-CreateTableScript {
@@ -436,7 +476,7 @@ function Add-TreeNodeContextMenu {
             Write-DzDebug "`t[DEBUG][TreeView] Context SELECT TOP: DB=$db [$schema].[$table]"
             if ($node.Tag.OnDatabaseSelected) { & $node.Tag.OnDatabaseSelected $db }
             $queryText = "SELECT TOP 100 * FROM [$schema].[$table]"
-            if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $queryText }
+            if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $queryText $true }
         })
     $menuSelectAll = New-Object System.Windows.Controls.MenuItem
     $menuSelectAll.Header = "SELECT *"
@@ -451,7 +491,7 @@ function Add-TreeNodeContextMenu {
             Write-DzDebug "`t[DEBUG][TreeView] Context SELECT *: DB=$db [$schema].[$table]"
             if ($node.Tag.OnDatabaseSelected) { & $node.Tag.OnDatabaseSelected $db }
             $queryText = "SELECT * FROM [$schema].[$table]"
-            if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $queryText }
+            if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $queryText $true }
         })
     $menuScript = New-Object System.Windows.Controls.MenuItem
     $menuScript.Header = "Script CREATE TABLE"
@@ -469,7 +509,7 @@ function Add-TreeNodeContextMenu {
             if ([string]::IsNullOrWhiteSpace($db)) { Ui-Error "TreeView: Database vacía en el Tag." $global:MainWindow; return }
             if ($node.Tag.OnDatabaseSelected) { & $node.Tag.OnDatabaseSelected $db }
             $scriptText = Get-CreateTableScript -Server $srv -Database $db -Schema $schema -Table $table -Credential $node.Tag.Credential
-            if ($scriptText -and $node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $scriptText }
+            if ($scriptText -and $node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $scriptText $true }
         })
     $menuCopy = New-Object System.Windows.Controls.MenuItem
     $menuCopy.Header = "Copiar nombre"
@@ -521,28 +561,7 @@ function Add-DatabaseContextMenu {
             $node = $null
             if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
             if ($null -eq $node -or $null -eq $node.Tag) { return }
-            $dbName = [string]$node.Tag.Database
-            $server = [string]$node.Tag.Server
-            $credential = $node.Tag.Credential
-            $newName = New-WpfInputDialog -Title "Renombrar base de datos" -Prompt "Nuevo nombre para la base de datos:" -DefaultValue $dbName
-            if ($null -eq $newName) { Write-DzDebug "`t[DEBUG][TreeView] Rename cancelado"; return }
-            $newName = $newName.Trim()
-            if ([string]::IsNullOrWhiteSpace($newName)) { Ui-Error "El nombre no puede estar vacío." $global:MainWindow; return }
-            if ($newName -eq $dbName) { Write-DzDebug "`t[DEBUG][TreeView] Rename sin cambios"; return }
-            Write-DzDebug "`t[DEBUG][TreeView] Context RENAME DB: Server='$server' Old='$dbName' New='$newName'"
-            $safeOld = $dbName -replace ']', ']]'
-            $safeNew = $newName -replace ']', ']]'
-            $query = @"
-ALTER DATABASE [$safeOld] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-ALTER DATABASE [$safeOld] MODIFY NAME = [$safeNew];
-ALTER DATABASE [$safeNew] SET MULTI_USER;
-"@
-            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
-            if (-not $result.Success) {
-                Ui-Error "Error al renombrar la base de datos:`n`n$($result.ErrorMessage)" $global:MainWindow
-                return
-            }
-            Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $server
+            Invoke-DatabaseRenameFromNode -DatabaseNode $node
         })
     $menuNewQuery = New-Object System.Windows.Controls.MenuItem
     $menuNewQuery.Header = "🧾 Nuevo Query"
@@ -648,6 +667,11 @@ function Add-ServerContextMenu {
                 param($dbName)
                 Write-DzDebug "`t[DEBUG][TreeView] Restore completed. Refresh Server: $server"
                 Refresh-SqlTreeServerNode -ServerNode $serverNodeRef
+                if (Get-Command Update-DatabaseComboBox -ErrorAction SilentlyContinue -and $global:cmbDatabases -and $global:dbCredential) {
+                    $selected = Update-DatabaseComboBox -ComboBox $global:cmbDatabases -Server $server -Credential $global:dbCredential -SelectedDatabase $dbName
+                    if ($selected) { $global:database = $selected }
+                }
+                if ($serverNodeRef.Tag.OnDatabaseSelected -and -not [string]::IsNullOrWhiteSpace($dbName)) { & $serverNodeRef.Tag.OnDatabaseSelected $dbName }
             }
         }.GetNewClosure())
     $menuCreateDb = New-Object System.Windows.Controls.MenuItem

@@ -843,6 +843,9 @@ function New-MainForm {
     $global:lblExecutionTime = $window.FindName("lblExecutionTime")
     $global:lblRowCount = $window.FindName("lblRowCount")
     $global:lblConnectionStatus = $lblConnectionStatus
+    if ($global:dgResults -and (Get-Command Apply-ResultGridStyling -ErrorAction SilentlyContinue)) {
+        Apply-ResultGridStyling -DataGrid $global:dgResults
+    }
     # --- FIX: Registrar pestaña XAML "Consulta 1" como QueryTab para que Get-ActiveQueryRichTextBox funcione ---
     if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:rtbQueryEditor1) {
         $firstTab = $global:tcQueries.Items[0]
@@ -1662,8 +1665,12 @@ function New-MainForm {
                     Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($global:database)"
                 } `
                     -InsertTextHandler {
-                    param($text)
-                    if ($global:tcQueries) {
+                    param($text, $openInNewTab = $false)
+                    if (-not $global:tcQueries) { return }
+                    if ($openInNewTab) {
+                        New-QueryTab -TabControl $global:tcQueries | Out-Null
+                        Set-QueryTextInActiveTab -TabControl $global:tcQueries -Text $text
+                    } else {
                         Insert-TextIntoActiveQuery -TabControl $global:tcQueries -Text $text
                     }
                 }
@@ -1790,28 +1797,19 @@ Base de datos: $($global:database)
                         $global:lblRowCount.Text = "Filas: $($result.ResultSets[0].RowCount)"
                     }
 
-                    if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
-
-                        if ($global:tcResults) {
-                            Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
-                        } else {
-                            $global:dgResults.ItemsSource = $result.ResultSets[0].DataTable.DefaultView
-                        }
-
-                        # Resumen por resultset
-                        $parts = New-Object System.Collections.Generic.List[string]
-                        for ($i = 0; $i -lt $result.ResultSets.Count; $i++) {
-                            $rows = $result.ResultSets[$i].RowCount
-                            $label = if ($rows -eq 1) { "fila" } else { "filas" }
-                            $parts.Add(("Resultado {0}: {1} {2}" -f ($i + 1), $rows, $label))
-                        }
-
-                        $summary = ($parts -join " | ")
-                        Write-Host "✓ Consulta ejecutada: $summary" -ForegroundColor Green
-
-                        # (Opcional) también a la UI
-                        if ($global:lblRowCount) { $global:lblRowCount.Text = $summary }
+                    # Resumen por resultset
+                    $parts = New-Object System.Collections.Generic.List[string]
+                    for ($i = 0; $i -lt $result.ResultSets.Count; $i++) {
+                        $rows = $result.ResultSets[$i].RowCount
+                        $label = if ($rows -eq 1) { "fila" } else { "filas" }
+                        $parts.Add(("Resultado {0}: {1} {2}" -f ($i + 1), $rows, $label))
                     }
+
+                    $summary = ($parts -join " | ")
+                    Write-Host "✓ Consulta ejecutada: $summary" -ForegroundColor Green
+
+                    # (Opcional) también a la UI
+                    if ($global:lblRowCount) { $global:lblRowCount.Text = $summary }
 
 
                 } elseif ($result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
@@ -1884,6 +1882,10 @@ Base de datos: $($global:database)
                 param($dbName)
                 Write-DzDebug "`t[DEBUG] Restore completado. Refrescando TreeView."
                 if ($global:tvDatabases -and $global:server) { Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $global:server }
+                if (Get-Command Update-DatabaseComboBox -ErrorAction SilentlyContinue -and $global:cmbDatabases -and $global:dbCredential) {
+                    $selected = Update-DatabaseComboBox -ComboBox $global:cmbDatabases -Server $global:server -Credential $global:dbCredential -SelectedDatabase $dbName
+                    if ($selected) { $global:database = $selected }
+                }
             }
         })
     $window.Add_KeyDown({

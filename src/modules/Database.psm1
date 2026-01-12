@@ -213,6 +213,38 @@ ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name
     foreach ($row in $result.DataTable.Rows) { $databases += $row["name"] }
     $databases
 }
+function Update-DatabaseComboBox {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][System.Windows.Controls.ComboBox]$ComboBox,
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory = $false)][string]$SelectedDatabase
+    )
+    if (-not $ComboBox -or [string]::IsNullOrWhiteSpace($Server) -or -not $Credential) { return $null }
+    $databases = Get-SqlDatabases -Server $Server -Credential $Credential
+    $ComboBox.Items.Clear()
+    foreach ($db in $databases) { [void]$ComboBox.Items.Add($db) }
+    $ComboBox.IsEnabled = $true
+    $selected = $null
+    if (-not [string]::IsNullOrWhiteSpace($SelectedDatabase)) {
+        $ComboBox.SelectedItem = $SelectedDatabase
+        if (-not $ComboBox.SelectedItem) {
+            for ($i = 0; $i -lt $ComboBox.Items.Count; $i++) {
+                if ([string]$ComboBox.Items[$i] -eq [string]$SelectedDatabase) {
+                    $ComboBox.SelectedIndex = $i
+                    break
+                }
+            }
+        }
+        $selected = $ComboBox.SelectedItem
+    }
+    if (-not $selected -and $ComboBox.Items.Count -gt 0) {
+        $ComboBox.SelectedIndex = 0
+        $selected = $ComboBox.SelectedItem
+    }
+    $selected
+}
 function Backup-Database {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$Database, [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential, [Parameter(Mandatory = $true)][string]$BackupPath, [Parameter(Mandatory = $false)][scriptblock]$ProgressCallback)
@@ -1347,4 +1379,4 @@ function Reset-RestoreUI {
     $txtLdfPath.IsEnabled = $true
     $txtProgress.Text = $ProgressText
 }
-Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable', 'Show-BackupDialog', 'Show-RestoreDialog', 'Reset-BackupUI', 'Reset-RestoreUI')
+Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Update-DatabaseComboBox', 'Backup-Database', 'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable', 'Show-BackupDialog', 'Show-RestoreDialog', 'Reset-BackupUI', 'Reset-RestoreUI')

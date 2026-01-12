@@ -236,6 +236,53 @@ function Execute-QueryInTab {
     }
     return $result
 }
+function Format-ResultColumnHeader {
+    [CmdletBinding()]
+    param([string]$Header)
+    if ([string]::IsNullOrWhiteSpace($Header)) { return $Header }
+    $text = $Header -replace '_', ' '
+    $text = $text -replace '([a-z0-9])([A-Z])', '$1 $2'
+    $parts = $text -split '\s+'
+    $formatted = foreach ($part in $parts) {
+        if ([string]::IsNullOrWhiteSpace($part)) { continue }
+        if ($part.Length -eq 1) { $part.ToUpper() } else { $part.Substring(0, 1).ToUpper() + $part.Substring(1) }
+    }
+    ($formatted -join ' ')
+}
+function Apply-ResultGridStyling {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][System.Windows.Controls.DataGrid]$DataGrid)
+    $theme = Get-DzUiTheme
+    $bg = Get-DzThemeBrush -Hex $theme.ControlBackground -Fallback ([System.Windows.Media.Brushes]::White)
+    $fg = Get-DzThemeBrush -Hex $theme.ControlForeground -Fallback ([System.Windows.Media.Brushes]::Black)
+    $alt = Get-DzThemeBrush -Hex $theme.InfoBackground -Fallback $bg
+    $DataGrid.Background = $bg
+    $DataGrid.Foreground = $fg
+    $DataGrid.RowBackground = $bg
+    $DataGrid.AlternatingRowBackground = $alt
+    $DataGrid.CanUserResizeColumns = $true
+    $cellStyle = New-Object System.Windows.Style([System.Windows.Controls.DataGridCell])
+    $padding = New-Object System.Windows.Thickness 6, 2, 6, 2
+    $cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, $padding)))
+    $DataGrid.CellStyle = $cellStyle
+    $DataGrid.Add_AutoGeneratingColumn({
+            param($sender, $e)
+            $headerText = Format-ResultColumnHeader -Header ([string]$e.Column.Header)
+            if (-not [string]::IsNullOrWhiteSpace($headerText)) { $e.Column.Header = $headerText }
+        })
+    $DataGrid.Add_Loaded({
+            $grid = $this
+            $grid.Dispatcher.BeginInvoke([action] {
+                    foreach ($col in $grid.Columns) {
+                        if ($col.ActualWidth -gt 0) {
+                            $target = $col.ActualWidth + 6
+                            $col.Width = New-Object System.Windows.Controls.DataGridLength($target)
+                            $col.MinWidth = $target
+                        }
+                    }
+                }, [System.Windows.Threading.DispatcherPriority]::Background)
+        })
+}
 function Show-MultipleResultSets {
     [CmdletBinding()]
     param(
@@ -272,12 +319,13 @@ function Show-MultipleResultSets {
         $ht.VerticalAlignment = "Center"
         $tab.Header = $ht
         $dg = New-Object System.Windows.Controls.DataGrid
-        $dg.ItemsSource = $rs.DataTable.DefaultView
         $dg.IsReadOnly = $true
         $dg.AutoGenerateColumns = $true
         $dg.CanUserAddRows = $false
         $dg.CanUserDeleteRows = $false
         $dg.SelectionMode = "Extended"
+        Apply-ResultGridStyling -DataGrid $dg
+        $dg.ItemsSource = $rs.DataTable.DefaultView
         $tab.Content = $dg
         [void]$TabControl.Items.Add($tab)
         Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i creada con $rowCount filas"

@@ -502,6 +502,12 @@ function New-WpfInputDialog {
     $controls = $result.Controls
     $script:inputValue = $null
     $script:__inputOk = $false
+    $window.Add_Loaded({
+            if ($controls['txtInput']) {
+                $controls['txtInput'].Focus() | Out-Null
+                $controls['txtInput'].SelectAll()
+            }
+        })
     $controls['btnOK'].Add_Click({ $script:inputValue = $controls['txtInput'].Text; $script:__inputOk = $true; $window.Close() })
     $controls['btnCancel'].Add_Click({ $script:__inputOk = $false; $window.Close() })
     $null = $window.ShowDialog()

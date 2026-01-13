@@ -732,6 +732,252 @@ function Reset-BackupUI {
     $btnAbrirCarpeta.IsEnabled = $true
     $txtProgress.Text = $ProgressText
 }
+function bdd_RenameFromTree {
+    param(
+        [Parameter(Mandatory = $true)][string]$Title,
+        [Parameter(Mandatory = $true)][string]$Prompt,
+        [Parameter(Mandatory = $false)][string]$DefaultValue = ""
+    )
+    $safeTitle = [Security.SecurityElement]::Escape($Title)
+    $safePrompt = [Security.SecurityElement]::Escape($Prompt)
+    $safeDefault = [Security.SecurityElement]::Escape($DefaultValue)
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="$safeTitle"
+        Height="260"
+        Width="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        Background="Transparent"
+        AllowsTransparency="True"
+        ShowInTaskbar="False"
+        Topmost="True">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+        </Style>
+        <Style x:Key="BaseButtonStyle" TargetType="Button">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="1"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Content" Value="×"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="{DynamicResource FormBg}" Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="0"
+                Name="brdTitleBar"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12"
+                Margin="0,0,0,10">
+            <DockPanel LastChildFill="True">
+                <TextBlock DockPanel.Dock="Left"
+                           Text="$safeTitle"
+                           Foreground="{DynamicResource FormFg}"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+                <Button DockPanel.Dock="Right"
+                        Name="btnClose"
+                        Style="{StaticResource CloseButtonStyle}"/>
+            </DockPanel>
+        </Border>
+        <Border Grid.Row="1"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0"
+                           Text="$safePrompt"
+                           Margin="0,0,0,10"
+                           FontWeight="SemiBold"/>
+                <TextBox Grid.Row="1"
+                         Name="txtInput"
+                         Height="34"
+                         Text="$safeDefault"
+                         VerticalContentAlignment="Center"/>
+            </Grid>
+        </Border>
+        <Border Grid.Row="2"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10"
+                Margin="0,10,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Enter: Aceptar   |   Esc: Cerrar"
+                           VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal">
+                    <Button Name="btnCancel"
+                            Content="Cancelar"
+                            Width="120"
+                            Height="34"
+                            Margin="0,0,10,0"
+                            Style="{StaticResource OutlineButtonStyle}"/>
+                    <Button Name="btnOk"
+                            Content="Aceptar"
+                            Width="140"
+                            Height="34"
+                            IsDefault="True"
+                            Style="{StaticResource ActionButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+"@
+    try {
+        $ui = New-WpfWindow -Xaml $xaml -PassThru
+        $w = $ui.Window
+        $c = $ui.Controls
+        $theme = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $w -Theme $theme
+        try { Set-WpfDialogOwner -Dialog $w } catch {}
+        $txtInput = $c['txtInput']
+        $btnOk = $c['btnOk']
+        $btnCancel = $c['btnCancel']
+        $btnClose = $c['btnClose']
+        $brdTitleBar = $w.FindName("brdTitleBar")
+        if ($brdTitleBar) {
+            $brdTitleBar.Add_MouseLeftButtonDown({
+                    param($sender, $e)
+                    if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                        try { $w.DragMove() } catch {}
+                    }
+                })
+        }
+        $script:renameResult = $null
+        $w.Add_Loaded({
+                $txtInput.Focus()
+                $txtInput.SelectAll()
+            })
+        $btnClose.Add_Click({
+                $script:renameResult = $null
+                $w.DialogResult = $false
+                $w.Close()
+            })
+        $btnCancel.Add_Click({
+                $script:renameResult = $null
+                $w.DialogResult = $false
+                $w.Close()
+            })
+        $w.Add_PreviewKeyDown({
+                param($sender, $e)
+                if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                    $script:renameResult = $null
+                    $w.DialogResult = $false
+                    $w.Close()
+                }
+            })
+        $btnOk.Add_Click({
+                $script:renameResult = $txtInput.Text
+                $w.DialogResult = $true
+                $w.Close()
+            })
+        $result = $w.ShowDialog()
+        if ($result -eq $true) { return $script:renameResult }
+        return $null
+    } catch {
+        Write-Error "Error creando diálogo de renombrar: $($_.Exception.Message)"
+        return $null
+    }
+}
+
+
+Necesito crear el form de la misma manera que lo hago aqui, con ese aspecto WFP, dime si te falta algun ps1 o psm1 con más contexto:
 function Show-RestoreDialog {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database, [Parameter(Mandatory = $false)][scriptblock]$OnRestoreCompleted)

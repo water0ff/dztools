@@ -942,6 +942,26 @@ function Add-ServerContextMenu {
                 Refresh-SqlTreeServerNode -ServerNode $serverNodeRef
             }
         }.GetNewClosure())
+    $menuAttach = New-Object System.Windows.Controls.MenuItem
+    $menuAttach.Header = "📎 Adjuntar..."
+    $menuAttach.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $server = [string]$node.Tag.Server
+            $user = [string]$node.Tag.User
+            $password = [string]$node.Tag.Password
+            if ([string]::IsNullOrWhiteSpace($user) -or [string]::IsNullOrWhiteSpace($password)) {
+                Ui-Error "No se encontraron credenciales para adjuntar." $global:MainWindow
+                return
+            }
+            Show-AttachDialog -Server $server -User $user -Password $password -Database "master" -OnAttachCompleted {
+                param($dbName)
+                Write-DzDebug "`t[DEBUG][TreeView] Attach completed. Refresh Server: $server"
+                Refresh-SqlTreeServerNode -ServerNode $serverNodeRef
+            }
+        }.GetNewClosure())
     $menuCreateDb = New-Object System.Windows.Controls.MenuItem
     $menuCreateDb.Header = "🆕 Crear base de datos..."
     $menuCreateDb.Add_Click({
@@ -967,6 +987,7 @@ function Add-ServerContextMenu {
         })
     [void]$menu.Items.Add($menuRefresh)
     [void]$menu.Items.Add($menuRestore)
+    [void]$menu.Items.Add($menuAttach)
     [void]$menu.Items.Add($menuCreateDb)
     $ServerNode.ContextMenu = $menu
 }

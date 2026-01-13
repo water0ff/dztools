@@ -1563,48 +1563,35 @@ function New-MainForm {
     $btnConnectDb.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Magenta
-
             try {
                 if ($null -eq $global:txtServer -or $null -eq $global:txtUser -or $null -eq $global:txtPassword) {
                     throw "Error interno: controles de conexión no inicializados."
                 }
-
                 $serverText = $global:txtServer.Text.Trim()
                 $userText = $global:txtUser.Text.Trim()
                 $passwordText = $global:txtPassword.Password
-
                 Write-DzDebug "`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
-
                 if ([string]::IsNullOrWhiteSpace($serverText) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordText)) {
                     throw "Complete todos los campos de conexión"
                 }
-
                 $securePassword = (New-Object System.Net.NetworkCredential('', $passwordText)).SecurePassword
                 $credential = New-Object System.Management.Automation.PSCredential($userText, $securePassword)
-
                 $global:server = $serverText
                 $global:user = $userText
                 $global:password = $passwordText
                 $global:dbCredential = $credential
-
                 $databases = Get-SqlDatabases -Server $serverText -Credential $credential
-
                 if (-not $databases -or $databases.Count -eq 0) {
                     throw "Conexión correcta, pero no se encontraron bases de datos disponibles."
                 }
-
                 $global:cmbDatabases.Items.Clear()
                 foreach ($db in $databases) {
                     [void]$global:cmbDatabases.Items.Add($db)
                 }
-
                 $global:cmbDatabases.IsEnabled = $true
                 $global:cmbDatabases.SelectedIndex = 0
                 $global:database = $global:cmbDatabases.SelectedItem
-
-                # Actualizar barra de estado
                 $global:lblConnectionStatus.Text = "✓ Conectado a: $serverText | DB: $($global:database)"
-
                 $global:txtServer.IsEnabled = $false
                 $global:txtUser.IsEnabled = $false
                 $global:txtPassword.IsEnabled = $false
@@ -1617,27 +1604,19 @@ function New-MainForm {
                 $global:btnRestore.IsEnabled = $true
                 $global:btnAttach.IsEnabled = $true
                 $global:btnExport.IsEnabled = $true
-                # ✅ Habilitar UI de trabajo al conectar
                 if ($global:tcQueries) { $global:tcQueries.IsEnabled = $true }
                 if ($global:tcResults) { $global:tcResults.IsEnabled = $true }
-
                 if ($global:rtbQueryEditor1) { $global:rtbQueryEditor1.IsEnabled = $true }
                 if ($global:dgResults) { $global:dgResults.IsEnabled = $true }
                 if ($global:txtMessages) { $global:txtMessages.IsEnabled = $true }
-
-                # Opcional: enfoque al editor
                 $global:rtbQueryEditor1.Focus() | Out-Null
                 Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential -User $userText -Password $passwordText -GetCurrentDatabase { $global:database } `
                     -AutoExpand $true `
                     -OnDatabaseSelected {
                     param($dbName)
-
                     if (-not $global:cmbDatabases) { return }
-
-                    # Selecciona en ComboBox (si existe)
                     $global:cmbDatabases.SelectedItem = $dbName
                     if (-not $global:cmbDatabases.SelectedItem) {
-                        # fallback por si el SelectedItem no matchea igual
                         for ($i = 0; $i -lt $global:cmbDatabases.Items.Count; $i++) {
                             if ([string]$global:cmbDatabases.Items[$i] -eq [string]$dbName) {
                                 $global:cmbDatabases.SelectedIndex = $i
@@ -1645,13 +1624,10 @@ function New-MainForm {
                             }
                         }
                     }
-
                     $global:database = $global:cmbDatabases.SelectedItem
-
                     if ($global:lblConnectionStatus) {
                         $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
                     }
-
                     Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($global:database)"
                 } `
                     -InsertTextHandler {
@@ -1660,16 +1636,15 @@ function New-MainForm {
                         Insert-TextIntoActiveQuery -TabControl $global:tcQueries -Text $text
                     }
                 }
-
             } catch {
                 Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: $($_.Exception.Message)"
                 Write-DzDebug "`t[DEBUG][btnConnectDb] Tipo: $($_.Exception.GetType().FullName)"
                 Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: $($_.ScriptStackTrace)"
-
                 Ui-Error "Error de conexión: $($_.Exception.Message)" $global:MainWindow
                 Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
             }
         })
+
     $btnDisconnectDb.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Desconectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
@@ -1679,7 +1654,6 @@ function New-MainForm {
                 }
                 $global:connection = $null
                 $global:dbCredential = $null
-
                 $global:lblConnectionStatus.Text = "Desconectado"
                 $global:btnConnectDb.IsEnabled = $true
                 $global:btnBackup.IsEnabled = $false
@@ -1703,7 +1677,6 @@ function New-MainForm {
                 $global:cmbDatabases.IsEnabled = $false
                 $global:dgResults.ItemsSource = $null
                 $global:txtMessages.Text = ""
-
                 Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
             } catch {
                 Write-Host "`nError al desconectar: $($_.Exception.Message)" -ForegroundColor Red
@@ -1714,146 +1687,73 @@ function New-MainForm {
                 $global:database = $global:cmbDatabases.SelectedItem
                 if ($global:lblConnectionStatus.Content -like "Conectado a:*") {
                     $global:lblConnectionStatus.Content = @"
-Conectado a:
-Servidor: $($global:server)
-Base de datos: $($global:database)
+    Conectado a:
+    Servidor: $($global:server)
+    Base de datos: $($global:database)
 "@.Trim()
                 }
             }
         })
-    function Get-ResultTabHeaderText {
-        param([System.Windows.Controls.TabItem]$TabItem)
-        if (-not $TabItem) { return "Resultado" }
-        $header = $TabItem.Header
-        if ($header -is [System.Windows.Controls.TextBlock]) { return [string]$header.Text }
-        if ($null -ne $header) { return [string]$header }
-        return "Resultado"
-    }
-    function Get-ExportableResultTabs {
-        param([System.Windows.Controls.TabControl]$TabControl)
-        $exportable = @()
-        if (-not $TabControl) { return $exportable }
-        foreach ($item in $TabControl.Items) {
-            if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
-            $dg = $item.Content
-            if ($dg -isnot [System.Windows.Controls.DataGrid]) { continue }
-            $dt = $null
-            if ($dg.ItemsSource -is [System.Data.DataView]) {
-                $dt = $dg.ItemsSource.Table
-            } elseif ($dg.ItemsSource -is [System.Data.DataTable]) {
-                $dt = $dg.ItemsSource
-            } else {
-                try { $dt = $dg.ItemsSource.Table } catch { $dt = $null }
-            }
-            if (-not $dt -or -not $dt.Rows -or $dt.Rows.Count -lt 1) { continue }
-            $headerText = Get-ResultTabHeaderText -TabItem $item
-            $exportable += [pscustomobject]@{
-                Tab          = $item
-                DataTable    = $dt
-                RowCount     = $dt.Rows.Count
-                Display      = "$headerText ($($dt.Rows.Count) filas)"
-                DisplayShort = $headerText
-            }
-        }
-        return $exportable
-    }
     $btnExecute.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Ejecutar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n`t- - - Ejecutando consulta - - -" -ForegroundColor Gray
             try {
-                # 1) Base de datos seleccionada
                 $selectedDb = $global:cmbDatabases.SelectedItem
                 if (-not $selectedDb) { throw "Selecciona una base de datos" }
-
-                # 2) Obtener RichTextBox ACTIVO (pestaña activa)
-                #    Asegúrate de que $global:tcQueries sea tu TabControl de consultas
                 $activeRtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
                 if (-not $activeRtb) { throw "No hay una pestaña de consulta activa." }
-
-                # 3) Obtener texto del RTB activo
                 $textRange = New-Object System.Windows.Documents.TextRange(
                     $activeRtb.Document.ContentStart,
                     $activeRtb.Document.ContentEnd
                 )
-
                 $query = $textRange.Text
-
-                # (Recomendado) Limpiar comentarios
                 $query = Remove-SqlComments -Query $query
-
                 if ([string]::IsNullOrWhiteSpace($query)) {
                     throw "La consulta está vacía."
                 }
-
-                # 4) Limpiar resultados anteriores
-                #    Si ya tienes TabControl de resultados úsalo; si no, cae al dgResults
                 if ($global:tcResults) {
                     $global:tcResults.Items.Clear()
                 } else {
                     $global:dgResults.ItemsSource = $null
                 }
-
                 $global:txtMessages.Text = ""
                 if ($global:lblRowCount) { $global:lblRowCount.Text = "" }
-
                 Write-Host "Ejecutando consulta en '$selectedDb'..." -ForegroundColor Cyan
-
-                # 5) Ejecutar (usa tu credencial global)
                 $result = Invoke-SqlQueryMultiResultSet -Server $global:server -Database $selectedDb -Query $query -Credential $global:dbCredential
-
                 if (-not $result.Success) {
                     $global:txtMessages.Text = $result.ErrorMessage
                     throw $result.ErrorMessage
                 }
-
-                # 6) Mostrar resultados
                 if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
-
                     if ($global:tcResults) {
-                        # Mostrar múltiples resultsets como pestañas (si tienes MultiQuery.psm1 cargado)
                         Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
                     } else {
-                        # Fallback: solo primer resultset en DataGrid
                         $global:dgResults.ItemsSource = $result.ResultSets[0].DataTable.DefaultView
                     }
-
                     if ($global:lblRowCount) {
                         $global:lblRowCount.Text = "Filas: $($result.ResultSets[0].RowCount)"
                     }
-
                     if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
-
                         if ($global:tcResults) {
                             Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
                         } else {
                             $global:dgResults.ItemsSource = $result.ResultSets[0].DataTable.DefaultView
                         }
-
-                        # Resumen por resultset
                         $parts = New-Object System.Collections.Generic.List[string]
                         for ($i = 0; $i -lt $result.ResultSets.Count; $i++) {
                             $rows = $result.ResultSets[$i].RowCount
                             $label = if ($rows -eq 1) { "fila" } else { "filas" }
                             $parts.Add(("Resultado {0}: {1} {2}" -f ($i + 1), $rows, $label))
                         }
-
                         $summary = ($parts -join " | ")
                         Write-Host "✓ Consulta ejecutada: $summary" -ForegroundColor Green
-
-                        # (Opcional) también a la UI
                         if ($global:lblRowCount) { $global:lblRowCount.Text = $summary }
                     }
-
-
                 } elseif ($result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
-
                     $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)"
                     if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas afectadas: $($result.RowsAffected)" }
-
                     Write-Host "✓ Consulta ejecutada: $($result.RowsAffected) filas afectadas" -ForegroundColor Green
-
                     if ($global:tcResults) {
-                        # Mostrar mensaje en una pestaña simple
                         $tab = New-Object System.Windows.Controls.TabItem
                         $tab.Header = "Resultado"
                         $text = New-Object System.Windows.Controls.TextBlock
@@ -1864,18 +1764,15 @@ Base de datos: $($global:database)
                         $global:tcResults.SelectedItem = $tab
                     }
                 } else {
-                    # Sin resultsets y sin rowsaffected: mostrar "sin resultados"
                     if ($global:tcResults) {
                         Show-MultipleResultSets -TabControl $global:tcResults -ResultSets @()
                     } else {
                         $global:txtMessages.Text = "La consulta no devolvió resultados."
                     }
                 }
-
             } catch {
                 $msg = $_.Exception.Message
                 $global:txtMessages.Text = $msg
-
                 Write-Host "`n=============== ERROR ==============" -ForegroundColor Red
                 Write-Host "Mensaje: $msg" -ForegroundColor Yellow
                 Write-Host "====================================" -ForegroundColor Red
@@ -1884,23 +1781,18 @@ Base de datos: $($global:database)
     $btnClearQuery.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
-                # 1) Obtener RichTextBox ACTIVO (pestaña activa real)
                 $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
                 if (-not $rtb) {
                     throw "No hay una pestaña de consulta activa."
                 }
-                # 2) Limpiar el editor activo
                 $rtb.Document.Blocks.Clear()
-                # 3) Limpiar resultados/mensajes
                 if ($global:dgResults) { $global:dgResults.ItemsSource = $null }
                 if ($global:txtMessages) { $global:txtMessages.Text = "" }
                 if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
-                # 4) Debug: nombre de pestaña (sirve para XAML y para tabs dinámicos)
                 $tab = Get-ActiveQueryTab -TabControl $global:tcQueries
                 $tabName = if ($tab -and $tab.Tag -and $tab.Tag.Title) { $tab.Tag.Title } else { "Desconocida" }
                 Write-DzDebug "`t[DEBUG] Se limpió la consulta en la pestaña: $tabName"
                 Write-Host "Consulta limpiada" -ForegroundColor Cyan
-
             } catch {
                 $msg = $_.Exception.Message
                 if ($global:txtMessages) { $global:txtMessages.Text = $msg }
@@ -1958,18 +1850,26 @@ Base de datos: $($global:database)
                 Ui-Info "Exportación completada en:`n$filePath" "Exportación" $global:MainWindow
             } catch {
                 Ui-Error "Error al exportar resultados:`n$($_.Exception.Message)" "Error" $global:MainWindow
+                Write-DzDebug "`t[DEBUG][btnExport] CATCH: $($_.Exception.Message)" -Color Red
             }
         })
     $btnBackup.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Backup - - -" -ForegroundColor Magenta ; Write-DzDebug ("`t[DEBUG] Click en 'Respaldar Base de datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
-    $btnRestore.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Restauración - - -"  ; Write-DzDebug ("`t[DEBUG] Click en 'Restaurar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+    $btnRestore.Add_Click({
+            Write-Host "`n- - - Comenzando el proceso de Restauración - - -"
+            Write-DzDebug ("`t[DEBUG] Click en 'Restaurar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem -OnRestoreCompleted {
                 param($dbName)
                 Write-DzDebug "`t[DEBUG] Restore completado. Refrescando TreeView."
                 if ($global:tvDatabases -and $global:server) { Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $global:server }
             }
         })
-    $btnAttach.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Attach - - -"  ; Write-DzDebug ("`t[DEBUG] Click en 'Attach Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
-            Show-AttachDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem -OnAttachCompleted {
+    $btnAttach.Add_Click({
+            Write-Host "`n- - - Comenzando el proceso de Attach - - -"
+            Write-DzDebug ("`t[DEBUG] Click en 'Attach Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            $modulesPath = Join-Path $PSScriptRoot "modules"
+            Show-AttachDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem `
+                -ModulesPath $modulesPath `
+                -OnAttachCompleted {
                 param($dbName)
                 Write-DzDebug "`t[DEBUG] Attach completado. Refrescando TreeView."
                 if ($global:tvDatabases -and $global:server) { Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $global:server }

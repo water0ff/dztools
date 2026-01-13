@@ -956,7 +956,10 @@ function Add-ServerContextMenu {
                 Ui-Error "No se encontraron credenciales para adjuntar." $global:MainWindow
                 return
             }
-            Show-AttachDialog -Server $server -User $user -Password $password -Database "master" -OnAttachCompleted {
+            $modulesPath = Join-Path $PSScriptRoot "modules"
+            Show-AttachDialog -Server $server -User $user -Password $password -Database "master" `
+                -ModulesPath $modulesPath `
+                -OnAttachCompleted {
                 param($dbName)
                 Write-DzDebug "`t[DEBUG][TreeView] Attach completed. Refresh Server: $server"
                 Refresh-SqlTreeServerNode -ServerNode $serverNodeRef

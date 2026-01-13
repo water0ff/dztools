@@ -939,6 +939,42 @@ function Get-TextPointerFromOffset {
     }
     return $RichTextBox.Document.ContentEnd
 }
+function Get-ResultTabHeaderText {
+    param([System.Windows.Controls.TabItem]$TabItem)
+    if (-not $TabItem) { return "Resultado" }
+    $header = $TabItem.Header
+    if ($header -is [System.Windows.Controls.TextBlock]) { return [string]$header.Text }
+    if ($null -ne $header) { return [string]$header }
+    return "Resultado"
+}
+function Get-ExportableResultTabs {
+    param([System.Windows.Controls.TabControl]$TabControl)
+    $exportable = @()
+    if (-not $TabControl) { return $exportable }
+    foreach ($item in $TabControl.Items) {
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        $dg = $item.Content
+        if ($dg -isnot [System.Windows.Controls.DataGrid]) { continue }
+        $dt = $null
+        if ($dg.ItemsSource -is [System.Data.DataView]) {
+            $dt = $dg.ItemsSource.Table
+        } elseif ($dg.ItemsSource -is [System.Data.DataTable]) {
+            $dt = $dg.ItemsSource
+        } else {
+            try { $dt = $dg.ItemsSource.Table } catch { $dt = $null }
+        }
+        if (-not $dt -or -not $dt.Rows -or $dt.Rows.Count -lt 1) { continue }
+        $headerText = Get-ResultTabHeaderText -TabItem $item
+        $exportable += [pscustomobject]@{
+            Tab          = $item
+            DataTable    = $dt
+            RowCount     = $dt.Rows.Count
+            Display      = "$headerText ($($dt.Rows.Count) filas)"
+            DisplayShort = $headerText
+        }
+    }
+    return $exportable
+}
 Export-ModuleMember -Function @(
     'New-QueryTab',
     'Close-QueryTab',
@@ -957,5 +993,7 @@ Export-ModuleMember -Function @(
     'Initialize-PredefinedQueries',
     'Remove-SqlComments',
     'Set-WpfSqlHighlighting',
-    'Get-TextPointerFromOffset'
+    'Get-TextPointerFromOffset',
+    'Get-ResultTabHeaderText',
+    'Get-ExportableResultTabs'
 )

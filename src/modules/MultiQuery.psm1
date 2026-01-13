@@ -242,11 +242,12 @@ function Show-MultipleResultSets {
         [Parameter(Mandatory)][System.Windows.Controls.TabControl]$TabControl,
         [Parameter()][AllowEmptyCollection()][array]$ResultSets = @()
     )
+
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] INICIO"
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] ResultSets Count: $($ResultSets.Count)"
     $TabControl.Items.Clear()
+
     if (-not $ResultSets -or $ResultSets.Count -eq 0) {
-        Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Creando pestaña de 'No resultados'"
         $tab = New-Object System.Windows.Controls.TabItem
         $ht = New-Object System.Windows.Controls.TextBlock
         $ht.Text = "Resultado"
@@ -258,33 +259,290 @@ function Show-MultipleResultSets {
         $tab.Content = $text
         [void]$TabControl.Items.Add($tab)
         $TabControl.SelectedIndex = 0
-        Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña creada con mensaje 'No resultados'"
+        Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN (sin resultados)"
         return
     }
-    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Creando $($ResultSets.Count) pestañas de resultados"
+
+    $theme = $null
+    try { $theme = Get-DzUiTheme } catch { $theme = $null }
+
+    $isDark = $false
+    try {
+        if ($theme -and $theme.FormBackground) {
+            $bg = [string]$theme.FormBackground
+            if ($bg -match '^#') {
+                $c = [System.Windows.Media.ColorConverter]::ConvertFromString($bg)
+                $lum = (0.2126 * $c.R) + (0.7152 * $c.G) + (0.0722 * $c.B)
+                if ($lum -lt 128) { $isDark = $true }
+            } else {
+                if ($bg -match '(?i)black|dark|#0|#1|#2') { $isDark = $true }
+            }
+        }
+    } catch { $isDark = $false }
+
+    $gridBg = $null
+    $gridFg = $null
+    $headerBg = $null
+    $headerFg = $null
+    $gridLine = $null
+    $rowAlt = $null
+
+    if ($isDark) {
+        $gridBg = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#171717")
+        $rowAlt = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1F1F1F")
+        $gridFg = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#E6E6E6")
+        $headerBg = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#232323")
+        $headerFg = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FFFFFF")
+        $gridLine = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2E2E2E")
+    } else {
+        $gridBg = [System.Windows.Media.Brushes]::White
+        $rowAlt = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#F3F3F3")
+        $gridFg = [System.Windows.Media.Brushes]::Black
+        $headerBg = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#E9E9E9")
+        $headerFg = [System.Windows.Media.Brushes]::Black
+        $gridLine = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#D0D0D0")
+    }
+
+    $nullBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FDFBAC")
+    $nullFg = [System.Windows.Media.Brushes]::Black
+
+    $hdrStyle = New-Object System.Windows.Style([System.Windows.Controls.Primitives.DataGridColumnHeader])
+    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $headerBg)))
+    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $headerFg)))
+    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty, [System.Windows.HorizontalAlignment]::Center)))
+    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::VerticalContentAlignmentProperty, [System.Windows.VerticalAlignment]::Center)))
+    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 4, 8, 4)))))
+    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $gridLine)))
+    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
+
+    $cellStyle = New-Object System.Windows.Style([System.Windows.Controls.DataGridCell])
+    [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 2, 8, 2)))))
+    [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $gridLine)))
+    [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
+    [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty, [System.Windows.HorizontalAlignment]::Stretch)))
+    [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::VerticalContentAlignmentProperty, [System.Windows.VerticalAlignment]::Center)))
+
+    $textStyleBase = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
+    [void]$textStyleBase.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::TextTrimmingProperty, [System.Windows.TextTrimming]::CharacterEllipsis)))
+    [void]$textStyleBase.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::TextWrappingProperty, [System.Windows.TextWrapping]::NoWrap)))
+    [void]$textStyleBase.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Center)))
+
+    $tNull = New-Object System.Windows.Trigger
+    $tNull.Property = [System.Windows.Controls.TextBlock]::TextProperty
+    $tNull.Value = "NULL"
+    [void]$tNull.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::BackgroundProperty, $nullBrush)))
+    [void]$tNull.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::ForegroundProperty, $nullFg)))
+    [void]$textStyleBase.Triggers.Add($tNull)
+
     $i = 0
     foreach ($rs in $ResultSets) {
         $i++
+
         $tab = New-Object System.Windows.Controls.TabItem
         $rowCount = if ($rs.RowCount -ne $null) { $rs.RowCount } else { $rs.DataTable.Rows.Count }
+
         $ht = New-Object System.Windows.Controls.TextBlock
         $ht.Text = "Resultado $i ($rowCount filas)"
         $ht.VerticalAlignment = "Center"
         $tab.Header = $ht
+
         $dg = New-Object System.Windows.Controls.DataGrid
+        $dg.AutoGenerateColumns = $true
         $dg.ItemsSource = $rs.DataTable.DefaultView
         $dg.IsReadOnly = $true
-        $dg.AutoGenerateColumns = $true
         $dg.CanUserAddRows = $false
         $dg.CanUserDeleteRows = $false
         $dg.SelectionMode = "Extended"
+        $dg.HeadersVisibility = "Column"
+        $dg.GridLinesVisibility = "All"
+        $dg.HorizontalGridLinesBrush = $gridLine
+        $dg.VerticalGridLinesBrush = $gridLine
+        $dg.Background = $gridBg
+        $dg.Foreground = $gridFg
+        $dg.RowBackground = $gridBg
+        $dg.AlternatingRowBackground = $rowAlt
+        $dg.BorderBrush = $gridLine
+        $dg.BorderThickness = "1"
+        $dg.RowHeight = 26
+        $dg.ColumnHeaderHeight = 28
+        $dg.HorizontalScrollBarVisibility = "Auto"
+        $dg.VerticalScrollBarVisibility = "Auto"
+        $dg.CanUserResizeColumns = $true
+        $dg.CanUserSortColumns = $true
+        $dg.AlternationCount = 2
+        $dg.ColumnHeaderStyle = $hdrStyle
+        $dg.CellStyle = $cellStyle
+
+        $dg.Add_AutoGeneratingColumn({
+                param($s, $e)
+
+                $prop = $e.PropertyName
+                $hdr = $e.Column.Header
+
+                if ($e.PropertyType -eq [datetime]) {
+                    $col = New-Object System.Windows.Controls.DataGridTextColumn
+                    $col.Header = $hdr
+                    $b = New-Object System.Windows.Data.Binding($prop)
+                    $b.StringFormat = "yyyy-MM-dd HH:mm:ss.fff"
+                    $b.TargetNullValue = "NULL"
+                    $col.Binding = $b
+                    $ts = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
+                    $ts.BasedOn = $textStyleBase
+                    $col.ElementStyle = $ts
+                    $e.Column = $col
+                    return
+                }
+
+                if ($e.PropertyType -eq [bool]) {
+                    if ($e.Column -is [System.Windows.Controls.DataGridCheckBoxColumn]) {
+                        $e.Column.IsThreeState = $true
+                        $cbBind = $e.Column.Binding
+                        if ($cbBind -is [System.Windows.Data.Binding]) {
+                            $cbBind.TargetNullValue = $null
+                        }
+                    }
+                    return
+                }
+
+                if ($e.PropertyType -in @([int], [long], [decimal], [double], [single])) {
+                    if ($e.Column -is [System.Windows.Controls.DataGridTextColumn]) {
+                        $b = $e.Column.Binding
+                        if (-not ($b -is [System.Windows.Data.Binding])) { $b = New-Object System.Windows.Data.Binding($prop) }
+                        $b.TargetNullValue = "NULL"
+                        $e.Column.Binding = $b
+                        $ts = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
+                        $ts.BasedOn = $textStyleBase
+                        [void]$ts.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::TextAlignmentProperty, [System.Windows.TextAlignment]::Right)))
+                        $e.Column.ElementStyle = $ts
+                    }
+                    return
+                }
+
+                if ($e.Column -is [System.Windows.Controls.DataGridTextColumn]) {
+                    $b = $e.Column.Binding
+                    if (-not ($b -is [System.Windows.Data.Binding])) { $b = New-Object System.Windows.Data.Binding($prop) }
+                    $b.TargetNullValue = "NULL"
+                    $e.Column.Binding = $b
+                    $ts = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
+                    $ts.BasedOn = $textStyleBase
+                    $e.Column.ElementStyle = $ts
+                }
+            })
+
+        $dg.Add_AutoGeneratedColumns({
+                param($s, $e)
+
+                try {
+                    $min = 60
+                    $max = 900
+                    $pad = 14
+                    $sampleMax = 60
+
+                    $dv = $s.ItemsSource
+                    $dt = $null
+                    try { $dt = $dv.Table } catch { $dt = $null }
+
+                    $dpi = 96.0
+                    try {
+                        $src = [System.Windows.PresentationSource]::FromVisual($s)
+                        if ($src -and $src.CompositionTarget -and $src.CompositionTarget.TransformToDevice) {
+                            $dpi = 96.0 * $src.CompositionTarget.TransformToDevice.M11
+                        }
+                    } catch { $dpi = 96.0 }
+
+                    $typeface = New-Object System.Windows.Media.Typeface($s.FontFamily, $s.FontStyle, $s.FontWeight, $s.FontStretch)
+                    $fontSize = [double]$s.FontSize
+
+                    foreach ($col in $s.Columns) {
+                        $col.MinWidth = $min
+                        $col.MaxWidth = $max
+                    }
+
+                    $s.Dispatcher.BeginInvoke([action] {
+                            try {
+                                $s.UpdateLayout()
+
+                                foreach ($col in $s.Columns) {
+                                    $prop = $null
+                                    try { $prop = $col.SortMemberPath } catch { $prop = $null }
+                                    if ([string]::IsNullOrWhiteSpace($prop)) {
+                                        try { $prop = $col.Header.ToString() } catch { $prop = $null }
+                                    }
+
+                                    $best = 0.0
+
+                                    $hText = ""
+                                    try { $hText = [string]$col.Header } catch { $hText = "" }
+                                    if (-not [string]::IsNullOrEmpty($hText)) {
+                                        $ftH = New-Object System.Windows.Media.FormattedText(
+                                            $hText,
+                                            [System.Globalization.CultureInfo]::CurrentCulture,
+                                            [System.Windows.FlowDirection]::LeftToRight,
+                                            $typeface,
+                                            $fontSize,
+                                            [System.Windows.Media.Brushes]::Black,
+                                            $dpi
+                                        )
+                                        $best = [Math]::Max($best, $ftH.WidthIncludingTrailingWhitespace)
+                                    }
+
+                                    $count = 0
+                                    if ($dt -and $prop -and $dt.Columns.Contains($prop)) {
+                                        foreach ($row in $dt.Rows) {
+                                            if ($count -ge $sampleMax) { break }
+                                            $val = $row[$prop]
+                                            $txt = $null
+                                            if ($null -eq $val -or $val -is [System.DBNull]) {
+                                                $txt = "NULL"
+                                            } else {
+                                                if ($val -is [datetime]) {
+                                                    $txt = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff")
+                                                } else {
+                                                    $txt = [string]$val
+                                                }
+                                            }
+
+                                            if (-not [string]::IsNullOrEmpty($txt)) {
+                                                $ft = New-Object System.Windows.Media.FormattedText(
+                                                    $txt,
+                                                    [System.Globalization.CultureInfo]::CurrentCulture,
+                                                    [System.Windows.FlowDirection]::LeftToRight,
+                                                    $typeface,
+                                                    $fontSize,
+                                                    [System.Windows.Media.Brushes]::Black,
+                                                    $dpi
+                                                )
+                                                if ($ft.WidthIncludingTrailingWhitespace -gt $best) { $best = $ft.WidthIncludingTrailingWhitespace }
+                                            }
+
+                                            $count++
+                                        }
+                                    } else {
+                                        $best = [Math]::Max($best, 120.0)
+                                    }
+
+                                    $w = [Math]::Ceiling($best + $pad)
+
+                                    if ($w -lt $col.MinWidth) { $w = $col.MinWidth }
+                                    if ($w -gt $col.MaxWidth) { $w = $col.MaxWidth }
+
+                                    $col.Width = $w
+                                }
+                            } catch { }
+                        }, [System.Windows.Threading.DispatcherPriority]::Loaded) | Out-Null
+                } catch { }
+            })
+
         $tab.Content = $dg
         [void]$TabControl.Items.Add($tab)
+
         Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i creada con $rowCount filas"
     }
+
     $TabControl.SelectedIndex = 0
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN"
 }
+
 function Export-ResultSetToCsv {
     [CmdletBinding()]
     param(

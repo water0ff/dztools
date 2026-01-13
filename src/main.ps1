@@ -594,23 +594,18 @@ function New-MainForm {
           <Button Content="Conectar" Name="btnConnectDb"
                   Width="120" Height="30" Margin="0,0,8,0"
                   Style="{StaticResource DatabaseButtonStyle}"/>
-
           <Button Content="Desconectar" Name="btnDisconnectDb"
                   Width="120" Height="30" Margin="0,0,8,0"
                   Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-
           <Button Content="Backup" Name="btnBackup"
                   Width="120" Height="30" Margin="0,0,8,0"
                   Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-
           <Button Content="Restaurar" Name="btnRestore"
                   Width="120" Height="30"
                   Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
         </StackPanel>
       </Grid>
     </Border>
-
-    <!-- 🧰 Barra intermedia: ejecutar/queries/limpiar -->
     <Border Grid.Row="1" Margin="10,0,10,10" Padding="10"
             BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
             CornerRadius="6" Background="{DynamicResource ControlBg}">
@@ -618,25 +613,19 @@ function New-MainForm {
         <Button Content="Ejecutar (F5)" Name="btnExecute"
                 Width="110" Height="30" Margin="0,0,8,0"
                 Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-
         <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0"
                   IsEnabled="False" ToolTip="Consultas predefinidas"/>
-
         <Button Content="Limpiar" Name="btnClearQuery"
                 Width="90" Height="30"
                 Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
       </StackPanel>
     </Border>
-
-    <!-- 🪟 Área principal (Explorador + Consultas/Resultados) -->
     <Grid Grid.Row="2" Margin="10">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="250" MinWidth="200"/>
         <ColumnDefinition Width="5"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
-
-      <!-- 🌲 Explorador de objetos -->
       <Border Grid.Column="0"
               BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
               CornerRadius="6" Background="{DynamicResource ControlBg}">
@@ -645,7 +634,6 @@ function New-MainForm {
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
-
           <TextBlock Grid.Row="0" Text="Explorador de Objetos"
                      Padding="8" FontWeight="Bold"
                      Background="{DynamicResource AccentPrimary}"
@@ -653,20 +641,14 @@ function New-MainForm {
           <TreeView Grid.Row="1" Name="tvDatabases" Padding="4"/>
         </Grid>
       </Border>
-
-      <!-- Split -->
       <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
                     Background="{DynamicResource BorderBrushColor}"/>
-
-      <!-- 📝 Consultas + Resultados -->
       <Grid Grid.Column="2">
         <Grid.RowDefinitions>
           <RowDefinition Height="*" MinHeight="150"/>
           <RowDefinition Height="5"/>
           <RowDefinition Height="2*" MinHeight="200"/>
         </Grid.RowDefinitions>
-
-        <!-- Tabs de consultas (sin toolbar interna) -->
         <TabControl Name="tcQueries" Grid.Row="0" Background="{DynamicResource ControlBg}">
           <TabItem Header="Consulta 1">
             <Border BorderBrush="{DynamicResource BorderBrushColor}"
@@ -679,7 +661,6 @@ function New-MainForm {
           </TabItem>
           <TabItem Header="+" Name="tabAddQuery" IsEnabled="True"/>
         </TabControl>
-
         <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch"
                       Background="{DynamicResource BorderBrushColor}"/>
 
@@ -698,7 +679,7 @@ function New-MainForm {
       </Grid>
     </Grid>
 
-    <!-- 📍 Barra de estado -->
+    <!-- 📍 Barra de estado falta el timer -->
     <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
       <StatusBarItem>
         <TextBlock Name="lblConnectionStatus" Text="Desconectado"/>

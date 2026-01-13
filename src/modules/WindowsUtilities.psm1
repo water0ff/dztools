@@ -191,97 +191,253 @@ function Show-NSPrinters {
             IsShared   = if ($_.Shared) { "Sí" }else { "No" }
         }
     }
+    $uiItems = $printers | ForEach-Object {
+        [PSCustomObject]@{
+            Name       = [string]$_.Name
+            PortName   = [string]$_.PortName
+            DriverName = [string]$_.DriverName
+            IsShared   = if ($_.Shared) { "Sí" }else { "No" }
+        }
+    }
     Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "Nombre", "Puerto", "Driver", "Compartida")
     Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "------", "------", "------", "---------")
     $view | ForEach-Object { Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f $_.Name, $_.PortName, $_.DriverName, $_.IsShared) }
-}
-function Invoke-CreateApk {
-    [CmdletBinding()]
-    param(
-        [string]$DllPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\up.dll",
-        [string]$InfoPath = "C:\Inetpub\wwwroot\ComanderoMovil\info\info.txt",
-        [System.Windows.Controls.TextBlock]$InfoTextBlock
-    )
 
-    Write-DzDebug "`t[DEBUG][Invoke-CreateApk] INICIO" ([System.ConsoleColor]::DarkGray)
-
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Impresoras instaladas"
+        Height="420" Width="820"
+        WindowStartupLocation="CenterOwner"
+        Topmost="True">
+    <Window.Resources>
+        <Style x:Key="GeneralButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="{DynamicResource FormBg}" Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
+            <Button Name="btnCopyName" Content="Copiar Nombre" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
+            <Button Name="btnCopyPort" Content="Copiar Puerto" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
+            <Button Name="btnCopyDriver" Content="Copiar Driver" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
+            <Button Name="btnCopyShared" Content="Copiar Compartida" Width="150" Height="30" Style="{StaticResource GeneralButtonStyle}"/>
+        </StackPanel>
+        <TextBlock Grid.Row="1" Text="Más detalles en consola." Margin="2,0,0,6" Foreground="{DynamicResource AccentMuted}"/>
+        <DataGrid Grid.Row="2" Name="dgPrinters" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Nombre" Binding="{Binding Name}" Width="220"/>
+                <DataGridTextColumn Header="Puerto" Binding="{Binding PortName}" Width="160"/>
+                <DataGridTextColumn Header="Driver" Binding="{Binding DriverName}" Width="180"/>
+                <DataGridTextColumn Header="Compartida" Binding="{Binding IsShared}" Width="100"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Window>
+"@
     try {
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Validando componentes..." }
-        Write-Host "`nIniciando proceso de creación de APK..." -ForegroundColor Cyan
-
-        if (-not (Test-Path -LiteralPath $DllPath)) {
-            $msg = "Componente necesario no encontrado:`n$DllPath`n`nVerifique la instalación del Enlace Android."
-            Write-Host $msg -ForegroundColor Red
-            Show-WpfMessageBox -Message $msg -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe up.dll" }
-            return $false
-        }
-
-        if (-not (Test-Path -LiteralPath $InfoPath)) {
-            $msg = "Archivo de configuración no encontrado:`n$InfoPath`n`nVerifique la instalación del Enlace Android."
-            Write-Host $msg -ForegroundColor Red
-            Show-WpfMessageBox -Message $msg -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe info.txt" }
-            return $false
-        }
-
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Leyendo versión..." }
-
-        $jsonContent = Get-Content -LiteralPath $InfoPath -Raw -ErrorAction Stop | ConvertFrom-Json
-        $versionApp = [string]$jsonContent.versionApp
-
-        if ([string]::IsNullOrWhiteSpace($versionApp)) {
-            $msg = "No se pudo leer 'versionApp' desde:`n$InfoPath"
-            Write-Host $msg -ForegroundColor Red
-            Show-WpfMessageBox -Message $msg -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: versionApp vacío" }
-            return $false
-        }
-
-        Write-Host "Versión detectada: $versionApp" -ForegroundColor Green
-
-        $confirmMsg = "Se creará el APK versión: $versionApp`n¿Desea continuar?"
-        $confirmation = Show-WpfMessageBox -Message $confirmMsg -Title "Confirmación" -Buttons "YesNo" -Icon "Question"
-
-        if ($confirmation -ne [System.Windows.MessageBoxResult]::Yes) {
-            Write-Host "Proceso cancelado por el usuario" -ForegroundColor Yellow
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Cancelado." }
-            return $false
-        }
-
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Selecciona dónde guardar..." }
-
-        $saveDialog = New-Object Microsoft.Win32.SaveFileDialog
-        $saveDialog.Filter = "Archivo APK (*.apk)|*.apk"
-        $saveDialog.FileName = "SRM_$versionApp.apk"
-        $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
-
-        if ($saveDialog.ShowDialog() -ne $true) {
-            Write-Host "Guardado cancelado por el usuario" -ForegroundColor Yellow
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Guardado cancelado." }
-            return $false
-        }
-
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Copiando APK..." }
-
-        Copy-Item -LiteralPath $DllPath -Destination $saveDialog.FileName -Force -ErrorAction Stop
-
-        $okMsg = "APK generado exitosamente en:`n$($saveDialog.FileName)"
-        Write-Host $okMsg -ForegroundColor Green
-        Show-WpfMessageBox -Message "APK creado correctamente!" -Title "Éxito" -Buttons "OK" -Icon "Information" | Out-Null
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Listo: APK creado." }
-
-        return $true
-
+        $ui = New-WpfWindow -Xaml $stringXaml -PassThru
+        $w = $ui.Window
+        $c = $ui.Controls
+        Set-DzWpfThemeResources -Window $w -Theme $theme
+        try { Set-WpfDialogOwner -Dialog $w } catch {}
+        $c['dgPrinters'].ItemsSource = $uiItems
+        $copyColumn = {
+            param($name)
+            $values = $uiItems | ForEach-Object { [string]$_.($name) }
+            Set-ClipboardTextSafe -Text ($values -join "`r`n") -Owner $w | Out-Null
+        }.GetNewClosure()
+        $c['btnCopyName'].Add_Click({ & $copyColumn 'Name' })
+        $c['btnCopyPort'].Add_Click({ & $copyColumn 'PortName' })
+        $c['btnCopyDriver'].Add_Click({ & $copyColumn 'DriverName' })
+        $c['btnCopyShared'].Add_Click({ & $copyColumn 'IsShared' })
+        $w.Show() | Out-Null
     } catch {
-        $err = $_.Exception.Message
-        Write-Host "Error durante el proceso: $err" -ForegroundColor Red
-        Write-DzDebug "`t[DEBUG][Invoke-CreateApk] ERROR: $err`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
-        Show-WpfMessageBox -Message "Error durante la creación del APK:`n$err" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: $err" }
-        return $false
+        Write-DzDebug "`t[DEBUG][Show-NSPrinters] ERROR creando ventana: $($_.Exception.Message)" Red
     }
 }
+function Show-InstallPrinterDialog {
+    [CmdletBinding()]
+    param()
+
+    Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] INICIO"
+    $theme = Get-DzUiTheme
+    $stringXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Instalar impresora"
+        Height="260" Width="560"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True">
+
+  <Window.Resources>
+    <Style x:Key="SystemButtonStyle" TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+
+    <Style TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="6,4"/>
+    </Style>
+  </Window.Resources>
+
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="8"
+          Padding="12">
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <TextBlock Grid.Row="0" Text="Usaremos el driver 'Generic / Text Only'." Margin="0,0,0,8"/>
+
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+        <TextBlock Text="Nombre:" Width="90" VerticalAlignment="Center"/>
+        <TextBox Name="txtPrinterName" Width="380" Height="28"/>
+      </StackPanel>
+
+      <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
+        <TextBlock Text="IP:" Width="90" VerticalAlignment="Center"/>
+        <TextBox Name="txtPrinterIp" Width="200" Height="28"/>
+      </StackPanel>
+
+      <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button Name="btnInstall" Content="Instalar" Width="120" Height="32" Margin="0,0,10,0"
+                Style="{StaticResource SystemButtonStyle}"/>
+        <Button Name="btnClose" Content="Cerrar" Width="110" Height="32"
+                Style="{StaticResource SystemButtonStyle}"/>
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>
+"@
+    try {
+        $ui = New-WpfWindow -Xaml $stringXaml -PassThru
+        $w = $ui.Window
+        $c = $ui.Controls
+        Set-DzWpfThemeResources -Window $w -Theme $theme
+        try { Set-WpfDialogOwner -Dialog $w } catch {}
+        $ensureDriverSb = {
+            param([string]$DriverName = "Generic / Text Only")
+
+            # 1) ¿Ya existe?
+            if (Get-PrinterDriver -Name $DriverName -ErrorAction SilentlyContinue) {
+                return @{ Ok = $true; DriverName = $DriverName; InstalledNow = $false; Message = "Driver ya estaba instalado." }
+            }
+
+            # 2) Intentar instalarlo automáticamente (requiere admin: tú ya validas antes)
+            try {
+                $inf = Join-Path $env:WINDIR "INF\ntprint.inf"
+                if (-not (Test-Path -LiteralPath $inf -PathType Leaf)) {
+                    return @{ Ok = $false; DriverName = $DriverName; InstalledNow = $false; Message = "No se encontró ntprint.inf en: $inf" }
+                }
+
+                $arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+                $args = "printui.dll,PrintUIEntry /ia /m `"$DriverName`" /f `"$inf`" /h `"$arch`" /v `"Type 3 - User Mode`""
+
+                Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] Instalando driver via rundll32: $DriverName ($arch)"
+                $p = Start-Process -FilePath "rundll32.exe" -ArgumentList $args -Wait -NoNewWindow -PassThru -WindowStyle Hidden
+
+                # 3) Re-verificar
+                if (Get-PrinterDriver -Name $DriverName -ErrorAction SilentlyContinue) {
+                    return @{ Ok = $true; DriverName = $DriverName; InstalledNow = $true; Message = "Driver instalado correctamente." }
+                }
+
+                return @{ Ok = $false; DriverName = $DriverName; InstalledNow = $false; Message = "Se ejecutó la instalación, pero el driver no apareció. ExitCode: $($p.ExitCode)" }
+            } catch {
+                return @{ Ok = $false; DriverName = $DriverName; InstalledNow = $false; Message = "Error instalando driver: $($_.Exception.Message)" }
+            }
+        }.GetNewClosure()
+
+        $c['btnInstall'].Add_Click({
+                Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] Clic en Instalar"
+                $name = [string]$c['txtPrinterName'].Text
+                $ip = [string]$c['txtPrinterIp'].Text
+                if ([string]::IsNullOrWhiteSpace($name) -or [string]::IsNullOrWhiteSpace($ip)) {
+                    Show-WpfMessageBox -Message "Ingresa el nombre de la impresora y la IP." -Title "Datos requeridos" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+                if (-not (Test-Administrator)) {
+                    Show-WpfMessageBox -Message "Esta acción requiere permisos de administrador." -Title "Permisos requeridos" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+                if (Get-Printer -Name $name -ErrorAction SilentlyContinue) {
+                    Show-WpfMessageBox -Message "Ya existe una impresora con el nombre '$name'." -Title "Nombre duplicado" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+                $driverCheck = & $ensureDriverSb "Generic / Text Only"
+                $driverName = $driverCheck.DriverName
+
+                if (-not $driverCheck.Ok) {
+                    Show-WpfMessageBox -Message "No se pudo asegurar el driver '$driverName'.`n`n$($driverCheck.Message)" -Title "Driver no disponible" -Buttons OK -Icon Error | Out-Null
+                    return
+                }
+
+                if ($driverCheck.InstalledNow) {
+                    Show-WpfMessageBox -Message "Se instaló automáticamente el driver '$driverName'.`nContinuaremos con la instalación de la impresora." -Title "Driver instalado" -Buttons OK -Icon Information | Out-Null
+                }
+                $basePortName = "IP_$ip"
+                $portName = $basePortName
+                $suffix = 0
+                while (Get-PrinterPort -Name $portName -ErrorAction SilentlyContinue) {
+                    $suffix++
+                    $portName = "${basePortName}_$suffix"
+                }
+                try {
+                    Add-PrinterPort -Name $portName -PrinterHostAddress $ip -ErrorAction Stop | Out-Null
+                } catch {
+                    Show-WpfMessageBox -Message "No se pudo crear el puerto '$portName':`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+                    return
+                }
+                try {
+                    Add-Printer -Name $name -DriverName $driverName -PortName $portName -ErrorAction Stop | Out-Null
+                    Show-WpfMessageBox -Message "Impresora instalada correctamente.`nPuerto: $portName" -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+                    $w.Close()
+                } catch {
+                    Show-WpfMessageBox -Message "No se pudo instalar la impresora:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+                }
+            })
+        $c['btnClose'].Add_Click({ $w.Close() })
+        $w.ShowDialog() | Out-Null
+    } catch {
+        Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] ERROR creando ventana: $($_.Exception.Message)" Red
+        Show-WpfMessageBox -Message "No se pudo crear la ventana de impresoras." -Title "Error" -Buttons OK -Icon Error | Out-Null
+    }
+    Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] FIN"
+}
+
 function Invoke-ClearPrintJobs {
     [CmdletBinding()]param([System.Windows.Controls.TextBlock]$InfoTextBlock)
     try {
@@ -429,8 +585,21 @@ function Show-AddUserDialog {
     $c['btnClose'].Add_Click({ $w.DialogResult = $false; $w.Close() })
     $c['HeaderBar'].Add_MouseLeftButtonDown({ if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() } })
     try { $adminGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-544').Name; $userGroup = (Get-LocalGroup | Where-Object SID -EQ 'S-1-5-32-545').Name }catch { Show-WpfMessageBox -Message "No se pudieron obtener los grupos locales (requiere permisos).`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null; $w.Close(); return }
-    function Set-Status { param([string]$Text, [string]$Level = "Ok"); switch ($Level) { "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen }"Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod }"Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick } }; $c['lblStatus'].Text = $Text }
-    function Get-PasswordText { if ($c['txtPasswordVisible'].Visibility -eq 'Visible') { return [string]$c['txtPasswordVisible'].Text }; return [string]$c['pwdPassword'].Password }
+    $SetStatus = {
+        param([string]$Text, [string]$Level = "Ok")
+        switch ($Level) {
+            "Ok" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::ForestGreen }
+            "Warn" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::DarkGoldenrod }
+            "Error" { $c['lblStatus'].Foreground = [System.Windows.Media.Brushes]::Firebrick }
+        }
+        $c['lblStatus'].Text = $Text
+    }.GetNewClosure()
+    $GetPasswordText = {
+        if ($c['txtPasswordVisible'].Visibility -eq 'Visible') {
+            return [string]$c['txtPasswordVisible'].Text
+        }
+        return [string]$c['pwdPassword'].Password
+    }.GetNewClosure()
     $WriteUsersTableConsoleSb = {
         param([Parameter(Mandatory)]$Rows)
         Write-Host ""
@@ -565,28 +734,31 @@ function Show-AddUserDialog {
         $ctrl['btnClose'].Add_Click({ $win.Close() })
         $null = $win.ShowDialog()
     }.GetNewClosure()
-    function Validate-Form {
+    $ValidateForm = {
         $username = ([string]$c['txtUsername'].Text).Trim()
-        $pass = (Get-PasswordText).Trim()
+        $pass = (& $GetPasswordText).Trim()
         Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Validate username='$username' passLen=$($pass.Length)"
-        if ([string]::IsNullOrWhiteSpace($username)) { Set-Status "Escriba un nombre de usuario." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
-        if ($username -match "\s") { Set-Status "El nombre no debe contener espacios." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
-        if ([string]::IsNullOrWhiteSpace($pass)) { Set-Status "Escriba una contraseña." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
-        if ($pass.Length -lt 8) { Set-Status "La contraseña debe tener al menos 8 caracteres." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
-        try { $exists = Get-LocalUser -Name $username -ErrorAction SilentlyContinue; if ($exists) { Set-Status "El usuario '$username' ya existe." "Error"; $c['btnCreate'].IsEnabled = $false; return } }catch {
+        if ([string]::IsNullOrWhiteSpace($username)) { & $SetStatus "Escriba un nombre de usuario." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        if ($username -match "\s") { & $SetStatus "El nombre no debe contener espacios." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        if ([string]::IsNullOrWhiteSpace($pass)) { & $SetStatus "Escriba una contraseña." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        if ($pass.Length -lt 8) { & $SetStatus "La contraseña debe tener al menos 8 caracteres." "Warn"; $c['btnCreate'].IsEnabled = $false; return }
+        try {
+            $exists = Get-LocalUser -Name $username -ErrorAction SilentlyContinue
+            if ($exists) { & $SetStatus "El usuario '$username' ya existe." "Error"; $c['btnCreate'].IsEnabled = $false; return }
+        } catch {
             Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Validate existencia falló: $($_.Exception.Message)" Yellow
-            Set-Status "Aviso: no se pudo validar si el usuario ya existe (permisos)." "Warn"
+            & $SetStatus "Aviso: no se pudo validar si el usuario ya existe (permisos)." "Warn"
         }
-        Set-Status "Listo para crear usuario." "Ok"
+        & $SetStatus "Listo para crear usuario." "Ok"
         $c['btnCreate'].IsEnabled = $true
-    }
-    $c['tglShowPassword'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword ON"; $c['txtPasswordVisible'].Text = [string]$c['pwdPassword'].Password; $c['pwdPassword'].Visibility = 'Collapsed'; $c['txtPasswordVisible'].Visibility = 'Visible'; Validate-Form }.GetNewClosure())
-    $c['tglShowPassword'].Add_Unchecked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword OFF"; $c['pwdPassword'].Password = [string]$c['txtPasswordVisible'].Text; $c['txtPasswordVisible'].Visibility = 'Collapsed'; $c['pwdPassword'].Visibility = 'Visible'; Validate-Form }.GetNewClosure())
-    $c['txtUsername'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtUsername changed"; Validate-Form }.GetNewClosure())
-    $c['pwdPassword'].Add_PasswordChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] pwdPassword changed"; Validate-Form }.GetNewClosure())
-    $c['txtPasswordVisible'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtPasswordVisible changed"; Validate-Form }.GetNewClosure())
-    $c['rbStandard'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Standard"; Validate-Form }.GetNewClosure())
-    $c['rbAdmin'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Admin"; Validate-Form }.GetNewClosure())
+    }.GetNewClosure()
+    $c['tglShowPassword'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword ON"; $c['txtPasswordVisible'].Text = [string]$c['pwdPassword'].Password; $c['pwdPassword'].Visibility = 'Collapsed'; $c['txtPasswordVisible'].Visibility = 'Visible'; & $ValidateForm }.GetNewClosure())
+    $c['tglShowPassword'].Add_Unchecked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowPassword OFF"; $c['pwdPassword'].Password = [string]$c['txtPasswordVisible'].Text; $c['txtPasswordVisible'].Visibility = 'Collapsed'; $c['pwdPassword'].Visibility = 'Visible'; & $ValidateForm }.GetNewClosure())
+    $c['txtUsername'].Add_TextChanged({ & $ValidateForm }.GetNewClosure())
+    $c['pwdPassword'].Add_PasswordChanged({ & $ValidateForm }.GetNewClosure())
+    $c['txtPasswordVisible'].Add_TextChanged({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] txtPasswordVisible changed"; & $ValidateForm }.GetNewClosure())
+    $c['rbStandard'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Standard"; & $ValidateForm }.GetNewClosure())
+    $c['rbAdmin'].Add_Checked({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Tipo=Admin"; & $ValidateForm }.GetNewClosure())
     $c['btnShowUsers'].Add_Click({
             Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnShowUsers click (tabla)"
             try {
@@ -604,7 +776,7 @@ function Show-AddUserDialog {
     $c['btnCreate'].Add_Click({
             Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnCreate click"
             $username = ([string]$c['txtUsername'].Text).Trim()
-            $password = Get-PasswordText
+            $password = & $GetPasswordText
             $isAdmin = $false; try { $isAdmin = [bool]$c['rbAdmin'].IsChecked }catch {}
             $tipo = if ($isAdmin) { "Administrador" }else { "Usuario estándar" }
             $group = if ($isAdmin) { $adminGroup }else { $userGroup }
@@ -612,7 +784,7 @@ function Show-AddUserDialog {
             $conf = Show-WpfMessageBoxSafe -Message $confirmMsg -Title "Confirmar creación" -Buttons YesNo -Icon Warning -Owner $w
             if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Creación cancelada"; return }
             try {
-                if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) { Set-Status "El usuario '$username' ya existe." "Error"; Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Ya existe: $username" Yellow; return }
+                if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) { & $SetStatus "El usuario '$username' ya existe." "Error"; Write-DzDebug "`t[DEBUG][Show-AddUserDialog] Ya existe: $username" Yellow; return }
                 $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
                 New-LocalUser -Name $username -Password $securePassword -AccountNeverExpires -PasswordNeverExpires | Out-Null
                 Add-LocalGroupMember -Group $group -Member $username
@@ -621,17 +793,17 @@ function Show-AddUserDialog {
                 $w.DialogResult = $true; $w.Close()
             } catch {
                 Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR creando usuario: $($_.Exception.Message)" Red
-                Set-Status "Error: $($_.Exception.Message)" "Error"
+                & $SetStatus "Error: $($_.Exception.Message)" "Error"
                 Show-WpfMessageBox -Message "Error al crear usuario:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
             }
         }.GetNewClosure())
     $c['btnCancel'].Add_Click({ Write-DzDebug "`t[DEBUG][Show-AddUserDialog] btnCancel"; $w.DialogResult = $false; $w.Close() }.GetNewClosure())
-    Validate-Form
+    & $ValidateForm
     try { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ShowDialog()"; $w.ShowDialog() | Out-Null }catch { Write-DzDebug "`t[DEBUG][Show-AddUserDialog] ERROR ShowDialog: $($_.Exception.Message)" Red; throw }
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] FIN"
 }
 function Show-IPConfigDialog {
-    Write-Host "`n`t- - - Comenzando el proceso - - -" -ForegroundColor Gray
+    Write-Host "`n- - - Comenzando el proceso - - -" -ForegroundColor Magenta
     $theme = Get-DzUiTheme
     function Test-IPv4 {
         param([string]$Ip)
@@ -1348,5 +1520,5 @@ function Show-FirewallConfigDialog {
     Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] FIN"
 }
 Export-ModuleMember -Function @('Show-SystemComponents', 'Start-SystemUpdate', 'show-NSPrinters', 'Invoke-ClearPrintJobs',
-    'Invoke-CreateApk',
-'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog')
+    'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog',
+    'Show-InstallPrinterDialog')

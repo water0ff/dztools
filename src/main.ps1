@@ -50,7 +50,7 @@ function Write-Log {
 }
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
-$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1")
+$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1")
 foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
@@ -69,10 +69,10 @@ foreach ($module in $modules) {
 }
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
-- Configuraciones de Firewall
-    * Buscar reglas existentes "deshabilitada termporalmente"
-    * Agregar reglas nuevas
 - Version Base de datos 2.0.0
+    * TreeView Permite Eliminar bases de datos
+    * Ahora puedes crear bases de datos
+    * Restaurar permite seleccionar ruta de archivos logicos
     * Nueva conexión a SQL Server
     * Backup de bases de datos
     * Ejecución de queries
@@ -80,6 +80,11 @@ $global:defaultInstructions = @"
     * Mejoras en seguridad y manejo de errores
     * Carga de INIS en la conexión a BDD.
     * Multiples Queries (MultiQuery)
+- Instalador de impresoras Generic Text por IP
+- Registro y deregistro de Dlls
+- Configuraciones de Firewall
+    * Buscar reglas existentes "deshabilitada termporalmente"
+    * Agregar reglas nuevas
 - Nueva interfaz WPF
     * Fuentes y colores actualizados.
     * Modo oscuro
@@ -327,6 +332,16 @@ function New-MainForm {
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="DatabaseButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentDatabase}"/>
+            <Setter Property="Foreground" Value="#111111"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentDatabaseHover}"/>
+                    <Setter Property="Foreground" Value="#111111"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource AccentOrange}"/>
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
@@ -386,7 +401,13 @@ function New-MainForm {
     </Window.Resources>
     <Grid Background="{DynamicResource FormBg}">
         <TabControl Name="tabControl" Margin="5">
-            <TabItem Header="Aplicaciones" Name="tabAplicaciones">
+            <TabItem Name="tabAplicaciones">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🧩" Margin="0,0,6,0"/>
+                        <TextBlock Text="Aplicaciones"/>
+                    </StackPanel>
+                </TabItem.Header>
                 <Grid Background="{DynamicResource PanelBg}">
                     <TextBox Name="lblHostname"
                              Width="220" Height="40" Margin="10,1,0,0"
@@ -450,8 +471,11 @@ function New-MainForm {
                     <Button Content="Mostrar Impresoras" Name="btnShowPrinters" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,290,0,0"
                             Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Limpia y Reinicia Cola de Impresión" Name="btnClearPrintJobs" Width="220" Height="30"
+                    <Button Content="Instalar impresora" Name="btnInstallPrinter" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,330,0,0"
+                            Style="{StaticResource SystemButtonStyle}"/>
+                    <Button Content="Limpia y Reinicia Cola de Impresión" Name="btnClearPrintJobs" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,370,0,0"
                             Style="{StaticResource SystemButtonStyle}"/>
                     <Button Content="Aplicaciones National Soft" Name="btnAplicacionesNS" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,50,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
@@ -465,6 +489,8 @@ function New-MainForm {
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Instaladores NS" Name="btnInstaladoresNS" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,250,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
+                    <Button Content="Registro de dlls" Name="btnRegisterDlls" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,290,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
                              Width="220" Height="300" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
@@ -515,7 +541,13 @@ function New-MainForm {
                     </Border>
                 </Grid>
             </TabItem>
-<TabItem Header="Base de datos" Name="tabProSql">
+<TabItem Name="tabProSql">
+  <TabItem.Header>
+    <StackPanel Orientation="Horizontal">
+      <TextBlock Text="🗄️" Margin="0,0,6,0"/>
+      <TextBlock Text="SSMS portable"/>
+    </StackPanel>
+  </TabItem.Header>
   <Grid Background="{DynamicResource PanelBg}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>  <!-- Conexión -->
@@ -561,46 +593,39 @@ function New-MainForm {
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
           <Button Content="Conectar" Name="btnConnectDb"
                   Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource SystemButtonStyle}"/>
-
+                  Style="{StaticResource DatabaseButtonStyle}"/>
           <Button Content="Desconectar" Name="btnDisconnectDb"
                   Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
-
+                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
           <Button Content="Backup" Name="btnBackup"
+                  Width="120" Height="30" Margin="0,0,8,0"
+                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+          <Button Content="Restaurar" Name="btnRestore"
                   Width="120" Height="30"
-                  Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
         </StackPanel>
       </Grid>
     </Border>
-
-    <!-- 🧰 Barra intermedia: ejecutar/queries/limpiar -->
     <Border Grid.Row="1" Margin="10,0,10,10" Padding="10"
             BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
             CornerRadius="6" Background="{DynamicResource ControlBg}">
       <StackPanel Orientation="Horizontal">
         <Button Content="Ejecutar (F5)" Name="btnExecute"
                 Width="110" Height="30" Margin="0,0,8,0"
-                Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
-
+                Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
         <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0"
                   IsEnabled="False" ToolTip="Consultas predefinidas"/>
-
         <Button Content="Limpiar" Name="btnClearQuery"
                 Width="90" Height="30"
-                Style="{StaticResource SystemButtonStyle}" IsEnabled="False"/>
+                Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
       </StackPanel>
     </Border>
-
-    <!-- 🪟 Área principal (Explorador + Consultas/Resultados) -->
     <Grid Grid.Row="2" Margin="10">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="250" MinWidth="200"/>
         <ColumnDefinition Width="5"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
-
-      <!-- 🌲 Explorador de objetos -->
       <Border Grid.Column="0"
               BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
               CornerRadius="6" Background="{DynamicResource ControlBg}">
@@ -609,7 +634,6 @@ function New-MainForm {
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
-
           <TextBlock Grid.Row="0" Text="Explorador de Objetos"
                      Padding="8" FontWeight="Bold"
                      Background="{DynamicResource AccentPrimary}"
@@ -617,20 +641,14 @@ function New-MainForm {
           <TreeView Grid.Row="1" Name="tvDatabases" Padding="4"/>
         </Grid>
       </Border>
-
-      <!-- Split -->
       <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
                     Background="{DynamicResource BorderBrushColor}"/>
-
-      <!-- 📝 Consultas + Resultados -->
       <Grid Grid.Column="2">
         <Grid.RowDefinitions>
           <RowDefinition Height="*" MinHeight="150"/>
           <RowDefinition Height="5"/>
           <RowDefinition Height="2*" MinHeight="200"/>
         </Grid.RowDefinitions>
-
-        <!-- Tabs de consultas (sin toolbar interna) -->
         <TabControl Name="tcQueries" Grid.Row="0" Background="{DynamicResource ControlBg}">
           <TabItem Header="Consulta 1">
             <Border BorderBrush="{DynamicResource BorderBrushColor}"
@@ -643,7 +661,6 @@ function New-MainForm {
           </TabItem>
           <TabItem Header="+" Name="tabAddQuery" IsEnabled="True"/>
         </TabControl>
-
         <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch"
                       Background="{DynamicResource BorderBrushColor}"/>
 
@@ -662,7 +679,7 @@ function New-MainForm {
       </Grid>
     </Grid>
 
-    <!-- 📍 Barra de estado -->
+    <!-- 📍 Barra de estado falta el timer -->
     <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
       <StatusBarItem>
         <TextBlock Name="lblConnectionStatus" Text="Desconectado"/>
@@ -718,6 +735,7 @@ function New-MainForm {
     $btnForzarActualizacion = $window.FindName("btnForzarActualizacion")
     $btnClearAnyDesk = $window.FindName("btnClearAnyDesk")
     $btnShowPrinters = $window.FindName("btnShowPrinters")
+    $btnInstallPrinter = $window.FindName("btnInstallPrinter")
     $btnClearPrintJobs = $window.FindName("btnClearPrintJobs")
     $btnAplicacionesNS = $window.FindName("btnAplicacionesNS")
     $btnCambiarOTM = $window.FindName("btnCambiarOTM")
@@ -725,6 +743,7 @@ function New-MainForm {
     $btnCreateAPK = $window.FindName("btnCreateAPK")
     $btnExtractInstaller = $window.FindName("btnExtractInstaller")
     $btnInstaladoresNS = $window.FindName("btnInstaladoresNS")
+    $btnRegisterDlls = $window.FindName("btnRegisterDlls")
     $txtServer = $window.FindName("txtServer")
     $txtUser = $window.FindName("txtUser")
     $txtPassword = $window.FindName("txtPassword")
@@ -732,6 +751,7 @@ function New-MainForm {
     $btnConnectDb = $window.FindName("btnConnectDb")
     $btnDisconnectDb = $window.FindName("btnDisconnectDb")
     $btnBackup = $window.FindName("btnBackup")
+    $btnRestore = $window.FindName("btnRestore")
     $lblConnectionStatus = $window.FindName("lblConnectionStatus")
     $btnExecute = $window.FindName("btnExecute")
     $btnClearQuery = $window.FindName("btnClearQuery")
@@ -792,6 +812,7 @@ function New-MainForm {
     $global:btnExecute = $btnExecute
     $global:btnBackup = $btnBackup
     $global:btnClearQuery = $btnClearQuery
+    $global:btnRestore = $btnRestore
     $global:cmbQueries = $cmbQueries
     $global:tcQueries = $tcQueries
     $global:tcResults = $tcResults
@@ -897,50 +918,165 @@ function New-MainForm {
     Refresh-AdapterStatus
     Load-IniConnectionsToComboBox -Combo $txtServer
     $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler,
-    $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
-    $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnClearPrintJobs, $btnAplicacionesNS,
-    $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS)
+        $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
+        $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnInstallPrinter, $btnClearPrintJobs, $btnAplicacionesNS,
+        $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS, $btnRegisterDlls)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
-    $portsResult = Get-SqlPortWithDebug
-    $portsArray = @($portsResult)
-    $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
-    if ($portsArray.Count -gt 0) {
-        $sortedPorts = $portsArray | Sort-Object -Property Instance
-        $displayParts = @()
-        foreach ($port in $sortedPorts) {
-            $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
-            $displayParts += "$instanceName : $($port.Port)"
+    # Sección de puerto, después moverlo a National.psm1
+    Write-DzDebug "`t[DEBUG] lblPort encontrado: $($lblPort -ne $null)" -Color Cyan
+
+    # Captura $lblPort en el scriptblock usando GetNewClosure()
+    $updateSqlPortsUi = {
+        param($portsResult)
+        $portsArray = @(
+            $portsResult |
+            Where-Object {
+                $_ -ne $null -and
+                $_.PSObject.Properties.Match('Port').Count -gt 0 -and
+                $_.PSObject.Properties.Match('Instance').Count -gt 0 -and
+                [string]::IsNullOrWhiteSpace([string]$_.Port) -eq $false
+            }
+        )
+        $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
+
+        # Verificar si $lblPort es accesible
+        Write-DzDebug "`t[DEBUG] En updateSqlPortsUi, lblPort es null: $($null -eq $lblPort)" -Color Yellow
+
+        if ($null -eq $lblPort) {
+            Write-DzDebug "`t[DEBUG] ERROR: lblPort es NULL en updateSqlPortsUi" -Color Red
+            # Intentar obtener lblPort desde la ventana
+            if ($global:MainWindow -and $global:MainWindow.IsLoaded) {
+                $lblPort = $global:MainWindow.FindName("lblPort")
+                Write-DzDebug "`t[DEBUG] lblPort obtenido de MainWindow: $($lblPort -ne $null)" -Color Yellow
+            }
         }
-        $global:sqlPortsData.DisplayText = $displayParts -join " | "
-        $global:sqlPortsData.DetailedText = $sortedPorts | ForEach-Object {
-            $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
-            "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
-        } | Out-String
-        $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
-        $lblPort.Text = $global:sqlPortsData.DisplayText
-        $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
-        $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) { "Haz clic para mostrar en consola y copiar al portapapeles" } else { "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles" }
-        Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
-        Write-Host $global:sqlPortsData.Summary -ForegroundColor White
-        Write-Host "Puertos: " -ForegroundColor White -NoNewline
-        foreach ($port in $sortedPorts) {
-            $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
-            Write-Host "$instanceName : " -ForegroundColor White -NoNewline
-            Write-Host "$($port.Port) " -ForegroundColor Magenta -NoNewline
-            if ($port -ne $sortedPorts[-1]) { Write-Host "| " -ForegroundColor Gray -NoNewline }
+
+        if ($null -eq $lblPort) {
+            Write-DzDebug "`t[DEBUG] No se pudo obtener lblPort, saliendo..." -Color Red
+            return
         }
-        Write-Host ""
-        Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
-    } else {
-        $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
-        $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
-        $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
-        $lblPort.Text = "No se encontraron puertos SQL"
-        $lblPort.Tag = $global:sqlPortsData.DetailedText
-        $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
+
+        if ($portsArray.Count -gt 0) {
+            $sortedPorts = $portsArray | Sort-Object -Property Instance
+            $displayParts = @()
+            foreach ($port in $sortedPorts) {
+                $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
+                $displayParts += "$instanceName : $($port.Port)"
+            }
+            $global:sqlPortsData.DisplayText = $displayParts -join " | "
+            $global:sqlPortsData.DetailedText = $sortedPorts | ForEach-Object {
+                $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
+                "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
+            } | Out-String
+            $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
+
+            Write-DzDebug "`t[DEBUG] lblPort type: $($lblPort.GetType().FullName)" -Color Cyan
+            Write-DzDebug "`t[DEBUG] lblPort.Name: $($lblPort.Name)" -Color Cyan
+
+            # Actualizar la UI usando el dispatcher - FORZAR la actualización
+            $lblPort.Dispatcher.Invoke([action] {
+                    Write-DzDebug "`t[DEBUG] Actualizando UI con puertos encontrados" -Color Green
+                    $lblPort.Text = $global:sqlPortsData.DisplayText
+                    $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
+                    $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) {
+                        "Haz clic para mostrar en consola y copiar al portapapeles"
+                    } else {
+                        "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles"
+                    }
+                    # Forzar actualización de la UI
+                    $lblPort.UpdateLayout()
+                }, [System.Windows.Threading.DispatcherPriority]::Render)
+
+            Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
+            Write-Host $global:sqlPortsData.Summary -ForegroundColor White
+            Write-Host "Puertos: " -ForegroundColor White -NoNewline
+            foreach ($port in $sortedPorts) {
+                $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
+                Write-Host "$instanceName : " -ForegroundColor White -NoNewline
+                Write-Host "$($port.Port) " -ForegroundColor Magenta -NoNewline
+                if ($port -ne $sortedPorts[-1]) { Write-Host "| " -ForegroundColor Gray -NoNewline }
+            }
+            Write-Host ""
+            Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
+        } else {
+            Write-DzDebug "`t[DEBUG] No se encontraron puertos, actualizando UI..." -Color Yellow
+            $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
+            $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
+            $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
+
+            # Actualizar la UI usando el dispatcher - FORZAR la actualización
+            $lblPort.Dispatcher.Invoke([action] {
+                    Write-DzDebug "`t[DEBUG] Dentro del dispatcher: Estableciendo 'No se encontraron puertos SQL'" -Color Green
+                    $lblPort.Text = "No se encontraron puertos SQL"
+                    $lblPort.Tag = $global:sqlPortsData.DetailedText
+                    $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
+                    # Forzar actualización de la UI
+                    $lblPort.UpdateLayout()
+                    Write-DzDebug "`t[DEBUG] lblPort.Text después de actualizar: $($lblPort.Text)" -Color Green
+                }, [System.Windows.Threading.DispatcherPriority]::Render)
+        }
+    }.GetNewClosure()  # ¡IMPORTANTE! Captura las variables del scope actual
+
+    # Actualizar el texto inicial usando el dispatcher también
+    $lblPort.Dispatcher.Invoke([action] {
+            $lblPort.Text = "Buscando puertos SQL..."
+            $lblPort.ToolTip = "Buscando puertos SQL..."
+            # Forzar actualización inmediata
+            $lblPort.UpdateLayout()
+        }, [System.Windows.Threading.DispatcherPriority]::Render)
+
+    try {
+        $portsJob = Start-Job -ScriptBlock {
+            param($modulePath)
+            Import-Module $modulePath -Force -DisableNameChecking
+            Get-SqlPortWithDebug
+        } -ArgumentList (Join-Path $modulesPath "Utilities.psm1")
+
+        if ($portsJob) {
+            $portsTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $portsTimer.Interval = [TimeSpan]::FromMilliseconds(300)
+            $portsTimer.Add_Tick({
+                    # Verificar si la ventana principal aún está activa
+                    if ($null -eq $global:MainWindow -or -not $global:MainWindow.IsLoaded) {
+                        $portsTimer.Stop()
+                        Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
+                        Write-DzDebug "`t[DEBUG] Ventana cerrada, deteniendo búsqueda de puertos" -Color Yellow
+                        return
+                    }
+
+                    if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
+                        $portsTimer.Stop()
+                        $portsResult = @()
+                        try {
+                            $portsResult = @(Receive-Job $portsJob -ErrorAction SilentlyContinue)
+                            Write-DzDebug "`t[DEBUG] Resultados recibidos del job (raw count): $($portsResult.Count)" -Color Cyan
+                        } catch {
+                            Write-DzDebug "`t[DEBUG] Error recibiendo resultados del job: $($_.Exception.Message)" -Color Red
+                        }
+                        Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
+
+                        # Asegurarse de que la UI todavía existe antes de actualizar
+                        if ($global:MainWindow -and $global:MainWindow.IsLoaded -and $lblPort -and $lblPort.IsLoaded) {
+                            & $updateSqlPortsUi $portsResult
+                        } else {
+                            Write-DzDebug "`t[DEBUG] UI no disponible para actualizar resultados" -Color Yellow
+                        }
+                    }
+                }.GetNewClosure())
+            $portsTimer.Start()
+        } else {
+            Write-DzDebug "`t[DEBUG] No se pudo iniciar job, ejecutando sincrónicamente" -Color Yellow
+            $portsResult = Get-SqlPortWithDebug
+            & $updateSqlPortsUi $portsResult
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG] Error iniciando búsqueda de puertos SQL async: $($_.Exception.Message)" -Color Yellow
+        $portsResult = Get-SqlPortWithDebug
+        & $updateSqlPortsUi $portsResult
     }
+
     $lblPort.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
@@ -1027,8 +1163,8 @@ function New-MainForm {
             $e.Handled = $true
         })
     $btnInstalarHerramientas.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Instalar Herramientas' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Instalar Herramientas' - - -" -ForegroundColor Magenta
             if (-not (Check-Chocolatey)) {
                 Write-Host "Chocolatey no está instalado. No se puede abrir el menú de instaladores." -ForegroundColor Red
                 return
@@ -1036,23 +1172,23 @@ function New-MainForm {
             Show-ChocolateyInstallerMenu
         })
     $btnProfiler.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Profiler' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Profiler' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Profiler' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Profiler' - - -" -ForegroundColor Magenta
             Invoke-PortableTool -ToolName "ExpressProfiler" -Url "https://github.com/ststeiger/ExpressProfiler/releases/download/1.0/ExpressProfiler20.zip" -ZipPath "C:\Temp\ExpressProfiler22wAddinSigned.zip" -ExtractPath "C:\Temp\ExpressProfiler2" -ExeName "ExpressProfiler.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
     $btnDatabase.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Database' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Database' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Database' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Database' - - -" -ForegroundColor Magenta
             Invoke-PortableTool -ToolName "Database4" -Url "https://fishcodelib.com/files/DatabaseNet4.zip" -ZipPath "C:\Temp\DatabaseNet4.zip" -ExtractPath "C:\Temp\Database4" -ExeName "Database4.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
     $btnPrinterTool.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Printer Tool' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Printer Tool' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Printer Tool' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Printer Tool' - - -" -ForegroundColor Magenta
             Invoke-PortableTool -ToolName "POS Printer Test" -Url "https://3nstar.com/wp-content/uploads/2023/07/RPT-RPI-Printer-Tool-1.zip" -ZipPath "C:\Temp\RPT-RPI-Printer-Tool-1.zip" -ExtractPath "C:\Temp\RPT-RPI-Printer-Tool-1" -ExeName "POS Printer Test.exe" -InfoTextBlock $txt_InfoInstrucciones
         })
     $btnLectorDPicacls.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Lector DP + icacls' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Lector DP + icacls' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Lector DP + icacls' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Lector DP + icacls' - - -" -ForegroundColor Magenta
             $pwPs = $null
             $pwDrv = $null
             try {
@@ -1212,8 +1348,8 @@ function New-MainForm {
             }
         })
     $btnSQLManager.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'SQL Manager' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'SQL Manager' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'SQL Manager' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'SQL Manager' - - -" -ForegroundColor Magenta
             function Get-SQLServerManagers {
                 $possiblePaths = @("${env:SystemRoot}\System32\SQLServerManager*.msc", "${env:SystemRoot}\SysWOW64\SQLServerManager*.msc")
                 $managers = foreach ($pattern in $possiblePaths) { Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | ForEach-Object FullName }
@@ -1224,8 +1360,8 @@ function New-MainForm {
             Show-SQLselector -Managers $managers
         })
     $btnSQLManagement.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'SQL Management' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'SQL Management' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'SQL Management' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'SQL Management' - - -" -ForegroundColor Magenta
             function Get-SSMSVersions {
                 $ssmsPaths = @()
                 $fixedPaths = @(
@@ -1303,15 +1439,15 @@ function New-MainForm {
             Show-SQLselector -SSMSVersions $filteredVersions
         })
     $btnForzarActualizacion.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Forzar Actualización' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Forzar Actualización' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Forzar Actualización' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Forzar Actualización' - - -" -ForegroundColor Magenta
             Show-SystemComponents
             $ok = Ui-Confirm "¿Desea forzar la actualización de datos?" "Confirmación" $global:MainWindow
             if ($ok) { Start-SystemUpdate ; Ui-Info "Actualización completada" "Éxito" $global:MainWindow } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
         })
     $btnClearAnyDesk.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Clear AnyDesk' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Clear AnyDesk' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Clear AnyDesk' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Clear AnyDesk' - - -" -ForegroundColor Magenta
             $ok = Ui-Confirm "¿Estás seguro de renovar AnyDesk?" "Confirmar renovación" $global:MainWindow
             if ($ok) {
                 $filesToDelete = @("C:\ProgramData\AnyDesk\system.conf", "C:\ProgramData\AnyDesk\service.conf", "$env:APPDATA\AnyDesk\system.conf", "$env:APPDATA\AnyDesk\service.conf")
@@ -1340,40 +1476,83 @@ function New-MainForm {
             } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
         })
     $btnShowPrinters.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Show Printers' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Show Printers' - - -" -ForegroundColor Gray; Show-NSPrinters })
+            Write-DzDebug ("`t[DEBUG] Click en 'Show Printers' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Show Printers' - - -" -ForegroundColor Magenta
+            Show-NSPrinters
+        })
+    $btnInstallPrinter.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Instalar impresora' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Instalar impresora' - - -" -ForegroundColor Magenta
+            Show-InstallPrinterDialog
+        })
     $btnClearPrintJobs.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Clear Print Jobs' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Clear Print Jobs' - - -" -ForegroundColor Gray ; Invoke-ClearPrintJobs -InfoTextBlock $txt_InfoInstrucciones })
+            Write-DzDebug ("`t[DEBUG] Click en 'Clear Print Jobs' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Clear Print Jobs' - - -" -ForegroundColor Magenta
+            Invoke-ClearPrintJobs -InfoTextBlock $txt_InfoInstrucciones
+        })
     $btnCheckPermissions.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Revisar Permisos' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Revisar Permisos' - - -" -ForegroundColor Gray
-            if (-not (Test-Administrator)) { Ui-Error "Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador." $global:MainWindow ; return }
+            Write-DzDebug ("`t[DEBUG] Click en 'Revisar Permisos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Revisar Permisos' - - -" -ForegroundColor Magenta
+            if (-not (Test-Administrator)) {
+                Ui-Error "Esta acción requiere permisos de administrador.`r`nPor favor, ejecuta Gerardo Zermeño Tools como administrador." $global:MainWindow
+                return
+            }
             Check-Permissions
         })
-    $btnAplicacionesNS.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Aplicaciones NS' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Aplicaciones NS' - - -" -ForegroundColor Gray; $res = Get-NSApplicationsIniReport ; Show-NSApplicationsIniReport -Resultados $res })
-    $btnCambiarOTM.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Cambiar OTM' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Cambiar OTM' - - -" -ForegroundColor Gray ; Invoke-CambiarOTMConfig -InfoTextBlock $txt_InfoInstrucciones })
+    $btnAplicacionesNS.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Aplicaciones NS' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Aplicaciones NS' - - -" -ForegroundColor Magenta
+            $res = Get-NSApplicationsIniReport
+            Show-NSApplicationsIniReport -Resultados $res
+        })
+    $btnRegisterDlls.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Registro registro de dlls' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Registro registro de dlls' - - -" -ForegroundColor Magenta
+            Show-DllRegistrationDialog
+        })
+    $btnCambiarOTM.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Cambiar OTM' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Cambiar OTM' - - -" -ForegroundColor Magenta
+            Invoke-CambiarOTMConfig -InfoTextBlock $txt_InfoInstrucciones
+        })
     $LZMAbtnBuscarCarpeta.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Buscar Instaladores LZMA' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Buscar Instaladores LZMA' - - -" -ForegroundColor Gray; Show-LZMADialog })
-    $btnConfigurarIPs.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Configurar IPs' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Configurar IPs' - - -" -ForegroundColor Gray ; Show-IPConfigDialog })
-    $btnAddUser.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Agregar Usuario' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Agregar Usuario' - - -" -ForegroundColor Gray ; Show-AddUserDialog })
-    $btnFirewallConfig.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Configuraciones de Firewall' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Configuraciones de Firewall' - - -" -ForegroundColor Gray ; Show-FirewallConfigDialog })
-    $btnCreateAPK.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Crear APK' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Crear APK' - - -" -ForegroundColor Gray ; Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones })
-    $btnExtractInstaller.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Extraer Instalador' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Extraer Instalador' - - -" -ForegroundColor Gray ; Show-InstallerExtractorDialog })
-    $btnInstaladoresNS.Add_Click({ Write-DzDebug ("`t[DEBUG] Click en 'Instaladores NS' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-DzDebug ("`t[DEBUG] Click en 'Buscar Instaladores LZMA' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Buscar Instaladores LZMA' - - -" -ForegroundColor Magenta
+            Show-LZMADialog
+        })
+    $btnConfigurarIPs.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Configurar IPs' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Configurar IPs' - - -" -ForegroundColor Magenta
+            Show-IPConfigDialog
+        })
+    $btnAddUser.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Agregar Usuario' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Agregar Usuario' - - -" -ForegroundColor Magenta
+            Show-AddUserDialog
+        })
+    $btnFirewallConfig.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Configuraciones de Firewall' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Configuraciones de Firewall' - - -" -ForegroundColor Magenta
+            Show-FirewallConfigDialog
+        })
+    $btnCreateAPK.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Crear APK' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Crear APK' - - -" -ForegroundColor Magenta
+            Invoke-CreateApk -InfoTextBlock $txt_InfoInstrucciones
+        })
+    $btnExtractInstaller.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Extraer Instalador' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Extraer Instalador' - - -" -ForegroundColor Magenta
+            Show-InstallerExtractorDialog
+        })
+    $btnInstaladoresNS.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Instaladores NS' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`t- - - Abriendo 'Instaladores NS' - - -" -ForegroundColor Gray
-            Start-Process "https://nationalsoft-my.sharepoint.com/:f:/g/personal/gerardo_zermeno_softrestaurant_com/IgC3tKgxlNw9S7JmBk935kCrAVq9jkz06CJek9ljNOrr_Hw?e=xf2dFh" })
+            Start-Process "https://nationalsoft-my.sharepoint.com/:f:/g/personal/gerardo_zermeno_softrestaurant_com/IgC3tKgxlNw9S7JmBk935kCrAVq9jkz06CJek9ljNOrr_Hw?e=xf2dFh"
+        })
     $btnConnectDb.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss"))
-            Write-Host "`t- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Gray
+            Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Magenta
 
             try {
                 if ($null -eq $global:txtServer -or $null -eq $global:txtUser -or $null -eq $global:txtPassword) {
@@ -1425,6 +1604,7 @@ function New-MainForm {
                 $global:btnConnectDb.IsEnabled = $false
                 $global:btnBackup.IsEnabled = $true
                 $global:btnDisconnectDb.IsEnabled = $true
+                $global:btnRestore.IsEnabled = $true
                 # ✅ Habilitar UI de trabajo al conectar
                 if ($global:tcQueries) { $global:tcQueries.IsEnabled = $true }
                 if ($global:tcResults) { $global:tcResults.IsEnabled = $true }
@@ -1435,7 +1615,7 @@ function New-MainForm {
 
                 # Opcional: enfoque al editor
                 $global:rtbQueryEditor1.Focus() | Out-Null
-                Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential `
+                Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential -User $userText -Password $passwordText -GetCurrentDatabase { $global:database } `
                     -AutoExpand $true `
                     -OnDatabaseSelected {
                     param($dbName)
@@ -1464,8 +1644,6 @@ function New-MainForm {
                 } `
                     -InsertTextHandler {
                     param($text)
-
-                    # ✅ IMPORTANTE: Insertar SIEMPRE en pestaña activa (NO rtbQueryEditor1)
                     if ($global:tcQueries) {
                         Insert-TextIntoActiveQuery -TabControl $global:tcQueries -Text $text
                     }
@@ -1481,6 +1659,7 @@ function New-MainForm {
             }
         })
     $btnDisconnectDb.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Desconectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
                 if ($global:connection -and $global:connection.State -ne [System.Data.ConnectionState]::Closed) {
                     $global:connection.Close()
@@ -1493,6 +1672,7 @@ function New-MainForm {
                 $global:btnConnectDb.IsEnabled = $true
                 $global:btnBackup.IsEnabled = $false
                 $global:btnDisconnectDb.IsEnabled = $false
+                $global:btnRestore.IsEnabled = $false
                 $global:btnExecute.IsEnabled = $false
                 $global:btnClearQuery.IsEnabled = $false
                 $global:txtServer.IsEnabled = $true
@@ -1528,8 +1708,8 @@ Base de datos: $($global:database)
             }
         })
     $btnExecute.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Ejecutar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n`t- - - Ejecutando consulta - - -" -ForegroundColor Gray
-
             try {
                 # 1) Base de datos seleccionada
                 $selectedDb = $global:cmbDatabases.SelectedItem
@@ -1591,7 +1771,29 @@ Base de datos: $($global:database)
                         $global:lblRowCount.Text = "Filas: $($result.ResultSets[0].RowCount)"
                     }
 
-                    Write-Host "✓ Consulta ejecutada: $($result.ResultSets[0].RowCount) filas" -ForegroundColor Green
+                    if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
+
+                        if ($global:tcResults) {
+                            Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
+                        } else {
+                            $global:dgResults.ItemsSource = $result.ResultSets[0].DataTable.DefaultView
+                        }
+
+                        # Resumen por resultset
+                        $parts = New-Object System.Collections.Generic.List[string]
+                        for ($i = 0; $i -lt $result.ResultSets.Count; $i++) {
+                            $rows = $result.ResultSets[$i].RowCount
+                            $label = if ($rows -eq 1) { "fila" } else { "filas" }
+                            $parts.Add(("Resultado {0}: {1} {2}" -f ($i + 1), $rows, $label))
+                        }
+
+                        $summary = ($parts -join " | ")
+                        Write-Host "✓ Consulta ejecutada: $summary" -ForegroundColor Green
+
+                        # (Opcional) también a la UI
+                        if ($global:lblRowCount) { $global:lblRowCount.Text = $summary }
+                    }
+
 
                 } elseif ($result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
 
@@ -1630,7 +1832,7 @@ Base de datos: $($global:database)
             }
         })
     $btnClearQuery.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss"))
+            Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
                 # 1) Obtener RichTextBox ACTIVO (pestaña activa real)
                 $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
@@ -1657,7 +1859,14 @@ Base de datos: $($global:database)
                 Write-Host "====================================" -ForegroundColor Red
             }
         })
-    $btnBackup.Add_Click({ Write-Host "`n`t- - - Comenzando el proceso de Backup - - -" -ForegroundColor Gray ; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
+    $btnBackup.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Backup - - -" -ForegroundColor Magenta ; Write-DzDebug ("`t[DEBUG] Click en 'Respaldar Base de datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
+    $btnRestore.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Restauración - - -"  ; Write-DzDebug ("`t[DEBUG] Click en 'Restaurar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem -OnRestoreCompleted {
+                param($dbName)
+                Write-DzDebug "`t[DEBUG] Restore completado. Refrescando TreeView."
+                if ($global:tvDatabases -and $global:server) { Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $global:server }
+            }
+        })
     $window.Add_KeyDown({
             param($s, $e)
             if ($e.Key -eq 'F5' -and $btnExecute.IsEnabled) {
@@ -1684,6 +1893,33 @@ Base de datos: $($global:database)
         }
     }.GetNewClosure()
     Write-Host "✓ Formulario WPF creado exitosamente" -ForegroundColor Green
+    # ---- CAPTURAR EXCEPCIONES NO MANEJADAS DE WPF (Dispatcher) ----
+    $window.Dispatcher.Add_UnhandledException({
+            param($sender, $e)
+
+            $ex = $e.Exception
+            Write-Host "`n[WPF Dispatcher ERROR]" -ForegroundColor Red
+            Write-Host "Mensaje: $($ex.Message)" -ForegroundColor Yellow
+            Write-Host "Tipo   : $($ex.GetType().FullName)" -ForegroundColor Yellow
+            Write-Host "Stack  : $($ex.StackTrace)" -ForegroundColor DarkYellow
+
+            # Si viene de un ScriptBlock (eventos/timer), aquí suele venir la línea exacta:
+            if ($ex -is [System.Management.Automation.RuntimeException] -and $ex.ErrorRecord) {
+                $er = $ex.ErrorRecord
+                if ($er.InvocationInfo) {
+                    Write-Host "Archivo : $($er.InvocationInfo.ScriptName)" -ForegroundColor Cyan
+                    Write-Host "Línea   : $($er.InvocationInfo.ScriptLineNumber)" -ForegroundColor Cyan
+                    Write-Host "Código  : $($er.InvocationInfo.Line)" -ForegroundColor Cyan
+                    Write-Host "Pos     : $($er.InvocationInfo.PositionMessage)" -ForegroundColor DarkCyan
+                }
+                Write-Host "PSScriptStackTrace:" -ForegroundColor Magenta
+                Write-Host $er.ScriptStackTrace -ForegroundColor Magenta
+            }
+
+            # para que NO cierre toda la app mientras depuras
+            $e.Handled = $true
+        })
+
     return $window
 }
 function Start-Application {
@@ -1692,7 +1928,7 @@ function Start-Application {
     Show-GlobalProgress -Percent 10 -Status "Entorno listo"
     Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
     $modulesPath = Join-Path $PSScriptRoot "modules"
-    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1")
+    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1")
     $i = 0
     foreach ($module in $modules) {
         $i++
@@ -1710,8 +1946,22 @@ function Start-Application {
 try {
     Start-Application
 } catch {
-    Write-Host "Error fatal: $_" -ForegroundColor Red
-    Write-Host "Stack Trace: $($_.Exception.StackTrace)" -ForegroundColor Red
+    Write-Host "Error fatal: $($_.Exception.Message)" -ForegroundColor Red
+
+    if ($_.InvocationInfo) {
+        Write-Host "Archivo : $($_.InvocationInfo.ScriptName)" -ForegroundColor Yellow
+        Write-Host "Línea   : $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor Yellow
+        Write-Host "Col     : $($_.InvocationInfo.OffsetInLine)" -ForegroundColor Yellow
+        Write-Host "Código  : $($_.InvocationInfo.Line)" -ForegroundColor Yellow
+        Write-Host "Pos     : $($_.InvocationInfo.PositionMessage)" -ForegroundColor DarkYellow
+    }
+
+    Write-Host "ScriptStackTrace:" -ForegroundColor Magenta
+    Write-Host $_.ScriptStackTrace -ForegroundColor Magenta
+
+    Write-Host "Stack Trace .NET:" -ForegroundColor DarkRed
+    Write-Host $_.Exception.StackTrace -ForegroundColor DarkRed
+
     pause
     exit 1
 }

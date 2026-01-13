@@ -601,6 +601,9 @@ function New-MainForm {
                   Width="120" Height="30" Margin="0,0,8,0"
                   Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
           <Button Content="Restaurar" Name="btnRestore"
+                  Width="120" Height="30" Margin="0,0,8,0"
+                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+          <Button Content="Attach" Name="btnAttach"
                   Width="120" Height="30"
                   Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
         </StackPanel>
@@ -617,6 +620,9 @@ function New-MainForm {
                   IsEnabled="False" ToolTip="Consultas predefinidas"/>
         <Button Content="Limpiar" Name="btnClearQuery"
                 Width="90" Height="30"
+                Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+        <Button Content="Exportar" Name="btnExport"
+                Width="100" Height="30" Margin="8,0,0,0"
                 Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
       </StackPanel>
     </Border>
@@ -752,9 +758,11 @@ function New-MainForm {
     $btnDisconnectDb = $window.FindName("btnDisconnectDb")
     $btnBackup = $window.FindName("btnBackup")
     $btnRestore = $window.FindName("btnRestore")
+    $btnAttach = $window.FindName("btnAttach")
     $lblConnectionStatus = $window.FindName("lblConnectionStatus")
     $btnExecute = $window.FindName("btnExecute")
     $btnClearQuery = $window.FindName("btnClearQuery")
+    $btnExport = $window.FindName("btnExport")
     $cmbQueries = $window.FindName("cmbQueries")
     $tcQueries = $window.FindName("tcQueries")
     $tcResults = $window.FindName("tcResults")
@@ -813,6 +821,8 @@ function New-MainForm {
     $global:btnBackup = $btnBackup
     $global:btnClearQuery = $btnClearQuery
     $global:btnRestore = $btnRestore
+    $global:btnAttach = $btnAttach
+    $global:btnExport = $btnExport
     $global:cmbQueries = $cmbQueries
     $global:tcQueries = $tcQueries
     $global:tcResults = $tcResults
@@ -1605,6 +1615,8 @@ function New-MainForm {
                 $global:btnBackup.IsEnabled = $true
                 $global:btnDisconnectDb.IsEnabled = $true
                 $global:btnRestore.IsEnabled = $true
+                $global:btnAttach.IsEnabled = $true
+                $global:btnExport.IsEnabled = $true
                 # ✅ Habilitar UI de trabajo al conectar
                 if ($global:tcQueries) { $global:tcQueries.IsEnabled = $true }
                 if ($global:tcResults) { $global:tcResults.IsEnabled = $true }
@@ -1673,8 +1685,10 @@ function New-MainForm {
                 $global:btnBackup.IsEnabled = $false
                 $global:btnDisconnectDb.IsEnabled = $false
                 $global:btnRestore.IsEnabled = $false
+                $global:btnAttach.IsEnabled = $false
                 $global:btnExecute.IsEnabled = $false
                 $global:btnClearQuery.IsEnabled = $false
+                $global:btnExport.IsEnabled = $false
                 $global:txtServer.IsEnabled = $true
                 $global:txtUser.IsEnabled = $true
                 $global:txtPassword.IsEnabled = $true
@@ -1707,6 +1721,42 @@ Base de datos: $($global:database)
                 }
             }
         })
+    function Get-ResultTabHeaderText {
+        param([System.Windows.Controls.TabItem]$TabItem)
+        if (-not $TabItem) { return "Resultado" }
+        $header = $TabItem.Header
+        if ($header -is [System.Windows.Controls.TextBlock]) { return [string]$header.Text }
+        if ($null -ne $header) { return [string]$header }
+        return "Resultado"
+    }
+    function Get-ExportableResultTabs {
+        param([System.Windows.Controls.TabControl]$TabControl)
+        $exportable = @()
+        if (-not $TabControl) { return $exportable }
+        foreach ($item in $TabControl.Items) {
+            if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+            $dg = $item.Content
+            if ($dg -isnot [System.Windows.Controls.DataGrid]) { continue }
+            $dt = $null
+            if ($dg.ItemsSource -is [System.Data.DataView]) {
+                $dt = $dg.ItemsSource.Table
+            } elseif ($dg.ItemsSource -is [System.Data.DataTable]) {
+                $dt = $dg.ItemsSource
+            } else {
+                try { $dt = $dg.ItemsSource.Table } catch { $dt = $null }
+            }
+            if (-not $dt -or -not $dt.Rows -or $dt.Rows.Count -lt 1) { continue }
+            $headerText = Get-ResultTabHeaderText -TabItem $item
+            $exportable += [pscustomobject]@{
+                Tab          = $item
+                DataTable    = $dt
+                RowCount     = $dt.Rows.Count
+                Display      = "$headerText ($($dt.Rows.Count) filas)"
+                DisplayShort = $headerText
+            }
+        }
+        return $exportable
+    }
     $btnExecute.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Ejecutar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n`t- - - Ejecutando consulta - - -" -ForegroundColor Gray
@@ -1859,11 +1909,69 @@ Base de datos: $($global:database)
                 Write-Host "====================================" -ForegroundColor Red
             }
         })
+    $btnExport.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Exportar resultados' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            try {
+                if (-not $global:tcResults) {
+                    Ui-Warn "No existe un panel de resultados para exportar." "Atención" $global:MainWindow
+                    return
+                }
+                $resultTabs = Get-ExportableResultTabs -TabControl $global:tcResults
+                if (-not $resultTabs -or $resultTabs.Count -eq 0) {
+                    Ui-Warn "No existe pestaña con resultados para exportar." "Atención" $global:MainWindow
+                    return
+                }
+                $target = $null
+                if ($resultTabs.Count -gt 1) {
+                    $items = $resultTabs | ForEach-Object {
+                        [pscustomobject]@{
+                            Path         = $_
+                            Display      = $_.Display
+                            DisplayShort = $_.DisplayShort
+                        }
+                    }
+                    $selected = Show-WpfPathSelectionDialog -Title "Exportar resultados" -Prompt "Seleccione la pestaña de resultados a exportar:" -Items $items -ExecuteButtonText "Exportar"
+                    if (-not $selected) { return }
+                    $target = $selected.Path
+                } else {
+                    $target = $resultTabs[0]
+                }
+                $rowCount = $target.RowCount
+                $headerText = $target.DisplayShort
+                if (-not (Ui-Confirm "Se exportarán $rowCount filas de '$headerText'. ¿Deseas continuar?" "Confirmar exportación" $global:MainWindow)) { return }
+                $safeName = ($headerText -replace '[\\/:*?"<>|]', '-')
+                if ([string]::IsNullOrWhiteSpace($safeName)) { $safeName = "resultado" }
+                $saveDialog = New-Object Microsoft.Win32.SaveFileDialog
+                $saveDialog.Filter = "CSV (*.csv)|*.csv|Texto delimitado (*.txt)|*.txt"
+                $saveDialog.FileName = "$safeName.csv"
+                $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
+                if ($saveDialog.ShowDialog() -ne $true) { return }
+                $filePath = $saveDialog.FileName
+                $extension = [System.IO.Path]::GetExtension($filePath).ToLowerInvariant()
+                if ($extension -eq ".txt" -or $saveDialog.FilterIndex -eq 2) {
+                    $separator = New-WpfInputDialog -Title "Separador de exportación" -Prompt "Ingrese el separador para el archivo de texto:" -DefaultValue "|"
+                    if ($null -eq $separator) { return }
+                    Export-ResultSetToDelimitedText -ResultSet $target.DataTable -Path $filePath -Separator $separator
+                } else {
+                    Export-ResultSetToCsv -ResultSet ([pscustomobject]@{ DataTable = $target.DataTable }) -Path $filePath
+                }
+                Ui-Info "Exportación completada en:`n$filePath" "Exportación" $global:MainWindow
+            } catch {
+                Ui-Error "Error al exportar resultados:`n$($_.Exception.Message)" "Error" $global:MainWindow
+            }
+        })
     $btnBackup.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Backup - - -" -ForegroundColor Magenta ; Write-DzDebug ("`t[DEBUG] Click en 'Respaldar Base de datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
     $btnRestore.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Restauración - - -"  ; Write-DzDebug ("`t[DEBUG] Click en 'Restaurar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem -OnRestoreCompleted {
                 param($dbName)
                 Write-DzDebug "`t[DEBUG] Restore completado. Refrescando TreeView."
+                if ($global:tvDatabases -and $global:server) { Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $global:server }
+            }
+        })
+    $btnAttach.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Attach - - -"  ; Write-DzDebug ("`t[DEBUG] Click en 'Attach Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Show-AttachDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem -OnAttachCompleted {
+                param($dbName)
+                Write-DzDebug "`t[DEBUG] Attach completado. Refrescando TreeView."
                 if ($global:tvDatabases -and $global:server) { Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $global:server }
             }
         })

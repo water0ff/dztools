@@ -1593,4 +1593,363 @@ function Reset-RestoreUI {
     $txtLdfPath.IsEnabled = $true
     $txtProgress.Text = $ProgressText
 }
-Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable', 'Show-BackupDialog', 'Show-RestoreDialog', 'Reset-BackupUI', 'Reset-RestoreUI')
+function Show-AttachDialog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$User,
+        [Parameter(Mandatory = $true)][string]$Password,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $false)][scriptblock]$OnAttachCompleted
+    )
+    $script:AttachRunning = $false
+    $script:AttachDone = $false
+    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
+    function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null }
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
+    function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) { (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes }
+    Write-DzDebug "`t[DEBUG][Show-AttachDialog] INICIO"
+    Write-DzDebug "`t[DEBUG][Show-AttachDialog] Server='$Server' User='$User'"
+    Add-Type -AssemblyName PresentationFramework
+    Add-Type -AssemblyName System.Windows.Forms
+    $theme = Get-DzUiTheme
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Adjuntar base de datos" Height="600" Width="660" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)">
+    <Window.Resources>
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
+            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
+        </Style>
+        <Style TargetType="ProgressBar">
+            <Setter Property="Foreground" Value="$($theme.AccentSecondary)"/>
+            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
+            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="20" Background="$($theme.FormBackground)">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Label Grid.Row="0" Content="Archivo MDF (datos):"/>
+        <Grid Grid.Row="1" Margin="0,5,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="txtMdfPath" Grid.Column="0" Height="25"/>
+            <Button x:Name="btnBrowseMdf" Grid.Column="1" Content="Examinar..." Width="90" Margin="5,0,0,0" Style="{StaticResource SystemButtonStyle}"/>
+        </Grid>
+        <Label Grid.Row="2" Content="Archivo LDF (log):"/>
+        <Grid Grid.Row="3" Margin="0,5,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="txtLdfPath" Grid.Column="0" Height="25"/>
+            <Button x:Name="btnBrowseLdf" Grid.Column="1" Content="Examinar..." Width="90" Margin="5,0,0,0" Style="{StaticResource SystemButtonStyle}"/>
+        </Grid>
+        <StackPanel Grid.Row="4" Margin="0,0,0,10">
+            <CheckBox x:Name="chkRebuildLog" Content="Reconstruir archivo de log si no existe"/>
+            <CheckBox x:Name="chkReadOnly" Content="Adjuntar como solo lectura"/>
+        </StackPanel>
+        <Label Grid.Row="5" Content="Nombre de la base de datos (Attach As):"/>
+        <TextBox x:Name="txtDbName" Grid.Row="6" Height="25" Margin="0,5,0,10"/>
+        <Label Grid.Row="7" Content="Owner (opcional):"/>
+        <TextBox x:Name="txtOwner" Grid.Row="8" Height="25" Margin="0,5,0,10"/>
+        <GroupBox Grid.Row="9" Header="Progreso" Margin="0,0,0,10">
+            <StackPanel>
+                <ProgressBar x:Name="pbAttach" Height="20" Margin="5" Minimum="0" Maximum="100" Value="0"/>
+                <TextBlock x:Name="txtProgress" Text="Esperando..." Margin="5,5,5,10" TextWrapping="Wrap"/>
+            </StackPanel>
+        </GroupBox>
+        <GroupBox Grid.Row="10" Header="Log">
+            <TextBox x:Name="txtLog" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="140"/>
+        </GroupBox>
+        <StackPanel Grid.Row="11" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button x:Name="btnAttach" Content="Adjuntar" Width="120" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/>
+            <Button x:Name="btnClose" Content="Cerrar" Width="80" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/>
+        </StackPanel>
+    </Grid>
+</Window>
+"@
+    $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
+    $window = [System.Windows.Markup.XamlReader]::Load($reader)
+    if (-not $window) { Write-DzDebug "`t[DEBUG][Show-AttachDialog] ERROR: window=NULL"; throw "No se pudo crear la ventana (XAML)." }
+    $txtMdfPath = $window.FindName("txtMdfPath")
+    $btnBrowseMdf = $window.FindName("btnBrowseMdf")
+    $txtLdfPath = $window.FindName("txtLdfPath")
+    $btnBrowseLdf = $window.FindName("btnBrowseLdf")
+    $chkRebuildLog = $window.FindName("chkRebuildLog")
+    $chkReadOnly = $window.FindName("chkReadOnly")
+    $txtDbName = $window.FindName("txtDbName")
+    $txtOwner = $window.FindName("txtOwner")
+    $pbAttach = $window.FindName("pbAttach")
+    $txtProgress = $window.FindName("txtProgress")
+    $txtLog = $window.FindName("txtLog")
+    $btnAttach = $window.FindName("btnAttach")
+    $btnClose = $window.FindName("btnClose")
+    if (-not $txtMdfPath -or -not $btnBrowseMdf -or -not $txtLdfPath -or -not $btnBrowseLdf -or -not $chkRebuildLog -or -not $chkReadOnly -or -not $txtDbName -or -not $txtOwner -or -not $pbAttach -or -not $txtProgress -or -not $txtLog -or -not $btnAttach -or -not $btnClose) {
+        Write-DzDebug "`t[DEBUG][Show-AttachDialog] ERROR: controles NULL"
+        throw "Controles WPF incompletos (FindName devolvió NULL)."
+    }
+    $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
+    $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
+    function Paint-Progress { param([int]$Percent, [string]$Message) $pbAttach.Value = $Percent; $txtProgress.Text = $Message }
+    function Add-Log { param([string]$Message) $logQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $Message)) }
+    function New-SafeCredential { param([string]$Username, [string]$PlainPassword) $secure = New-Object System.Security.SecureString; foreach ($ch in $PlainPassword.ToCharArray()) { $secure.AppendChar($ch) }; $secure.MakeReadOnly(); New-Object System.Management.Automation.PSCredential($Username, $secure) }
+    function Set-LogControlsState {
+        param([bool]$Enabled)
+        $txtLdfPath.IsEnabled = $Enabled
+        $btnBrowseLdf.IsEnabled = $Enabled
+    }
+    Set-LogControlsState -Enabled $true
+    $chkRebuildLog.Add_Checked({ Set-LogControlsState -Enabled $false })
+    $chkRebuildLog.Add_Unchecked({ Set-LogControlsState -Enabled $true })
+    function Start-AttachWorkAsync {
+        param(
+            [string]$Server,
+            [string]$AttachQuery,
+            [System.Management.Automation.PSCredential]$Credential,
+            [System.Collections.Concurrent.ConcurrentQueue[string]]$LogQueue,
+            [System.Collections.Concurrent.ConcurrentQueue[hashtable]]$ProgressQueue
+        )
+        $worker = {
+            param($Server, $AttachQuery, $Credential, $LogQueue, $ProgressQueue)
+            function EnqLog([string]$m) { $LogQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $m)) }
+            function EnqProg([int]$p, [string]$m) { $ProgressQueue.Enqueue(@{Percent = $p; Message = $m }) }
+            try {
+                EnqProg 10 "Conectando a SQL Server..."
+                EnqLog "Ejecutando ATTACH..."
+                $r = Invoke-SqlQuery -Server $Server -Database "master" -Query $AttachQuery -Credential $Credential
+                if (-not $r.Success) {
+                    EnqProg 0 "❌ Error en adjuntar"
+                    EnqLog ("❌ Error de SQL: {0}" -f $r.ErrorMessage)
+                    EnqLog "ERROR_RESULT|$($r.ErrorMessage)"
+                    EnqLog "__DONE__"
+                    return
+                }
+                EnqProg 100 "Adjuntar completado."
+                EnqLog "✅ Base de datos adjuntada"
+                EnqLog "SUCCESS_RESULT|Base de datos adjuntada exitosamente"
+                EnqLog "__DONE__"
+            } catch {
+                EnqProg 0 "Error"
+                EnqLog ("❌ Error inesperado (worker): {0}" -f $_.Exception.Message)
+                EnqLog "ERROR_RESULT|$($_.Exception.Message)"
+                EnqLog "__DONE__"
+            }
+        }
+        $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+        $rs.ApartmentState = 'MTA'
+        $rs.ThreadOptions = 'ReuseThread'
+        $rs.Open()
+        $ps = [PowerShell]::Create()
+        $ps.Runspace = $rs
+        [void]$ps.AddScript($worker).AddArgument($Server).AddArgument($AttachQuery).AddArgument($Credential).AddArgument($LogQueue).AddArgument($ProgressQueue)
+        $null = $ps.BeginInvoke()
+    }
+    $logTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $logTimer.Interval = [TimeSpan]::FromMilliseconds(200)
+    $logTimer.Add_Tick({
+            try {
+                $count = 0
+                $doneThisTick = $false
+                $finalResult = $null
+                while ($count -lt 50) {
+                    $line = $null
+                    if (-not $logQueue.TryDequeue([ref]$line)) { break }
+                    if ($line -like "*SUCCESS_RESULT|*") {
+                        $finalResult = @{
+                            Success = $true
+                            Message = $line -replace '^.*SUCCESS_RESULT\|', ''
+                        }
+                    }
+                    if ($line -like "*ERROR_RESULT|*") {
+                        $finalResult = @{
+                            Success = $false
+                            Message = $line -replace '^.*ERROR_RESULT\|', ''
+                        }
+                    }
+                    if ($line -notmatch '(SUCCESS_RESULT|ERROR_RESULT)') {
+                        $txtLog.Text = "$line`n" + $txtLog.Text
+                    }
+                    if ($line -like "*__DONE__*") {
+                        $doneThisTick = $true
+                        $script:AttachRunning = $false
+                        $btnAttach.IsEnabled = $true
+                        $btnAttach.Content = "Adjuntar"
+                        $tmp = $null
+                        while ($progressQueue.TryDequeue([ref]$tmp)) { }
+                        Paint-Progress -Percent 100 -Message "Completado"
+                        $script:AttachDone = $true
+                        if ($finalResult) {
+                            $window.Dispatcher.Invoke([action] {
+                                    if ($finalResult.Success) {
+                                        Ui-Info "Base de datos '$($txtDbName.Text)' adjuntada con éxito.`n`n$($finalResult.Message)" "✓ Adjuntar exitoso" $window
+                                        if ($OnAttachCompleted) {
+                                            try { & $OnAttachCompleted $txtDbName.Text } catch { Write-DzDebug "`t[DEBUG][Show-AttachDialog] Error OnAttachCompleted: $($_.Exception.Message)" }
+                                        }
+                                    } else {
+                                        Ui-Error "No se pudo adjuntar la base de datos:`n`n$($finalResult.Message)" "✗ Error al adjuntar" $window
+                                    }
+                                }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                        }
+                    }
+                    $count++
+                }
+                if ($count -gt 0) { $txtLog.ScrollToLine(0) }
+                if (-not $doneThisTick) {
+                    $last = $null
+                    while ($true) {
+                        $p = $null
+                        if (-not $progressQueue.TryDequeue([ref]$p)) { break }
+                        $last = $p
+                    }
+                    if ($last) { Paint-Progress -Percent $last.Percent -Message $last.Message }
+                }
+            } catch { Write-DzDebug "`t[DEBUG][UI][logTimer][attach] ERROR: $($_.Exception.Message)" }
+            if ($script:AttachDone) {
+                $tmpLine = $null
+                $tmpProg = $null
+                if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) { $logTimer.Stop(); $script:AttachDone = $false }
+            }
+        })
+    $logTimer.Start()
+    $btnBrowseMdf.Add_Click({
+            try {
+                $dlg = New-Object System.Windows.Forms.OpenFileDialog
+                $dlg.Filter = "SQL Data (*.mdf)|*.mdf|Todos los archivos (*.*)|*.*"
+                $dlg.Multiselect = $false
+                if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                    $txtMdfPath.Text = $dlg.FileName
+                    if ([string]::IsNullOrWhiteSpace($txtDbName.Text)) {
+                        $txtDbName.Text = [System.IO.Path]::GetFileNameWithoutExtension($dlg.FileName)
+                    }
+                    if (-not $chkRebuildLog.IsChecked -and [string]::IsNullOrWhiteSpace($txtLdfPath.Text)) {
+                        $dir = [System.IO.Path]::GetDirectoryName($dlg.FileName)
+                        $base = [System.IO.Path]::GetFileNameWithoutExtension($dlg.FileName)
+                        $candidate = Join-Path $dir "$base`_log.ldf"
+                        if (-not (Test-Path -LiteralPath $candidate)) { $candidate = [System.IO.Path]::ChangeExtension($dlg.FileName, ".ldf") }
+                        $txtLdfPath.Text = $candidate
+                    }
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][UI] Error btnBrowseMdf: $($_.Exception.Message)"
+                Ui-Error "No se pudo abrir el selector de archivos: $($_.Exception.Message)" "Error" $window
+            }
+        })
+    $btnBrowseLdf.Add_Click({
+            try {
+                $dlg = New-Object System.Windows.Forms.OpenFileDialog
+                $dlg.Filter = "SQL Log (*.ldf)|*.ldf|Todos los archivos (*.*)|*.*"
+                $dlg.Multiselect = $false
+                if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                    $txtLdfPath.Text = $dlg.FileName
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][UI] Error btnBrowseLdf: $($_.Exception.Message)"
+                Ui-Error "No se pudo abrir el selector de archivos: $($_.Exception.Message)" "Error" $window
+            }
+        })
+    $btnAttach.Add_Click({
+            Write-DzDebug "`t[DEBUG][UI] btnAttach Click"
+            if ($script:AttachRunning) { return }
+            $script:AttachDone = $false
+            if (-not $logTimer.IsEnabled) { $logTimer.Start() }
+            try {
+                $btnAttach.IsEnabled = $false
+                $btnAttach.Content = "Procesando..."
+                $txtLog.Text = ""
+                $pbAttach.Value = 0
+                $txtProgress.Text = "Esperando..."
+                Add-Log "Iniciando proceso de adjuntar..."
+                $mdfPath = $txtMdfPath.Text.Trim()
+                $ldfPath = $txtLdfPath.Text.Trim()
+                $dbName = $txtDbName.Text.Trim()
+                $owner = $txtOwner.Text.Trim()
+                $rebuildLog = $chkRebuildLog.IsChecked -eq $true
+                $readOnly = $chkReadOnly.IsChecked -eq $true
+                if ([string]::IsNullOrWhiteSpace($mdfPath)) { Ui-Warn "Selecciona el archivo MDF a adjuntar." "Atención" $window; Reset-AttachUI -ProgressText "Archivo MDF requerido"; return }
+                if (-not (Test-Path -LiteralPath $mdfPath)) { Ui-Warn "El archivo MDF no existe.`n`nRuta: $mdfPath" "Atención" $window; Reset-AttachUI -ProgressText "Archivo MDF no encontrado"; return }
+                if ([string]::IsNullOrWhiteSpace($dbName)) { Ui-Warn "Indica el nombre de la base de datos (Attach As)." "Atención" $window; Reset-AttachUI -ProgressText "Nombre requerido"; return }
+                if (-not $rebuildLog) {
+                    if ([string]::IsNullOrWhiteSpace($ldfPath)) { Ui-Warn "Selecciona el archivo LDF o habilita la reconstrucción del log." "Atención" $window; Reset-AttachUI -ProgressText "Archivo LDF requerido"; return }
+                    if (-not (Test-Path -LiteralPath $ldfPath)) { Ui-Warn "El archivo LDF no existe.`n`nRuta: $ldfPath" "Atención" $window; Reset-AttachUI -ProgressText "Archivo LDF no encontrado"; return }
+                }
+                $credential = New-SafeCredential -Username $User -PlainPassword $Password
+                $safeDbName = $dbName -replace ']', ']]'
+                $escapedDb = $dbName -replace "'", "''"
+                $checkQuery = "SELECT 1 FROM sys.databases WHERE name = N'$escapedDb'"
+                $check = Invoke-SqlQuery -Server $Server -Database "master" -Query $checkQuery -Credential $credential
+                if ($check.Success -and $check.DataTable -and $check.DataTable.Rows.Count -gt 0) {
+                    Ui-Error "Ya existe una base de datos con ese nombre.`n`nNombre: $dbName" "Error" $window
+                    Reset-AttachUI -ProgressText "Nombre ya existe"
+                    return
+                }
+                $escapedMdf = $mdfPath -replace "'", "''"
+                $query = "CREATE DATABASE [$safeDbName] ON (FILENAME = N'$escapedMdf')"
+                if (-not $rebuildLog) {
+                    $escapedLdf = $ldfPath -replace "'", "''"
+                    $query += ", (FILENAME = N'$escapedLdf')"
+                    $query += " FOR ATTACH;"
+                } else {
+                    $query += " FOR ATTACH_REBUILD_LOG;"
+                }
+                if ($readOnly) { $query += "`nALTER DATABASE [$safeDbName] SET READ_ONLY WITH NO_WAIT;" }
+                if (-not [string]::IsNullOrWhiteSpace($owner)) {
+                    $safeOwner = $owner -replace ']', ']]'
+                    $query += "`nALTER AUTHORIZATION ON DATABASE::[$safeDbName] TO [$safeOwner];"
+                }
+                Paint-Progress -Percent 10 -Message "Conectando a SQL Server..."
+                Start-AttachWorkAsync -Server $Server -AttachQuery $query -Credential $credential -LogQueue $logQueue -ProgressQueue $progressQueue
+                $script:AttachRunning = $true
+            } catch {
+                Write-DzDebug "`t[DEBUG][UI] ERROR btnAttach: $($_.Exception.Message)"
+                Add-Log "❌ Error: $($_.Exception.Message)"
+                Reset-AttachUI -ProgressText "Error inesperado"
+            }
+        })
+    $btnClose.Add_Click({
+            try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch {}
+            $window.DialogResult = $false
+            $window.Close()
+        })
+    $null = $window.ShowDialog()
+}
+function Reset-AttachUI {
+    param([string]$ButtonText = "Adjuntar", [string]$ProgressText = "Esperando...")
+    $script:AttachRunning = $false
+    $btnAttach.IsEnabled = $true
+    $btnAttach.Content = $ButtonText
+    $txtProgress.Text = $ProgressText
+}
+Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable', 'Show-BackupDialog', 'Show-RestoreDialog', 'Show-AttachDialog', 'Reset-BackupUI', 'Reset-RestoreUI', 'Reset-AttachUI')

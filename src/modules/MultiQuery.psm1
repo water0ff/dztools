@@ -552,6 +552,55 @@ function Export-ResultSetToCsv {
     if (-not $ResultSet -or -not $ResultSet.DataTable) { throw "No hay datos para exportar." }
     $ResultSet.DataTable | Export-Csv -Path $Path -NoTypeInformation -Encoding UTF8
 }
+function Export-ResultSetToDelimitedText {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]$ResultSet,
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter()][string]$Separator = "|"
+    )
+    if ([string]::IsNullOrWhiteSpace($Separator)) { $Separator = "|" }
+    $dt = $null
+    if ($ResultSet -is [System.Data.DataTable]) {
+        $dt = $ResultSet
+    } elseif ($ResultSet -and $ResultSet.DataTable) {
+        $dt = $ResultSet.DataTable
+    }
+    if (-not $dt) { throw "No hay datos para exportar." }
+
+    $encoding = New-Object System.Text.UTF8Encoding($true)
+    $writer = New-Object System.IO.StreamWriter($Path, $false, $encoding)
+    try {
+        $escape = {
+            param([string]$value, [string]$sep)
+            if ($null -eq $value) { return "" }
+            $text = [string]$value
+            if ($text -match "[`r`n]" -or $text.Contains($sep) -or $text.Contains('"')) {
+                $text = $text.Replace('"', '""')
+                return '"' + $text + '"'
+            }
+            return $text
+        }
+
+        $headers = @()
+        foreach ($col in $dt.Columns) {
+            $headers += & $escape $col.ColumnName $Separator
+        }
+        $writer.WriteLine(($headers -join $Separator))
+
+        foreach ($row in $dt.Rows) {
+            $cells = @()
+            foreach ($col in $dt.Columns) {
+                $value = $row[$col]
+                if ($value -is [System.DBNull]) { $value = $null }
+                $cells += & $escape $value $Separator
+            }
+            $writer.WriteLine(($cells -join $Separator))
+        }
+    } finally {
+        $writer.Dispose()
+    }
+}
 function Get-TextPointerAtOffset {
     param(
         [Parameter(Mandatory)][System.Windows.Documents.TextPointer]$Start,
@@ -896,6 +945,7 @@ Export-ModuleMember -Function @(
     'Execute-QueryInTab',
     'Show-MultipleResultSets',
     'Export-ResultSetToCsv',
+    'Export-ResultSetToDelimitedText',
     'Get-ActiveQueryRichTextBox',
     'Set-QueryTextInActiveTab',
     'Insert-TextIntoActiveQuery',

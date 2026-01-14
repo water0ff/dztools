@@ -904,6 +904,9 @@ function Show-MultipleResultSets {
         $tab.Content = $text
         [void]$TabControl.Items.Add($tab)
         $TabControl.SelectedIndex = 0
+        if ($global:lblRowCount) {
+            $global:lblRowCount.Text = "Filas: 0"
+        }
         Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN (sin resultados)"
         return
     }
@@ -1110,6 +1113,14 @@ function Show-MultipleResultSets {
         $tab.Content = $dg
         [void]$TabControl.Items.Add($tab)
         Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i creada con $rowCount filas"
+    }
+    if ($global:lblRowCount) {
+        $totalRows = ($ResultSets | Measure-Object -Property RowCount -Sum).Sum
+        if ($ResultSets.Count -eq 1) {
+            $global:lblRowCount.Text = "Filas: $totalRows"
+        } else {
+            $global:lblRowCount.Text = "Filas: $totalRows ($($ResultSets.Count) resultsets)"
+        }
     }
     $TabControl.SelectedIndex = 0
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN"

@@ -1746,6 +1746,15 @@ Base de datos: $($global:database)
                 $userText = [string]$global:user
                 $passwordTxt = [string]$global:password
                 $modulesPath = Join-Path $PSScriptRoot "modules"
+                $query = Remove-SqlComments -Query $rawQuery
+                if ([string]::IsNullOrWhiteSpace($query)) { throw "La consulta está vacía después de limpiar comentarios." }
+                # Mostrar el query en consola
+                Write-Host "Query:" -ForegroundColor Cyan
+                foreach ($line in ($query -split "`r?`n")) {
+                    Write-Host "`t$line" -ForegroundColor Green
+                }
+                Write-Host "" # Línea en blanco
+                if ($global:tcResults) { $global:tcResults.Items.Clear() }
                 Write-Host "Ejecutando consulta en '$db'..." -ForegroundColor Cyan
                 $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
                 $rs.ApartmentState = 'MTA'
@@ -1955,9 +1964,7 @@ Base de datos: $($global:database)
                                         $idx++
                                         $dt = $rs.DataTable
                                         $rows = $rs.RowCount
-                                        Write-Host ""
-                                        Write-Host ("=========== RESULTSET #{0} | Filas: {1} ===========" -f $idx, $rows) -ForegroundColor Green
-                                        if ($dt) { Write-DataTableConsole -DataTable $dt -MaxRows 40 }
+                                        Write-Host ("`t Resultado #{0} | Filas: {1}" -f $idx, $rows) -ForegroundColor Green
                                     }
                                     Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
                                     Write-DzDebug "`t[DEBUG][TICK] ResultSets mostrados OK"

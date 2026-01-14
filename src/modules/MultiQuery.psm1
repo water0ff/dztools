@@ -975,6 +975,82 @@ function Get-ExportableResultTabs {
     }
     return $exportable
 }
+function Write-DataTableConsole {
+    param(
+        [Parameter(Mandatory)][System.Data.DataTable]$DataTable,
+        [int]$MaxRows = 50
+    )
+
+    if (-not $DataTable) { return }
+    $rows = @($DataTable.Rows)
+    $cols = @($DataTable.Columns | ForEach-Object { $_.ColumnName })
+
+    Write-Host ""
+    Write-Host ("Columnas: {0} | Filas: {1}" -f $cols.Count, $rows.Count) -ForegroundColor DarkGray
+
+    # Calcula anchos (muestra)
+    $sample = $rows | Select-Object -First $MaxRows
+    $width = @{}
+    foreach ($c in $cols) { $width[$c] = [Math]::Max($c.Length, 4) }
+
+    foreach ($r in $sample) {
+        foreach ($c in $cols) {
+            $v = $r[$c]
+            if ($v -is [DBNull]) { $v = $null }
+            $s = if ($null -eq $v) { "NULL" } else { [string]$v }
+            if ($s.Length -gt 80) { $s = $s.Substring(0, 77) + "..." }
+            $width[$c] = [Math]::Min(80, [Math]::Max($width[$c], $s.Length))
+        }
+    }
+
+    # Header
+    $header = ($cols | ForEach-Object { $_.PadRight($width[$_] + 2) }) -join ""
+    Write-Host $header -ForegroundColor Cyan
+    Write-Host ("-" * $header.Length) -ForegroundColor DarkGray
+
+    # Rows
+    foreach ($r in $sample) {
+        $line = ($cols | ForEach-Object {
+                $v = $r[$_]
+                if ($v -is [DBNull]) { $v = $null }
+                $s = if ($null -eq $v) { "NULL" } else { [string]$v }
+                if ($s.Length -gt 80) { $s = $s.Substring(0, 77) + "..." }
+                $s.PadRight($width[$_] + 2)
+            }) -join ""
+        Write-Host $line
+    }
+
+    if ($rows.Count -gt $MaxRows) {
+        Write-Host ("... mostrando {0} de {1} filas (limite MaxRows={0})" -f $MaxRows, $rows.Count) -ForegroundColor Yellow
+    }
+}
+function Show-ErrorResultTab {
+    param(
+        [Parameter(Mandatory)][System.Windows.Controls.TabControl]$ResultsTabControl,
+        [Parameter(Mandatory)][string]$Message
+    )
+
+    try { $ResultsTabControl.Items.Clear() } catch {}
+
+    $tab = New-Object System.Windows.Controls.TabItem
+    $ht = New-Object System.Windows.Controls.TextBlock
+    $ht.Text = "Error"
+    $ht.VerticalAlignment = "Center"
+    $tab.Header = $ht
+
+    $text = New-Object System.Windows.Controls.TextBox
+    $text.Text = $Message
+    $text.Margin = "10"
+    $text.IsReadOnly = $true
+    $text.TextWrapping = "Wrap"
+    $text.VerticalScrollBarVisibility = "Auto"
+    $text.HorizontalScrollBarVisibility = "Auto"
+
+    $tab.Content = $text
+    [void]$ResultsTabControl.Items.Add($tab)
+    $ResultsTabControl.SelectedIndex = 0
+}
+
 Export-ModuleMember -Function @(
     'New-QueryTab',
     'Close-QueryTab',
@@ -995,5 +1071,7 @@ Export-ModuleMember -Function @(
     'Set-WpfSqlHighlighting',
     'Get-TextPointerFromOffset',
     'Get-ResultTabHeaderText',
-    'Get-ExportableResultTabs'
+    'Get-ExportableResultTabs',
+    'Write-DataTableConsole',
+    'Show-ErrorResultTab'
 )

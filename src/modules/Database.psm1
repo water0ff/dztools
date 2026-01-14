@@ -2,73 +2,163 @@
 $script:queryTabCounter = 1
 if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { $global:DzSqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE' }
 function Process-SqlProgressMessage { param([string]$Message) if ($Message -match '(?i)(\d{1,3})\s*percent') { $percent = [int]$Matches[1]; Write-Output "Progreso: $percent%" } elseif ($Message -match 'BACKUP DATABASE successfully processed') { Write-Output "Backup completado exitosamente" } }
-function Invoke-SqlQuery {
+function New-DzSqlConnectionFromCredential {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$Server,
         [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
+    )
+    $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+    $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+    $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
+    @{
+        Connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+        PlainPassword = $plainPassword
+        PasswordBstr = $passwordBstr
+    }
+}
+function New-DzSqlConnectionFromPlain {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][string]$User,
+        [Parameter(Mandatory = $true)][string]$Password
+    )
+    $connectionString = "Server=$Server;Database=$Database;User Id=$User;Password=$Password;MultipleActiveResultSets=True"
+    New-Object System.Data.SqlClient.SqlConnection($connectionString)
+}
+function Resolve-DzSqlMessageSummary {
+    [CmdletBinding()]
+    param([Parameter()][System.Collections.Generic.List[string]]$Messages)
+    if (-not $Messages) { return "" }
+    $unique = @($Messages | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    if ($unique.Count -eq 0) { return "" }
+    $unique -join "`n"
+}
+function Write-DzSqlResultSummary {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][hashtable]$Result,
+        [Parameter()][string]$Context
+    )
+    $prefix = if ([string]::IsNullOrWhiteSpace($Context)) { "" } else { "[$Context] " }
+    if (-not $Result.Success) {
+        Write-Host "$prefix Error SQL: $($Result.ErrorMessage)" -ForegroundColor Red
+        return
+    }
+    if ($Result.ContainsKey('ResultSets') -and $Result.ResultSets -and $Result.ResultSets.Count -gt 0) {
+        $totalRows = ($Result.ResultSets | Measure-Object -Property RowCount -Sum).Sum
+        Write-Host "$prefix Resultado: $($Result.ResultSets.Count) conjunto(s), $totalRows fila(s)."
+        return
+    }
+    if ($Result.ContainsKey('DataTable') -and $Result.DataTable) {
+        Write-Host "$prefix Resultado: $($Result.DataTable.Rows.Count) fila(s)."
+        return
+    }
+    if ($Result.ContainsKey('RowsAffected')) {
+        Write-Host "$prefix Filas afectadas: $($Result.RowsAffected)"
+        return
+    }
+    Write-Host "$prefix Sin resultados."
+}
+function Invoke-DzSqlCommandInternal {
+    [CmdletBinding(DefaultParameterSetName = "Credential")]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
         [Parameter(Mandatory = $true)][string]$Query,
-        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
-        [Parameter(Mandatory = $false)][scriptblock]$InfoMessageCallback
+        [Parameter(ParameterSetName = "Credential", Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
+        [Parameter(ParameterSetName = "Plain", Mandatory = $true)][string]$User,
+        [Parameter(ParameterSetName = "Plain", Mandatory = $true)][string]$Password,
+        [Parameter()][scriptblock]$InfoMessageCallback,
+        [Parameter()][switch]$CollectMessages
     )
     $connection = $null
-    Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] INICIO"
-    Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Server='$Server' Database='$Database' User='$($Credential.UserName)'"
+    $passwordBstr = [IntPtr]::Zero
+    $plainPassword = $null
+    $messages = New-Object System.Collections.Generic.List[string]
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] INICIO"
+    Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] Server='$Server' Database='$Database'"
     try {
-        $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
-        $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
-        $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
-        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Creando SqlConnection..."
-        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        if ($InfoMessageCallback) {
-            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Registrando InfoMessage handler..."
-            $connection.add_InfoMessage({ param($sender, $e) try { & $InfoMessageCallback $e.Message } catch { Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Error en InfoMessageCallback: $_" } })
+        if ($PSCmdlet.ParameterSetName -eq "Credential") {
+            $connInfo = New-DzSqlConnectionFromCredential -Server $Server -Database $Database -Credential $Credential
+            $connection = $connInfo.Connection
+            $plainPassword = $connInfo.PlainPassword
+            $passwordBstr = $connInfo.PasswordBstr
+        } else {
+            $connection = New-DzSqlConnectionFromPlain -Server $Server -Database $Database -User $User -Password $Password
+        }
+        if ($CollectMessages -or $InfoMessageCallback) {
+            $connection.add_InfoMessage({
+                    param($sender, $e)
+                    $msg = [string]$e.Message
+                    if (-not [string]::IsNullOrWhiteSpace($msg)) {
+                        try { [void]$messages.Add($msg) } catch {}
+                        if ($InfoMessageCallback) { try { & $InfoMessageCallback $msg } catch { Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] Error en InfoMessageCallback: $_" } }
+                    }
+                })
             $connection.FireInfoMessageEventOnUserErrors = $true
         }
-        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Abriendo conexión..."
+        Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] Abriendo conexión..."
         $connection.Open()
-        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Estado conexión tras Open(): $($connection.State)"
         $command = $connection.CreateCommand()
         $command.CommandText = $Query
         $command.CommandTimeout = 0
         $returnsResultSet = $Query -match "(?si)^\s*(SELECT|WITH)" -or $Query -match "(?si)\bOUTPUT\b"
         if ($returnsResultSet) {
-            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Ejecutando consulta tipo SELECT/WITH"
             $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
             $dataTable = New-Object System.Data.DataTable
             [void]$adapter.Fill($dataTable)
-            return @{ Success = $true; DataTable = $dataTable; Type = "Query" }
-        } else {
-            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Ejecutando consulta tipo NonQuery"
-            $rowsAffected = $command.ExecuteNonQuery()
-            return @{ Success = $true; RowsAffected = $rowsAffected; Type = "NonQuery" }
+            return @{
+                Success = $true
+                DataTable = $dataTable
+                Type = "Query"
+                DurationMs = $stopwatch.ElapsedMilliseconds
+                Messages = $messages
+            }
+        }
+        $rowsAffected = $command.ExecuteNonQuery()
+        return @{
+            Success = $true
+            RowsAffected = $rowsAffected
+            Type = "NonQuery"
+            DurationMs = $stopwatch.ElapsedMilliseconds
+            Messages = $messages
         }
     } catch {
-        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] CATCH: $($_.Exception.Message)"
-        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Tipo de excepción: $($_.Exception.GetType().FullName)"
-        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Stack: $($_.ScriptStackTrace)"
-        return @{ Success = $false; ErrorMessage = $_.Exception.Message; Type = "Error" }
+        Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] CATCH: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] Tipo de excepción: $($_.Exception.GetType().FullName)"
+        Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] Stack: $($_.ScriptStackTrace)"
+        return @{
+            Success = $false
+            ErrorMessage = $_.Exception.Message
+            ErrorRecord = $_
+            Type = "Error"
+            DurationMs = $stopwatch.ElapsedMilliseconds
+            Messages = $messages
+        }
     } finally {
         if ($plainPassword) { $plainPassword = $null }
         if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
-        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] FINALLY: connection = $($connection)"
         if ($null -ne $connection) {
-            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Estado antes de cerrar: $($connection.State)"
-            if ($connection.State -eq [System.Data.ConnectionState]::Open) { Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Cerrando conexión..."; $connection.Close() }
-            Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] Disposing conexión..."
-            $connection.Dispose()
+            try { if ($connection.State -eq [System.Data.ConnectionState]::Open) { $connection.Close() } } catch {}
+            try { $connection.Dispose() } catch {}
         }
-        Write-DzDebug "`t[DEBUG][Invoke-SqlQuery] FIN"
+        try { $stopwatch.Stop() } catch {}
+        Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] FIN"
     }
 }
-function Invoke-SqlQueryMultiResultSet {
+function Invoke-DzSqlBatchInternal {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$Server,
         [Parameter(Mandatory = $true)][string]$Database,
         [Parameter(Mandatory = $true)][string]$Query,
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
-        [Parameter(Mandatory = $false)][scriptblock]$InfoMessageCallback
+        [Parameter()][scriptblock]$InfoMessageCallback
     )
     [string]$Query = $Query
     $connection = $null
@@ -76,19 +166,19 @@ function Invoke-SqlQueryMultiResultSet {
     $plainPassword = $null
     $messages = New-Object System.Collections.Generic.List[string]
     $debugLog = New-Object System.Collections.Generic.List[string]
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     $script:HadSqlError = $false
     function Add-Debug([string]$m) {
         try { [void]$debugLog.Add(("{0} {1}" -f (Get-Date -Format "HH:mm:ss.fff"), $m)) } catch {}
-        try { Write-DzDebug "`t[DEBUG][Invoke-SqlQueryMultiResultSet] $m" } catch {}
+        try { Write-DzDebug "`t[DEBUG][Invoke-DzSqlBatchInternal] $m" } catch {}
     }
     Add-Debug "INICIO"
     Add-Debug ("Server='{0}' DB='{1}' User='{2}' QueryLen={3}" -f $Server, $Database, $Credential.UserName, ($Query?.Length))
     try {
-        $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
-        $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
-        $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
-        Add-Debug "Creando SqlConnection..."
-        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+        $connInfo = New-DzSqlConnectionFromCredential -Server $Server -Database $Database -Credential $Credential
+        $connection = $connInfo.Connection
+        $plainPassword = $connInfo.PlainPassword
+        $passwordBstr = $connInfo.PasswordBstr
         $connection.add_InfoMessage({
                 param($sender, $e)
                 $msg = [string]$e.Message
@@ -149,16 +239,61 @@ function Invoke-SqlQueryMultiResultSet {
                 }
             }
         }
-        $allMsgs = ""
-        try { $allMsgs = ($messages -join "`n") } catch {}
+        $allMsgs = Resolve-DzSqlMessageSummary -Messages $messages
         Add-Debug ("FIN loop. resultSets={0} recordsAffected={1} HadSqlError={2} messages={3}" -f $resultSets.Count, $recordsAffected, $script:HadSqlError, $messages.Count)
-        if ($script:HadSqlError) { return @{ Success = $false; Type = "Error"; ErrorMessage = $allMsgs; Messages = $messages; ResultSets = @(); DebugLog = $debugLog } }
-        if ($resultSets.Count -gt 0) { return @{ Success = $true; ResultSets = $resultSets.ToArray(); Messages = $messages; DebugLog = $debugLog } }
-        if ($null -ne $recordsAffected) { return @{ Success = $true; ResultSets = @(); RowsAffected = $recordsAffected; Messages = $messages; DebugLog = $debugLog } }
-        return @{ Success = $true; ResultSets = @(); RowsAffected = $null; Messages = $messages; DebugLog = $debugLog }
+        if ($script:HadSqlError) {
+            if ([string]::IsNullOrWhiteSpace($allMsgs)) { $allMsgs = "Error SQL." }
+            return @{
+                Success = $false
+                Type = "Error"
+                ErrorMessage = $allMsgs
+                Messages = $messages
+                ResultSets = @()
+                DebugLog = $debugLog
+                DurationMs = $stopwatch.ElapsedMilliseconds
+            }
+        }
+        if ($resultSets.Count -gt 0) {
+            return @{
+                Success = $true
+                ResultSets = $resultSets.ToArray()
+                Messages = $messages
+                DebugLog = $debugLog
+                DurationMs = $stopwatch.ElapsedMilliseconds
+            }
+        }
+        if ($null -ne $recordsAffected) {
+            return @{
+                Success = $true
+                ResultSets = @()
+                RowsAffected = $recordsAffected
+                Messages = $messages
+                DebugLog = $debugLog
+                DurationMs = $stopwatch.ElapsedMilliseconds
+            }
+        }
+        return @{
+            Success = $true
+            ResultSets = @()
+            RowsAffected = $null
+            Messages = $messages
+            DebugLog = $debugLog
+            DurationMs = $stopwatch.ElapsedMilliseconds
+        }
     } catch {
         Add-Debug ("CATCH: {0}" -f $_.Exception.Message)
-        return @{ Success = $false; Type = "Error"; ErrorMessage = $_.Exception.Message; Messages = $messages; ResultSets = @(); DebugLog = $debugLog }
+        $summary = Resolve-DzSqlMessageSummary -Messages $messages
+        $errorMessage = if (-not [string]::IsNullOrWhiteSpace($_.Exception.Message)) { $_.Exception.Message } elseif (-not [string]::IsNullOrWhiteSpace($summary)) { $summary } else { "Error ejecutando consulta." }
+        return @{
+            Success = $false
+            Type = "Error"
+            ErrorMessage = $errorMessage
+            ErrorRecord = $_
+            Messages = $messages
+            ResultSets = @()
+            DebugLog = $debugLog
+            DurationMs = $stopwatch.ElapsedMilliseconds
+        }
     } finally {
         if ($plainPassword) { $plainPassword = $null }
         if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
@@ -166,8 +301,31 @@ function Invoke-SqlQueryMultiResultSet {
             try { if ($connection.State -eq [System.Data.ConnectionState]::Open) { $connection.Close() } } catch {}
             try { $connection.Dispose() } catch {}
         }
+        try { $stopwatch.Stop() } catch {}
         try { Add-Debug "FIN" } catch {}
     }
+}
+function Invoke-SqlQuery {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][string]$Query,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory = $false)][scriptblock]$InfoMessageCallback
+    )
+    Invoke-DzSqlCommandInternal -Server $Server -Database $Database -Query $Query -Credential $Credential -InfoMessageCallback $InfoMessageCallback
+}
+function Invoke-SqlQueryMultiResultSet {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][string]$Query,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory = $false)][scriptblock]$InfoMessageCallback
+    )
+    Invoke-DzSqlBatchInternal -Server $Server -Database $Database -Query $Query -Credential $Credential -InfoMessageCallback $InfoMessageCallback
 }
 function Remove-SqlComments {
     [CmdletBinding()]
@@ -225,54 +383,15 @@ WITH CHECKSUM, STATS = 1, FORMAT, INIT
 }
 function Execute-SqlQuery {
     param([string]$server, [string]$database, [string]$query)
-    $connection = $null
-    try {
-        $connectionString = "Server=$server;Database=$database;User Id=$global:user;Password=$global:password;MultipleActiveResultSets=True"
-        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-        $infoMessages = New-Object System.Collections.ArrayList
-        $connection.add_InfoMessage({ param($sender, $e) [void]$infoMessages.Add($e.Message) })
-        $connection.Open()
-        $command = $connection.CreateCommand()
-        $command.CommandText = $query
-        $returnsResultSet = $query -match "(?si)^\s*(SELECT|WITH)" -or $query -match "(?si)\bOUTPUT\b"
-        if ($returnsResultSet) {
-            $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
-            $dataTable = New-Object System.Data.DataTable
-            [void]$adapter.Fill($dataTable)
-            @{ DataTable = $dataTable; Messages = $infoMessages }
-        } else {
-            $rowsAffected = $command.ExecuteNonQuery()
-            @{ RowsAffected = $rowsAffected; Messages = $infoMessages }
-        }
-    } catch { throw $_ } finally {
-        if ($null -ne $connection) {
-            try { if ($connection.State -ne [System.Data.ConnectionState]::Closed) { $connection.Close() } } catch {}
-            try { $connection.Dispose() } catch {}
-        }
-    }
+    $result = Invoke-DzSqlCommandInternal -Server $server -Database $database -Query $query -User $global:user -Password $global:password -CollectMessages
+    if (-not $result.Success) { throw $result.ErrorMessage }
+    return $result
 }
 function Show-ResultsConsole {
     param([string]$query)
     try {
         $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
-        if ($results -is [hashtable] -and $results.ContainsKey('DataTable')) {
-            $dt = $results.DataTable
-            if ($dt.Rows.Count -gt 0) {
-                $cols = @($dt.Columns | ForEach-Object { $_.ColumnName })
-                $width = @{}
-                foreach ($c in $cols) { $width[$c] = [Math]::Max($c.Length, 1) }
-                foreach ($r in $dt.Rows) { foreach ($c in $cols) { $width[$c] = [Math]::Max($width[$c], ([string]$r[$c]).Length) } }
-                $header = ($cols | ForEach-Object { $_.PadRight($width[$_] + 4) }) -join ''
-                Write-Host ""
-                Write-Host $header
-                Write-Host ("-" * $header.Length)
-                foreach ($r in $dt.Rows) { Write-Host (($cols | ForEach-Object { ([string]$r[$_]).PadRight($width[$_] + 4) }) -join '') }
-            } else { Write-Host "`nNo se encontraron resultados." -ForegroundColor Yellow }
-        } elseif ($results -is [hashtable] -and $results.ContainsKey('RowsAffected')) {
-            Write-Host "`nFilas afectadas: $($results.RowsAffected)" -ForegroundColor Green
-        } else {
-            Write-Host "`nSin resultados." -ForegroundColor Yellow
-        }
+        Write-DzSqlResultSummary -Result $results -Context "Consulta"
     } catch { Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red }
 }
 function Get-IniConnections {
@@ -731,9 +850,6 @@ function Execute-QueryInTab {
     Write-DzDebug "`t[DEBUG][Execute-QueryInTab] - RowsAffected valor: $($result.RowsAffected)"
     Write-DzDebug "`t[DEBUG][Execute-QueryInTab] Entrando a las condiciones de resultado..."
     if (-not $result.Success) {
-        Write-Host "`n=============== ERROR SQL ==============" -ForegroundColor Red
-        Write-Host "Mensaje: $($result.ErrorMessage)" -ForegroundColor Yellow
-        Write-Host "====================================" -ForegroundColor Red
         $ResultsTabControl.Items.Clear()
         $tab = New-Object System.Windows.Controls.TabItem
         $tab.Header = "Error"
@@ -743,6 +859,7 @@ function Execute-QueryInTab {
         $tab.Content = $text
         [void]$ResultsTabControl.Items.Add($tab)
         $ResultsTabControl.SelectedItem = $tab
+        Write-DzSqlResultSummary -Result $result -Context "Consulta"
         return $result
     }
     if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
@@ -763,6 +880,7 @@ function Execute-QueryInTab {
         Write-DzDebug "`t[DEBUG][Execute-QueryInTab] CONDICIÓN 3: Entrando a mostrar vacío (sin resultados)"
         Show-MultipleResultSets -TabControl $ResultsTabControl -ResultSets @()
     }
+    Write-DzSqlResultSummary -Result $result -Context "Consulta"
     return $result
 }
 function Show-MultipleResultSets {

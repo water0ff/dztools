@@ -13,9 +13,9 @@ function New-DzSqlConnectionFromCredential {
     $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
     $connectionString = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
     @{
-        Connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+        Connection    = New-Object System.Data.SqlClient.SqlConnection($connectionString)
         PlainPassword = $plainPassword
-        PasswordBstr = $passwordBstr
+        PasswordBstr  = $passwordBstr
     }
 }
 function New-DzSqlConnectionFromPlain {
@@ -113,32 +113,32 @@ function Invoke-DzSqlCommandInternal {
             $dataTable = New-Object System.Data.DataTable
             [void]$adapter.Fill($dataTable)
             return @{
-                Success = $true
-                DataTable = $dataTable
-                Type = "Query"
+                Success    = $true
+                DataTable  = $dataTable
+                Type       = "Query"
                 DurationMs = $stopwatch.ElapsedMilliseconds
-                Messages = $messages
+                Messages   = $messages
             }
         }
         $rowsAffected = $command.ExecuteNonQuery()
         return @{
-            Success = $true
+            Success      = $true
             RowsAffected = $rowsAffected
-            Type = "NonQuery"
-            DurationMs = $stopwatch.ElapsedMilliseconds
-            Messages = $messages
+            Type         = "NonQuery"
+            DurationMs   = $stopwatch.ElapsedMilliseconds
+            Messages     = $messages
         }
     } catch {
         Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] CATCH: $($_.Exception.Message)"
         Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] Tipo de excepción: $($_.Exception.GetType().FullName)"
         Write-DzDebug "`t[DEBUG][Invoke-DzSqlCommandInternal] Stack: $($_.ScriptStackTrace)"
         return @{
-            Success = $false
+            Success      = $false
             ErrorMessage = $_.Exception.Message
-            ErrorRecord = $_
-            Type = "Error"
-            DurationMs = $stopwatch.ElapsedMilliseconds
-            Messages = $messages
+            ErrorRecord  = $_
+            Type         = "Error"
+            DurationMs   = $stopwatch.ElapsedMilliseconds
+            Messages     = $messages
         }
     } finally {
         if ($plainPassword) { $plainPassword = $null }
@@ -198,8 +198,6 @@ function Invoke-DzSqlBatchInternal {
         Add-Debug "Abriendo conexión..."
         $connection.Open()
         Add-Debug ("Estado conexión: {0}" -f $connection.State)
-        $command = $connection.CreateCommand()
-        $command.CommandTimeout = 0
         $batches = @([System.Text.RegularExpressions.Regex]::Split($Query, '(?im)^\s*GO\s*$') | ForEach-Object { ([string]$_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         Add-Debug ("Batches: {0}" -f $batches.Count)
         if ($batches.Count -gt 0) {
@@ -210,42 +208,73 @@ function Invoke-DzSqlBatchInternal {
         $resultSets = New-Object System.Collections.Generic.List[object]
         $recordsAffected = $null
         $totalRowsAffected = 0
-        foreach ($oneBatch in $batches) {
+        $batchErrors = New-Object System.Collections.Generic.List[string]
+        for ($batchIndex = 0; $batchIndex -lt $batches.Count; $batchIndex++) {
+            $oneBatch = $batches[$batchIndex]
+            $command = $connection.CreateCommand()
+            $command.CommandTimeout = 0
             $command.CommandText = $oneBatch
-            Add-Debug ("Ejecutando batch (len={0})..." -f $oneBatch.Length)
-            $ds = New-Object System.Data.DataSet
-            $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
-            $filledTables = 0
+            Add-Debug ("Ejecutando batch #{0} (len={1})..." -f ($batchIndex + 1), $oneBatch.Length)
+            $isSelect = $oneBatch -match "(?si)^\s*(SELECT|WITH|EXEC|EXECUTE|DECLARE.*SELECT)" -or $oneBatch -match "(?si)\bOUTPUT\b"
             try {
-                $filledTables = $adapter.Fill($ds)
-                Add-Debug ("Adapter.Fill OK. ds.Tables={0} filledTables={1}" -f $ds.Tables.Count, $filledTables)
-            } catch {
-                Add-Debug ("Adapter.Fill EX: {0}" -f $_.Exception.Message)
-                throw
-            }
-            if ($ds.Tables.Count -gt 0) {
-                foreach ($t in $ds.Tables) {
-                    for ($i = 0; $i -lt $t.Columns.Count; $i++) {
-                        if ([string]::IsNullOrWhiteSpace($t.Columns[$i].ColumnName)) {
-                            $t.Columns[$i].ColumnName = "Column$($i+1)"
+                if ($isSelect) {
+                    try {
+                        $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($command)
+                        $ds = New-Object System.Data.DataSet
+                        $filledTables = $adapter.Fill($ds)
+                        Add-Debug ("Adapter.Fill OK. ds.Tables={0} filledTables={1}" -f $ds.Tables.Count, $filledTables)
+                        if ($ds.Tables.Count -gt 0) {
+                            foreach ($t in $ds.Tables) {
+                                for ($i = 0; $i -lt $t.Columns.Count; $i++) {
+                                    if ([string]::IsNullOrWhiteSpace($t.Columns[$i].ColumnName)) {
+                                        $t.Columns[$i].ColumnName = "Column$($i+1)"
+                                    }
+                                }
+                                $resultSets.Add([PSCustomObject]@{ DataTable = $t; RowCount = $t.Rows.Count })
+                                Add-Debug ("RS#{0} Filas={1} Cols={2}" -f $resultSets.Count, $t.Rows.Count, $t.Columns.Count)
+                            }
                         }
+                    } catch {
+                        Add-Debug ("Adapter.Fill EX: {0}" -f $_.Exception.Message)
+                        [void]$batchErrors.Add("Batch #$($batchIndex + 1): $($_.Exception.Message)")
+                        [void]$messages.Add("Batch #$($batchIndex + 1): $($_.Exception.Message)")
+                        break
                     }
-                    $resultSets.Add([PSCustomObject]@{ DataTable = $t; RowCount = $t.Rows.Count })
-                    Add-Debug ("RS#{0} Filas={1} Cols={2}" -f $resultSets.Count, $t.Rows.Count, $t.Columns.Count)
+                } else {
+                    try {
+                        $rows = $command.ExecuteNonQuery()
+                        $totalRowsAffected += $rows
+                        Add-Debug ("ExecuteNonQuery RowsAffected={0} (Total acumulado={1})" -f $rows, $totalRowsAffected)
+                    } catch {
+                        Add-Debug ("ExecuteNonQuery EX: {0}" -f $_.Exception.Message)
+                        [void]$batchErrors.Add("Batch #$($batchIndex + 1): $($_.Exception.Message)")
+                        [void]$messages.Add("Batch #$($batchIndex + 1): $($_.Exception.Message)")
+                        break
+                    }
                 }
-            } else {
-                try {
-                    $rows = $command.ExecuteNonQuery()
-                    $totalRowsAffected += $rows  # Sumar al total
-                    Add-Debug ("ExecuteNonQuery RowsAffected={0} (Total acumulado={1})" -f $rows, $totalRowsAffected)
-                } catch {
-                    Add-Debug ("ExecuteNonQuery EX: {0}" -f $_.Exception.Message)
-                    throw
-                }
+                $command.Dispose()
+                $command = $null
+            } catch {
+                Add-Debug ("Error general en batch #{0}: {1}" -f ($batchIndex + 1), $_.Exception.Message)
+                [void]$batchErrors.Add("Batch #$($batchIndex + 1): $($_.Exception.Message)")
+                [void]$messages.Add("Batch #$($batchIndex + 1): $($_.Exception.Message)")
+                break
             }
         }
         $allMsgs = Resolve-DzSqlMessageSummary -Messages $messages
-        Add-Debug ("FIN loop. resultSets={0} totalRowsAffected={1} HadSqlError={2} messages={3}" -f $resultSets.Count, $totalRowsAffected, $script:HadSqlError, $messages.Count)
+        Add-Debug ("FIN loop. resultSets={0} totalRowsAffected={1} HadSqlError={2} messages={3} batchErrors={4}" -f $resultSets.Count, $totalRowsAffected, $script:HadSqlError, $messages.Count, $batchErrors.Count)
+        if ($batchErrors.Count -gt 0) {
+            $errorMessage = "Error en batch: " + ($batchErrors -join "; ")
+            return @{
+                Success      = $false
+                Type         = "Error"
+                ErrorMessage = $errorMessage
+                Messages     = $messages
+                ResultSets   = $resultSets.ToArray()  # Devolver los resultados que SÍ se obtuvieron
+                DebugLog     = $debugLog
+                DurationMs   = $stopwatch.ElapsedMilliseconds
+            }
+        }
         if ($script:HadSqlError) {
             if ([string]::IsNullOrWhiteSpace($allMsgs)) { $allMsgs = "Error SQL." }
             return @{
@@ -253,7 +282,7 @@ function Invoke-DzSqlBatchInternal {
                 Type         = "Error"
                 ErrorMessage = $allMsgs
                 Messages     = $messages
-                ResultSets   = @()
+                ResultSets   = $resultSets.ToArray()
                 DebugLog     = $debugLog
                 DurationMs   = $stopwatch.ElapsedMilliseconds
             }
@@ -281,14 +310,14 @@ function Invoke-DzSqlBatchInternal {
         $summary = Resolve-DzSqlMessageSummary -Messages $messages
         $errorMessage = if (-not [string]::IsNullOrWhiteSpace($_.Exception.Message)) { $_.Exception.Message } elseif (-not [string]::IsNullOrWhiteSpace($summary)) { $summary } else { "Error ejecutando consulta." }
         return @{
-            Success = $false
-            Type = "Error"
+            Success      = $false
+            Type         = "Error"
             ErrorMessage = $errorMessage
-            ErrorRecord = $_
-            Messages = $messages
-            ResultSets = @()
-            DebugLog = $debugLog
-            DurationMs = $stopwatch.ElapsedMilliseconds
+            ErrorRecord  = $_
+            Messages     = $messages
+            ResultSets   = @()
+            DebugLog     = $debugLog
+            DurationMs   = $stopwatch.ElapsedMilliseconds
         }
     } finally {
         if ($plainPassword) { $plainPassword = $null }
@@ -1580,9 +1609,12 @@ function Write-DataTableConsole {
 function Show-ErrorResultTab {
     param(
         [Parameter(Mandatory)][System.Windows.Controls.TabControl]$ResultsTabControl,
-        [Parameter(Mandatory)][string]$Message
+        [Parameter(Mandatory)][string]$Message,
+        [Parameter()][switch]$AddWithoutClear
     )
-    try { $ResultsTabControl.Items.Clear() } catch {}
+    if (-not $AddWithoutClear) {
+        try { $ResultsTabControl.Items.Clear() } catch {}
+    }
     $tab = New-Object System.Windows.Controls.TabItem
     $ht = New-Object System.Windows.Controls.TextBlock
     $ht.Text = "Error"
@@ -1597,7 +1629,9 @@ function Show-ErrorResultTab {
     $text.HorizontalScrollBarVisibility = "Auto"
     $tab.Content = $text
     [void]$ResultsTabControl.Items.Add($tab)
-    $ResultsTabControl.SelectedIndex = 0
+    if (-not $AddWithoutClear) {
+        $ResultsTabControl.SelectedIndex = 0
+    }
 }
 Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet',
     'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery',

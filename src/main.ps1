@@ -1963,13 +1963,47 @@ Base de datos: $($global:database)
                                     try { $msg = ($result.Messages -join "`n") } catch {}
                                 }
                                 if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "Error desconocido al ejecutar la consulta." }
-                                Write-Host "`n=============== ERROR SQL ==============" -ForegroundColor Red
-                                Write-Host "Mensaje: $msg" -ForegroundColor Yellow
-                                Write-Host "====================================" -ForegroundColor Red
-                                if ($global:txtMessages) { $global:txtMessages.Text = $msg }
-                                if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
-                                if ($global:tcResults) {
-                                    try { Show-ErrorResultTab -ResultsTabControl $global:tcResults -Message $msg } catch {}
+                                if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
+                                    Write-DzDebug "`t[DEBUG][TICK] Mostrando ResultSets a pesar del error (count: $($result.ResultSets.Count))"
+                                    try {
+                                        Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
+                                        Show-ErrorResultTab -ResultsTabControl $global:tcResults -Message $msg -AddWithoutClear
+                                        Write-Host "`n=============== ERROR SQL ==============" -ForegroundColor Red
+                                        Write-Host "Mensaje: $msg" -ForegroundColor Yellow
+                                        Write-Host "====================================" -ForegroundColor Red
+                                        if ($global:txtMessages) {
+                                            $currentText = $global:txtMessages.Text
+                                            $global:txtMessages.Text = "ERROR: $msg`n`n$currentText"
+                                        }
+                                        if ($global:lblRowCount) {
+                                            $totalRows = ($result.ResultSets | Measure-Object -Property RowCount -Sum).Sum
+                                            if ($result.ResultSets.Count -eq 1) {
+                                                $global:lblRowCount.Text = "Filas: $totalRows (con error)"
+                                            } else {
+                                                $global:lblRowCount.Text = "Filas: $totalRows ($($result.ResultSets.Count) resultsets, con error)"
+                                            }
+                                        }
+                                    } catch {
+                                        Write-DzDebug "`t[DEBUG][TICK] ERROR en Show-MultipleResultSets: $($_.Exception.Message)"
+                                        if ($global:txtMessages) {
+                                            $global:txtMessages.Text = "Error mostrando resultados: $($_.Exception.Message)"
+                                        }
+                                    }
+                                } else {
+                                    Write-Host "`n=============== ERROR SQL ==============" -ForegroundColor Red
+                                    Write-Host "Mensaje: $msg" -ForegroundColor Yellow
+                                    Write-Host "====================================" -ForegroundColor Red
+                                    if ($global:txtMessages) {
+                                        $global:txtMessages.Text = $msg
+                                    }
+                                    if ($global:lblRowCount) {
+                                        $global:lblRowCount.Text = "Filas: --"
+                                    }
+                                    if ($global:tcResults) {
+                                        try {
+                                            Show-ErrorResultTab -ResultsTabControl $global:tcResults -Message $msg
+                                        } catch {}
+                                    }
                                 }
                                 return
                             }

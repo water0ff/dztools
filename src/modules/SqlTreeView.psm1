@@ -275,16 +275,16 @@ function Initialize-SqlTreeView {
     )
     $TreeView.Items.Clear()
     $serverTag = @{
-        Type               = "Server"
-        Server             = $Server
-        Credential         = $Credential
-        User               = $User
-        Password           = $Password
-        InsertTextHandler  = $InsertTextHandler
-        OnDatabaseSelected = $OnDatabaseSelected
-        GetCurrentDatabase = $GetCurrentDatabase
+        Type                 = "Server"
+        Server               = $Server
+        Credential           = $Credential
+        User                 = $User
+        Password             = $Password
+        InsertTextHandler    = $InsertTextHandler
+        OnDatabaseSelected   = $OnDatabaseSelected
+        GetCurrentDatabase   = $GetCurrentDatabase
         OnDatabasesRefreshed = $OnDatabasesRefreshed
-        Loaded             = $false
+        Loaded               = $false
     }
     $serverNode = New-SqlTreeNode -Header "📊 $Server" -Tag $serverTag -HasPlaceholder $true
     Add-ServerContextMenu -ServerNode $serverNode
@@ -514,13 +514,23 @@ ORDER BY TABLE_SCHEMA, TABLE_NAME
                     Loaded             = $false
                 }
                 $tableNode = New-SqlTreeNode -Header "📋 [$schema].[$table]" -Tag $tag -HasPlaceholder $true
-                $tableNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand Table: $($s.Tag.Database) [$($s.Tag.Schema)].[$($s.Tag.Table)]"; Load-ColumnsIntoTableNode -TableNode $s })
+                $tableNode.Add_Expanded({
+                        param($s, $e)
+                        Write-DzDebug "`t[DEBUG][TreeView] Expand Table: $($s.Tag.Database) [$($s.Tag.Schema)].[$($s.Tag.Table)]"
+                        Load-ColumnsIntoTableNode -TableNode $s
+                    })
                 $tableNode.Add_MouseDoubleClick({
                         param($s, $e)
                         Write-DzDebug "`t[DEBUG][TreeView] Doble clic Table: DB=$($s.Tag.Database) [$($s.Tag.Schema)].[$($s.Tag.Table)]"
                         if ($s.Tag.OnDatabaseSelected) { & $s.Tag.OnDatabaseSelected $s.Tag.Database }
-                        $queryText = "SELECT TOP 100 * FROM [$($s.Tag.Schema)].[$($s.Tag.Table)]"
-                        if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler $queryText }
+                        if ($global:tcQueries) {
+                            $tab = New-QueryTab -TabControl $global:tcQueries
+                            $queryText = "SELECT TOP 100 * FROM [$($s.Tag.Schema)].[$($s.Tag.Table)]"
+                            Set-QueryTextInActiveTab -TabControl $global:tcQueries -Text $queryText
+                        } else {
+                            $queryText = "SELECT TOP 100 * FROM [$($s.Tag.Schema)].[$($s.Tag.Table)]"
+                            if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler $queryText }
+                        }
                         $e.Handled = $true
                     })
                 Add-TreeNodeContextMenu -TableNode $tableNode
@@ -640,7 +650,9 @@ ORDER BY c.ORDINAL_POSITION
         $colNode.Add_MouseDoubleClick({
                 param($s, $e)
                 Write-DzDebug "`t[DEBUG][TreeView] Doble clic Column: [$($s.Tag.Column)]"
-                if ($s.Tag.InsertTextHandler) { & $s.Tag.InsertTextHandler "[$($s.Tag.Column)]" }
+                if ($s.Tag.InsertTextHandler) {
+                    & $s.Tag.InsertTextHandler "[$($s.Tag.Column)]"
+                }
                 $e.Handled = $true
             })
         [void]$TableNode.Items.Add($colNode)
@@ -708,7 +720,9 @@ ORDER BY c.ORDINAL_POSITION
 function Add-TreeNodeContextMenu {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$TableNode)
+
     $menu = New-Object System.Windows.Controls.ContextMenu
+
     $menuSelectTop = New-Object System.Windows.Controls.MenuItem
     $menuSelectTop.Header = "SELECT TOP 100 *"
     $menuSelectTop.Add_Click({
@@ -720,10 +734,19 @@ function Add-TreeNodeContextMenu {
             $schema = [string]$node.Tag.Schema
             $table = [string]$node.Tag.Table
             Write-DzDebug "`t[DEBUG][TreeView] Context SELECT TOP: DB=$db [$schema].[$table]"
+
             if ($node.Tag.OnDatabaseSelected) { & $node.Tag.OnDatabaseSelected $db }
-            $queryText = "SELECT TOP 100 * FROM [$schema].[$table]"
-            if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $queryText }
+
+            if ($global:tcQueries) {
+                $tab = New-QueryTab -TabControl $global:tcQueries
+                $queryText = "SELECT TOP 100 * FROM [$schema].[$table]"
+                Set-QueryTextInActiveTab -TabControl $global:tcQueries -Text $queryText
+            } else {
+                $queryText = "SELECT TOP 100 * FROM [$schema].[$table]"
+                if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $queryText }
+            }
         })
+
     $menuSelectAll = New-Object System.Windows.Controls.MenuItem
     $menuSelectAll.Header = "SELECT *"
     $menuSelectAll.Add_Click({
@@ -736,9 +759,17 @@ function Add-TreeNodeContextMenu {
             $table = [string]$node.Tag.Table
             Write-DzDebug "`t[DEBUG][TreeView] Context SELECT *: DB=$db [$schema].[$table]"
             if ($node.Tag.OnDatabaseSelected) { & $node.Tag.OnDatabaseSelected $db }
-            $queryText = "SELECT * FROM [$schema].[$table]"
-            if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $queryText }
+
+            if ($global:tcQueries) {
+                $tab = New-QueryTab -TabControl $global:tcQueries
+                $queryText = "SELECT * FROM [$schema].[$table]"
+                Set-QueryTextInActiveTab -TabControl $global:tcQueries -Text $queryText
+            } else {
+                $queryText = "SELECT * FROM [$schema].[$table]"
+                if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $queryText }
+            }
         })
+
     $menuScript = New-Object System.Windows.Controls.MenuItem
     $menuScript.Header = "Script CREATE TABLE"
     $menuScript.Add_Click({
@@ -751,12 +782,29 @@ function Add-TreeNodeContextMenu {
             $schema = [string]$node.Tag.Schema
             $table = [string]$node.Tag.Table
             Write-DzDebug "`t[DEBUG][TreeView] Context CREATE: Server='$srv' DB='$db' [$schema].[$table]"
-            if ([string]::IsNullOrWhiteSpace($srv)) { Ui-Error "TreeView: Server vacío en el Tag. Reconecta a la BD para recargar el explorador." $global:MainWindow; return }
-            if ([string]::IsNullOrWhiteSpace($db)) { Ui-Error "TreeView: Database vacía en el Tag." $global:MainWindow; return }
+
+            if ([string]::IsNullOrWhiteSpace($srv)) {
+                Ui-Error "TreeView: Server vacío en el Tag. Reconecta a la BD para recargar el explorador." $global:MainWindow
+                return
+            }
+            if ([string]::IsNullOrWhiteSpace($db)) {
+                Ui-Error "TreeView: Database vacía en el Tag." $global:MainWindow
+                return
+            }
+
             if ($node.Tag.OnDatabaseSelected) { & $node.Tag.OnDatabaseSelected $db }
+
             $scriptText = Get-CreateTableScript -Server $srv -Database $db -Schema $schema -Table $table -Credential $node.Tag.Credential
-            if ($scriptText -and $node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $scriptText }
+            if ($scriptText) {
+                if ($global:tcQueries) {
+                    $tab = New-QueryTab -TabControl $global:tcQueries
+                    Set-QueryTextInActiveTab -TabControl $global:tcQueries -Text $scriptText
+                } else {
+                    if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $scriptText }
+                }
+            }
         })
+
     $menuCopy = New-Object System.Windows.Controls.MenuItem
     $menuCopy.Header = "Copiar nombre"
     $menuCopy.Add_Click({
@@ -770,12 +818,15 @@ function Add-TreeNodeContextMenu {
             $name = "[$schema].[$table]"
             [System.Windows.Clipboard]::SetText($name)
         })
+
     [void]$menu.Items.Add($menuSelectTop)
     [void]$menu.Items.Add($menuSelectAll)
     [void]$menu.Items.Add($menuScript)
     [void]$menu.Items.Add($menuCopy)
+
     $TableNode.ContextMenu = $menu
 }
+
 function Add-DatabaseContextMenu {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$DatabaseNode)
@@ -1311,6 +1362,20 @@ function Show-DeleteDatabaseDialog {
                     }
                 }
                 Ui-Info "La base de datos '$Database' ha sido eliminada exitosamente." "✓ Éxito" $window
+
+                $serverNode = $ParentNode.Parent
+                if ($serverNode -and $serverNode.Tag.Type -eq "Server") {
+                    if ($serverNode.Tag.OnDatabasesRefreshed) {
+                        try {
+                            Write-DzDebug "`t[DEBUG][DeleteDB] Llamando a OnDatabasesRefreshed"
+                            & $serverNode.Tag.OnDatabasesRefreshed
+                        } catch {
+                            Write-DzDebug "`t[DEBUG][DeleteDB] Error en OnDatabasesRefreshed: $($_.Exception.Message)"
+                        }
+                    }
+                    Refresh-SqlTreeServerNode -ServerNode $serverNode
+                }
+
                 if ($ParentNode.Parent -is [System.Windows.Controls.ItemsControl]) {
                     $window.Dispatcher.Invoke([action] {
                             try {
@@ -1321,6 +1386,7 @@ function Show-DeleteDatabaseDialog {
                             }
                         })
                 }
+
                 $window.DialogResult = $true
                 $window.Close()
             } catch {
@@ -1328,6 +1394,7 @@ function Show-DeleteDatabaseDialog {
                 Ui-Error "Error inesperado al eliminar la base de datos:`n`n$($_.Exception.Message)" "Error" $window
             }
         })
+
     Write-DzDebug "`t[DEBUG][DeleteDB] Mostrando ventana"
     $null = $window.ShowDialog()
 }

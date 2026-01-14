@@ -69,13 +69,14 @@ foreach ($module in $modules) {
 }
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
-- Version Base de datos 2.0.0
+- SSMS Portable
     * TreeView Permite Eliminar bases de datos
     * Ahora puedes crear bases de datos
     * Restaurar permite seleccionar ruta de archivos logicos
-    * Nueva conexión a SQL Server
+    * Attach de base de datos
     * Backup de bases de datos
     * Ejecución de queries
+    * Exportar resultados a CSV/Excel
     * Queries predefinidas
     * Mejoras en seguridad y manejo de errores
     * Carga de INIS en la conexión a BDD.

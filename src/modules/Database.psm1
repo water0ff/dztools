@@ -1,5 +1,6 @@
 ﻿if ($PSVersionTable.PSVersion.Major -lt 5) { throw "Se requiere PowerShell 5.0 o superior." }
 $script:queryTabCounter = 1
+if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { $global:DzSqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE' }
 function Process-SqlProgressMessage { param([string]$Message) if ($Message -match '(?i)(\d{1,3})\s*percent') { $percent = [int]$Matches[1]; Write-Output "Progreso: $percent%" } elseif ($Message -match 'BACKUP DATABASE successfully processed') { Write-Output "Backup completado exitosamente" } }
 function New-DzSqlConnectionFromCredential {
     [CmdletBinding()]
@@ -768,19 +769,14 @@ function Get-NextQueryNumber {
 function New-QueryTab {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][System.Windows.Controls.TabControl]$TabControl)
-
     $tabNumber = Get-NextQueryNumber -TabControl $TabControl
     $tabTitle = "Consulta $tabNumber"
-
     $tabItem = New-Object System.Windows.Controls.TabItem
-
     $headerPanel = New-Object System.Windows.Controls.StackPanel
     $headerPanel.Orientation = "Horizontal"
-
     $headerText = New-Object System.Windows.Controls.TextBlock
     $headerText.Text = $tabTitle
     $headerText.VerticalAlignment = "Center"
-
     $closeButton = New-Object System.Windows.Controls.Button
     $closeButton.Content = "×"
     $closeButton.Width = 20
@@ -788,62 +784,38 @@ function New-QueryTab {
     $closeButton.Margin = "6,0,0,0"
     $closeButton.Padding = "0"
     $closeButton.FontSize = 14
-
     [void]$headerPanel.Children.Add($headerText)
     [void]$headerPanel.Children.Add($closeButton)
     $tabItem.Header = $headerPanel
-
     $grid = New-Object System.Windows.Controls.Grid
     $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition))
-
     $rtb = New-Object System.Windows.Controls.RichTextBox
     $rtb.Margin = "0"
     $rtb.VerticalScrollBarVisibility = "Auto"
     $rtb.AcceptsReturn = $true
     $rtb.AcceptsTab = $true
-
-    # Habilitar resaltado en tiempo real
-    Enable-RealtimeSqlHighlighting -RichTextBox $rtb
-
-    $cleanupAction = {
-        if ($highlightTimer) {
-            $highlightTimer.Stop()
-            $highlightTimer = $null
-        }
-    }
-
-    $tabItem.Tag = [pscustomobject]@{
-        Type            = "QueryTab"
-        RichTextBox     = $rtb
-        Title           = $tabTitle
-        HeaderTextBlock = $headerText
-        IsDirty         = $false
-        CleanupAction   = $cleanupAction
-    }
-
     [void]$grid.Children.Add($rtb)
     $tabItem.Content = $grid
-
+    $tabItem.Tag = [pscustomobject]@{ Type = "QueryTab"; RichTextBox = $rtb; Title = $tabTitle; HeaderTextBlock = $headerText; IsDirty = $false }
+    $rtb.Add_TextChanged({
+            if ($global:isHighlightingQuery) { return }
+            $global:isHighlightingQuery = $true
+            try {
+                if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { return }
+                Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $global:DzSqlKeywords
+                $tabItem.Tag.IsDirty = $true
+                Update-QueryTabHeader -TabItem $tabItem
+            } finally { $global:isHighlightingQuery = $false }
+        }.GetNewClosure())
     $tcRef = $TabControl
     $closeButton.Add_Click({ Close-QueryTab -TabControl $tcRef -TabItem $tabItem }.GetNewClosure())
-
     $insertIndex = $TabControl.Items.Count
     for ($i = 0; $i -lt $TabControl.Items.Count; $i++) {
         $it = $TabControl.Items[$i]
-        if ($it -is [System.Windows.Controls.TabItem] -and $it.Name -eq "tabAddQuery") {
-            $insertIndex = $i
-            break
-        }
+        if ($it -is [System.Windows.Controls.TabItem] -and $it.Name -eq "tabAddQuery") { $insertIndex = $i; break }
     }
-
     [void]$TabControl.Items.Insert($insertIndex, $tabItem)
     $TabControl.SelectedItem = $tabItem
-
-    # Aplicar resaltado inicial
-    if (-not [string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) {
-        Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $global:DzSqlKeywords
-    }
-
     return $tabItem
 }
 function Close-QueryTab {
@@ -1480,118 +1452,45 @@ function Set-WpfSqlHighlighting {
         [Parameter(Mandatory)][System.Windows.Controls.RichTextBox]$RichTextBox,
         [Parameter(Mandatory)][string]$Keywords
     )
-    Write-DzDebug "`t[DEBUG][Set-WpfSqlHighlighting] INICIO - Keywords: $($Keywords.Length) caracteres"
-    if ($null -eq $RichTextBox -or $null -eq $RichTextBox.Document) {
-        Write-DzDebug "`t[DEBUG][Set-WpfSqlHighlighting] RichTextBox o Document es nulo"
-        return 
+    if ($null -eq $RichTextBox -or $null -eq $RichTextBox.Document) { return }
+    if ([string]::IsNullOrWhiteSpace($Keywords)) { return }
+    $theme = Get-DzUiTheme
+    $defaultBrush = Get-DzThemeBrush -Hex $theme.ControlForeground -Fallback ([System.Windows.Media.Brushes]::Black)
+    $commentBrush = Get-DzThemeBrush -Hex $theme.AccentMuted -Fallback ([System.Windows.Media.Brushes]::DarkGreen)
+    $keywordBrush = Get-DzThemeBrush -Hex $theme.AccentPrimary -Fallback ([System.Windows.Media.Brushes]::Blue)
+    $range = New-Object System.Windows.Documents.TextRange($RichTextBox.Document.ContentStart, $RichTextBox.Document.ContentEnd)
+    $text = $range.Text
+    if ([string]::IsNullOrWhiteSpace($text)) { return }
+    $range.ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $defaultBrush)
+    $commentRanges = @()
+    foreach ($c in [regex]::Matches($text, '--.*', [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
+        $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $c.Index
+        $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($c.Index + $c.Length)
+        if ($start -and $end) {
+            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $commentBrush)
+            $commentRanges += [pscustomobject]@{ Start = $c.Index; End = $c.Index + $c.Length }
+        }
     }
-    if ([string]::IsNullOrWhiteSpace($Keywords)) {
-        Write-DzDebug "`t[DEBUG][Set-WpfSqlHighlighting] Keywords está vacío"
-        return 
+    foreach ($b in [regex]::Matches($text, '/\*[\s\S]*?\*/', [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
+        $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $b.Index
+        $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($b.Index + $b.Length)
+        if ($start -and $end) {
+            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $commentBrush)
+            $commentRanges += [pscustomobject]@{ Start = $b.Index; End = $b.Index + $b.Length }
+        }
     }
-
-    $RichTextBox.Dispatcher.Invoke([action] {
-            try {
-                $theme = Get-DzUiTheme
-                $defaultBrush = Get-DzThemeBrush -Hex $theme.ControlForeground -Fallback ([System.Windows.Media.Brushes]::Black)
-                $commentBrush = Get-DzThemeBrush -Hex $theme.AccentMuted -Fallback ([System.Windows.Media.Brushes]::DarkGreen)
-                $keywordBrush = Get-DzThemeBrush -Hex $theme.AccentPrimary -Fallback ([System.Windows.Media.Brushes]::Blue)
-
-                $range = New-Object System.Windows.Documents.TextRange(
-                    $RichTextBox.Document.ContentStart,
-                    $RichTextBox.Document.ContentEnd
-                )
-                $text = $range.Text
-
-                if ([string]::IsNullOrWhiteSpace($text)) { return }
-
-                $range.ClearAllProperties()
-
-                $range.ApplyPropertyValue(
-                    [System.Windows.Documents.TextElement]::ForegroundProperty,
-                    $defaultBrush
-                )
-
-                $keywordPattern = '\b(' + $Keywords + ')\b'
-                $textToProcess = $text
-
-                $blockCommentMatches = [regex]::Matches($textToProcess, '/\*[\s\S]*?\*/', [System.Text.RegularExpressions.RegexOptions]::Multiline)
-                foreach ($match in $blockCommentMatches) {
-                    try {
-                        $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $match.Index
-                        $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($match.Index + $match.Length)
-                        if ($start -and $end) {
-                            $commentRange = New-Object System.Windows.Documents.TextRange($start, $end)
-                            $commentRange.ApplyPropertyValue(
-                                [System.Windows.Documents.TextElement]::ForegroundProperty,
-                                $commentBrush
-                            )
-                        }
-                    } catch {
-                    }
-                }
-
-                $lineCommentMatches = [regex]::Matches($textToProcess, '--.*', [System.Text.RegularExpressions.RegexOptions]::Multiline)
-                foreach ($match in $lineCommentMatches) {
-                    try {
-                        $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $match.Index
-                        $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($match.Index + $match.Length)
-                        if ($start -and $end) {
-                            $commentRange = New-Object System.Windows.Documents.TextRange($start, $end)
-                            $commentRange.ApplyPropertyValue(
-                                [System.Windows.Documents.TextElement]::ForegroundProperty,
-                                $commentBrush
-                            )
-                        }
-                    } catch {
-                    }
-                }
-
-                $keywordMatches = [regex]::Matches($textToProcess, $keywordPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-                foreach ($match in $keywordMatches) {
-                    try {
-                        $inComment = $false
-
-                        foreach ($commentMatch in $blockCommentMatches) {
-                            if ($match.Index -ge $commentMatch.Index -and ($match.Index + $match.Length) -le ($commentMatch.Index + $commentMatch.Length)) {
-                                $inComment = $true
-                                break
-                            }
-                        }
-
-                        if (-not $inComment) {
-                            foreach ($commentMatch in $lineCommentMatches) {
-                                if ($match.Index -ge $commentMatch.Index) {
-                                    $inComment = $true
-                                    break
-                                }
-                            }
-                        }
-
-                        if (-not $inComment) {
-                            $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $match.Index
-                            $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($match.Index + $match.Length)
-                            if ($start -and $end) {
-                                $keywordRange = New-Object System.Windows.Documents.TextRange($start, $end)
-                                $keywordRange.ApplyPropertyValue(
-                                    [System.Windows.Documents.TextElement]::ForegroundProperty,
-                                    $keywordBrush
-                                )
-                            }
-                        }
-                    } catch {
-                    }
-                }
-
-                $RichTextBox.CaretPosition = $RichTextBox.CaretPosition
-                $RichTextBox.Focus()
-            } catch {
-                Write-DzDebug "`t[DEBUG][Set-WpfSqlHighlighting] Error: $($_.Exception.Message)"
-                Write-DzDebug "`t[DEBUG][Set-WpfSqlHighlighting] Stack: $($_.ScriptStackTrace)"
-            }
-        }, [System.Windows.Threading.DispatcherPriority]::Background)
+    $pattern = '\b(' + $Keywords + ')\b'
+    $matches = [regex]::Matches($text, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    foreach ($m in $matches) {
+        $inComment = $commentRanges | Where-Object { $m.Index -ge $_.Start -and $m.Index -lt $_.End }
+        if ($inComment) { continue }
+        $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $m.Index
+        $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($m.Index + $m.Length)
+        if ($start -and $end) {
+            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $keywordBrush)
+        }
+    }
 }
-
 function Get-TextPointerFromOffset {
     param(
         [Parameter(Mandatory)][System.Windows.Controls.RichTextBox]$RichTextBox,
@@ -1734,61 +1633,6 @@ function Show-ErrorResultTab {
         $ResultsTabControl.SelectedIndex = 0
     }
 }
-function Enable-RealtimeSqlHighlighting {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [System.Windows.Controls.RichTextBox]$RichTextBox,
-        [Parameter(Mandatory = $false)]
-        [string]$Keywords
-    )
-    if (-not $Keywords -and [string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) {
-        Write-DzDebug "`t[DEBUG][Enable-RealtimeSqlHighlighting] No hay palabras clave definidas."
-        return
-    }
-    if (-not $Keywords) {
-        $Keywords = $global:DzSqlKeywords
-    }
-    $highlightTimer = $null
-    $lastText = ""
-    $RichTextBox.Add_TextChanged({
-            param($sender, $e)
-            $currentText = New-Object System.Windows.Documents.TextRange(
-                $sender.Document.ContentStart,
-                $sender.Document.ContentEnd
-            ).Text
-            if ($currentText -eq $lastText) { return }
-            $lastText = $currentText
-            if ($highlightTimer) {
-                $highlightTimer.Stop()
-                $highlightTimer = $null
-            }
-            $highlightTimer = New-Object System.Windows.Threading.DispatcherTimer
-            $highlightTimer.Interval = [TimeSpan]::FromMilliseconds(300)
-            $highlightTimer.Add_Tick({
-                    $this.Stop()
-                    $this = $null
-                    try {
-                        Set-WpfSqlHighlighting -RichTextBox $RichTextBox -Keywords $Keywords
-                        $tabItem = $RichTextBox.TemplatedParent
-                        if (-not $tabItem) {
-                            $parent = $RichTextBox.Parent
-                            while ($parent -and -not ($parent -is [System.Windows.Controls.TabItem])) {
-                                $parent = $parent.Parent
-                            }
-                            $tabItem = $parent
-                        }
-                        if ($tabItem -and $tabItem.Tag) {
-                            $tabItem.Tag.IsDirty = $true
-                            Update-QueryTabHeader -TabItem $tabItem
-                        }
-                    } catch {
-                        Write-DzDebug "`t[DEBUG] Error en resaltado: $($_.Exception.Message)"
-                    }
-                })
-            $highlightTimer.Start()
-        })
-}
 Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet',
     'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery',
     'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox',
@@ -1813,5 +1657,4 @@ Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSe
     'Get-ResultTabHeaderText',
     'Get-ExportableResultTabs',
     'Write-DataTableConsole',
-    'Show-ErrorResultTab',
-    'Enable-RealtimeSqlHighlighting')
+    'Show-ErrorResultTab')

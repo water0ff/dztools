@@ -1618,6 +1618,30 @@ function New-MainForm {
                     }
                     Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($global:database)"
                 } `
+                    -OnDatabasesRefreshed {
+                    try {
+                        if (-not $global:server -or -not $global:dbCredential) { return }
+                        $databases = Get-SqlDatabases -Server $global:server -Credential $global:dbCredential
+                        if ($databases -and $databases.Count -gt 0) {
+                            $global:cmbDatabases.Items.Clear()
+                            foreach ($db in $databases) {
+                                [void]$global:cmbDatabases.Items.Add($db)
+                            }
+                            if ($global:database -and $global:cmbDatabases.Items.Contains($global:database)) {
+                                $global:cmbDatabases.SelectedItem = $global:database
+                            } elseif ($global:cmbDatabases.Items.Count -gt 0) {
+                                $global:cmbDatabases.SelectedIndex = 0
+                                $global:database = $global:cmbDatabases.SelectedItem
+                            }
+                            if ($global:lblConnectionStatus) {
+                                $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
+                            }
+                            Write-DzDebug "`t[DEBUG][TreeView] ComboBox actualizado con $($databases.Count) bases de datos"
+                        }
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][OnDatabasesRefreshed] Error: $_"
+                    }
+                } `
                     -InsertTextHandler {
                     param($text)
                     if ($global:tcQueries) {
@@ -1977,19 +2001,30 @@ Base de datos: $($global:database)
                                 }
                                 return
                             }
-                            $hasRowsAffected = $false
-                            try {
-                                $hasRowsAffected = ($result -is [hashtable] -and
-                                    $result.ContainsKey('RowsAffected') -and
-                                    $result.RowsAffected -ne $null)
-                            } catch {}
-                            if ($hasRowsAffected) {
+                            if ($result -and $result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
+                                Write-DzDebug "`t[DEBUG][TICK] Mostrando RowsAffected: $($result.RowsAffected)"
+                                if ($global:tcResults) {
+                                    $global:tcResults.Items.Clear()
+                                    $tab = New-Object System.Windows.Controls.TabItem
+                                    $tab.Header = "Resultado"
+                                    $text = New-Object System.Windows.Controls.TextBlock
+                                    $text.Text = "Filas afectadas: $($result.RowsAffected)"
+                                    $text.Margin = "10"
+                                    $text.FontSize = 14
+                                    $text.FontWeight = "Bold"
+                                    $tab.Content = $text
+                                    [void]$global:tcResults.Items.Add($tab)
+                                    $global:tcResults.SelectedItem = $tab
+                                }
                                 if ($global:txtMessages) {
                                     $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)"
                                 }
                                 if ($global:lblRowCount) {
                                     $global:lblRowCount.Text = "Filas afectadas: $($result.RowsAffected)"
                                 }
+                                Write-Host "`n=============== RESULTADO ==============" -ForegroundColor Green
+                                Write-Host "Filas afectadas: $($result.RowsAffected)" -ForegroundColor Yellow
+                                Write-Host "====================================" -ForegroundColor Green
                                 return
                             }
                             Show-MultipleResultSets -TabControl $global:tcResults -ResultSets @()

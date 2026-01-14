@@ -1236,5 +1236,96 @@ function Show-NSApplicationsIniReport {
         Write-DzDebug "`t[DEBUG][Show-NSApplicationsIniReport] ERROR creando ventana: $($_.Exception.Message)" Red
     }
 }
+function Get-OtmConfigFromSyscfg {
+    param(
+        [Parameter(Mandatory)][string]$SyscfgPath
+    )
 
+    # OJO: Tu código usa Get-Content (texto). Si el archivo fuera binario, esto no sería ideal.
+    # Mantengo tu lógica tal cual para no cambiar comportamiento.
+    $fileContent = Get-Content -LiteralPath $SyscfgPath -ErrorAction Stop
+
+    $isSQL = ($fileContent -match "494E5354414C4C=1") -and ($fileContent -match "56455253495354454D41=3")
+    $isDBF = ($fileContent -match "494E5354414C4C=2") -and ($fileContent -match "56455253495354454D41=2")
+
+    if ($isSQL) { return "SQL" }
+    if ($isDBF) { return "DBF" }
+    return $null
+}
+
+function Get-OtmIniFiles {
+    param(
+        [Parameter(Mandatory)][string]$IniPath
+    )
+
+    $iniFiles = Get-ChildItem -LiteralPath $IniPath -Filter "*.ini" -ErrorAction Stop
+    if (-not $iniFiles -or $iniFiles.Count -eq 0) { return $null }
+
+    $iniSQLFile = $null
+    $iniDBFFile = $null
+
+    foreach ($iniFile in $iniFiles) {
+        $content = Get-Content -LiteralPath $iniFile.FullName -ErrorAction SilentlyContinue
+
+        if (-not $iniDBFFile -and ($content -match "Provider=VFPOLEDB\.1")) { $iniDBFFile = $iniFile }
+        if (-not $iniSQLFile -and ($content -match "Provider=SQLOLEDB\.1")) { $iniSQLFile = $iniFile }
+
+        if ($iniSQLFile -and $iniDBFFile) { break }
+    }
+
+    if (-not $iniSQLFile -or -not $iniDBFFile) { return $null }
+
+    return [pscustomobject]@{
+        SQL = $iniSQLFile
+        DBF = $iniDBFFile
+        All = $iniFiles
+    }
+}
+
+function Set-OtmSyscfgConfig {
+    param(
+        [Parameter(Mandatory)][string]$SyscfgPath,
+        [Parameter(Mandatory)][ValidateSet("SQL", "DBF")][string]$Target
+    )
+
+    if ($Target -eq "SQL") {
+        Write-DzDebug "`t[DEBUG][OTM] Cambiando Syscfg a SQL" ([System.ConsoleColor]::Yellow)
+
+        (Get-Content -LiteralPath $SyscfgPath) `
+            -replace "494E5354414C4C=2", "494E5354414C4C=1" `
+            -replace "56455253495354454D41=2", "56455253495354454D41=3" |
+        Set-Content -LiteralPath $SyscfgPath
+    } else {
+        Write-DzDebug "`t[DEBUG][OTM] Cambiando Syscfg a DBF" ([System.ConsoleColor]::Yellow)
+
+        (Get-Content -LiteralPath $SyscfgPath) `
+            -replace "494E5354414C4C=1", "494E5354414C4C=2" `
+            -replace "56455253495354454D41=3", "56455253495354454D41=2" |
+        Set-Content -LiteralPath $SyscfgPath
+    }
+}
+
+function Rename-OtmIniForTarget {
+    param(
+        [Parameter(Mandatory)][ValidateSet("SQL", "DBF")][string]$Target,
+        [Parameter(Mandatory)]$IniSqlFile,
+        [Parameter(Mandatory)]$IniDbfFile
+    )
+
+    # Para evitar conflicto si "checadorsql.ini" ya existe, renombramos con cuidado:
+    $iniDir = Split-Path -Parent $IniSqlFile.FullName
+    $finalIni = Join-Path $iniDir "checadorsql.ini"
+
+    if ($Target -eq "SQL") {
+        # DBF -> backup
+        Rename-Item -LiteralPath $IniDbfFile.FullName -NewName "checadorsql_DBF_old.ini" -ErrorAction Stop
+        # SQL -> activo
+        Rename-Item -LiteralPath $IniSqlFile.FullName -NewName "checadorsql.ini" -ErrorAction Stop
+    } else {
+        # SQL -> backup
+        Rename-Item -LiteralPath $IniSqlFile.FullName -NewName "checadorsql_SQL_old.ini" -ErrorAction Stop
+        # DBF -> activo
+        Rename-Item -LiteralPath $IniDbfFile.FullName -NewName "checadorsql.ini" -ErrorAction Stop
+    }
+}
 Export-ModuleMember -Function @('Show-DllRegistrationDialog', 'Check-Permissions', 'Show-InstallerExtractorDialog', 'Invoke-CreateApk', 'Invoke-CambiarOTMConfig', 'Show-NSApplicationsIniReport')

@@ -270,7 +270,8 @@ function Initialize-SqlTreeView {
         [Parameter(Mandatory = $false)][scriptblock]$InsertTextHandler,
         [Parameter(Mandatory = $false)][scriptblock]$OnDatabaseSelected,
         [Parameter(Mandatory = $false)][scriptblock]$GetCurrentDatabase,
-        [Parameter(Mandatory = $false)][bool]$AutoExpand = $true
+        [Parameter(Mandatory = $false)][bool]$AutoExpand = $true,
+        [Parameter(Mandatory = $false)][scriptblock]$OnDatabasesRefreshed
     )
     $TreeView.Items.Clear()
     $serverTag = @{
@@ -282,6 +283,7 @@ function Initialize-SqlTreeView {
         InsertTextHandler  = $InsertTextHandler
         OnDatabaseSelected = $OnDatabaseSelected
         GetCurrentDatabase = $GetCurrentDatabase
+        OnDatabasesRefreshed = $OnDatabasesRefreshed
         Loaded             = $false
     }
     $serverNode = New-SqlTreeNode -Header "📊 $Server" -Tag $serverTag -HasPlaceholder $true
@@ -370,6 +372,9 @@ function Refresh-SqlTreeServerNode {
     $ServerNode.Items.Clear()
     Load-DatabasesIntoTree -ServerNode $ServerNode
     $ServerNode.IsExpanded = $true
+    if ($ServerNode.Tag.OnDatabasesRefreshed) {
+        & $ServerNode.Tag.OnDatabasesRefreshed
+    }
 }
 function Refresh-SqlTreeView {
     [CmdletBinding()]
@@ -917,6 +922,9 @@ function Add-ServerContextMenu {
             if ($null -eq $node -or $null -eq $node.Tag) { return }
             Write-DzDebug "`t[DEBUG][TreeView] Context REFRESH Server: $($node.Tag.Server)"
             Refresh-SqlTreeServerNode -ServerNode $node
+            if ($node.Tag.OnDatabasesRefreshed) {
+                & $node.Tag.OnDatabasesRefreshed
+            }
         })
     $menuRestore = New-Object System.Windows.Controls.MenuItem
     $menuRestore.Header = "♻️ Restaurar..."

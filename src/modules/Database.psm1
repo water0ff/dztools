@@ -209,6 +209,7 @@ function Invoke-DzSqlBatchInternal {
         }
         $resultSets = New-Object System.Collections.Generic.List[object]
         $recordsAffected = $null
+        $totalRowsAffected = 0
         foreach ($oneBatch in $batches) {
             $command.CommandText = $oneBatch
             Add-Debug ("Ejecutando batch (len={0})..." -f $oneBatch.Length)
@@ -224,15 +225,19 @@ function Invoke-DzSqlBatchInternal {
             }
             if ($ds.Tables.Count -gt 0) {
                 foreach ($t in $ds.Tables) {
-                    for ($i = 0; $i -lt $t.Columns.Count; $i++) { if ([string]::IsNullOrWhiteSpace($t.Columns[$i].ColumnName)) { $t.Columns[$i].ColumnName = "Column$($i+1)" } }
+                    for ($i = 0; $i -lt $t.Columns.Count; $i++) {
+                        if ([string]::IsNullOrWhiteSpace($t.Columns[$i].ColumnName)) {
+                            $t.Columns[$i].ColumnName = "Column$($i+1)"
+                        }
+                    }
                     $resultSets.Add([PSCustomObject]@{ DataTable = $t; RowCount = $t.Rows.Count })
                     Add-Debug ("RS#{0} Filas={1} Cols={2}" -f $resultSets.Count, $t.Rows.Count, $t.Columns.Count)
                 }
             } else {
                 try {
                     $rows = $command.ExecuteNonQuery()
-                    $recordsAffected = $rows
-                    Add-Debug ("ExecuteNonQuery RowsAffected={0}" -f $rows)
+                    $totalRowsAffected += $rows  # Sumar al total
+                    Add-Debug ("ExecuteNonQuery RowsAffected={0} (Total acumulado={1})" -f $rows, $totalRowsAffected)
                 } catch {
                     Add-Debug ("ExecuteNonQuery EX: {0}" -f $_.Exception.Message)
                     throw
@@ -240,45 +245,36 @@ function Invoke-DzSqlBatchInternal {
             }
         }
         $allMsgs = Resolve-DzSqlMessageSummary -Messages $messages
-        Add-Debug ("FIN loop. resultSets={0} recordsAffected={1} HadSqlError={2} messages={3}" -f $resultSets.Count, $recordsAffected, $script:HadSqlError, $messages.Count)
+        Add-Debug ("FIN loop. resultSets={0} totalRowsAffected={1} HadSqlError={2} messages={3}" -f $resultSets.Count, $totalRowsAffected, $script:HadSqlError, $messages.Count)
         if ($script:HadSqlError) {
             if ([string]::IsNullOrWhiteSpace($allMsgs)) { $allMsgs = "Error SQL." }
             return @{
-                Success = $false
-                Type = "Error"
+                Success      = $false
+                Type         = "Error"
                 ErrorMessage = $allMsgs
-                Messages = $messages
-                ResultSets = @()
-                DebugLog = $debugLog
-                DurationMs = $stopwatch.ElapsedMilliseconds
+                Messages     = $messages
+                ResultSets   = @()
+                DebugLog     = $debugLog
+                DurationMs   = $stopwatch.ElapsedMilliseconds
             }
         }
         if ($resultSets.Count -gt 0) {
             return @{
-                Success = $true
-                ResultSets = $resultSets.ToArray()
-                Messages = $messages
-                DebugLog = $debugLog
-                DurationMs = $stopwatch.ElapsedMilliseconds
-            }
-        }
-        if ($null -ne $recordsAffected) {
-            return @{
-                Success = $true
-                ResultSets = @()
-                RowsAffected = $recordsAffected
-                Messages = $messages
-                DebugLog = $debugLog
-                DurationMs = $stopwatch.ElapsedMilliseconds
+                Success      = $true
+                ResultSets   = $resultSets.ToArray()
+                Messages     = $messages
+                DebugLog     = $debugLog
+                DurationMs   = $stopwatch.ElapsedMilliseconds
+                RowsAffected = if ($totalRowsAffected -gt 0) { $totalRowsAffected } else { $null }
             }
         }
         return @{
-            Success = $true
-            ResultSets = @()
-            RowsAffected = $null
-            Messages = $messages
-            DebugLog = $debugLog
-            DurationMs = $stopwatch.ElapsedMilliseconds
+            Success      = $true
+            ResultSets   = @()
+            RowsAffected = $totalRowsAffected
+            Messages     = $messages
+            DebugLog     = $debugLog
+            DurationMs   = $stopwatch.ElapsedMilliseconds
         }
     } catch {
         Add-Debug ("CATCH: {0}" -f $_.Exception.Message)

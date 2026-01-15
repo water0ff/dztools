@@ -1548,6 +1548,107 @@ function New-MainForm {
             Write-Host "`t- - - Abriendo 'Instaladores NS' - - -" -ForegroundColor Gray
             Start-Process "https://nationalsoft-my.sharepoint.com/:f:/g/personal/gerardo_zermeno_softrestaurant_com/IgC3tKgxlNw9S7JmBk935kCrAVq9jkz06CJek9ljNOrr_Hw?e=xf2dFh"
         })
+    $btnDisconnectDb.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Desconectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Desconectando de la Base de Datos - - -" -ForegroundColor Cyan
+            try {
+                if ($script:QueryRunning) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Cancelando query en ejecución..."
+                    try {
+                        if ($script:CurrentQueryPowerShell) {
+                            $script:CurrentQueryPowerShell.Stop()
+                            $script:CurrentQueryPowerShell.Dispose()
+                        }
+                        if ($script:CurrentQueryRunspace) {
+                            $script:CurrentQueryRunspace.Close()
+                            $script:CurrentQueryRunspace.Dispose()
+                        }
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][Disconnect] Error cancelando query: $_"
+                    }
+                    $script:CurrentQueryPowerShell = $null
+                    $script:CurrentQueryRunspace = $null
+                    $script:CurrentQueryAsync = $null
+                    $script:QueryRunning = $false
+                    Write-DzDebug "`t[DEBUG][Disconnect] Query cancelada"
+                }
+                if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Deteniendo execUiTimer..."
+                    $script:execUiTimer.Stop()
+                }
+                if ($script:QueryDoneTimer -and $script:QueryDoneTimer.IsEnabled) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Deteniendo QueryDoneTimer..."
+                    $script:QueryDoneTimer.Stop()
+                }
+                if ($script:execStopwatch) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Deteniendo stopwatch..."
+                    $script:execStopwatch.Stop()
+                    $script:execStopwatch = $null
+                }
+                if ($global:connection) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Cerrando conexión SQL..."
+                    try {
+                        if ($global:connection.State -ne [System.Data.ConnectionState]::Closed) {
+                            $global:connection.Close()
+                        }
+                        $global:connection.Dispose()
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][Disconnect] Error cerrando conexión: $_"
+                    }
+                    $global:connection = $null
+                }
+                Write-DzDebug "`t[DEBUG][Disconnect] Limpiando variables globales..."
+                $global:server = $null
+                $global:user = $null
+                $global:password = $null
+                $global:database = $null
+                $global:dbCredential = $null
+                if ($global:tvDatabases) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Limpiando TreeView..."
+                    $global:tvDatabases.Items.Clear()
+                }
+                if ($global:cmbDatabases) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Limpiando ComboBox..."
+                    $global:cmbDatabases.Items.Clear()
+                    $global:cmbDatabases.IsEnabled = $false
+                }
+                if ($global:lblConnectionStatus) {
+                    $global:lblConnectionStatus.Text = "⚫ Desconectado"
+                }
+                Write-DzDebug "`t[DEBUG][Disconnect] Habilitando controles de conexión..."
+                if ($global:txtServer) { $global:txtServer.IsEnabled = $true }
+                if ($global:txtUser) { $global:txtUser.IsEnabled = $true }
+                if ($global:txtPassword) { $global:txtPassword.IsEnabled = $true }
+                if ($global:btnConnectDb) { $global:btnConnectDb.IsEnabled = $true }
+                Write-DzDebug "`t[DEBUG][Disconnect] Deshabilitando botones de operaciones..."
+                if ($global:btnDisconnectDb) { $global:btnDisconnectDb.IsEnabled = $false }
+                if ($global:btnExecute) { $global:btnExecute.IsEnabled = $false }
+                if ($global:btnClearQuery) { $global:btnClearQuery.IsEnabled = $false }
+                if ($global:btnBackup) { $global:btnBackup.IsEnabled = $false }
+                if ($global:btnRestore) { $global:btnRestore.IsEnabled = $false }
+                if ($global:btnAttach) { $global:btnAttach.IsEnabled = $false }
+                if ($global:btnExport) { $global:btnExport.IsEnabled = $false }
+                if ($global:cmbQueries) { $global:cmbQueries.IsEnabled = $false }
+                if ($global:tcQueries) { $global:tcQueries.IsEnabled = $false }
+                if ($global:tcResults) { $global:tcResults.IsEnabled = $false }
+                if ($global:rtbQueryEditor1) { $global:rtbQueryEditor1.IsEnabled = $false }
+                if ($global:dgResults) { $global:dgResults.IsEnabled = $false }
+                if ($global:txtMessages) { $global:txtMessages.IsEnabled = $false }
+                if ($global:txtMessages) {
+                    $global:txtMessages.Text = "Desconectado de la base de datos."
+                }
+                Write-DzDebug "`t[DEBUG][Disconnect] Desconexión completada exitosamente"
+                Write-Host "✓ Desconectado exitosamente" -ForegroundColor Green
+                if ($global:txtServer) {
+                    $global:txtServer.Focus() | Out-Null
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][Disconnect] ERROR: $($_.Exception.Message)"
+                Write-DzDebug "`t[DEBUG][Disconnect] Stack: $($_.ScriptStackTrace)"
+                Write-Host "Error al desconectar: $($_.Exception.Message)" -ForegroundColor Red
+                Ui-Error "Error al desconectar:`n`n$($_.Exception.Message)" $global:MainWindow
+            }
+        })
     $btnConnectDb.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Magenta
@@ -1568,10 +1669,12 @@ function New-MainForm {
                 $global:user = $userText
                 $global:password = $passwordText
                 $global:dbCredential = $credential
+                Write-DzDebug "`t[DEBUG] Obteniendo lista de bases de datos..."
                 $databases = Get-SqlDatabases -Server $serverText -Credential $credential
                 if (-not $databases -or $databases.Count -eq 0) {
                     throw "Conexión correcta, pero no se encontraron bases de datos disponibles."
                 }
+                Write-DzDebug "`t[DEBUG] Se encontraron $($databases.Count) bases de datos"
                 $global:cmbDatabases.Items.Clear()
                 foreach ($db in $databases) {
                     [void]$global:cmbDatabases.Items.Add($db)
@@ -1583,12 +1686,12 @@ function New-MainForm {
                 $global:txtServer.IsEnabled = $false
                 $global:txtUser.IsEnabled = $false
                 $global:txtPassword.IsEnabled = $false
+                $global:btnConnectDb.IsEnabled = $false
+                $global:btnDisconnectDb.IsEnabled = $true
                 $global:btnExecute.IsEnabled = $true
                 $global:btnClearQuery.IsEnabled = $true
                 $global:cmbQueries.IsEnabled = $true
-                $global:btnConnectDb.IsEnabled = $false
                 $global:btnBackup.IsEnabled = $true
-                $global:btnDisconnectDb.IsEnabled = $true
                 $global:btnRestore.IsEnabled = $true
                 $global:btnAttach.IsEnabled = $true
                 $global:btnExport.IsEnabled = $true
@@ -1598,6 +1701,7 @@ function New-MainForm {
                 if ($global:dgResults) { $global:dgResults.IsEnabled = $true }
                 if ($global:txtMessages) { $global:txtMessages.IsEnabled = $true }
                 $global:rtbQueryEditor1.Focus() | Out-Null
+                Write-DzDebug "`t[DEBUG] Inicializando TreeView..."
                 Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential -User $userText -Password $passwordText -GetCurrentDatabase { $global:database } `
                     -AutoExpand $true `
                     -OnDatabaseSelected {
@@ -1648,6 +1752,8 @@ function New-MainForm {
                         Insert-TextIntoActiveQuery -TabControl $global:tcQueries -Text $text
                     }
                 }
+                Write-DzDebug "`t[DEBUG] Conexión establecida exitosamente"
+                Write-Host "✓ Conectado exitosamente a: $serverText" -ForegroundColor Green
             } catch {
                 Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: $($_.Exception.Message)"
                 Write-DzDebug "`t[DEBUG][btnConnectDb] Tipo: $($_.Exception.GetType().FullName)"
@@ -1656,49 +1762,7 @@ function New-MainForm {
                 Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
             }
         })
-    $btnDisconnectDb.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Desconectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
-            try {
-                if ($script:QueryRunning) {
-                    try {
-                        if ($script:CurrentQueryPowerShell) {
-                            $script:CurrentQueryPowerShell.Stop()
-                            $script:CurrentQueryPowerShell.Dispose()
-                        }
-                        if ($script:CurrentQueryRunspace) {
-                            $script:CurrentQueryRunspace.Close()
-                            $script:CurrentQueryRunspace.Dispose()
-                        }
-                    } catch {
-                        Write-DzDebug "`t[DEBUG] Error cancelando query: $_"
-                    }
-                    $script:CurrentQueryPowerShell = $null
-                    $script:CurrentQueryRunspace = $null
-                    $script:CurrentQueryAsync = $null
-                    $script:QueryRunning = $false
-                }
-                if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) {
-                    $script:execUiTimer.Stop()
-                }
-                if ($script:QueryDoneTimer -and $script:QueryDoneTimer.IsEnabled) {
-                    $script:QueryDoneTimer.Stop()
-                }
-                if ($script:execStopwatch) {
-                    $script:execStopwatch.Stop()
-                }
-                if ($global:connection -and $global:connection.State -ne [System.Data.ConnectionState]::Closed) {
-                    $global:connection.Close()
-                    $global:connection.Dispose()
-                }
-                $global:connection = $null
-                $global:dbCredential = $null
-                $global:lblConnectionStatus.Text = "Desconectado"
-                $global:btnConnectDb.IsEnabled = $true
-                $global:btnBackup.IsEnabled = $false
-            } catch {
-                Write-Host "`nError al desconectar: $($_.Exception.Message)" -ForegroundColor Red
-            }
-        })
+
     $cmbDatabases.Add_SelectionChanged({
             if ($global:cmbDatabases.SelectedItem) {
                 $global:database = $global:cmbDatabases.SelectedItem

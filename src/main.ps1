@@ -73,7 +73,7 @@ $global:defaultInstructions = @"
     * TreeView Permite Eliminar bases de datos
     * Ahora puedes crear bases de datos
     * Restaurar permite seleccionar ruta de archivos logicos
-    * Attach de base de datos
+    * Attach / detach de base de datos
     * Backup de bases de datos
     * Ejecución de queries
     * Exportar resultados a CSV/Excel

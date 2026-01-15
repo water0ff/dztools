@@ -922,6 +922,22 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
             Show-DeleteDatabaseDialog -Server $server -Database $dbName -Credential $credential -ParentNode $node
         })
     $separator1 = New-Object System.Windows.Controls.Separator
+    $menuDetach = New-Object System.Windows.Controls.MenuItem
+    $menuDetach.Header = "📎 Separar (Detach)..."
+    $menuDetach.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+
+            Write-DzDebug "`t[DEBUG][TreeView] Context DETACH DB: Server='$server' DB='$dbName'"
+
+            Show-DetachDialog -Server $server -Database $dbName -Credential $credential -ParentNode $node
+        })
     $separator2 = New-Object System.Windows.Controls.Separator
     $menuRefresh = New-Object System.Windows.Controls.MenuItem
     $menuRefresh.Header = "🔄 Actualizar"
@@ -954,6 +970,7 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
     [void]$menu.Items.Add($menuRename)
     [void]$menu.Items.Add($menuNewQuery)
     [void]$menu.Items.Add($separator1)
+    [void]$menu.Items.Add($menuDetach)
     [void]$menu.Items.Add($menuDelete)
     [void]$menu.Items.Add($separator2)
     [void]$menu.Items.Add($menuRefresh)

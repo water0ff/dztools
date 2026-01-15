@@ -1266,4 +1266,403 @@ function Reset-BackupUI {
     $btnAbrirCarpeta.IsEnabled = $true
     $txtProgress.Text = $ProgressText
 }
-Export-ModuleMember -Function @('Show-RestoreDialog', 'Show-AttachDialog', 'Reset-RestoreUI', 'Reset-AttachUI', 'Show-BackupDialog', 'Reset-BackupUI')
+function Show-DetachDialog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory = $true)]$ParentNode
+    )
+
+    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null
+    }
+
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null
+    }
+
+    Write-DzDebug "`t[DEBUG][DetachDB] INICIO: Server='$Server' Database='$Database'"
+
+    Add-Type -AssemblyName PresentationFramework
+
+    $safeDb = [Security.SecurityElement]::Escape($Database)
+
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Separar Base de Datos"
+        Height="420" Width="580"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="True">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+        </Style>
+        <Style x:Key="BaseButtonStyle" TargetType="Button">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="1"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Content" Value="×"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="{DynamicResource FormBg}" Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Name="brdTitleBar"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12"
+                Margin="0,0,0,10">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock Text="📎 Separar Base de Datos (Detach)"
+                               Foreground="{DynamicResource FormFg}"
+                               FontSize="16"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="Los archivos MDF y LDF quedarán disponibles en el sistema de archivos."
+                               Foreground="{DynamicResource PanelFg}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+                <Button DockPanel.Dock="Right"
+                        Name="btnClose"
+                        Style="{StaticResource CloseButtonStyle}"/>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="Estás a punto de separar la siguiente base de datos:"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,10"/>
+
+                <Border Grid.Row="1"
+                        Background="{DynamicResource ControlBg}"
+                        BorderBrush="{DynamicResource BorderBrushColor}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="10"
+                        Margin="0,0,0,12">
+                    <TextBlock Text="🗄️ $safeDb"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentPrimary}"/>
+                </Border>
+
+                <StackPanel Grid.Row="2" Margin="0,0,0,10">
+                    <CheckBox x:Name="chkUpdateStatistics" IsChecked="True" Margin="0,0,0,8">
+                        <TextBlock Text="Actualizar estadísticas antes de separar" TextWrapping="Wrap"/>
+                    </CheckBox>
+                    <CheckBox x:Name="chkCloseConnections" IsChecked="True">
+                        <TextBlock Text="Forzar cierre de conexiones existentes (SINGLE_USER + ROLLBACK IMMEDIATE)" TextWrapping="Wrap"/>
+                    </CheckBox>
+                </StackPanel>
+
+                <Border Grid.Row="3"
+                        Background="{DynamicResource FormBg}"
+                        BorderBrush="{DynamicResource BorderBrushColor}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="10">
+                    <TextBlock FontSize="11"
+                               Foreground="{DynamicResource AccentMuted}"
+                               TextWrapping="Wrap">
+                        ℹ️ Información importante:
+• Al separar la base de datos, esta dejará de estar disponible en SQL Server
+• Los archivos físicos (MDF y LDF) permanecerán en el disco
+• Puedes volver a adjuntar la base de datos posteriormente
+• Si hay conexiones activas, usa la opción 'Forzar cierre' para cerrarlas automáticamente
+                    </TextBlock>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10"
+                Margin="0,10,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Enter: Separar   |   Esc: Cerrar"
+                           VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="btnCancelar"
+                            Content="Cancelar"
+                            Width="120"
+                            Height="34"
+                            Margin="0,0,10,0"
+                            IsCancel="True"
+                            Style="{StaticResource OutlineButtonStyle}"/>
+                    <Button x:Name="btnSeparar"
+                            Content="Separar"
+                            Width="140"
+                            Height="34"
+                            IsDefault="True"
+                            Style="{StaticResource ActionButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+"@
+
+    try {
+        $ui = New-WpfWindow -Xaml $xaml -PassThru
+        $window = $ui.Window
+        $theme = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $window -Theme $theme
+        try { Set-WpfDialogOwner -Dialog $window } catch {}
+
+        $brdTitleBar = $window.FindName("brdTitleBar")
+        if ($brdTitleBar) {
+            $brdTitleBar.Add_MouseLeftButtonDown({
+                    param($sender, $e)
+                    if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                        try { $window.DragMove() } catch {}
+                    }
+                })
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG][DetachDB] ERROR creando ventana: $($_.Exception.Message)" -Color Red
+        throw "No se pudo crear la ventana (XAML). $($_.Exception.Message)"
+    }
+
+    $chkUpdateStatistics = $window.FindName("chkUpdateStatistics")
+    $chkCloseConnections = $window.FindName("chkCloseConnections")
+    $btnSeparar = $window.FindName("btnSeparar")
+    $btnCancelar = $window.FindName("btnCancelar")
+    $btnClose = $window.FindName("btnClose")
+
+    $btnClose.Add_Click({
+            Write-DzDebug "`t[DEBUG][DetachDB] btnClose Click"
+            $window.DialogResult = $false
+            $window.Close()
+        })
+
+    $btnCancelar.Add_Click({
+            Write-DzDebug "`t[DEBUG][DetachDB] btnCancelar Click"
+            $window.DialogResult = $false
+            $window.Close()
+        })
+
+    $window.Add_PreviewKeyDown({
+            param($sender, $e)
+            if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                $window.DialogResult = $false
+                $window.Close()
+            }
+        })
+
+    $btnSeparar.Add_Click({
+            Write-DzDebug "`t[DEBUG][DetachDB] btnSeparar Click"
+
+            $updateStats = $chkUpdateStatistics.IsChecked -eq $true
+            $closeConnections = $chkCloseConnections.IsChecked -eq $true
+
+            try {
+                $escapedDb = $Database -replace "'", "''"
+                $safeName = $Database -replace ']', ']]'
+
+                # Paso 1: Actualizar estadísticas (opcional)
+                if ($updateStats) {
+                    Write-DzDebug "`t[DEBUG][DetachDB] Paso 1: Actualizando estadísticas"
+                    $updateQuery = "USE [$safeName]; EXEC sp_updatestats"
+                    $result1 = Invoke-SqlQuery -Server $Server -Database $Database -Query $updateQuery -Credential $Credential
+
+                    if (-not $result1.Success) {
+                        Write-DzDebug "`t[DEBUG][DetachDB] Error actualizando estadísticas: $($result1.ErrorMessage)"
+                        Ui-Error "Error al actualizar estadísticas:`n`n$($result1.ErrorMessage)" "Error" $window
+                        return
+                    }
+                    Write-DzDebug "`t[DEBUG][DetachDB] Estadísticas actualizadas OK"
+                }
+
+                # Paso 2: Cerrar conexiones (opcional)
+                if ($closeConnections) {
+                    Write-DzDebug "`t[DEBUG][DetachDB] Paso 2: Cerrando conexiones"
+                    $closeQuery = "ALTER DATABASE [$safeName] SET SINGLE_USER WITH ROLLBACK IMMEDIATE"
+                    $result2 = Invoke-SqlQuery -Server $Server -Database "master" -Query $closeQuery -Credential $Credential
+
+                    if (-not $result2.Success) {
+                        Write-DzDebug "`t[DEBUG][DetachDB] Error cerrando conexiones: $($result2.ErrorMessage)"
+                        Ui-Error "Error al cerrar conexiones existentes:`n`n$($result2.ErrorMessage)" "Error" $window
+                        return
+                    }
+                    Write-DzDebug "`t[DEBUG][DetachDB] Conexiones cerradas OK"
+                }
+
+                # Paso 3: Separar la base de datos
+                Write-DzDebug "`t[DEBUG][DetachDB] Paso 3: Separando base de datos"
+                $detachQuery = "EXEC sp_detach_db @dbname = N'$escapedDb', @skipchecks = 'false'"
+                $result3 = Invoke-SqlQuery -Server $Server -Database "master" -Query $detachQuery -Credential $Credential
+
+                if (-not $result3.Success) {
+                    Write-DzDebug "`t[DEBUG][DetachDB] Error separando BD: $($result3.ErrorMessage)"
+
+                    # Si falla, intentar restaurar MULTI_USER si se había cerrado conexiones
+                    if ($closeConnections) {
+                        try {
+                            $restoreQuery = "ALTER DATABASE [$safeName] SET MULTI_USER"
+                            Invoke-SqlQuery -Server $Server -Database "master" -Query $restoreQuery -Credential $Credential | Out-Null
+                        } catch {
+                            Write-DzDebug "`t[DEBUG][DetachDB] No se pudo restaurar MULTI_USER"
+                        }
+                    }
+
+                    Ui-Error "Error al separar la base de datos:`n`n$($result3.ErrorMessage)" "Error" $window
+                    return
+                }
+
+                Write-DzDebug "`t[DEBUG][DetachDB] Base de datos separada OK"
+
+                Ui-Info "La base de datos '$Database' ha sido separada exitosamente.`n`nLos archivos físicos permanecen en el disco y pueden ser adjuntados nuevamente cuando lo necesites." "✓ Éxito" $window
+
+                # Refrescar el TreeView
+                $serverNode = $ParentNode.Parent
+                if ($serverNode -and $serverNode.Tag.Type -eq "Server") {
+                    if ($serverNode.Tag.OnDatabasesRefreshed) {
+                        try {
+                            Write-DzDebug "`t[DEBUG][DetachDB] Llamando a OnDatabasesRefreshed"
+                            & $serverNode.Tag.OnDatabasesRefreshed
+                        } catch {
+                            Write-DzDebug "`t[DEBUG][DetachDB] Error en OnDatabasesRefreshed: $($_.Exception.Message)"
+                        }
+                    }
+                    Refresh-SqlTreeServerNode -ServerNode $serverNode
+                }
+
+                # Remover el nodo del TreeView
+                if ($ParentNode.Parent -is [System.Windows.Controls.ItemsControl]) {
+                    $window.Dispatcher.Invoke([action] {
+                            try {
+                                [void]$ParentNode.Parent.Items.Remove($ParentNode)
+                                Write-DzDebug "`t[DEBUG][DetachDB] Nodo removido del TreeView"
+                            } catch {
+                                Write-DzDebug "`t[DEBUG][DetachDB] Error removiendo nodo: $($_.Exception.Message)"
+                            }
+                        })
+                }
+
+                $window.DialogResult = $true
+                $window.Close()
+            } catch {
+                Write-DzDebug "`t[DEBUG][DetachDB] Excepción: $($_.Exception.Message)"
+                Ui-Error "Error inesperado al separar la base de datos:`n`n$($_.Exception.Message)" "Error" $window
+            }
+        })
+
+    Write-DzDebug "`t[DEBUG][DetachDB] Mostrando ventana"
+    $null = $window.ShowDialog()
+}
+
+Export-ModuleMember -Function @('Show-RestoreDialog', 'Show-AttachDialog',
+                                'Reset-RestoreUI', 'Reset-AttachUI',
+                                'Show-BackupDialog', 'Reset-BackupUI',
+                                'Show-DetachDialog')

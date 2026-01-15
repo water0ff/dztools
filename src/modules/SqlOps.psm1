@@ -1661,8 +1661,982 @@ function Show-DetachDialog {
     Write-DzDebug "`t[DEBUG][DetachDB] Mostrando ventana"
     $null = $window.ShowDialog()
 }
+function Show-DatabaseSizeDialog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
+    )
 
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null
+    }
+
+    Write-DzDebug "`t[DEBUG][DBSize] INICIO: Server='$Server' Database='$Database'"
+
+    Add-Type -AssemblyName PresentationFramework
+
+    # Consultar tamaños
+    $sizeQuery = @"
+USE [$Database];
+
+SELECT
+    name AS FileName,
+    physical_name AS FilePath,
+    type_desc AS FileType,
+    CAST(size * 8.0 / 1024 AS DECIMAL(18,2)) AS SizeMB,
+    CAST(FILEPROPERTY(name, 'SpaceUsed') * 8.0 / 1024 AS DECIMAL(18,2)) AS UsedMB,
+    CAST((size - FILEPROPERTY(name, 'SpaceUsed')) * 8.0 / 1024 AS DECIMAL(18,2)) AS FreeMB,
+    CAST(FILEPROPERTY(name, 'SpaceUsed') * 100.0 / size AS DECIMAL(5,2)) AS PercentUsed
+FROM sys.database_files
+ORDER BY type, name;
+"@
+
+    $result = Invoke-SqlQuery -Server $Server -Database $Database -Query $sizeQuery -Credential $Credential
+
+    if (-not $result.Success) {
+        Ui-Error "Error al consultar el tamaño de la base de datos:`n`n$($result.ErrorMessage)" "Error" $null
+        return
+    }
+
+    # Construir tabla HTML para mostrar
+    $htmlRows = ""
+    $totalSizeMB = 0
+    $totalUsedMB = 0
+
+    foreach ($row in $result.DataTable.Rows) {
+        $fileName = $row.FileName
+        $filePath = $row.FilePath
+        $fileType = $row.FileType
+        $sizeMB = [decimal]$row.SizeMB
+        $usedMB = [decimal]$row.UsedMB
+        $freeMB = [decimal]$row.FreeMB
+        $percentUsed = [decimal]$row.PercentUsed
+
+        $totalSizeMB += $sizeMB
+        $totalUsedMB += $usedMB
+
+        $typeIcon = if ($fileType -eq "ROWS") { "📄" } else { "📋" }
+
+        $htmlRows += @"
+        <Border Grid.Row="$($result.DataTable.Rows.IndexOf($row) + 1)" Grid.Column="0" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8">
+            <TextBlock Text="$typeIcon $fileName" FontWeight="SemiBold"/>
+        </Border>
+        <Border Grid.Row="$($result.DataTable.Rows.IndexOf($row) + 1)" Grid.Column="1" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8">
+            <TextBlock Text="$fileType"/>
+        </Border>
+        <Border Grid.Row="$($result.DataTable.Rows.IndexOf($row) + 1)" Grid.Column="2" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8" Background="{DynamicResource ControlBg}">
+            <TextBlock Text="$($sizeMB.ToString('N2')) MB" HorizontalAlignment="Right" FontFamily="Consolas"/>
+        </Border>
+        <Border Grid.Row="$($result.DataTable.Rows.IndexOf($row) + 1)" Grid.Column="3" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8">
+            <TextBlock Text="$($usedMB.ToString('N2')) MB" HorizontalAlignment="Right" FontFamily="Consolas"/>
+        </Border>
+        <Border Grid.Row="$($result.DataTable.Rows.IndexOf($row) + 1)" Grid.Column="4" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,0,1" Padding="8">
+            <TextBlock Text="$($percentUsed.ToString('N2'))%" HorizontalAlignment="Right" FontFamily="Consolas" Foreground="{DynamicResource AccentPrimary}"/>
+        </Border>
+"@
+    }
+
+    $totalFreeMB = $totalSizeMB - $totalUsedMB
+    $totalPercentUsed = if ($totalSizeMB -gt 0) { ($totalUsedMB / $totalSizeMB) * 100 } else { 0 }
+
+    $safeDb = [Security.SecurityElement]::Escape($Database)
+    $rowCount = $result.DataTable.Rows.Count + 2
+
+    $rowDefs = ""
+    for ($i = 0; $i -lt $rowCount; $i++) {
+        $rowDefs += "<RowDefinition Height='Auto'/>`n"
+    }
+
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tamaño de Base de Datos"
+        Height="550" Width="780"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="True">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+        </Style>
+        <Style x:Key="BaseButtonStyle" TargetType="Button">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Content" Value="×"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="{DynamicResource FormBg}" Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Name="brdTitleBar" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                CornerRadius="10" Padding="12" Margin="0,0,0,10">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock Text="📊 Tamaño de Base de Datos" Foreground="{DynamicResource FormFg}"
+                               FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="🗄️ $safeDb" Foreground="{DynamicResource AccentPrimary}"
+                               Margin="0,2,0,0" FontSize="13"/>
+                </StackPanel>
+                <Button DockPanel.Dock="Right" Name="btnClose" Style="{StaticResource CloseButtonStyle}"/>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="1" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                CornerRadius="10" Padding="12" Margin="0,0,0,10">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        $rowDefs
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="1.2*"/>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="0.8*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Headers -->
+                    <Border Grid.Row="0" Grid.Column="0" Background="{DynamicResource AccentSecondary}"
+                            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1,1,1,2" Padding="8">
+                        <TextBlock Text="Archivo" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="1" Background="{DynamicResource AccentSecondary}"
+                            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,1,1,2" Padding="8">
+                        <TextBlock Text="Tipo" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="2" Background="{DynamicResource AccentSecondary}"
+                            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,1,1,2" Padding="8">
+                        <TextBlock Text="Tamaño Total" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="3" Background="{DynamicResource AccentSecondary}"
+                            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,1,1,2" Padding="8">
+                        <TextBlock Text="Espacio Usado" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
+                    </Border>
+                    <Border Grid.Row="0" Grid.Column="4" Background="{DynamicResource AccentSecondary}"
+                            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,1,1,2" Padding="8">
+                        <TextBlock Text="% Usado" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
+                    </Border>
+
+                    <!-- Data rows -->
+                    $htmlRows
+
+                    <!-- Total row -->
+                    <Border Grid.Row="$($result.DataTable.Rows.Count + 1)" Grid.Column="0" Grid.ColumnSpan="2"
+                            Background="{DynamicResource AccentMagenta}" BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="1,2,1,1" Padding="8">
+                        <TextBlock Text="📦 TOTAL" FontWeight="Bold" Foreground="{DynamicResource FormFg}" FontSize="13"/>
+                    </Border>
+                    <Border Grid.Row="$($result.DataTable.Rows.Count + 1)" Grid.Column="2"
+                            Background="{DynamicResource AccentMagenta}" BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="0,2,1,1" Padding="8">
+                        <TextBlock Text="$($totalSizeMB.ToString('N2')) MB" HorizontalAlignment="Right"
+                                   FontFamily="Consolas" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
+                    </Border>
+                    <Border Grid.Row="$($result.DataTable.Rows.Count + 1)" Grid.Column="3"
+                            Background="{DynamicResource AccentMagenta}" BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="0,2,1,1" Padding="8">
+                        <TextBlock Text="$($totalUsedMB.ToString('N2')) MB" HorizontalAlignment="Right"
+                                   FontFamily="Consolas" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
+                    </Border>
+                    <Border Grid.Row="$($result.DataTable.Rows.Count + 1)" Grid.Column="4"
+                            Background="{DynamicResource AccentMagenta}" BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="0,2,1,1" Padding="8">
+                        <TextBlock Text="$($totalPercentUsed.ToString('N2'))%" HorizontalAlignment="Right"
+                                   FontFamily="Consolas" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
+                    </Border>
+                </Grid>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="2" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                CornerRadius="10" Padding="10" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock FontSize="11" Foreground="{DynamicResource AccentMuted}" TextWrapping="Wrap">
+                    ℹ️ Información:
+                </TextBlock>
+                <TextBlock FontSize="11" Foreground="{DynamicResource PanelFg}" TextWrapping="Wrap" Margin="0,4,0,0">
+                    • ROWS = Archivos de datos (MDF/NDF)
+                    • LOG = Archivos de registro de transacciones (LDF)
+                    • Tamaño Total = Espacio asignado en disco
+                    • Espacio Usado = Datos actualmente almacenados
+                    • Espacio Libre = $($totalFreeMB.ToString('N2')) MB disponibles
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                CornerRadius="10" Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Esc: Cerrar" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Name="btnCerrar" Content="Cerrar" Width="100" Height="34"
+                        Style="{StaticResource BaseButtonStyle}"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+"@
+
+    try {
+        $ui = New-WpfWindow -Xaml $xaml -PassThru
+        $window = $ui.Window
+        $theme = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $window -Theme $theme
+        try { Set-WpfDialogOwner -Dialog $window } catch {}
+
+        $brdTitleBar = $window.FindName("brdTitleBar")
+        if ($brdTitleBar) {
+            $brdTitleBar.Add_MouseLeftButtonDown({
+                    param($sender, $e)
+                    if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                        try { $window.DragMove() } catch {}
+                    }
+                })
+        }
+
+        $btnClose = $window.FindName("btnClose")
+        $btnCerrar = $window.FindName("btnCerrar")
+
+        $btnClose.Add_Click({ $window.Close() })
+        $btnCerrar.Add_Click({ $window.Close() })
+
+        $window.Add_PreviewKeyDown({
+                param($sender, $e)
+                if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                    $window.Close()
+                }
+            })
+
+        $null = $window.ShowDialog()
+    } catch {
+        Write-DzDebug "`t[DEBUG][DBSize] ERROR creando ventana: $($_.Exception.Message)" -Color Red
+        Ui-Error "Error al mostrar el diálogo: $($_.Exception.Message)" "Error" $null
+    }
+}
+
+function Show-DatabaseRepairDialog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
+    )
+
+    $script:RepairRunning = $false
+    $script:RepairDone = $false
+
+    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null
+    }
+
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) {
+        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null
+    }
+
+    function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) {
+        (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes
+    }
+
+    Write-DzDebug "`t[DEBUG][DBRepair] INICIO: Server='$Server' Database='$Database'"
+
+    Add-Type -AssemblyName PresentationFramework
+
+    $safeDb = [Security.SecurityElement]::Escape($Database)
+
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Reparación de Base de Datos"
+        Height="680" Width="700"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="True">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+        </Style>
+        <Style TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        </Style>
+        <Style TargetType="ProgressBar">
+            <Setter Property="Foreground" Value="{DynamicResource AccentSecondary}"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+        </Style>
+        <Style x:Key="BaseButtonStyle" TargetType="Button">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="1"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Content" Value="×"/>
+        </Style>
+    </Window.Resources>
+    <Grid Background="{DynamicResource FormBg}" Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Name="brdTitleBar" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                CornerRadius="10" Padding="12" Margin="0,0,0,10">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock Text="⚠️ Reparación de Base de Datos" Foreground="{DynamicResource FormFg}"
+                               FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="🗄️ $safeDb" Foreground="{DynamicResource AccentPrimary}"
+                               Margin="0,2,0,0" FontSize="13"/>
+                </StackPanel>
+                <Button DockPanel.Dock="Right" Name="btnClose" Style="{StaticResource CloseButtonStyle}"/>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="1" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                CornerRadius="10" Padding="12" Margin="0,0,0,10">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- Advertencia -->
+                    <Border Background="#33FF0000" BorderBrush="#FFFF0000" BorderThickness="2"
+                            CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="⚠️ ADVERTENCIA CRÍTICA" FontWeight="Bold" FontSize="14"
+                                       Foreground="#FFFF3333" Margin="0,0,0,8"/>
+                            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource PanelFg}">
+                                Esta operación puede causar PÉRDIDA DE DATOS irreversible.
+                                Solo continúa si entiendes completamente las consecuencias.
+                                Se recomienda realizar un respaldo completo antes de proceder.
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Paso 1: Verificación -->
+                    <TextBlock Text="Paso 1: Verificar Integridad" FontWeight="Bold" FontSize="13"
+                               Margin="0,0,0,8"/>
+                    <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                        <StackPanel>
+                            <RadioButton x:Name="rbCheckOnly" IsChecked="True" GroupName="Action" Margin="0,0,0,8">
+                                <TextBlock TextWrapping="Wrap">
+                                    🔍 Solo verificar (DBCC CHECKDB sin reparación)
+                                </TextBlock>
+                            </RadioButton>
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource AccentMuted}"
+                                       Margin="20,0,0,0">
+                                Recomendado: Primero verifica si hay errores antes de intentar reparar.
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Paso 2: Reparación -->
+                    <TextBlock Text="Paso 2: Reparación (Solo si hay errores)" FontWeight="Bold" FontSize="13"
+                               Margin="0,0,0,8"/>
+                    <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                        <StackPanel>
+                            <RadioButton x:Name="rbRepairFast" GroupName="Action" Margin="0,0,0,8">
+                                <TextBlock TextWrapping="Wrap">
+                                    🔧 REPAIR_FAST (reparación rápida, sin pérdida de datos)
+                                </TextBlock>
+                            </RadioButton>
+                            <RadioButton x:Name="rbRepairRebuild" GroupName="Action" Margin="0,0,0,8">
+                                <TextBlock TextWrapping="Wrap">
+                                    🔨 REPAIR_REBUILD (reconstruir índices, sin pérdida de datos)
+                                </TextBlock>
+                            </RadioButton>
+                            <RadioButton x:Name="rbRepairAllowDataLoss" GroupName="Action" Margin="0,0,0,8">
+                                <TextBlock TextWrapping="Wrap" Foreground="#FFFF6666">
+                                    ⚠️ REPAIR_ALLOW_DATA_LOSS (puede causar PÉRDIDA DE DATOS)
+                                </TextBlock>
+                            </RadioButton>
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#FFFF6666"
+                                       Margin="20,0,0,0">
+                                PELIGRO: Esta opción eliminará datos corruptos. Úsala solo como último recurso.
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Opciones adicionales -->
+                    <TextBlock Text="Opciones Adicionales" FontWeight="Bold" FontSize="13"
+                               Margin="0,0,0,8"/>
+                    <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                        <StackPanel>
+                            <CheckBox x:Name="chkCloseConnections" IsChecked="True" Margin="0,0,0,8">
+                                <TextBlock TextWrapping="Wrap">
+                                    Cerrar conexiones activas (SINGLE_USER)
+                                </TextBlock>
+                            </CheckBox>
+                            <CheckBox x:Name="chkEmergencyMode" IsChecked="True">
+                                <TextBlock TextWrapping="Wrap">
+                                    Poner en modo EMERGENCY antes de reparar
+                                </TextBlock>
+                            </CheckBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Progress -->
+                    <Border Background="{DynamicResource FormBg}" BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock x:Name="txtProgress" Text="Esperando..." Margin="0,0,0,8" FontWeight="SemiBold"/>
+                            <ProgressBar x:Name="pbProgress" Height="20" Minimum="0" Maximum="100" Value="0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Log -->
+                    <TextBlock Text="Log de Operaciones" FontWeight="Bold" FontSize="13" Margin="0,0,0,8"/>
+                    <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="1" CornerRadius="8" Padding="8">
+                        <TextBox x:Name="txtLog" IsReadOnly="True" VerticalScrollBarVisibility="Auto"
+                                 Height="180" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"
+                                 BorderThickness="0" Background="Transparent"/>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="2" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                CornerRadius="10" Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="⚠️ Lee las advertencias antes de continuar"
+                           VerticalAlignment="Center" Foreground="#FFFF6666"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="btnCancelar" Content="Cancelar" Width="120" Height="34"
+                            Margin="0,0,10,0" Style="{StaticResource OutlineButtonStyle}"/>
+                    <Button x:Name="btnIniciar" Content="Iniciar" Width="140" Height="34"
+                            Style="{StaticResource ActionButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+"@
+
+    try {
+        $ui = New-WpfWindow -Xaml $xaml -PassThru
+        $window = $ui.Window
+        $theme = Get-DzUiTheme
+        Set-DzWpfThemeResources -Window $window -Theme $theme
+        try { Set-WpfDialogOwner -Dialog $window } catch {}
+
+        $brdTitleBar = $window.FindName("brdTitleBar")
+        if ($brdTitleBar) {
+            $brdTitleBar.Add_MouseLeftButtonDown({
+                    param($sender, $e)
+                    if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                        try { $window.DragMove() } catch {}
+                    }
+                })
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG][DBRepair] ERROR creando ventana: $($_.Exception.Message)"
+        throw "No se pudo crear la ventana (XAML). $($_.Exception.Message)"
+    }
+
+    $rbCheckOnly = $window.FindName("rbCheckOnly")
+    $rbRepairFast = $window.FindName("rbRepairFast")
+    $rbRepairRebuild = $window.FindName("rbRepairRebuild")
+    $rbRepairAllowDataLoss = $window.FindName("rbRepairAllowDataLoss")
+    $chkCloseConnections = $window.FindName("chkCloseConnections")
+    $chkEmergencyMode = $window.FindName("chkEmergencyMode")
+    $pbProgress = $window.FindName("pbProgress")
+    $txtProgress = $window.FindName("txtProgress")
+    $txtLog = $window.FindName("txtLog")
+    $btnIniciar = $window.FindName("btnIniciar")
+    $btnCancelar = $window.FindName("btnCancelar")
+    $btnClose = $window.FindName("btnClose")
+
+    $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
+    $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
+
+    function Paint-Progress {
+        param([int]$Percent, [string]$Message)
+        $pbProgress.Value = $Percent
+        $txtProgress.Text = $Message
+    }
+
+    function Add-Log {
+        param([string]$Message)
+        $logQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $Message))
+    }
+
+    function Start-RepairWorkAsync {
+        param(
+            [string]$Server,
+            [string]$Database,
+            [string]$RepairOption,
+            [bool]$CloseConnections,
+            [bool]$EmergencyMode,
+            [System.Management.Automation.PSCredential]$Credential,
+            [System.Collections.Concurrent.ConcurrentQueue[string]]$LogQueue,
+            [System.Collections.Concurrent.ConcurrentQueue[hashtable]]$ProgressQueue
+        )
+
+        $worker = {
+            param($Server, $Database, $RepairOption, $CloseConnections, $EmergencyMode, $Credential, $LogQueue, $ProgressQueue)
+
+            function EnqLog([string]$m) { $LogQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $m)) }
+            function EnqProg([int]$p, [string]$m) { $ProgressQueue.Enqueue(@{Percent = $p; Message = $m }) }
+
+            function Invoke-SqlQueryLite {
+                param([string]$Server, [string]$Database, [string]$Query, [System.Management.Automation.PSCredential]$Credential)
+
+                $connection = $null
+                $passwordBstr = [IntPtr]::Zero
+                $plainPassword = $null
+
+                try {
+                    $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+                    $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+                    $cs = "Server=$Server;Database=master;User Id=$($Credential.UserName);Password=$plainPassword;Connection Timeout=300"
+                    $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
+                    $connection.Open()
+
+                    $cmd = $connection.CreateCommand()
+                    $cmd.CommandText = $Query
+                    $cmd.CommandTimeout = 0
+
+                    $reader = $cmd.ExecuteReader()
+                    $messages = New-Object System.Collections.ArrayList
+
+                    do {
+                        while ($reader.Read()) {
+                            for ($i = 0; $i -lt $reader.FieldCount; $i++) {
+                                $val = $reader.GetValue($i)
+                                if ($val -and $val -ne [DBNull]::Value) {
+                                    [void]$messages.Add($val.ToString())
+                                }
+                            }
+                        }
+                    } while ($reader.NextResult())
+
+                    $reader.Close()
+
+                    @{ Success = $true; Messages = $messages }
+                } catch {
+                    @{ Success = $false; ErrorMessage = $_.Exception.Message }
+                } finally {
+                    if ($plainPassword) { $plainPassword = $null }
+                    if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
+                    if ($connection) { try { $connection.Close(); $connection.Dispose() } catch { } }
+                }
+            }
+
+            try {
+                $safeName = $Database -replace ']', ']]'
+                $steps = 0
+                $currentStep = 0
+
+                if ($EmergencyMode -and $RepairOption -ne "CHECK") { $steps++ }
+                if ($CloseConnections) { $steps++ }
+                $steps++ # La operación principal
+                if ($CloseConnections) { $steps++ } # Restaurar MULTI_USER
+
+                # Paso 1: Emergency Mode
+                if ($EmergencyMode -and $RepairOption -ne "CHECK") {
+                    $currentStep++
+                    EnqProg ([int](($currentStep / $steps) * 90)) "Configurando modo EMERGENCY..."
+                    EnqLog "🔧 Configurando base de datos en modo EMERGENCY"
+
+                    $emergencyQuery = "ALTER DATABASE [$safeName] SET EMERGENCY"
+                    $result = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $emergencyQuery -Credential $Credential
+
+                    if (-not $result.Success) {
+                        EnqProg 0 "Error"
+                        EnqLog "❌ Error al configurar modo EMERGENCY: $($result.ErrorMessage)"
+                        EnqLog "ERROR_RESULT|$($result.ErrorMessage)"
+                        EnqLog "__DONE__"
+                        return
+                    }
+                    EnqLog "✅ Modo EMERGENCY configurado"
+                }
+
+                # Paso 2: Close Connections
+                if ($CloseConnections) {
+                    $currentStep++
+                    EnqProg ([int](($currentStep / $steps) * 90)) "Cerrando conexiones..."
+                    EnqLog "🔒 Cerrando conexiones existentes (SINGLE_USER)"
+
+                    $closeQuery = "ALTER DATABASE [$safeName] SET SINGLE_USER WITH ROLLBACK IMMEDIATE"
+                    $result = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $closeQuery -Credential $Credential
+
+                    if (-not $result.Success) {
+                        EnqProg 0 "Error"
+                        EnqLog "❌ Error al cerrar conexiones: $($result.ErrorMessage)"
+                        EnqLog "ERROR_RESULT|$($result.ErrorMessage)"
+                        EnqLog "__DONE__"
+                        return
+                    }
+                    EnqLog "✅ Conexiones cerradas"
+                }
+
+                # Paso 3: Ejecutar DBCC CHECKDB
+                $currentStep++
+                $actionText = if ($RepairOption -eq "CHECK") { "Verificando integridad..." } else { "Ejecutando reparación..." }
+                EnqProg ([int](($currentStep / $steps) * 90)) $actionText
+                EnqLog "🔍 Ejecutando DBCC CHECKDB ($RepairOption)"
+
+                $dbccQuery = switch ($RepairOption) {
+                    "CHECK" { "DBCC CHECKDB([$safeName]) WITH NO_INFOMSGS" }
+                    "REPAIR_FAST" { "DBCC CHECKDB([$safeName], REPAIR_FAST) WITH NO_INFOMSGS" }
+                    "REPAIR_REBUILD" { "DBCC CHECKDB([$safeName], REPAIR_REBUILD) WITH NO_INFOMSGS" }
+                    "REPAIR_ALLOW_DATA_LOSS" { "DBCC CHECKDB([$safeName], REPAIR_ALLOW_DATA_LOSS) WITH NO_INFOMSGS" }
+                }
+
+                $result = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $dbccQuery -Credential $Credential
+
+                if (-not $result.Success) {
+                    EnqProg 0 "Error"
+                    EnqLog "❌ Error ejecutando DBCC: $($result.ErrorMessage)"
+
+                    # Intentar restaurar MULTI_USER si es necesario
+                    if ($CloseConnections) {
+                        try {
+                            $restoreQuery = "ALTER DATABASE [$safeName] SET MULTI_USER"
+                            Invoke-SqlQueryLite -Server $Server -Database "master" -Query $restoreQuery -Credential $Credential | Out-Null
+                        } catch { }
+                    }
+
+                    EnqLog "ERROR_RESULT|$($result.ErrorMessage)"
+                    EnqLog "__DONE__"
+                    return
+                }
+
+                # Procesar mensajes del DBCC
+                $hasErrors = $false
+                foreach ($msg in $result.Messages) {
+                    EnqLog "[DBCC] $msg"
+                    if ($msg -match "(?i)(error|corruption|corrupt|dañ|inconsisten)") {
+                        $hasErrors = $true
+                    }
+                }
+
+                if ($result.Messages.Count -eq 0) {
+                    EnqLog "✅ No se encontraron problemas de integridad"
+                } elseif (-not $hasErrors) {
+                    EnqLog "✅ Verificación completada sin errores críticos"
+                } else {
+                    EnqLog "⚠️ Se encontraron problemas de integridad"
+                }
+
+                # Paso 4: Restaurar MULTI_USER
+                if ($CloseConnections) {
+                    $currentStep++
+                    EnqProg ([int](($currentStep / $steps) * 90)) "Restaurando acceso normal..."
+                    EnqLog "🔓 Restaurando modo MULTI_USER"
+
+                    $restoreQuery = "ALTER DATABASE [$safeName] SET MULTI_USER"
+                    $result = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $restoreQuery -Credential $Credential
+
+                    if (-not $result.Success) {
+                        EnqLog "⚠️ Advertencia: No se pudo restaurar MULTI_USER: $($result.ErrorMessage)"
+                    } else {
+                        EnqLog "✅ Modo MULTI_USER restaurado"
+                    }
+                }
+
+                EnqProg 100 "Operación completada"
+                EnqLog "✅ Proceso completado exitosamente"
+                EnqLog "SUCCESS_RESULT|Operación completada. Revisa el log para detalles."
+                EnqLog "__DONE__"
+            } catch {
+                EnqProg 0 "Error"
+                EnqLog "❌ Error inesperado: $($_.Exception.Message)"
+                EnqLog "ERROR_RESULT|$($_.Exception.Message)"
+                EnqLog "__DONE__"
+            }
+        }
+
+        $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+        $rs.ApartmentState = 'MTA'
+        $rs.ThreadOptions = 'ReuseThread'
+        $rs.Open()
+
+        $ps = [PowerShell]::Create()
+        $ps.Runspace = $rs
+        [void]$ps.AddScript($worker).AddArgument($Server).AddArgument($Database).AddArgument($RepairOption).AddArgument($CloseConnections).AddArgument($EmergencyMode).AddArgument($Credential).AddArgument($LogQueue).AddArgument($ProgressQueue)
+
+        $null = $ps.BeginInvoke()
+    }
+
+    $logTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $logTimer.Interval = [TimeSpan]::FromMilliseconds(200)
+    $logTimer.Add_Tick({
+            try {
+                $count = 0
+                $doneThisTick = $false
+                $finalResult = $null
+
+                while ($count -lt 50) {
+                    $line = $null
+                    if (-not $logQueue.TryDequeue([ref]$line)) { break }
+
+                    if ($line -like "*SUCCESS_RESULT|*") {
+                        $finalResult = @{ Success = $true; Message = $line -replace '^.*SUCCESS_RESULT\|', '' }
+                    }
+                    if ($line -like "*ERROR_RESULT|*") {
+                        $finalResult = @{ Success = $false; Message = $line -replace '^.*ERROR_RESULT\|', '' }
+                    }
+
+                    if ($line -notmatch '(SUCCESS_RESULT|ERROR_RESULT)') {
+                        $txtLog.AppendText("$line`n")
+                        $txtLog.ScrollToEnd()
+                    }
+
+                    if ($line -like "*__DONE__*") {
+                        $doneThisTick = $true
+                        $script:RepairRunning = $false
+                        $btnIniciar.IsEnabled = $true
+                        $btnIniciar.Content = "Iniciar"
+
+                        $tmp = $null
+                        while ($progressQueue.TryDequeue([ref]$tmp)) { }
+                        Paint-Progress -Percent 100 -Message "Completado"
+
+                        $script:RepairDone = $true
+
+                        if ($finalResult) {
+                            $window.Dispatcher.Invoke([action] {
+                                    if ($finalResult.Success) {
+                                        Ui-Info "Operación completada.`n`n$($finalResult.Message)`n`nRevisa el log para más detalles." "✓ Completado" $window
+                                    } else {
+                                        Ui-Error "La operación falló:`n`n$($finalResult.Message)" "✗ Error" $window
+                                    }
+                                }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                        }
+                    }
+                    $count++
+                }
+
+                if (-not $doneThisTick) {
+                    $last = $null
+                    while ($true) {
+                        $p = $null
+                        if (-not $progressQueue.TryDequeue([ref]$p)) { break }
+                        $last = $p
+                    }
+                    if ($last) { Paint-Progress -Percent $last.Percent -Message $last.Message }
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][UI][logTimer][repair] ERROR: $($_.Exception.Message)"
+            }
+
+            if ($script:RepairDone) {
+                $tmpLine = $null
+                $tmpProg = $null
+                if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) {
+                    $logTimer.Stop()
+                    $script:RepairDone = $false
+                }
+            }
+        })
+
+    $logTimer.Start()
+
+    $btnClose.Add_Click({
+            $window.Close()
+        })
+
+    $btnCancelar.Add_Click({
+            $window.Close()
+        })
+
+    $window.Add_PreviewKeyDown({
+            param($sender, $e)
+            if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                $window.Close()
+            }
+        })
+
+    $btnIniciar.Add_Click({
+            if ($script:RepairRunning) { return }
+
+            # Determinar opción seleccionada
+            $repairOption = "CHECK"
+            if ($rbRepairFast.IsChecked) { $repairOption = "REPAIR_FAST" }
+            elseif ($rbRepairRebuild.IsChecked) { $repairOption = "REPAIR_REBUILD" }
+            elseif ($rbRepairAllowDataLoss.IsChecked) { $repairOption = "REPAIR_ALLOW_DATA_LOSS" }
+
+            # Confirmación especial para REPAIR_ALLOW_DATA_LOSS
+            if ($repairOption -eq "REPAIR_ALLOW_DATA_LOSS") {
+                $msg = @"
+⚠️ ADVERTENCIA FINAL ⚠️
+
+Estás a punto de ejecutar REPAIR_ALLOW_DATA_LOSS.
+
+Esta operación:
+• PUEDE ELIMINAR DATOS PERMANENTEMENTE
+• Es IRREVERSIBLE
+• Debe usarse solo como ÚLTIMO RECURSO
+• Requiere que hayas respaldado la base de datos
+
+¿Estás ABSOLUTAMENTE SEGURO de continuar?
+"@
+                if (-not (Ui-Confirm $msg "⚠️ Confirmar Reparación Destructiva" $window)) {
+                    return
+                }
+            }
+
+            $script:RepairDone = $false
+            if (-not $logTimer.IsEnabled) { $logTimer.Start() }
+
+            try {
+                $btnIniciar.IsEnabled = $false
+                $btnIniciar.Content = "Procesando..."
+                $txtLog.Text = ""
+                $pbProgress.Value = 0
+                $txtProgress.Text = "Iniciando..."
+
+                Add-Log "═══════════════════════════════════════"
+                Add-Log "Iniciando operación de reparación"
+                Add-Log "Base de datos: $Database"
+                Add-Log "Servidor: $Server"
+                Add-Log "Operación: $repairOption"
+                Add-Log "Cerrar conexiones: $(if ($chkCloseConnections.IsChecked) { 'Sí' } else { 'No' })"
+                Add-Log "Modo EMERGENCY: $(if ($chkEmergencyMode.IsChecked) { 'Sí' } else { 'No' })"
+                Add-Log "═══════════════════════════════════════"
+
+                Start-RepairWorkAsync -Server $Server -Database $Database -RepairOption $repairOption `
+                    -CloseConnections ($chkCloseConnections.IsChecked -eq $true) `
+                    -EmergencyMode ($chkEmergencyMode.IsChecked -eq $true) `
+                    -Credential $Credential -LogQueue $logQueue -ProgressQueue $progressQueue
+
+                $script:RepairRunning = $true
+            } catch {
+                Write-DzDebug "`t[DEBUG][UI] ERROR btnIniciar: $($_.Exception.Message)"
+                Add-Log "❌ Error: $($_.Exception.Message)"
+                $btnIniciar.IsEnabled = $true
+                $btnIniciar.Content = "Iniciar"
+                Paint-Progress -Percent 0 -Message "Error"
+            }
+        })
+
+    $null = $window.ShowDialog()
+
+    try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch { }
+}
 Export-ModuleMember -Function @('Show-RestoreDialog', 'Show-AttachDialog',
                                 'Reset-RestoreUI', 'Reset-AttachUI',
                                 'Show-BackupDialog', 'Reset-BackupUI',
-                                'Show-DetachDialog')
+                                'Show-DetachDialog', 'Reset-DetachUI','Show-DatabaseSizeDialog',
+                                'Show-DatabaseRepairDialog', 'Reset-DatabaseRepairUI')

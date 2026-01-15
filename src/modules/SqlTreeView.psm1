@@ -834,6 +834,40 @@ function Add-DatabaseContextMenu {
         Write-DzDebug "`t[DEBUG][TreeView] Init DB ContextMenu: $($DatabaseNode.Tag.Database)"
     }
     $menu = New-Object System.Windows.Controls.ContextMenu
+    $menuSize = New-Object System.Windows.Controls.MenuItem
+    $menuSize.Header = "📊 Ver Tamaño..."
+    $menuSize.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+
+            Write-DzDebug "`t[DEBUG][TreeView] Context SIZE DB: Server='$server' DB='$dbName'"
+
+            Show-DatabaseSizeDialog -Server $server -Database $dbName -Credential $credential
+        })
+    $menuRepair = New-Object System.Windows.Controls.MenuItem
+    $menuRepair.Header = "🔧 Verificar/Reparar..."
+    $menuRepair.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+
+            Write-DzDebug "`t[DEBUG][TreeView] Context REPAIR DB: Server='$server' DB='$dbName'"
+
+            Show-DatabaseRepairDialog -Server $server -Database $dbName -Credential $credential
+        })
+
+    $separator0 = New-Object System.Windows.Controls.Separator
     $menuBackup = New-Object System.Windows.Controls.MenuItem
     $menuBackup.Header = "💾 Respaldar..."
     $menuBackup.Add_Click({
@@ -908,19 +942,6 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
             $safeDb = $dbName -replace ']', ']]'
             Set-QueryTextInActiveTab -TabControl $global:tcQueries -Text "USE [$safeDb]`n`n"
         })
-    $menuDelete = New-Object System.Windows.Controls.MenuItem
-    $menuDelete.Header = "🗑️ Eliminar base de datos..."
-    $menuDelete.Add_Click({
-            $cm = $this.Parent
-            $node = $null
-            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
-            if ($null -eq $node -or $null -eq $node.Tag) { return }
-            $dbName = [string]$node.Tag.Database
-            $server = [string]$node.Tag.Server
-            $credential = $node.Tag.Credential
-            Write-DzDebug "`t[DEBUG][TreeView] Context DELETE DB: Server='$server' DB='$dbName'"
-            Show-DeleteDatabaseDialog -Server $server -Database $dbName -Credential $credential -ParentNode $node
-        })
     $separator1 = New-Object System.Windows.Controls.Separator
     $menuDetach = New-Object System.Windows.Controls.MenuItem
     $menuDetach.Header = "📎 Separar (Detach)..."
@@ -937,6 +958,19 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
             Write-DzDebug "`t[DEBUG][TreeView] Context DETACH DB: Server='$server' DB='$dbName'"
 
             Show-DetachDialog -Server $server -Database $dbName -Credential $credential -ParentNode $node
+        })
+    $menuDelete = New-Object System.Windows.Controls.MenuItem
+    $menuDelete.Header = "🗑️ Eliminar base de datos..."
+    $menuDelete.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            Write-DzDebug "`t[DEBUG][TreeView] Context DELETE DB: Server='$server' DB='$dbName'"
+            Show-DeleteDatabaseDialog -Server $server -Database $dbName -Credential $credential -ParentNode $node
         })
     $separator2 = New-Object System.Windows.Controls.Separator
     $menuRefresh = New-Object System.Windows.Controls.MenuItem
@@ -966,6 +1000,9 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
             [void]$node.Items.Add($viewsNode)
             [void]$node.Items.Add($procsNode)
         })
+    [void]$menu.Items.Add($menuSize)
+    [void]$menu.Items.Add($menuRepair)
+    [void]$menu.Items.Add($separator0)
     [void]$menu.Items.Add($menuBackup)
     [void]$menu.Items.Add($menuRename)
     [void]$menu.Items.Add($menuNewQuery)

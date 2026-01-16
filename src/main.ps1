@@ -50,7 +50,7 @@ function Write-Log {
 }
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
-$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1")
+$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1")
 foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
@@ -69,13 +69,15 @@ foreach ($module in $modules) {
 }
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
-- Version Base de datos 2.0.0
-    * TreeView Permite Eliminar bases de datos
-    * Ahora puedes crear bases de datos
+- SSMS Portable
+    * TreeView nuevo!
+    * Crear y eliminar bases de datos
+    * Attach / detach de base de datos
+    * Backup de bases de datos con compresión
     * Restaurar permite seleccionar ruta de archivos logicos
-    * Nueva conexión a SQL Server
-    * Backup de bases de datos
+    * Funciones para ver tamaño y reparar base de datos
     * Ejecución de queries
+    * Exportar resultados a CSV/Excel
     * Queries predefinidas
     * Mejoras en seguridad y manejo de errores
     * Carga de INIS en la conexión a BDD.
@@ -342,6 +344,26 @@ function New-MainForm {
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="DbConnectButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+        <Setter Property="Background" Value="{DynamicResource AccentGreen}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+            <Setter Property="Background" Value="{DynamicResource AccentGreenHover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            </Trigger>
+        </Style.Triggers>
+        </Style>
+        <Style x:Key="DbDisconnectButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+        <Setter Property="Background" Value="{DynamicResource AccentRed}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+            <Setter Property="Background" Value="{DynamicResource AccentRedHover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            </Trigger>
+        </Style.Triggers>
+        </Style>
         <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource AccentOrange}"/>
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
@@ -555,55 +577,46 @@ function New-MainForm {
       <RowDefinition Height="*"/>     <!-- Área principal -->
       <RowDefinition Height="Auto"/>  <!-- StatusBar -->
     </Grid.RowDefinitions>
-
-    <!-- 📊 Conexión -->
     <Border Grid.Row="0" Margin="10" Padding="10"
             BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
             CornerRadius="6" Background="{DynamicResource ControlBg}">
       <Grid>
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- Fila de datos -->
-        <WrapPanel Grid.Row="0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+          <Button Name="btnConnectDb"
+                Width="60" Height="30" Margin="0,0,8,0"
+                Style="{StaticResource DbConnectButtonStyle}"
+                ToolTip="Conectar">
+        <TextBlock Text="🔌✅" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+        </Button>
+        <Button Name="btnDisconnectDb"
+                Width="60" Height="30"
+                Style="{StaticResource DbDisconnectButtonStyle}"
+                ToolTip="Desconectar" IsEnabled="False">
+        <TextBlock Text="🔌✖" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+        </Button>
+        </StackPanel>
+        <WrapPanel Grid.Column="1">
           <StackPanel Margin="0,0,16,0">
             <TextBlock Text="Instancia SQL:"/>
             <ComboBox Name="txtServer" Width="180" IsEditable="True" Text=".\NationalSoft"/>
           </StackPanel>
-
           <StackPanel Margin="0,0,16,0">
             <TextBlock Text="Usuario:"/>
             <TextBox Name="txtUser" Width="160" Text="sa"/>
           </StackPanel>
-
           <StackPanel Margin="0,0,16,0">
             <TextBlock Text="Contraseña:"/>
             <PasswordBox Name="txtPassword" Width="160"/>
           </StackPanel>
-
           <StackPanel Margin="0,0,16,0">
             <TextBlock Text="Base de datos:"/>
             <ComboBox Name="cmbDatabases" Width="180" IsEnabled="False"/>
           </StackPanel>
         </WrapPanel>
-
-        <!-- Fila de botones (horizontal debajo) -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-          <Button Content="Conectar" Name="btnConnectDb"
-                  Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource DatabaseButtonStyle}"/>
-          <Button Content="Desconectar" Name="btnDisconnectDb"
-                  Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-          <Button Content="Backup" Name="btnBackup"
-                  Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-          <Button Content="Restaurar" Name="btnRestore"
-                  Width="120" Height="30"
-                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-        </StackPanel>
       </Grid>
     </Border>
     <Border Grid.Row="1" Margin="10,0,10,10" Padding="10"
@@ -617,6 +630,9 @@ function New-MainForm {
                   IsEnabled="False" ToolTip="Consultas predefinidas"/>
         <Button Content="Limpiar" Name="btnClearQuery"
                 Width="90" Height="30"
+                Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+        <Button Content="Exportar" Name="btnExport"
+                Width="100" Height="30" Margin="8,0,0,0"
                 Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
       </StackPanel>
     </Border>
@@ -678,16 +694,14 @@ function New-MainForm {
         </TabControl>
       </Grid>
     </Grid>
-
-    <!-- 📍 Barra de estado falta el timer -->
     <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
       <StatusBarItem>
         <TextBlock Name="lblConnectionStatus" Text="Desconectado"/>
       </StatusBarItem>
       <Separator/>
-      <StatusBarItem>
-        <TextBlock Name="lblExecutionTime" Text="Tiempo: --"/>
-      </StatusBarItem>
+            <StatusBarItem>
+                <TextBlock Name="lblExecutionTimer" Text="Tiempo: --"/>
+            </StatusBarItem>
       <Separator/>
       <StatusBarItem>
         <TextBlock Name="lblRowCount" Text="Filas: --"/>
@@ -750,11 +764,10 @@ function New-MainForm {
     $cmbDatabases = $window.FindName("cmbDatabases")
     $btnConnectDb = $window.FindName("btnConnectDb")
     $btnDisconnectDb = $window.FindName("btnDisconnectDb")
-    $btnBackup = $window.FindName("btnBackup")
-    $btnRestore = $window.FindName("btnRestore")
     $lblConnectionStatus = $window.FindName("lblConnectionStatus")
     $btnExecute = $window.FindName("btnExecute")
     $btnClearQuery = $window.FindName("btnClearQuery")
+    $btnExport = $window.FindName("btnExport")
     $cmbQueries = $window.FindName("cmbQueries")
     $tcQueries = $window.FindName("tcQueries")
     $tcResults = $window.FindName("tcResults")
@@ -803,6 +816,26 @@ function New-MainForm {
         if ($tcQueries) { $tcQueries.IsEnabled = $false }
         if ($tcResults) { $tcResults.IsEnabled = $false }
     }
+    $script:execStopwatch = [System.Diagnostics.Stopwatch]::new()
+    $script:execUiTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $script:execUiTimer.Interval = [TimeSpan]::FromMilliseconds(100)
+    $script:execUiTimer.Add_Tick({
+            if ($global:lblExecutionTimer) {
+                $t = $script:execStopwatch.Elapsed
+                $global:lblExecutionTimer.Text = ("Timer: {0:mm\:ss\.f}" -f $t)
+            }
+        })
+    function Start-ExecutionTimer {
+        $script:execStopwatch.Restart()
+        if (-not $script:execUiTimer.IsEnabled) { $script:execUiTimer.Start() }
+    }    function Stop-ExecutionTimer {
+        $script:execStopwatch.Stop()
+        if ($script:execUiTimer.IsEnabled) { $script:execUiTimer.Stop() }
+        if ($global:lblExecutionTime) {
+            $t = $script:execStopwatch.Elapsed
+            $global:lblExecutionTime.Text = ("Tiempo: {0:mm\:ss\.fff}" -f $t)
+        }
+    }
     $global:txtServer = $txtServer
     $global:txtUser = $txtUser
     $global:txtPassword = $txtPassword
@@ -810,9 +843,8 @@ function New-MainForm {
     $global:btnConnectDb = $btnConnectDb
     $global:btnDisconnectDb = $btnDisconnectDb
     $global:btnExecute = $btnExecute
-    $global:btnBackup = $btnBackup
     $global:btnClearQuery = $btnClearQuery
-    $global:btnRestore = $btnRestore
+    $global:btnExport = $btnExport
     $global:cmbQueries = $cmbQueries
     $global:tcQueries = $tcQueries
     $global:tcResults = $tcResults
@@ -821,27 +853,21 @@ function New-MainForm {
     $global:rtbQueryEditor1 = $window.FindName("rtbQueryEditor1")
     $global:dgResults = $window.FindName("dgResults")
     $global:txtMessages = $window.FindName("txtMessages")
-    $global:lblExecutionTime = $window.FindName("lblExecutionTime")
+    $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")
     $global:lblRowCount = $window.FindName("lblRowCount")
     $global:lblConnectionStatus = $lblConnectionStatus
-    # --- FIX: Registrar pestaña XAML "Consulta 1" como QueryTab para que Get-ActiveQueryRichTextBox funcione ---
     if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:rtbQueryEditor1) {
         $firstTab = $global:tcQueries.Items[0]
-
         if ($firstTab -is [System.Windows.Controls.TabItem]) {
             if (-not $firstTab.Tag -or $firstTab.Tag.Type -ne 'QueryTab') {
-
                 $title = if ($firstTab.Header) { [string]$firstTab.Header } else { "Consulta 1" }
-
                 $firstTab.Tag = [pscustomobject]@{
                     Type            = "QueryTab"
                     RichTextBox     = $global:rtbQueryEditor1
                     Title           = $title
-                    HeaderTextBlock = $null     # (no aplica en el tab XAML)
+                    HeaderTextBlock = $null
                     IsDirty         = $false
                 }
-
-                # Asegurar selección válida
                 if (-not $global:tcQueries.SelectedItem) {
                     $global:tcQueries.SelectedIndex = 0
                 }
@@ -924,10 +950,7 @@ function New-MainForm {
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
-    # Sección de puerto, después moverlo a National.psm1
     Write-DzDebug "`t[DEBUG] lblPort encontrado: $($lblPort -ne $null)" -Color Cyan
-
-    # Captura $lblPort en el scriptblock usando GetNewClosure()
     $updateSqlPortsUi = {
         param($portsResult)
         $portsArray = @(
@@ -940,24 +963,18 @@ function New-MainForm {
             }
         )
         $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
-
-        # Verificar si $lblPort es accesible
         Write-DzDebug "`t[DEBUG] En updateSqlPortsUi, lblPort es null: $($null -eq $lblPort)" -Color Yellow
-
         if ($null -eq $lblPort) {
             Write-DzDebug "`t[DEBUG] ERROR: lblPort es NULL en updateSqlPortsUi" -Color Red
-            # Intentar obtener lblPort desde la ventana
             if ($global:MainWindow -and $global:MainWindow.IsLoaded) {
                 $lblPort = $global:MainWindow.FindName("lblPort")
                 Write-DzDebug "`t[DEBUG] lblPort obtenido de MainWindow: $($lblPort -ne $null)" -Color Yellow
             }
         }
-
         if ($null -eq $lblPort) {
             Write-DzDebug "`t[DEBUG] No se pudo obtener lblPort, saliendo..." -Color Red
             return
         }
-
         if ($portsArray.Count -gt 0) {
             $sortedPorts = $portsArray | Sort-Object -Property Instance
             $displayParts = @()
@@ -971,11 +988,8 @@ function New-MainForm {
                 "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
             } | Out-String
             $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
-
             Write-DzDebug "`t[DEBUG] lblPort type: $($lblPort.GetType().FullName)" -Color Cyan
             Write-DzDebug "`t[DEBUG] lblPort.Name: $($lblPort.Name)" -Color Cyan
-
-            # Actualizar la UI usando el dispatcher - FORZAR la actualización
             $lblPort.Dispatcher.Invoke([action] {
                     Write-DzDebug "`t[DEBUG] Actualizando UI con puertos encontrados" -Color Green
                     $lblPort.Text = $global:sqlPortsData.DisplayText
@@ -985,10 +999,8 @@ function New-MainForm {
                     } else {
                         "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles"
                     }
-                    # Forzar actualización de la UI
                     $lblPort.UpdateLayout()
                 }, [System.Windows.Threading.DispatcherPriority]::Render)
-
             Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
             Write-Host $global:sqlPortsData.Summary -ForegroundColor White
             Write-Host "Puertos: " -ForegroundColor White -NoNewline
@@ -1005,47 +1017,37 @@ function New-MainForm {
             $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
             $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
             $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
-
-            # Actualizar la UI usando el dispatcher - FORZAR la actualización
             $lblPort.Dispatcher.Invoke([action] {
                     Write-DzDebug "`t[DEBUG] Dentro del dispatcher: Estableciendo 'No se encontraron puertos SQL'" -Color Green
                     $lblPort.Text = "No se encontraron puertos SQL"
                     $lblPort.Tag = $global:sqlPortsData.DetailedText
                     $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
-                    # Forzar actualización de la UI
                     $lblPort.UpdateLayout()
                     Write-DzDebug "`t[DEBUG] lblPort.Text después de actualizar: $($lblPort.Text)" -Color Green
                 }, [System.Windows.Threading.DispatcherPriority]::Render)
         }
-    }.GetNewClosure()  # ¡IMPORTANTE! Captura las variables del scope actual
-
-    # Actualizar el texto inicial usando el dispatcher también
+    }.GetNewClosure()
     $lblPort.Dispatcher.Invoke([action] {
             $lblPort.Text = "Buscando puertos SQL..."
             $lblPort.ToolTip = "Buscando puertos SQL..."
-            # Forzar actualización inmediata
             $lblPort.UpdateLayout()
         }, [System.Windows.Threading.DispatcherPriority]::Render)
-
     try {
         $portsJob = Start-Job -ScriptBlock {
             param($modulePath)
             Import-Module $modulePath -Force -DisableNameChecking
             Get-SqlPortWithDebug
         } -ArgumentList (Join-Path $modulesPath "Utilities.psm1")
-
         if ($portsJob) {
             $portsTimer = New-Object System.Windows.Threading.DispatcherTimer
             $portsTimer.Interval = [TimeSpan]::FromMilliseconds(300)
             $portsTimer.Add_Tick({
-                    # Verificar si la ventana principal aún está activa
                     if ($null -eq $global:MainWindow -or -not $global:MainWindow.IsLoaded) {
                         $portsTimer.Stop()
                         Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
                         Write-DzDebug "`t[DEBUG] Ventana cerrada, deteniendo búsqueda de puertos" -Color Yellow
                         return
                     }
-
                     if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
                         $portsTimer.Stop()
                         $portsResult = @()
@@ -1056,8 +1058,6 @@ function New-MainForm {
                             Write-DzDebug "`t[DEBUG] Error recibiendo resultados del job: $($_.Exception.Message)" -Color Red
                         }
                         Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
-
-                        # Asegurarse de que la UI todavía existe antes de actualizar
                         if ($global:MainWindow -and $global:MainWindow.IsLoaded -and $lblPort -and $lblPort.IsLoaded) {
                             & $updateSqlPortsUi $portsResult
                         } else {
@@ -1076,7 +1076,6 @@ function New-MainForm {
         $portsResult = Get-SqlPortWithDebug
         & $updateSqlPortsUi $portsResult
     }
-
     $lblPort.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
@@ -1550,82 +1549,161 @@ function New-MainForm {
             Write-Host "`t- - - Abriendo 'Instaladores NS' - - -" -ForegroundColor Gray
             Start-Process "https://nationalsoft-my.sharepoint.com/:f:/g/personal/gerardo_zermeno_softrestaurant_com/IgC3tKgxlNw9S7JmBk935kCrAVq9jkz06CJek9ljNOrr_Hw?e=xf2dFh"
         })
+    $btnDisconnectDb.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Desconectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Desconectando de la Base de Datos - - -" -ForegroundColor Cyan
+            try {
+                if ($script:QueryRunning) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Cancelando query en ejecución..."
+                    try {
+                        if ($script:CurrentQueryPowerShell) {
+                            $script:CurrentQueryPowerShell.Stop()
+                            $script:CurrentQueryPowerShell.Dispose()
+                        }
+                        if ($script:CurrentQueryRunspace) {
+                            $script:CurrentQueryRunspace.Close()
+                            $script:CurrentQueryRunspace.Dispose()
+                        }
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][Disconnect] Error cancelando query: $_"
+                    }
+                    $script:CurrentQueryPowerShell = $null
+                    $script:CurrentQueryRunspace = $null
+                    $script:CurrentQueryAsync = $null
+                    $script:QueryRunning = $false
+                    Write-DzDebug "`t[DEBUG][Disconnect] Query cancelada"
+                }
+                if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Deteniendo execUiTimer..."
+                    $script:execUiTimer.Stop()
+                }
+                if ($script:QueryDoneTimer -and $script:QueryDoneTimer.IsEnabled) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Deteniendo QueryDoneTimer..."
+                    $script:QueryDoneTimer.Stop()
+                }
+                if ($script:execStopwatch) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Deteniendo stopwatch..."
+                    $script:execStopwatch.Stop()
+                    $script:execStopwatch = $null
+                }
+                if ($global:connection) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Cerrando conexión SQL..."
+                    try {
+                        if ($global:connection.State -ne [System.Data.ConnectionState]::Closed) {
+                            $global:connection.Close()
+                        }
+                        $global:connection.Dispose()
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][Disconnect] Error cerrando conexión: $_"
+                    }
+                    $global:connection = $null
+                }
+                Write-DzDebug "`t[DEBUG][Disconnect] Limpiando variables globales..."
+                $global:server = $null
+                $global:user = $null
+                $global:password = $null
+                $global:database = $null
+                $global:dbCredential = $null
+                if ($global:tvDatabases) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Limpiando TreeView..."
+                    $global:tvDatabases.Items.Clear()
+                }
+                if ($global:cmbDatabases) {
+                    Write-DzDebug "`t[DEBUG][Disconnect] Limpiando ComboBox..."
+                    $global:cmbDatabases.Items.Clear()
+                    $global:cmbDatabases.IsEnabled = $false
+                }
+                if ($global:lblConnectionStatus) {
+                    $global:lblConnectionStatus.Text = "⚫ Desconectado"
+                }
+                Write-DzDebug "`t[DEBUG][Disconnect] Habilitando controles de conexión..."
+                if ($global:txtServer) { $global:txtServer.IsEnabled = $true }
+                if ($global:txtUser) { $global:txtUser.IsEnabled = $true }
+                if ($global:txtPassword) { $global:txtPassword.IsEnabled = $true }
+                if ($global:btnConnectDb) { $global:btnConnectDb.IsEnabled = $true }
+                Write-DzDebug "`t[DEBUG][Disconnect] Deshabilitando botones de operaciones..."
+                if ($global:btnDisconnectDb) { $global:btnDisconnectDb.IsEnabled = $false }
+                if ($global:btnExecute) { $global:btnExecute.IsEnabled = $false }
+                if ($global:btnClearQuery) { $global:btnClearQuery.IsEnabled = $false }
+                if ($global:btnExport) { $global:btnExport.IsEnabled = $false }
+                if ($global:cmbQueries) { $global:cmbQueries.IsEnabled = $false }
+                if ($global:tcQueries) { $global:tcQueries.IsEnabled = $false }
+                if ($global:tcResults) { $global:tcResults.IsEnabled = $false }
+                if ($global:rtbQueryEditor1) { $global:rtbQueryEditor1.IsEnabled = $false }
+                if ($global:dgResults) { $global:dgResults.IsEnabled = $false }
+                if ($global:txtMessages) { $global:txtMessages.IsEnabled = $false }
+                if ($global:txtMessages) {
+                    $global:txtMessages.Text = "Desconectado de la base de datos."
+                }
+                Write-DzDebug "`t[DEBUG][Disconnect] Desconexión completada exitosamente"
+                Write-Host "✓ Desconectado exitosamente" -ForegroundColor Green
+                if ($global:txtServer) {
+                    $global:txtServer.Focus() | Out-Null
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][Disconnect] ERROR: $($_.Exception.Message)"
+                Write-DzDebug "`t[DEBUG][Disconnect] Stack: $($_.ScriptStackTrace)"
+                Write-Host "Error al desconectar: $($_.Exception.Message)" -ForegroundColor Red
+                Ui-Error "Error al desconectar:`n`n$($_.Exception.Message)" $global:MainWindow
+            }
+        })
     $btnConnectDb.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Magenta
-
             try {
                 if ($null -eq $global:txtServer -or $null -eq $global:txtUser -or $null -eq $global:txtPassword) {
                     throw "Error interno: controles de conexión no inicializados."
                 }
-
                 $serverText = $global:txtServer.Text.Trim()
                 $userText = $global:txtUser.Text.Trim()
                 $passwordText = $global:txtPassword.Password
-
                 Write-DzDebug "`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
-
                 if ([string]::IsNullOrWhiteSpace($serverText) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordText)) {
                     throw "Complete todos los campos de conexión"
                 }
-
                 $securePassword = (New-Object System.Net.NetworkCredential('', $passwordText)).SecurePassword
                 $credential = New-Object System.Management.Automation.PSCredential($userText, $securePassword)
-
                 $global:server = $serverText
                 $global:user = $userText
                 $global:password = $passwordText
                 $global:dbCredential = $credential
-
+                Write-DzDebug "`t[DEBUG] Obteniendo lista de bases de datos..."
                 $databases = Get-SqlDatabases -Server $serverText -Credential $credential
-
                 if (-not $databases -or $databases.Count -eq 0) {
                     throw "Conexión correcta, pero no se encontraron bases de datos disponibles."
                 }
-
+                Write-DzDebug "`t[DEBUG] Se encontraron $($databases.Count) bases de datos"
                 $global:cmbDatabases.Items.Clear()
                 foreach ($db in $databases) {
                     [void]$global:cmbDatabases.Items.Add($db)
                 }
-
                 $global:cmbDatabases.IsEnabled = $true
                 $global:cmbDatabases.SelectedIndex = 0
                 $global:database = $global:cmbDatabases.SelectedItem
-
-                # Actualizar barra de estado
                 $global:lblConnectionStatus.Text = "✓ Conectado a: $serverText | DB: $($global:database)"
-
                 $global:txtServer.IsEnabled = $false
                 $global:txtUser.IsEnabled = $false
                 $global:txtPassword.IsEnabled = $false
+                $global:btnConnectDb.IsEnabled = $false
+                $global:btnDisconnectDb.IsEnabled = $true
                 $global:btnExecute.IsEnabled = $true
                 $global:btnClearQuery.IsEnabled = $true
                 $global:cmbQueries.IsEnabled = $true
-                $global:btnConnectDb.IsEnabled = $false
-                $global:btnBackup.IsEnabled = $true
-                $global:btnDisconnectDb.IsEnabled = $true
-                $global:btnRestore.IsEnabled = $true
-                # ✅ Habilitar UI de trabajo al conectar
+                $global:btnExport.IsEnabled = $true
                 if ($global:tcQueries) { $global:tcQueries.IsEnabled = $true }
                 if ($global:tcResults) { $global:tcResults.IsEnabled = $true }
-
                 if ($global:rtbQueryEditor1) { $global:rtbQueryEditor1.IsEnabled = $true }
                 if ($global:dgResults) { $global:dgResults.IsEnabled = $true }
                 if ($global:txtMessages) { $global:txtMessages.IsEnabled = $true }
-
-                # Opcional: enfoque al editor
                 $global:rtbQueryEditor1.Focus() | Out-Null
+                Write-DzDebug "`t[DEBUG] Inicializando TreeView..."
                 Initialize-SqlTreeView -TreeView $global:tvDatabases -Server $serverText -Credential $credential -User $userText -Password $passwordText -GetCurrentDatabase { $global:database } `
                     -AutoExpand $true `
                     -OnDatabaseSelected {
                     param($dbName)
-
                     if (-not $global:cmbDatabases) { return }
-
-                    # Selecciona en ComboBox (si existe)
                     $global:cmbDatabases.SelectedItem = $dbName
                     if (-not $global:cmbDatabases.SelectedItem) {
-                        # fallback por si el SelectedItem no matchea igual
                         for ($i = 0; $i -lt $global:cmbDatabases.Items.Count; $i++) {
                             if ([string]$global:cmbDatabases.Items[$i] -eq [string]$dbName) {
                                 $global:cmbDatabases.SelectedIndex = $i
@@ -1633,14 +1711,35 @@ function New-MainForm {
                             }
                         }
                     }
-
                     $global:database = $global:cmbDatabases.SelectedItem
-
                     if ($global:lblConnectionStatus) {
                         $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
                     }
-
                     Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($global:database)"
+                } `
+                    -OnDatabasesRefreshed {
+                    try {
+                        if (-not $global:server -or -not $global:dbCredential) { return }
+                        $databases = Get-SqlDatabases -Server $global:server -Credential $global:dbCredential
+                        if ($databases -and $databases.Count -gt 0) {
+                            $global:cmbDatabases.Items.Clear()
+                            foreach ($db in $databases) {
+                                [void]$global:cmbDatabases.Items.Add($db)
+                            }
+                            if ($global:database -and $global:cmbDatabases.Items.Contains($global:database)) {
+                                $global:cmbDatabases.SelectedItem = $global:database
+                            } elseif ($global:cmbDatabases.Items.Count -gt 0) {
+                                $global:cmbDatabases.SelectedIndex = 0
+                                $global:database = $global:cmbDatabases.SelectedItem
+                            }
+                            if ($global:lblConnectionStatus) {
+                                $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
+                            }
+                            Write-DzDebug "`t[DEBUG][TreeView] ComboBox actualizado con $($databases.Count) bases de datos"
+                        }
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][OnDatabasesRefreshed] Error: $_"
+                    }
                 } `
                     -InsertTextHandler {
                     param($text)
@@ -1648,53 +1747,17 @@ function New-MainForm {
                         Insert-TextIntoActiveQuery -TabControl $global:tcQueries -Text $text
                     }
                 }
-
+                Write-DzDebug "`t[DEBUG] Conexión establecida exitosamente"
+                Write-Host "✓ Conectado exitosamente a: $serverText" -ForegroundColor Green
             } catch {
                 Write-DzDebug "`t[DEBUG][btnConnectDb] CATCH: $($_.Exception.Message)"
                 Write-DzDebug "`t[DEBUG][btnConnectDb] Tipo: $($_.Exception.GetType().FullName)"
                 Write-DzDebug "`t[DEBUG][btnConnectDb] Stack: $($_.ScriptStackTrace)"
-
                 Ui-Error "Error de conexión: $($_.Exception.Message)" $global:MainWindow
                 Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
             }
         })
-    $btnDisconnectDb.Add_Click({
-            Write-DzDebug ("`t[DEBUG] Click en 'Desconectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
-            try {
-                if ($global:connection -and $global:connection.State -ne [System.Data.ConnectionState]::Closed) {
-                    $global:connection.Close()
-                    $global:connection.Dispose()
-                }
-                $global:connection = $null
-                $global:dbCredential = $null
 
-                $global:lblConnectionStatus.Text = "Desconectado"
-                $global:btnConnectDb.IsEnabled = $true
-                $global:btnBackup.IsEnabled = $false
-                $global:btnDisconnectDb.IsEnabled = $false
-                $global:btnRestore.IsEnabled = $false
-                $global:btnExecute.IsEnabled = $false
-                $global:btnClearQuery.IsEnabled = $false
-                $global:txtServer.IsEnabled = $true
-                $global:txtUser.IsEnabled = $true
-                $global:txtPassword.IsEnabled = $true
-                $global:cmbQueries.IsEnabled = $false
-                $global:rtbQueryEditor1.IsEnabled = $false
-                $global:dgResults.IsEnabled = $false
-                $global:txtMessages.IsEnabled = $false
-                if ($global:tcQueries) { $global:tcQueries.IsEnabled = $false }
-                if ($global:tcResults) { $global:tcResults.IsEnabled = $false }
-                $global:tvDatabases.Items.Clear()
-                $global:cmbDatabases.Items.Clear()
-                $global:cmbDatabases.IsEnabled = $false
-                $global:dgResults.ItemsSource = $null
-                $global:txtMessages.Text = ""
-
-                Write-Host "`nDesconexión exitosa" -ForegroundColor Yellow
-            } catch {
-                Write-Host "`nError al desconectar: $($_.Exception.Message)" -ForegroundColor Red
-            }
-        })
     $cmbDatabases.Add_SelectionChanged({
             if ($global:cmbDatabases.SelectedItem) {
                 $global:database = $global:cmbDatabases.SelectedItem
@@ -1710,147 +1773,411 @@ Base de datos: $($global:database)
     $btnExecute.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Ejecutar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n`t- - - Ejecutando consulta - - -" -ForegroundColor Gray
+            if ($script:QueryRunning) {
+                Write-DzDebug "`t[DEBUG] Query ya en ejecución, ignorando click"
+                return
+            }
+            $script:QueryRunning = $true
             try {
-                # 1) Base de datos seleccionada
                 $selectedDb = $global:cmbDatabases.SelectedItem
                 if (-not $selectedDb) { throw "Selecciona una base de datos" }
-
-                # 2) Obtener RichTextBox ACTIVO (pestaña activa)
-                #    Asegúrate de que $global:tcQueries sea tu TabControl de consultas
                 $activeRtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
                 if (-not $activeRtb) { throw "No hay una pestaña de consulta activa." }
-
-                # 3) Obtener texto del RTB activo
                 $textRange = New-Object System.Windows.Documents.TextRange(
                     $activeRtb.Document.ContentStart,
                     $activeRtb.Document.ContentEnd
                 )
-
-                $query = $textRange.Text
-
-                # (Recomendado) Limpiar comentarios
-                $query = Remove-SqlComments -Query $query
-
-                if ([string]::IsNullOrWhiteSpace($query)) {
-                    throw "La consulta está vacía."
+                $rawQuery = $textRange.Text
+                if ([string]::IsNullOrWhiteSpace($rawQuery)) { throw "La consulta está vacía." }
+                $query = Remove-SqlComments -Query $rawQuery
+                if ([string]::IsNullOrWhiteSpace($query)) { throw "La consulta está vacía después de limpiar comentarios." }
+                if ($global:tcResults) { $global:tcResults.Items.Clear() }
+                if ($global:dgResults) { $global:dgResults.ItemsSource = $null }
+                if ($global:txtMessages) { $global:txtMessages.Text = "" }
+                if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
+                if ($global:lblExecutionTimer) {
+                    $global:lblExecutionTimer.Text = "Tiempo: 00:00.0"
                 }
-
-                # 4) Limpiar resultados anteriores
-                #    Si ya tienes TabControl de resultados úsalo; si no, cae al dgResults
-                if ($global:tcResults) {
-                    $global:tcResults.Items.Clear()
-                } else {
-                    $global:dgResults.ItemsSource = $null
+                if (-not $script:execStopwatch) {
+                    $script:execStopwatch = [System.Diagnostics.Stopwatch]::new()
                 }
-
-                $global:txtMessages.Text = ""
-                if ($global:lblRowCount) { $global:lblRowCount.Text = "" }
-
-                Write-Host "Ejecutando consulta en '$selectedDb'..." -ForegroundColor Cyan
-
-                # 5) Ejecutar (usa tu credencial global)
-                $result = Invoke-SqlQueryMultiResultSet -Server $global:server -Database $selectedDb -Query $query -Credential $global:dbCredential
-
-                if (-not $result.Success) {
-                    $global:txtMessages.Text = $result.ErrorMessage
-                    throw $result.ErrorMessage
-                }
-
-                # 6) Mostrar resultados
-                if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
-
-                    if ($global:tcResults) {
-                        # Mostrar múltiples resultsets como pestañas (si tienes MultiQuery.psm1 cargado)
-                        Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
-                    } else {
-                        # Fallback: solo primer resultset en DataGrid
-                        $global:dgResults.ItemsSource = $result.ResultSets[0].DataTable.DefaultView
-                    }
-
-                    if ($global:lblRowCount) {
-                        $global:lblRowCount.Text = "Filas: $($result.ResultSets[0].RowCount)"
-                    }
-
-                    if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
-
-                        if ($global:tcResults) {
-                            Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
-                        } else {
-                            $global:dgResults.ItemsSource = $result.ResultSets[0].DataTable.DefaultView
+                if ($script:execUiTimer) {
+                    try {
+                        if ($script:execUiTimer.IsEnabled) {
+                            $script:execUiTimer.Stop()
                         }
-
-                        # Resumen por resultset
-                        $parts = New-Object System.Collections.Generic.List[string]
-                        for ($i = 0; $i -lt $result.ResultSets.Count; $i++) {
-                            $rows = $result.ResultSets[$i].RowCount
-                            $label = if ($rows -eq 1) { "fila" } else { "filas" }
-                            $parts.Add(("Resultado {0}: {1} {2}" -f ($i + 1), $rows, $label))
-                        }
-
-                        $summary = ($parts -join " | ")
-                        Write-Host "✓ Consulta ejecutada: $summary" -ForegroundColor Green
-
-                        # (Opcional) también a la UI
-                        if ($global:lblRowCount) { $global:lblRowCount.Text = $summary }
-                    }
-
-
-                } elseif ($result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
-
-                    $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)"
-                    if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas afectadas: $($result.RowsAffected)" }
-
-                    Write-Host "✓ Consulta ejecutada: $($result.RowsAffected) filas afectadas" -ForegroundColor Green
-
-                    if ($global:tcResults) {
-                        # Mostrar mensaje en una pestaña simple
-                        $tab = New-Object System.Windows.Controls.TabItem
-                        $tab.Header = "Resultado"
-                        $text = New-Object System.Windows.Controls.TextBlock
-                        $text.Text = "Filas afectadas: $($result.RowsAffected)"
-                        $text.Margin = "10"
-                        $tab.Content = $text
-                        [void]$global:tcResults.Items.Add($tab)
-                        $global:tcResults.SelectedItem = $tab
-                    }
-                } else {
-                    # Sin resultsets y sin rowsaffected: mostrar "sin resultados"
-                    if ($global:tcResults) {
-                        Show-MultipleResultSets -TabControl $global:tcResults -ResultSets @()
-                    } else {
-                        $global:txtMessages.Text = "La consulta no devolvió resultados."
+                    } catch {
+                        Write-DzDebug "`t[DEBUG] Error deteniendo timer previo: $_"
                     }
                 }
-
+                $script:execUiTimer = [System.Windows.Threading.DispatcherTimer]::new()
+                $script:execUiTimer.Interval = [TimeSpan]::FromMilliseconds(100)
+                $script:execUiTimer.Add_Tick({
+                        try {
+                            if ($global:lblExecutionTimer -and $script:execStopwatch) {
+                                $t = $script:execStopwatch.Elapsed
+                                $global:lblExecutionTimer.Text = ("Tiempo: {0:mm\:ss\.f}" -f $t)
+                            }
+                        } catch {
+                            Write-DzDebug "`t[DEBUG][Timer] Error actualizando: $_"
+                        }
+                    })
+                $script:execStopwatch.Restart()
+                $script:execUiTimer.Start()
+                $btnExecute.IsEnabled = $false
+                $server = [string]$global:server
+                $db = [string]$selectedDb
+                $userText = [string]$global:user
+                $passwordTxt = [string]$global:password
+                $modulesPath = Join-Path $PSScriptRoot "modules"
+                $query = Remove-SqlComments -Query $rawQuery
+                if ([string]::IsNullOrWhiteSpace($query)) { throw "La consulta está vacía después de limpiar comentarios." }
+                # Mostrar el query en consola
+                Write-Host "Query:" -ForegroundColor Cyan
+                foreach ($line in ($query -split "`r?`n")) {
+                    Write-Host "`t$line" -ForegroundColor Green
+                }
+                Write-Host "" # Línea en blanco
+                if ($global:tcResults) { $global:tcResults.Items.Clear() }
+                Write-Host "Ejecutando consulta en '$db'..." -ForegroundColor Cyan
+                $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+                $rs.ApartmentState = 'MTA'
+                $rs.ThreadOptions = 'ReuseThread'
+                $rs.Open()
+                $ps = [PowerShell]::Create()
+                $ps.Runspace = $rs
+                $script:CurrentQueryRunspace = $rs
+                $script:CurrentQueryPowerShell = $ps
+                $worker = {
+                    param($Server, $Database, $Query, $User, $Password, $ModulesPath)
+                    try {
+                        $utilPath = Join-Path $ModulesPath "Utilities.psm1"
+                        $dbPath = Join-Path $ModulesPath "Database.psm1"
+                        Write-Host "[WORKER] Importando Utilities.psm1..." -ForegroundColor Magenta
+                        try {
+                            Import-Module $utilPath -Force -DisableNameChecking -ErrorAction Stop
+                            Write-Host "[WORKER] ✓ Utilities.psm1 importado OK" -ForegroundColor Green
+                        } catch {
+                            Write-Host "[WORKER] ✗ ERROR importando Utilities: $($_.Exception.Message)" -ForegroundColor Red
+                            throw "Error en Utilities.psm1: $($_.Exception.Message)"
+                        }
+                        Write-Host "[WORKER] Importando Database.psm1..." -ForegroundColor Magenta
+                        try {
+                            Import-Module $dbPath -Force -DisableNameChecking -ErrorAction Stop
+                            Write-Host "[WORKER] ✓ Database.psm1 importado OK" -ForegroundColor Green
+                        } catch {
+                            Write-Host "[WORKER] ✗ ERROR importando Database: $($_.Exception.Message)" -ForegroundColor Red
+                            Write-Host "[WORKER] Stack: $($_.ScriptStackTrace)" -ForegroundColor Red
+                            throw "Error en Database.psm1: $($_.Exception.Message)`n$($_.ScriptStackTrace)"
+                        }
+                        Write-Host "[WORKER] Query tipo: $($Query.GetType().FullName)" -ForegroundColor Cyan
+                        Write-Host "[WORKER] Query longitud: $($Query.Length)" -ForegroundColor Cyan
+                        $secure = New-Object System.Security.SecureString
+                        foreach ($ch in $Password.ToCharArray()) { $secure.AppendChar($ch) }
+                        $secure.MakeReadOnly()
+                        $cred = New-Object System.Management.Automation.PSCredential($User, $secure)
+                        $r = Invoke-SqlQueryMultiResultSet -Server $Server -Database $Database -Query $Query -Credential $cred
+                        if ($null -eq $r) {
+                            return @{
+                                Success      = $false
+                                ErrorMessage = "La ejecución devolvió NULL."
+                                ResultSets   = @()
+                                Messages     = @()
+                            }
+                        }
+                        return $r
+                    } catch {
+                        return @{
+                            Success      = $false
+                            ErrorMessage = $_.Exception.Message
+                            ResultSets   = @()
+                            Messages     = @()
+                            Type         = "Error"
+                        }
+                    }
+                }
+                [void]$ps.AddScript($worker).
+                AddArgument($server).
+                AddArgument($db).
+                AddArgument($query).
+                AddArgument($userText).
+                AddArgument($passwordTxt).
+                AddArgument($modulesPath)
+                $async = $ps.BeginInvoke()
+                $script:CurrentQueryAsync = $async
+                if ($script:QueryDoneTimer) {
+                    try {
+                        if ($script:QueryDoneTimer.IsEnabled) {
+                            $script:QueryDoneTimer.Stop()
+                        }
+                    } catch {}
+                }
+                $script:QueryDoneTimer = [System.Windows.Threading.DispatcherTimer]::new()
+                $script:QueryDoneTimer.Interval = [TimeSpan]::FromMilliseconds(150)
+                $script:QueryDoneTimer.Add_Tick({
+                        try {
+                            Write-DzDebug "`t[DEBUG][TICK] Verificando query..."
+                            if (-not $script:CurrentQueryAsync) {
+                                Write-DzDebug "`t[DEBUG][TICK] No hay async"
+                                return
+                            }
+                            if (-not $script:CurrentQueryAsync.IsCompleted) {
+                                Write-DzDebug "`t[DEBUG] Aún en ejecución..."
+                                return
+                            }
+                            $script:QueryDoneTimer.Stop()
+                            Write-DzDebug "`t[DEBUG][TICK] Query completada, procesando..."
+                            $result = $null
+                            try {
+                                Write-DzDebug "`t[DEBUG][TICK] Llamando EndInvoke..."
+                                $result = $script:CurrentQueryPowerShell.EndInvoke($script:CurrentQueryAsync)
+                                Write-DzDebug "`t[DEBUG][TICK] EndInvoke OK. Tipo: $($result.GetType().FullName)"
+                            } catch {
+                                $result = @{
+                                    Success      = $false
+                                    ErrorMessage = $_.Exception.Message
+                                    ResultSets   = @()
+                                    Messages     = @()
+                                    Type         = "Error"
+                                }
+                            }
+                            Write-DzDebug "`t[DEBUG][TICK] Normalizando resultado..."
+                            Write-DzDebug "`t[DEBUG][TICK] result tipo: $($result.GetType().FullName)"
+                            if ($result -is [System.Management.Automation.PSDataCollection[psobject]]) {
+                                Write-DzDebug "`t[DEBUG][TICK] Es PSDataCollection, Count=$($result.Count)"
+                                if ($result.Count -gt 0) {
+                                    $result = $result[0]
+                                    Write-DzDebug "`t[DEBUG][TICK] Tomando primer elemento del PSDataCollection"
+                                } else {
+                                    $result = $null
+                                    Write-DzDebug "`t[DEBUG][TICK] PSDataCollection vacío"
+                                }
+                            } elseif ($result -is [System.Array]) {
+                                Write-DzDebug "`t[DEBUG][TICK] Es array normal, Count=$($result.Count)"
+                                if ($result.Count -gt 0) {
+                                    $result = $result[0]
+                                } else {
+                                    $result = $null
+                                }
+                            }
+                            Write-DzDebug "`t[DEBUG][TICK] Después de normalizar, tipo: $($result.GetType().FullName)"
+                            Write-DzDebug "`t[DEBUG][TICK] ===== ESTRUCTURA DEL RESULTADO ====="
+                            if ($result) {
+                                if ($result -is [hashtable]) {
+                                    Write-DzDebug "`t[DEBUG][TICK] Es hashtable, Keys:"
+                                    foreach ($key in $result.Keys) {
+                                        $value = $result[$key]
+                                        $valueType = if ($value) { $value.GetType().Name } else { "null" }
+                                        Write-DzDebug "`t[DEBUG][TICK]   $key = $valueType"
+                                    }
+                                } else {
+                                    Write-DzDebug "`t[DEBUG][TICK] Propiedades:"
+                                    $result.PSObject.Properties | ForEach-Object {
+                                        Write-DzDebug "`t[DEBUG][TICK]   $($_.Name) = $($_.Value)"
+                                    }
+                                }
+                            } else {
+                                Write-DzDebug "`t[DEBUG][TICK] result es NULL"
+                            }
+                            try {
+                                if ($script:CurrentQueryPowerShell) {
+                                    $script:CurrentQueryPowerShell.Dispose()
+                                }
+                            } catch {
+                                Write-DzDebug "`t[DEBUG] Error disposing PowerShell: $_"
+                            }
+                            try {
+                                if ($script:CurrentQueryRunspace) {
+                                    $script:CurrentQueryRunspace.Close()
+                                    $script:CurrentQueryRunspace.Dispose()
+                                }
+                            } catch {
+                                Write-DzDebug "`t[DEBUG] Error disposing Runspace: $_"
+                            }
+                            $script:CurrentQueryPowerShell = $null
+                            $script:CurrentQueryRunspace = $null
+                            $script:CurrentQueryAsync = $null
+                            try {
+                                if ($script:execStopwatch) {
+                                    $script:execStopwatch.Stop()
+                                }
+                                if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) {
+                                    $script:execUiTimer.Stop()
+                                }
+                                if ($global:lblExecutionTimer) {
+                                    $t = $script:execStopwatch.Elapsed
+                                    $global:lblExecutionTimer.Text = ("Tiempo: {0:mm\:ss\.fff}" -f $t)
+                                }
+                            } catch {
+                                Write-DzDebug "`t[DEBUG] Error deteniendo timer: $_"
+                            }
+                            try {
+                                $btnExecute.IsEnabled = $true
+                            } catch {}
+                            $script:QueryRunning = $false
+                            if (-not $result -or -not $result.Success) {
+                                $msg = ""
+                                try { $msg = [string]$result.ErrorMessage } catch {}
+                                if ([string]::IsNullOrWhiteSpace($msg) -and $result -and $result.Messages) {
+                                    try { $msg = ($result.Messages -join "`n") } catch {}
+                                }
+                                if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "Error desconocido al ejecutar la consulta." }
+                                if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
+                                    Write-DzDebug "`t[DEBUG][TICK] Mostrando ResultSets a pesar del error (count: $($result.ResultSets.Count))"
+                                    try {
+                                        Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
+                                        Show-ErrorResultTab -ResultsTabControl $global:tcResults -Message $msg -AddWithoutClear
+                                        Write-Host "`n=============== ERROR SQL ==============" -ForegroundColor Red
+                                        Write-Host "Mensaje: $msg" -ForegroundColor Yellow
+                                        Write-Host "====================================" -ForegroundColor Red
+                                        if ($global:txtMessages) {
+                                            $currentText = $global:txtMessages.Text
+                                            $global:txtMessages.Text = "ERROR: $msg`n`n$currentText"
+                                        }
+                                        if ($global:lblRowCount) {
+                                            $totalRows = ($result.ResultSets | Measure-Object -Property RowCount -Sum).Sum
+                                            if ($result.ResultSets.Count -eq 1) {
+                                                $global:lblRowCount.Text = "Filas: $totalRows (con error)"
+                                            } else {
+                                                $global:lblRowCount.Text = "Filas: $totalRows ($($result.ResultSets.Count) resultsets, con error)"
+                                            }
+                                        }
+                                    } catch {
+                                        Write-DzDebug "`t[DEBUG][TICK] ERROR en Show-MultipleResultSets: $($_.Exception.Message)"
+                                        if ($global:txtMessages) {
+                                            $global:txtMessages.Text = "Error mostrando resultados: $($_.Exception.Message)"
+                                        }
+                                    }
+                                } else {
+                                    Write-Host "`n=============== ERROR SQL ==============" -ForegroundColor Red
+                                    Write-Host "Mensaje: $msg" -ForegroundColor Yellow
+                                    Write-Host "====================================" -ForegroundColor Red
+                                    if ($global:txtMessages) {
+                                        $global:txtMessages.Text = $msg
+                                    }
+                                    if ($global:lblRowCount) {
+                                        $global:lblRowCount.Text = "Filas: --"
+                                    }
+                                    if ($global:tcResults) {
+                                        try {
+                                            Show-ErrorResultTab -ResultsTabControl $global:tcResults -Message $msg
+                                        } catch {}
+                                    }
+                                }
+                                return
+                            }
+                            if ($result.DebugLog -and $global:txtMessages) {
+                                try {
+                                    $dbg = ($result.DebugLog -join "`n")
+                                    if (-not [string]::IsNullOrWhiteSpace($dbg)) {
+                                        $global:txtMessages.Text = $dbg + "`n`n" + $global:txtMessages.Text
+                                    }
+                                } catch {}
+                            }
+                            if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
+                                Write-DzDebug "`t[DEBUG][TICK] Mostrando $($result.ResultSets.Count) resultsets..."
+                                try {
+                                    $idx = 0
+                                    foreach ($rs in $result.ResultSets) {
+                                        $idx++
+                                        $dt = $rs.DataTable
+                                        $rows = $rs.RowCount
+                                        Write-Host ("`t Resultado #{0} | Filas: {1}" -f $idx, $rows) -ForegroundColor Green
+                                    }
+                                    Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
+                                    Write-DzDebug "`t[DEBUG][TICK] ResultSets mostrados OK"
+                                } catch {
+                                    Write-DzDebug "`t[DEBUG][TICK] ERROR en Show-MultipleResultSets: $($_.Exception.Message)"
+                                    if ($global:txtMessages) {
+                                        $global:txtMessages.Text = "Error mostrando resultados: $($_.Exception.Message)"
+                                    }
+                                }
+                                return
+                            }
+                            if ($result -and $result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
+                                Write-DzDebug "`t[DEBUG][TICK] Mostrando RowsAffected: $($result.RowsAffected)"
+                                if ($global:tcResults) {
+                                    $global:tcResults.Items.Clear()
+                                    $tab = New-Object System.Windows.Controls.TabItem
+                                    $tab.Header = "Resultado"
+                                    $text = New-Object System.Windows.Controls.TextBlock
+                                    $text.Text = "Filas afectadas: $($result.RowsAffected)"
+                                    $text.Margin = "10"
+                                    $text.FontSize = 14
+                                    $text.FontWeight = "Bold"
+                                    $tab.Content = $text
+                                    [void]$global:tcResults.Items.Add($tab)
+                                    $global:tcResults.SelectedItem = $tab
+                                }
+                                if ($global:txtMessages) {
+                                    $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)"
+                                }
+                                if ($global:lblRowCount) {
+                                    $global:lblRowCount.Text = "Filas afectadas: $($result.RowsAffected)"
+                                }
+                                Write-Host "`n=============== RESULTADO ==============" -ForegroundColor Green
+                                Write-Host "Filas afectadas: $($result.RowsAffected)" -ForegroundColor Yellow
+                                Write-Host "====================================" -ForegroundColor Green
+                                return
+                            }
+                            Show-MultipleResultSets -TabControl $global:tcResults -ResultSets @()
+                            if ($global:lblRowCount) {
+                                $global:lblRowCount.Text = "Filas: 0"
+                            }
+                        } catch {
+                            $err = "[UI][QueryDoneTimer ERROR] $($_.Exception.Message)`n$($_.ScriptStackTrace)"
+                            if ($global:txtMessages) {
+                                $global:txtMessages.Text = $err
+                            }
+                            Write-Host $err -ForegroundColor Red
+                            try {
+                                $btnExecute.IsEnabled = $true
+                            } catch {}
+                            $script:QueryRunning = $false
+                            try {
+                                if ($script:execStopwatch) {
+                                    $script:execStopwatch.Stop()
+                                }
+                                if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) {
+                                    $script:execUiTimer.Stop()
+                                }
+                            } catch {}
+                        }
+                    })
+                $script:QueryDoneTimer.Start()
             } catch {
                 $msg = $_.Exception.Message
-                $global:txtMessages.Text = $msg
-
-                Write-Host "`n=============== ERROR ==============" -ForegroundColor Red
-                Write-Host "Mensaje: $msg" -ForegroundColor Yellow
-                Write-Host "====================================" -ForegroundColor Red
+                if ($global:txtMessages) {
+                    $global:txtMessages.Text = $msg
+                }
+                Write-Host "`n[ERROR btnExecute] $msg" -ForegroundColor Red
+                try {
+                    if ($script:execStopwatch) {
+                        $script:execStopwatch.Stop()
+                    }
+                    if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) {
+                        $script:execUiTimer.Stop()
+                    }
+                } catch {}
+                $btnExecute.IsEnabled = $true
+                $script:QueryRunning = $false
             }
         })
     $btnClearQuery.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
-                # 1) Obtener RichTextBox ACTIVO (pestaña activa real)
                 $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
                 if (-not $rtb) {
                     throw "No hay una pestaña de consulta activa."
                 }
-                # 2) Limpiar el editor activo
                 $rtb.Document.Blocks.Clear()
-                # 3) Limpiar resultados/mensajes
                 if ($global:dgResults) { $global:dgResults.ItemsSource = $null }
                 if ($global:txtMessages) { $global:txtMessages.Text = "" }
                 if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
-                # 4) Debug: nombre de pestaña (sirve para XAML y para tabs dinámicos)
                 $tab = Get-ActiveQueryTab -TabControl $global:tcQueries
                 $tabName = if ($tab -and $tab.Tag -and $tab.Tag.Title) { $tab.Tag.Title } else { "Desconocida" }
                 Write-DzDebug "`t[DEBUG] Se limpió la consulta en la pestaña: $tabName"
                 Write-Host "Consulta limpiada" -ForegroundColor Cyan
-
             } catch {
                 $msg = $_.Exception.Message
                 if ($global:txtMessages) { $global:txtMessages.Text = $msg }
@@ -1859,12 +2186,56 @@ Base de datos: $($global:database)
                 Write-Host "====================================" -ForegroundColor Red
             }
         })
-    $btnBackup.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Backup - - -" -ForegroundColor Magenta ; Write-DzDebug ("`t[DEBUG] Click en 'Respaldar Base de datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
-    $btnRestore.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Restauración - - -"  ; Write-DzDebug ("`t[DEBUG] Click en 'Restaurar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
-            Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem -OnRestoreCompleted {
-                param($dbName)
-                Write-DzDebug "`t[DEBUG] Restore completado. Refrescando TreeView."
-                if ($global:tvDatabases -and $global:server) { Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $global:server }
+    $btnExport.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Exportar resultados' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            try {
+                if (-not $global:tcResults) {
+                    Ui-Warn "No existe un panel de resultados para exportar." "Atención" $global:MainWindow
+                    return
+                }
+                $resultTabs = Get-ExportableResultTabs -TabControl $global:tcResults
+                if (-not $resultTabs -or $resultTabs.Count -eq 0) {
+                    Ui-Warn "No existe pestaña con resultados para exportar." "Atención" $global:MainWindow
+                    return
+                }
+                $target = $null
+                if ($resultTabs.Count -gt 1) {
+                    $items = $resultTabs | ForEach-Object {
+                        [pscustomobject]@{
+                            Path         = $_
+                            Display      = $_.Display
+                            DisplayShort = $_.DisplayShort
+                        }
+                    }
+                    $selected = Show-WpfPathSelectionDialog -Title "Exportar resultados" -Prompt "Seleccione la pestaña de resultados a exportar:" -Items $items -ExecuteButtonText "Exportar"
+                    if (-not $selected) { return }
+                    $target = $selected.Path
+                } else {
+                    $target = $resultTabs[0]
+                }
+                $rowCount = $target.RowCount
+                $headerText = $target.DisplayShort
+                if (-not (Ui-Confirm "Se exportarán $rowCount filas de '$headerText'. ¿Deseas continuar?" "Confirmar exportación" $global:MainWindow)) { return }
+                $safeName = ($headerText -replace '[\\/:*?"<>|]', '-')
+                if ([string]::IsNullOrWhiteSpace($safeName)) { $safeName = "resultado" }
+                $saveDialog = New-Object Microsoft.Win32.SaveFileDialog
+                $saveDialog.Filter = "CSV (*.csv)|*.csv|Texto delimitado (*.txt)|*.txt"
+                $saveDialog.FileName = "$safeName.csv"
+                $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
+                if ($saveDialog.ShowDialog() -ne $true) { return }
+                $filePath = $saveDialog.FileName
+                $extension = [System.IO.Path]::GetExtension($filePath).ToLowerInvariant()
+                if ($extension -eq ".txt" -or $saveDialog.FilterIndex -eq 2) {
+                    $separator = New-WpfInputDialog -Title "Separador de exportación" -Prompt "Ingrese el separador para el archivo de texto:" -DefaultValue "|"
+                    if ($null -eq $separator) { return }
+                    Export-ResultSetToDelimitedText -ResultSet $target.DataTable -Path $filePath -Separator $separator
+                } else {
+                    Export-ResultSetToCsv -ResultSet ([pscustomobject]@{ DataTable = $target.DataTable }) -Path $filePath
+                }
+                Ui-Info "Exportación completada en:`n$filePath" "Exportación" $global:MainWindow
+            } catch {
+                Ui-Error "Error al exportar resultados:`n$($_.Exception.Message)" "Error" $global:MainWindow
+                Write-DzDebug "`t[DEBUG][btnExport] CATCH: $($_.Exception.Message)" -Color Red
             }
         })
     $window.Add_KeyDown({
@@ -1893,17 +2264,13 @@ Base de datos: $($global:database)
         }
     }.GetNewClosure()
     Write-Host "✓ Formulario WPF creado exitosamente" -ForegroundColor Green
-    # ---- CAPTURAR EXCEPCIONES NO MANEJADAS DE WPF (Dispatcher) ----
     $window.Dispatcher.Add_UnhandledException({
             param($sender, $e)
-
             $ex = $e.Exception
             Write-Host "`n[WPF Dispatcher ERROR]" -ForegroundColor Red
             Write-Host "Mensaje: $($ex.Message)" -ForegroundColor Yellow
             Write-Host "Tipo   : $($ex.GetType().FullName)" -ForegroundColor Yellow
             Write-Host "Stack  : $($ex.StackTrace)" -ForegroundColor DarkYellow
-
-            # Si viene de un ScriptBlock (eventos/timer), aquí suele venir la línea exacta:
             if ($ex -is [System.Management.Automation.RuntimeException] -and $ex.ErrorRecord) {
                 $er = $ex.ErrorRecord
                 if ($er.InvocationInfo) {
@@ -1915,11 +2282,8 @@ Base de datos: $($global:database)
                 Write-Host "PSScriptStackTrace:" -ForegroundColor Magenta
                 Write-Host $er.ScriptStackTrace -ForegroundColor Magenta
             }
-
-            # para que NO cierre toda la app mientras depuras
             $e.Handled = $true
         })
-
     return $window
 }
 function Start-Application {
@@ -1928,7 +2292,7 @@ function Start-Application {
     Show-GlobalProgress -Percent 10 -Status "Entorno listo"
     Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
     $modulesPath = Join-Path $PSScriptRoot "modules"
-    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "MultiQuery.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1")
+    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1")
     $i = 0
     foreach ($module in $modules) {
         $i++
@@ -1947,7 +2311,6 @@ try {
     Start-Application
 } catch {
     Write-Host "Error fatal: $($_.Exception.Message)" -ForegroundColor Red
-
     if ($_.InvocationInfo) {
         Write-Host "Archivo : $($_.InvocationInfo.ScriptName)" -ForegroundColor Yellow
         Write-Host "Línea   : $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor Yellow
@@ -1955,13 +2318,10 @@ try {
         Write-Host "Código  : $($_.InvocationInfo.Line)" -ForegroundColor Yellow
         Write-Host "Pos     : $($_.InvocationInfo.PositionMessage)" -ForegroundColor DarkYellow
     }
-
     Write-Host "ScriptStackTrace:" -ForegroundColor Magenta
     Write-Host $_.ScriptStackTrace -ForegroundColor Magenta
-
     Write-Host "Stack Trace .NET:" -ForegroundColor DarkRed
     Write-Host $_.Exception.StackTrace -ForegroundColor DarkRed
-
     pause
     exit 1
 }

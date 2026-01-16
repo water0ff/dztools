@@ -563,13 +563,28 @@ function New-MainForm {
             BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
             CornerRadius="6" Background="{DynamicResource ControlBg}">
       <Grid>
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,18,16,0">
+          <Button Name="btnConnectDb"
+                  Width="36" Height="30" Margin="0,0,8,0"
+                  Style="{StaticResource DatabaseButtonStyle}"
+                  ToolTip="Conectar">
+            <TextBlock Text="🔌" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+          </Button>
+          <Button Name="btnDisconnectDb"
+                  Width="36" Height="30"
+                  Style="{StaticResource DatabaseButtonStyle}"
+                  ToolTip="Desconectar" IsEnabled="False">
+            <TextBlock Text="🔌✖" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+          </Button>
+        </StackPanel>
 
         <!-- Fila de datos -->
-        <WrapPanel Grid.Row="0">
+        <WrapPanel Grid.Column="1">
           <StackPanel Margin="0,0,16,0">
             <TextBlock Text="Instancia SQL:"/>
             <ComboBox Name="txtServer" Width="180" IsEditable="True" Text=".\NationalSoft"/>
@@ -590,25 +605,6 @@ function New-MainForm {
             <ComboBox Name="cmbDatabases" Width="180" IsEnabled="False"/>
           </StackPanel>
         </WrapPanel>
-
-        <!-- Fila de botones (horizontal debajo) -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-          <Button Content="Conectar" Name="btnConnectDb"
-                  Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource DatabaseButtonStyle}"/>
-          <Button Content="Desconectar" Name="btnDisconnectDb"
-                  Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-          <Button Content="Backup" Name="btnBackup"
-                  Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-          <Button Content="Restaurar" Name="btnRestore"
-                  Width="120" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-          <Button Content="Attach" Name="btnAttach"
-                  Width="120" Height="30"
-                  Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-        </StackPanel>
       </Grid>
     </Border>
     <Border Grid.Row="1" Margin="10,0,10,10" Padding="10"
@@ -758,9 +754,6 @@ function New-MainForm {
     $cmbDatabases = $window.FindName("cmbDatabases")
     $btnConnectDb = $window.FindName("btnConnectDb")
     $btnDisconnectDb = $window.FindName("btnDisconnectDb")
-    $btnBackup = $window.FindName("btnBackup")
-    $btnRestore = $window.FindName("btnRestore")
-    $btnAttach = $window.FindName("btnAttach")
     $lblConnectionStatus = $window.FindName("lblConnectionStatus")
     $btnExecute = $window.FindName("btnExecute")
     $btnClearQuery = $window.FindName("btnClearQuery")
@@ -840,10 +833,7 @@ function New-MainForm {
     $global:btnConnectDb = $btnConnectDb
     $global:btnDisconnectDb = $btnDisconnectDb
     $global:btnExecute = $btnExecute
-    $global:btnBackup = $btnBackup
     $global:btnClearQuery = $btnClearQuery
-    $global:btnRestore = $btnRestore
-    $global:btnAttach = $btnAttach
     $global:btnExport = $btnExport
     $global:cmbQueries = $cmbQueries
     $global:tcQueries = $tcQueries
@@ -1625,9 +1615,6 @@ function New-MainForm {
                 if ($global:btnDisconnectDb) { $global:btnDisconnectDb.IsEnabled = $false }
                 if ($global:btnExecute) { $global:btnExecute.IsEnabled = $false }
                 if ($global:btnClearQuery) { $global:btnClearQuery.IsEnabled = $false }
-                if ($global:btnBackup) { $global:btnBackup.IsEnabled = $false }
-                if ($global:btnRestore) { $global:btnRestore.IsEnabled = $false }
-                if ($global:btnAttach) { $global:btnAttach.IsEnabled = $false }
                 if ($global:btnExport) { $global:btnExport.IsEnabled = $false }
                 if ($global:cmbQueries) { $global:cmbQueries.IsEnabled = $false }
                 if ($global:tcQueries) { $global:tcQueries.IsEnabled = $false }
@@ -1692,9 +1679,6 @@ function New-MainForm {
                 $global:btnExecute.IsEnabled = $true
                 $global:btnClearQuery.IsEnabled = $true
                 $global:cmbQueries.IsEnabled = $true
-                $global:btnBackup.IsEnabled = $true
-                $global:btnRestore.IsEnabled = $true
-                $global:btnAttach.IsEnabled = $true
                 $global:btnExport.IsEnabled = $true
                 if ($global:tcQueries) { $global:tcQueries.IsEnabled = $true }
                 if ($global:tcResults) { $global:tcResults.IsEnabled = $true }
@@ -2242,28 +2226,6 @@ Base de datos: $($global:database)
             } catch {
                 Ui-Error "Error al exportar resultados:`n$($_.Exception.Message)" "Error" $global:MainWindow
                 Write-DzDebug "`t[DEBUG][btnExport] CATCH: $($_.Exception.Message)" -Color Red
-            }
-        })
-    $btnBackup.Add_Click({ Write-Host "`n- - - Comenzando el proceso de Backup - - -" -ForegroundColor Magenta ; Write-DzDebug ("`t[DEBUG] Click en 'Respaldar Base de datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow; Show-BackupDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem })
-    $btnRestore.Add_Click({
-            Write-Host "`n- - - Comenzando el proceso de Restauración - - -"
-            Write-DzDebug ("`t[DEBUG] Click en 'Restaurar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
-            Show-RestoreDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem -OnRestoreCompleted {
-                param($dbName)
-                Write-DzDebug "`t[DEBUG] Restore completado. Refrescando TreeView."
-                if ($global:tvDatabases -and $global:server) { Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $global:server }
-            }
-        })
-    $btnAttach.Add_Click({
-            Write-Host "`n- - - Comenzando el proceso de Attach - - -"
-            Write-DzDebug ("`t[DEBUG] Click en 'Attach Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
-            $modulesPath = Join-Path $PSScriptRoot "modules"
-            Show-AttachDialog -Server $global:server -User $global:user -Password $global:password -Database $global:cmbDatabases.SelectedItem `
-                -ModulesPath $modulesPath `
-                -OnAttachCompleted {
-                param($dbName)
-                Write-DzDebug "`t[DEBUG] Attach completado. Refrescando TreeView."
-                if ($global:tvDatabases -and $global:server) { Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $global:server }
             }
         })
     $window.Add_KeyDown({

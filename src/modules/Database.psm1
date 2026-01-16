@@ -1633,6 +1633,20 @@ function Show-ErrorResultTab {
         $ResultsTabControl.SelectedIndex = 0
     }
 }
+function Get-UseDatabaseFromQuery {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Query
+    )
+    if ([string]::IsNullOrWhiteSpace($Query)) {
+        return $null
+    }
+    $matches = [regex]::Matches($Query, '(?im)^\s*use\s+(?:\[(?<db>[^\]]+)\]|(?<db>[^;\s]+))')
+    if ($matches.Count -eq 0) {
+        return $null
+    }
+    return $matches[$matches.Count - 1].Groups['db'].Value
+}
 Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet',
     'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery',
     'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox',
@@ -1657,4 +1671,5 @@ Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSe
     'Get-ResultTabHeaderText',
     'Get-ExportableResultTabs',
     'Write-DataTableConsole',
-    'Show-ErrorResultTab')
+    'Show-ErrorResultTab',
+    'Get-UseDatabaseFromQuery')

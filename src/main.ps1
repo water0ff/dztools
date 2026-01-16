@@ -951,6 +951,63 @@ function New-MainForm {
                 $e.Handled = $true
             }
         }.GetNewClosure())
+    $lblPort.Add_PreviewMouseLeftButtonDown({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
+            try {
+                if ($null -eq $sender) { return }
+                $detail = $null
+                try { $detail = [string]$sender.Tag } catch { $detail = $null }
+                $textToCopy = if (-not [string]::IsNullOrWhiteSpace($detail)) {
+                    $detail.Trim()
+                } else {
+                    try { ([string]$sender.Text).Trim() } catch { "" }
+                }
+                if ([string]::IsNullOrWhiteSpace($textToCopy) -or
+                    $textToCopy -match 'No se encontraron' -or
+                    $textToCopy -match 'No encontrado' -or
+                    $textToCopy -match 'No hay') {
+                    Write-Host "`n[AVISO] No hay puertos SQL para copiar." -ForegroundColor Yellow
+                    return
+                }
+                $ok = Set-ClipboardTextSafe -Text $textToCopy -Owner $global:MainWindow
+                if ($ok) {
+                    Write-Host "`nPuertos SQL copaido al portapapeles: $textToCopy" -ForegroundColor Green
+                } else {
+                    Ui-Error "No se pudo copiar la información de puertos al portapapeles." $global:MainWindow
+                }
+            } catch {
+                Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+                Ui-Error "Error: $($_.Exception.Message)" $global:MainWindow
+            } finally {
+                $e.Handled = $true
+            }
+        }.GetNewClosure())
+    $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
+            try {
+                $ipsText = [string]$sender.Text
+                Write-DzDebug "`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
+                Write-DzDebug "`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
+                if ([string]::IsNullOrWhiteSpace($ipsText)) { Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow; return }
+                $textToCopy = $ipsText.TrimEnd()
+                $ok = Set-ClipboardTextSafe -Text $textToCopy -Owner $global:MainWindow
+                if ($ok) { Write-Host "`nIP's copiadas al portapapeles:`n$textToCopy" -ForegroundColor Green } else { Ui-Error "No se pudieron copiar las IPs al portapapeles." $global:MainWindow }
+            } catch {
+                Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+                Ui-Error "Error: $($_.Exception.Message)" $global:MainWindow
+            } finally {
+                $e.Handled = $true
+            }
+        }.GetNewClosure())
+    $txt_AdapterStatus.Add_PreviewMouseLeftButtonDown({
+            param($sender, $e)
+            Get-NetConnectionProfile | Where-Object { $_.NetworkCategory -ne 'Private' } | ForEach-Object { Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private }
+            Write-Host "Todas las redes se han establecido como Privadas."
+            Refresh-AdapterStatus
+            $e.Handled = $true
+        })
     $btnInstalarHerramientas.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n- - - Comenzando el proceso de 'Instalar Herramientas' - - -" -ForegroundColor Magenta
@@ -1700,6 +1757,10 @@ Base de datos: $($global:database)
                                 }
                                 return
                             }
+                            $useDb = Get-UseDatabaseFromQuery -Query $query
+                            if ($useDb) {
+                                Update-SelectionFromUse -DatabaseName $useDb
+                            }
                             if ($result.DebugLog -and $global:txtMessages) {
                                 try {
                                     $dbg = ($result.DebugLog -join "`n")
@@ -1872,6 +1933,54 @@ Base de datos: $($global:database)
                 Write-DzDebug "`t[DEBUG][btnExport] CATCH: $($_.Exception.Message)" -Color Red
             }
         })
+    function Update-SelectionFromUse {
+        param([string]$DatabaseName)
+        if ([string]::IsNullOrWhiteSpace($DatabaseName)) { return }
+        if (-not $global:cmbDatabases) { return }
+        $targetDb = $DatabaseName.Trim()
+        Write-DzDebug "`t[DEBUG][USE] Cambiando selección a DB='$targetDb'"
+        $selected = $false
+        if ($global:cmbDatabases.Items.Contains($targetDb)) {
+            $global:cmbDatabases.SelectedItem = $targetDb
+            $selected = $true
+        } else {
+            for ($i = 0; $i -lt $global:cmbDatabases.Items.Count; $i++) {
+                if ([string]$global:cmbDatabases.Items[$i] -eq [string]$targetDb) {
+                    $global:cmbDatabases.SelectedIndex = $i
+                    $selected = $true
+                    break
+                }
+            }
+        }
+        if (-not $selected -and $global:server -and $global:dbCredential) {
+            try {
+                $databases = Get-SqlDatabases -Server $global:server -Credential $global:dbCredential
+                if ($databases -and $databases.Count -gt 0) {
+                    $global:cmbDatabases.Items.Clear()
+                    foreach ($db in $databases) {
+                        [void]$global:cmbDatabases.Items.Add($db)
+                    }
+                    if ($global:cmbDatabases.Items.Contains($targetDb)) {
+                        $global:cmbDatabases.SelectedItem = $targetDb
+                        $selected = $true
+                    }
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][USE] Error refrescando bases: $($_.Exception.Message)"
+            }
+        }
+        if (-not $selected -or -not $global:cmbDatabases.SelectedItem) {
+            Write-DzDebug "`t[DEBUG][USE] No se encontró la base '$targetDb' en el ComboBox"
+            return
+        }
+        $global:database = $global:cmbDatabases.SelectedItem
+        if ($global:lblConnectionStatus) {
+            $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
+        }
+        if ($global:tvDatabases) {
+            Select-SqlTreeDatabase -TreeView $global:tvDatabases -Server $global:server -Database $global:database
+        }
+    }
     $window.Add_KeyDown({
             param($s, $e)
             if ($e.Key -eq 'F5' -and $btnExecute.IsEnabled) {

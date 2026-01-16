@@ -393,6 +393,56 @@ function Refresh-SqlTreeView {
     }
     if ($targetNode) { Refresh-SqlTreeServerNode -ServerNode $targetNode }
 }
+
+function Select-SqlTreeDatabase {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]$TreeView,
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database
+    )
+    if (-not $TreeView) { return }
+    Write-DzDebug "`t[DEBUG][TreeView] Select DB: Server='$Server' DB='$Database'"
+    $serverNode = $null
+    foreach ($item in $TreeView.Items) {
+        if ($item -is [System.Windows.Controls.TreeViewItem] -and $item.Tag -and $item.Tag.Type -eq "Server" -and $item.Tag.Server -eq $Server) {
+            $serverNode = $item
+            break
+        }
+    }
+    if (-not $serverNode) {
+        Write-DzDebug "`t[DEBUG][TreeView] Select DB: No se encontró el nodo del servidor"
+        return
+    }
+    if (-not $serverNode.Tag.Loaded) {
+        $serverNode.Tag.Loaded = $true
+        Load-DatabasesIntoTree -ServerNode $serverNode
+    }
+    $serverNode.IsExpanded = $true
+    $dbNode = $null
+    foreach ($item in $serverNode.Items) {
+        if ($item -is [System.Windows.Controls.TreeViewItem] -and $item.Tag -and $item.Tag.Type -eq "Database" -and $item.Tag.Database -eq $Database) {
+            $dbNode = $item
+            break
+        }
+    }
+    if (-not $dbNode) {
+        Write-DzDebug "`t[DEBUG][TreeView] Select DB: No se encontró el nodo de la base, refrescando..."
+        Refresh-SqlTreeServerNode -ServerNode $serverNode
+        foreach ($item in $serverNode.Items) {
+            if ($item -is [System.Windows.Controls.TreeViewItem] -and $item.Tag -and $item.Tag.Type -eq "Database" -and $item.Tag.Database -eq $Database) {
+                $dbNode = $item
+                break
+            }
+        }
+    }
+    if (-not $dbNode) {
+        Write-DzDebug "`t[DEBUG][TreeView] Select DB: Base no encontrada tras refrescar"
+        return
+    }
+    $dbNode.IsSelected = $true
+    $dbNode.BringIntoView()
+}
 function Load-DatabasesIntoTree {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$ServerNode)
@@ -941,6 +991,171 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
             Set-QueryTextInActiveTab -TabControl $global:tcQueries -Text "USE [$safeDb]`n`n"
         })
     $separator1 = New-Object System.Windows.Controls.Separator
+    $menuState = New-Object System.Windows.Controls.MenuItem
+    $menuState.Header = "🧭 Cambiar estado"
+    $menuOnline = New-Object System.Windows.Controls.MenuItem
+    $menuOnline.Header = "🟢 ONLINE"
+    $menuOnline.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $safeName = $dbName -replace ']', ']]'
+            $confirm = Ui-Confirm "Se pondrá la base '$dbName' en modo ONLINE. ¿Deseas continuar?" "Cambiar estado" $global:MainWindow
+            if (-not $confirm) { return }
+            Write-DzDebug "`t[DEBUG][TreeView] Context SET ONLINE: Server='$server' DB='$dbName'"
+            $query = "ALTER DATABASE [$safeName] SET ONLINE"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "No se pudo poner ONLINE la base:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Ui-Info "La base '$dbName' quedó ONLINE." "Estado actualizado" $global:MainWindow
+        })
+    $menuOffline = New-Object System.Windows.Controls.MenuItem
+    $menuOffline.Header = "🔴 OFFLINE"
+    $menuOffline.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $safeName = $dbName -replace ']', ']]'
+            $confirm = Ui-Confirm "Se pondrá la base '$dbName' en modo OFFLINE (con ROLLBACK IMMEDIATE). ¿Deseas continuar?" "Cambiar estado" $global:MainWindow
+            if (-not $confirm) { return }
+            Write-DzDebug "`t[DEBUG][TreeView] Context SET OFFLINE: Server='$server' DB='$dbName'"
+            $query = "ALTER DATABASE [$safeName] SET OFFLINE WITH ROLLBACK IMMEDIATE"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "No se pudo poner OFFLINE la base:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Ui-Info "La base '$dbName' quedó OFFLINE." "Estado actualizado" $global:MainWindow
+        })
+    $menuReadOnly = New-Object System.Windows.Controls.MenuItem
+    $menuReadOnly.Header = "🔒 READ_ONLY"
+    $menuReadOnly.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $safeName = $dbName -replace ']', ']]'
+            $confirm = Ui-Confirm "Se pondrá la base '$dbName' en modo READ_ONLY. ¿Deseas continuar?" "Cambiar estado" $global:MainWindow
+            if (-not $confirm) { return }
+            Write-DzDebug "`t[DEBUG][TreeView] Context SET READ_ONLY: Server='$server' DB='$dbName'"
+            $query = "ALTER DATABASE [$safeName] SET READ_ONLY WITH NO_WAIT"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "No se pudo poner READ_ONLY la base:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Ui-Info "La base '$dbName' quedó READ_ONLY." "Estado actualizado" $global:MainWindow
+        })
+    $menuReadWrite = New-Object System.Windows.Controls.MenuItem
+    $menuReadWrite.Header = "✍️ READ_WRITE"
+    $menuReadWrite.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $safeName = $dbName -replace ']', ']]'
+            $confirm = Ui-Confirm "Se pondrá la base '$dbName' en modo READ_WRITE. ¿Deseas continuar?" "Cambiar estado" $global:MainWindow
+            if (-not $confirm) { return }
+            Write-DzDebug "`t[DEBUG][TreeView] Context SET READ_WRITE: Server='$server' DB='$dbName'"
+            $query = "ALTER DATABASE [$safeName] SET READ_WRITE WITH NO_WAIT"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "No se pudo poner READ_WRITE la base:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Ui-Info "La base '$dbName' quedó READ_WRITE." "Estado actualizado" $global:MainWindow
+        })
+    [void]$menuState.Items.Add($menuOnline)
+    [void]$menuState.Items.Add($menuOffline)
+    [void]$menuState.Items.Add($menuReadOnly)
+    [void]$menuState.Items.Add($menuReadWrite)
+
+    $menuShrink = New-Object System.Windows.Controls.MenuItem
+    $menuShrink.Header = "📉 Shrink..."
+    $menuShrinkData = New-Object System.Windows.Controls.MenuItem
+    $menuShrinkData.Header = "Shrink Data"
+    $menuShrinkData.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $escapedDb = $dbName -replace "'", "''"
+            $confirm = Ui-Confirm "⚠️ Shrink puede causar fragmentación y no siempre es recomendable.`n`n¿Deseas continuar con SHRINK DATA para '$dbName'?" "Confirmar Shrink" $global:MainWindow
+            if (-not $confirm) { return }
+            Write-DzDebug "`t[DEBUG][TreeView] Context SHRINK DATA: Server='$server' DB='$dbName'"
+            $filesQuery = "SELECT name FROM sys.master_files WHERE database_id = DB_ID(N'$escapedDb') AND type_desc = 'ROWS'"
+            $filesResult = Invoke-SqlQuery -Server $server -Database "master" -Query $filesQuery -Credential $credential
+            if (-not $filesResult.Success) {
+                Ui-Error "No se pudieron obtener archivos de datos para shrink.`n`n$($filesResult.ErrorMessage)" $global:MainWindow
+                return
+            }
+            $rows = $filesResult.DataTable.Rows
+            if ($rows.Count -eq 0) {
+                Ui-Error "No se encontraron archivos de datos para shrink." $global:MainWindow
+                return
+            }
+            $commands = ($rows | ForEach-Object { "DBCC SHRINKFILE (N'$($_.name)', 0);" }) -join "`n"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $commands -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "Error al ejecutar shrink de datos:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Ui-Info "Shrink de datos completado para '$dbName'." "Shrink completado" $global:MainWindow
+        })
+    $menuShrinkLog = New-Object System.Windows.Controls.MenuItem
+    $menuShrinkLog.Header = "Shrink Log"
+    $menuShrinkLog.Add_Click({
+            $cm = $this.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) { return }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $escapedDb = $dbName -replace "'", "''"
+            $confirm = Ui-Confirm "⚠️ Shrink del log puede causar crecimiento frecuente del archivo.`n`n¿Deseas continuar con SHRINK LOG para '$dbName'?" "Confirmar Shrink" $global:MainWindow
+            if (-not $confirm) { return }
+            Write-DzDebug "`t[DEBUG][TreeView] Context SHRINK LOG: Server='$server' DB='$dbName'"
+            $filesQuery = "SELECT name FROM sys.master_files WHERE database_id = DB_ID(N'$escapedDb') AND type_desc = 'LOG'"
+            $filesResult = Invoke-SqlQuery -Server $server -Database "master" -Query $filesQuery -Credential $credential
+            if (-not $filesResult.Success) {
+                Ui-Error "No se pudieron obtener archivos de log para shrink.`n`n$($filesResult.ErrorMessage)" $global:MainWindow
+                return
+            }
+            $rows = $filesResult.DataTable.Rows
+            if ($rows.Count -eq 0) {
+                Ui-Error "No se encontraron archivos de log para shrink." $global:MainWindow
+                return
+            }
+            $commands = ($rows | ForEach-Object { "DBCC SHRINKFILE (N'$($_.name)', 0);" }) -join "`n"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $commands -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "Error al ejecutar shrink del log:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Ui-Info "Shrink de log completado para '$dbName'." "Shrink completado" $global:MainWindow
+        })
+    [void]$menuShrink.Items.Add($menuShrinkData)
+    [void]$menuShrink.Items.Add($menuShrinkLog)
     $menuDetach = New-Object System.Windows.Controls.MenuItem
     $menuDetach.Header = "📎 Separar (Detach)..."
     $menuDetach.Add_Click({
@@ -1005,6 +1220,8 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
     [void]$menu.Items.Add($menuRename)
     [void]$menu.Items.Add($menuNewQuery)
     [void]$menu.Items.Add($separator1)
+    [void]$menu.Items.Add($menuState)
+    [void]$menu.Items.Add($menuShrink)
     [void]$menu.Items.Add($menuDetach)
     [void]$menu.Items.Add($menuDelete)
     [void]$menu.Items.Add($separator2)
@@ -1455,6 +1672,7 @@ Export-ModuleMember -Function @(
     "Initialize-SqlTreeView",
     "Refresh-SqlTreeServerNode",
     "Refresh-SqlTreeView",
+    "Select-SqlTreeDatabase",
     "Load-DatabasesIntoTree",
     "Load-TablesIntoNode",
     "Load-ColumnsIntoTableNode",

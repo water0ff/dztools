@@ -642,6 +642,21 @@ function Get-NetworkAdapterStatus {
     return $adapterStatus
 }
 
+function Get-UseDatabaseFromQuery {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Query
+    )
+    if ([string]::IsNullOrWhiteSpace($Query)) {
+        return $null
+    }
+    $matches = [regex]::Matches($Query, '(?im)^\s*use\s+(?:\[(?<db>[^\]]+)\]|(?<db>[^;\s]+))')
+    if ($matches.Count -eq 0) {
+        return $null
+    }
+    return $matches[$matches.Count - 1].Groups['db'].Value
+}
+
 function Get-SqlPortWithDebug {
     Write-DzDebug "`t[DEBUG] === INICIANDO BÚSQUEDA DE PUERTOS SQL ==="
     Write-DzDebug "`t[DEBUG] Fecha/Hora: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
@@ -1607,6 +1622,7 @@ Export-ModuleMember -Function @(
     'Download-FileWithProgressWpfStream',
     'Refresh-AdapterStatus',
     'Get-NetworkAdapterStatus',
+    'Get-UseDatabaseFromQuery',
     'Get-SqlPortWithDebug',
     'Show-SqlPortsInfo',
     'Show-WarnDialog',

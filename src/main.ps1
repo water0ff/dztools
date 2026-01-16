@@ -926,22 +926,7 @@ function New-MainForm {
                 Write-Host "[DEBUG] Desactivado" -ForegroundColor DarkGray
             })
     }
-    $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | Where-Object { $_.OperationalStatus -eq 'Up' } | ForEach-Object {
-        $interface = $_
-        $interface.GetIPProperties().UnicastAddresses | Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' } | ForEach-Object {
-            @{AdapterName = $interface.Name; IPAddress = $_.Address.ToString() }
-        }
-    }
-    if ($ipsWithAdapters.Count -gt 0) {
-        $ipsTextForLabel = $ipsWithAdapters | ForEach-Object { "- $($_.AdapterName) - IP: $($_.IPAddress)" } | Out-String
-        $txt_IpAdress.Text = $ipsTextForLabel
-        Write-DzDebug "`t[DEBUG] txt_IpAdress poblado con: '$($txt_IpAdress.Text)'"
-        Write-DzDebug "`t[DEBUG] txt_IpAdress.Text.Length: $($txt_IpAdress.Text.Length)"
-    } else {
-        $txt_IpAdress.Text = "No se encontraron direcciones IP"
-        Write-DzDebug "`t[DEBUG] No se encontraron IPs" -Color Yellow
-    }
-    Refresh-AdapterStatus
+    Start-NetworkDiscovery -Window $window -PortsTextBox $lblPort -IpsTextBox $txt_IpAdress -AdaptersTextBox $txt_AdapterStatus -ModulesPath $modulesPath
     Load-IniConnectionsToComboBox -Combo $txtServer
     $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler,
         $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
@@ -949,132 +934,6 @@ function New-MainForm {
         $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS, $btnRegisterDlls)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
-    }
-    Write-DzDebug "`t[DEBUG] lblPort encontrado: $($lblPort -ne $null)" -Color Cyan
-    $updateSqlPortsUi = {
-        param($portsResult)
-        $portsArray = @(
-            $portsResult |
-            Where-Object {
-                $_ -ne $null -and
-                $_.PSObject.Properties.Match('Port').Count -gt 0 -and
-                $_.PSObject.Properties.Match('Instance').Count -gt 0 -and
-                [string]::IsNullOrWhiteSpace([string]$_.Port) -eq $false
-            }
-        )
-        $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
-        Write-DzDebug "`t[DEBUG] En updateSqlPortsUi, lblPort es null: $($null -eq $lblPort)" -Color Yellow
-        if ($null -eq $lblPort) {
-            Write-DzDebug "`t[DEBUG] ERROR: lblPort es NULL en updateSqlPortsUi" -Color Red
-            if ($global:MainWindow -and $global:MainWindow.IsLoaded) {
-                $lblPort = $global:MainWindow.FindName("lblPort")
-                Write-DzDebug "`t[DEBUG] lblPort obtenido de MainWindow: $($lblPort -ne $null)" -Color Yellow
-            }
-        }
-        if ($null -eq $lblPort) {
-            Write-DzDebug "`t[DEBUG] No se pudo obtener lblPort, saliendo..." -Color Red
-            return
-        }
-        if ($portsArray.Count -gt 0) {
-            $sortedPorts = $portsArray | Sort-Object -Property Instance
-            $displayParts = @()
-            foreach ($port in $sortedPorts) {
-                $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
-                $displayParts += "$instanceName : $($port.Port)"
-            }
-            $global:sqlPortsData.DisplayText = $displayParts -join " | "
-            $global:sqlPortsData.DetailedText = $sortedPorts | ForEach-Object {
-                $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
-                "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
-            } | Out-String
-            $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
-            Write-DzDebug "`t[DEBUG] lblPort type: $($lblPort.GetType().FullName)" -Color Cyan
-            Write-DzDebug "`t[DEBUG] lblPort.Name: $($lblPort.Name)" -Color Cyan
-            $lblPort.Dispatcher.Invoke([action] {
-                    Write-DzDebug "`t[DEBUG] Actualizando UI con puertos encontrados" -Color Green
-                    $lblPort.Text = $global:sqlPortsData.DisplayText
-                    $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
-                    $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) {
-                        "Haz clic para mostrar en consola y copiar al portapapeles"
-                    } else {
-                        "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles"
-                    }
-                    $lblPort.UpdateLayout()
-                }, [System.Windows.Threading.DispatcherPriority]::Render)
-            Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
-            Write-Host $global:sqlPortsData.Summary -ForegroundColor White
-            Write-Host "Puertos: " -ForegroundColor White -NoNewline
-            foreach ($port in $sortedPorts) {
-                $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
-                Write-Host "$instanceName : " -ForegroundColor White -NoNewline
-                Write-Host "$($port.Port) " -ForegroundColor Magenta -NoNewline
-                if ($port -ne $sortedPorts[-1]) { Write-Host "| " -ForegroundColor Gray -NoNewline }
-            }
-            Write-Host ""
-            Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
-        } else {
-            Write-DzDebug "`t[DEBUG] No se encontraron puertos, actualizando UI..." -Color Yellow
-            $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
-            $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
-            $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
-            $lblPort.Dispatcher.Invoke([action] {
-                    Write-DzDebug "`t[DEBUG] Dentro del dispatcher: Estableciendo 'No se encontraron puertos SQL'" -Color Green
-                    $lblPort.Text = "No se encontraron puertos SQL"
-                    $lblPort.Tag = $global:sqlPortsData.DetailedText
-                    $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
-                    $lblPort.UpdateLayout()
-                    Write-DzDebug "`t[DEBUG] lblPort.Text después de actualizar: $($lblPort.Text)" -Color Green
-                }, [System.Windows.Threading.DispatcherPriority]::Render)
-        }
-    }.GetNewClosure()
-    $lblPort.Dispatcher.Invoke([action] {
-            $lblPort.Text = "Buscando puertos SQL..."
-            $lblPort.ToolTip = "Buscando puertos SQL..."
-            $lblPort.UpdateLayout()
-        }, [System.Windows.Threading.DispatcherPriority]::Render)
-    try {
-        $portsJob = Start-Job -ScriptBlock {
-            param($modulePath)
-            Import-Module $modulePath -Force -DisableNameChecking
-            Get-SqlPortWithDebug
-        } -ArgumentList (Join-Path $modulesPath "Utilities.psm1")
-        if ($portsJob) {
-            $portsTimer = New-Object System.Windows.Threading.DispatcherTimer
-            $portsTimer.Interval = [TimeSpan]::FromMilliseconds(300)
-            $portsTimer.Add_Tick({
-                    if ($null -eq $global:MainWindow -or -not $global:MainWindow.IsLoaded) {
-                        $portsTimer.Stop()
-                        Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
-                        Write-DzDebug "`t[DEBUG] Ventana cerrada, deteniendo búsqueda de puertos" -Color Yellow
-                        return
-                    }
-                    if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
-                        $portsTimer.Stop()
-                        $portsResult = @()
-                        try {
-                            $portsResult = @(Receive-Job $portsJob -ErrorAction SilentlyContinue)
-                            Write-DzDebug "`t[DEBUG] Resultados recibidos del job (raw count): $($portsResult.Count)" -Color Cyan
-                        } catch {
-                            Write-DzDebug "`t[DEBUG] Error recibiendo resultados del job: $($_.Exception.Message)" -Color Red
-                        }
-                        Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
-                        if ($global:MainWindow -and $global:MainWindow.IsLoaded -and $lblPort -and $lblPort.IsLoaded) {
-                            & $updateSqlPortsUi $portsResult
-                        } else {
-                            Write-DzDebug "`t[DEBUG] UI no disponible para actualizar resultados" -Color Yellow
-                        }
-                    }
-                }.GetNewClosure())
-            $portsTimer.Start()
-        } else {
-            Write-DzDebug "`t[DEBUG] No se pudo iniciar job, ejecutando sincrónicamente" -Color Yellow
-            $portsResult = Get-SqlPortWithDebug
-            & $updateSqlPortsUi $portsResult
-        }
-    } catch {
-        Write-DzDebug "`t[DEBUG] Error iniciando búsqueda de puertos SQL async: $($_.Exception.Message)" -Color Yellow
-        $portsResult = Get-SqlPortWithDebug
-        & $updateSqlPortsUi $portsResult
     }
     $lblPort.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
@@ -1602,6 +1461,55 @@ function New-MainForm {
             }
         })
 
+    function Update-SelectionFromUse {
+        param([string]$DatabaseName)
+        if ([string]::IsNullOrWhiteSpace($DatabaseName)) { return }
+        if (-not $global:cmbDatabases) { return }
+        $targetDb = $DatabaseName.Trim()
+        Write-DzDebug "`t[DEBUG][USE] Cambiando selección a DB='$targetDb'"
+        $selected = $false
+        if ($global:cmbDatabases.Items.Contains($targetDb)) {
+            $global:cmbDatabases.SelectedItem = $targetDb
+            $selected = $true
+        } else {
+            for ($i = 0; $i -lt $global:cmbDatabases.Items.Count; $i++) {
+                if ([string]$global:cmbDatabases.Items[$i] -eq [string]$targetDb) {
+                    $global:cmbDatabases.SelectedIndex = $i
+                    $selected = $true
+                    break
+                }
+            }
+        }
+        if (-not $selected -and $global:server -and $global:dbCredential) {
+            try {
+                $databases = Get-SqlDatabases -Server $global:server -Credential $global:dbCredential
+                if ($databases -and $databases.Count -gt 0) {
+                    $global:cmbDatabases.Items.Clear()
+                    foreach ($db in $databases) {
+                        [void]$global:cmbDatabases.Items.Add($db)
+                    }
+                    if ($global:cmbDatabases.Items.Contains($targetDb)) {
+                        $global:cmbDatabases.SelectedItem = $targetDb
+                        $selected = $true
+                    }
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][USE] Error refrescando bases: $($_.Exception.Message)"
+            }
+        }
+        if (-not $selected -or -not $global:cmbDatabases.SelectedItem) {
+            Write-DzDebug "`t[DEBUG][USE] No se encontró la base '$targetDb' en el ComboBox"
+            return
+        }
+        $global:database = $global:cmbDatabases.SelectedItem
+        if ($global:lblConnectionStatus) {
+            $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
+        }
+        if ($global:tvDatabases) {
+            Select-SqlTreeDatabase -TreeView $global:tvDatabases -Server $global:server -Database $global:database
+        }
+    }
+
     $cmbDatabases.Add_SelectionChanged({
             if ($global:cmbDatabases.SelectedItem) {
                 $global:database = $global:cmbDatabases.SelectedItem
@@ -1909,6 +1817,10 @@ Base de datos: $($global:database)
                                     }
                                 }
                                 return
+                            }
+                            $useDb = Get-UseDatabaseFromQuery -Query $query
+                            if ($useDb) {
+                                Update-SelectionFromUse -DatabaseName $useDb
                             }
                             if ($result.DebugLog -and $global:txtMessages) {
                                 try {

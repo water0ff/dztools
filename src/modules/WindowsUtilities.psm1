@@ -157,6 +157,296 @@ function Show-SystemComponents {
     }
     Write-DzDebug "`t[DEBUG]Show-SystemComponents: FIN"
 }
+
+function Start-NetworkDiscovery {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][System.Windows.Window]$Window,
+        [Parameter(Mandatory = $false)][System.Windows.Controls.TextBox]$PortsTextBox,
+        [Parameter(Mandatory = $false)][System.Windows.Controls.TextBox]$IpsTextBox,
+        [Parameter(Mandatory = $false)][System.Windows.Controls.TextBox]$AdaptersTextBox,
+        [Parameter(Mandatory = $true)][string]$ModulesPath
+    )
+    Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] INICIO"
+    $global:sqlPortsData = @{ Ports = @(); Summary = "Buscando puerto..."; DetailedText = "Buscando puerto..."; DisplayText = "Buscando puerto..." }
+
+    function Resolve-Control {
+        param([ref]$ControlRef, [string]$Name)
+        if (-not $ControlRef.Value -and $Window) {
+            $ControlRef.Value = $Window.FindName($Name)
+        }
+        return $ControlRef.Value
+    }
+
+    function Set-TextSafe {
+        param([System.Windows.Controls.TextBox]$Control, [string]$Text, [string]$Label)
+        if (-not $Control) {
+            Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Control '$Label' no disponible"
+            return $false
+        }
+        $Control.Dispatcher.Invoke([action] {
+                $Control.Text = $Text
+                $Control.UpdateLayout()
+            }, [System.Windows.Threading.DispatcherPriority]::Render)
+        return $true
+    }
+
+    [void](Resolve-Control -ControlRef ([ref]$PortsTextBox) -Name "lblPort")
+    [void](Resolve-Control -ControlRef ([ref]$IpsTextBox) -Name "txt_IpAdress")
+    [void](Resolve-Control -ControlRef ([ref]$AdaptersTextBox) -Name "txt_AdapterStatus")
+
+    if ($PortsTextBox) {
+        $PortsTextBox.Dispatcher.Invoke([action] {
+                $PortsTextBox.Text = "Buscando puerto..."
+                $PortsTextBox.ToolTip = "Buscando puerto..."
+                $PortsTextBox.UpdateLayout()
+            }, [System.Windows.Threading.DispatcherPriority]::Render)
+    }
+    if ($IpsTextBox) { Set-TextSafe -Control $IpsTextBox -Text "Buscando IPs..." -Label "txt_IpAdress" | Out-Null }
+    if ($AdaptersTextBox) { Set-TextSafe -Control $AdaptersTextBox -Text "Buscando Adaptadores..." -Label "txt_AdapterStatus" | Out-Null }
+
+    $updateSqlPortsUi = {
+        param($portsResult)
+        $portsArray = @(
+            $portsResult |
+            Where-Object {
+                $_ -ne $null -and
+                $_.PSObject.Properties.Match('Port').Count -gt 0 -and
+                $_.PSObject.Properties.Match('Instance').Count -gt 0 -and
+                [string]::IsNullOrWhiteSpace([string]$_.Port) -eq $false
+            }
+        )
+        $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
+        $portsLabel = Resolve-Control -ControlRef ([ref]$PortsTextBox) -Name "lblPort"
+        if ($portsArray.Count -gt 0) {
+            $sortedPorts = $portsArray | Sort-Object -Property Instance
+            $displayParts = @()
+            foreach ($port in $sortedPorts) {
+                $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
+                $displayParts += "$instanceName : $($port.Port)"
+            }
+            $global:sqlPortsData.DisplayText = $displayParts -join " | "
+            $global:sqlPortsData.DetailedText = $sortedPorts | ForEach-Object {
+                $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
+                "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
+            } | Out-String
+            $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
+            if ($portsLabel) {
+                $portsLabel.Dispatcher.Invoke([action] {
+                        Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Actualizando UI con puertos encontrados" -Color Green
+                        $portsLabel.Text = $global:sqlPortsData.DisplayText
+                        $portsLabel.Tag = $global:sqlPortsData.DetailedText.Trim()
+                        $portsLabel.ToolTip = if ($sortedPorts.Count -eq 1) {
+                            "Haz clic para mostrar en consola y copiar al portapapeles"
+                        } else {
+                            "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles"
+                        }
+                        $portsLabel.UpdateLayout()
+                    }, [System.Windows.Threading.DispatcherPriority]::Render)
+            } else {
+                Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] lblPort no disponible para actualizar"
+            }
+            Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
+            Write-Host $global:sqlPortsData.Summary -ForegroundColor White
+            Write-Host "Puertos: " -ForegroundColor White -NoNewline
+            foreach ($port in $sortedPorts) {
+                $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
+                Write-Host "$instanceName : " -ForegroundColor White -NoNewline
+                Write-Host "$($port.Port) " -ForegroundColor Magenta -NoNewline
+                if ($port -ne $sortedPorts[-1]) { Write-Host "| " -ForegroundColor Gray -NoNewline }
+            }
+            Write-Host ""
+            Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
+        } else {
+            Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] No se encontraron puertos, actualizando UI..." -Color Yellow
+            $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
+            $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
+            $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
+            if ($portsLabel) {
+                $portsLabel.Dispatcher.Invoke([action] {
+                        $portsLabel.Text = "No se encontraron puertos SQL"
+                        $portsLabel.Tag = $global:sqlPortsData.DetailedText
+                        $portsLabel.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
+                        $portsLabel.UpdateLayout()
+                    }, [System.Windows.Threading.DispatcherPriority]::Render)
+            } else {
+                Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] lblPort no disponible para actualizar"
+            }
+        }
+        return [bool]$portsLabel
+    }.GetNewClosure()
+
+    try {
+        $portsJob = Start-Job -ScriptBlock {
+            param($modulePath)
+            Import-Module $modulePath -Force -DisableNameChecking
+            Get-SqlPortWithDebug
+        } -ArgumentList (Join-Path $ModulesPath "Utilities.psm1")
+        if ($portsJob) {
+            $portsTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $portsTimer.Interval = [TimeSpan]::FromMilliseconds(300)
+            $portsTimer.Add_Tick({
+                    if ($null -eq $Window -or -not $Window.IsLoaded) {
+                        $portsTimer.Stop()
+                        Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
+                        Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Ventana cerrada, deteniendo búsqueda de puertos" -Color Yellow
+                        return
+                    }
+                    if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
+                        $portsTimer.Stop()
+                        $portsResult = @()
+                        try {
+                            $portsResult = @(Receive-Job $portsJob -ErrorAction SilentlyContinue)
+                            Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Resultados recibidos del job (raw count): $($portsResult.Count)" -Color Cyan
+                        } catch {
+                            Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Error recibiendo resultados del job: $($_.Exception.Message)" -Color Red
+                        }
+                        Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
+                        $updated = & $updateSqlPortsUi $portsResult
+                        if (-not $updated) {
+                            Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] UI no disponible, reintentando update de puertos" -Color Yellow
+                            $portsPendingTimer = New-Object System.Windows.Threading.DispatcherTimer
+                            $portsPendingTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+                            $portsPendingTimer.Add_Tick({
+                                    $label = Resolve-Control -ControlRef ([ref]$PortsTextBox) -Name "lblPort"
+                                    if ($label) {
+                                        & $updateSqlPortsUi $global:sqlPortsData.Ports
+                                        $portsPendingTimer.Stop()
+                                    }
+                                }.GetNewClosure())
+                            $portsPendingTimer.Start()
+                        }
+                    }
+                }.GetNewClosure())
+            $portsTimer.Start()
+        } else {
+            Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] No se pudo iniciar job, ejecutando sincrónicamente" -Color Yellow
+            $portsResult = Get-SqlPortWithDebug
+            & $updateSqlPortsUi $portsResult | Out-Null
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Error iniciando búsqueda de puertos SQL async: $($_.Exception.Message)" -Color Yellow
+        $portsResult = Get-SqlPortWithDebug
+        & $updateSqlPortsUi $portsResult | Out-Null
+    }
+
+    $ipsJob = Start-Job -ScriptBlock {
+        $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | Where-Object { $_.OperationalStatus -eq 'Up' } | ForEach-Object {
+            $interface = $_
+            $interface.GetIPProperties().UnicastAddresses | Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' } | ForEach-Object {
+                [pscustomobject]@{ AdapterName = $interface.Name; IPAddress = $_.Address.ToString() }
+            }
+        }
+        return $ipsWithAdapters
+    }
+    if ($ipsJob) {
+        $ipsTimer = New-Object System.Windows.Threading.DispatcherTimer
+        $ipsTimer.Interval = [TimeSpan]::FromMilliseconds(300)
+        $ipsTimer.Add_Tick({
+                if ($null -eq $Window -or -not $Window.IsLoaded) {
+                    $ipsTimer.Stop()
+                    Remove-Job $ipsJob -Force -ErrorAction SilentlyContinue
+                    Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Ventana cerrada, deteniendo búsqueda de IPs" -Color Yellow
+                    return
+                }
+                if ($ipsJob.State -in @("Completed", "Failed", "Stopped")) {
+                    $ipsTimer.Stop()
+                    $ipsResult = @()
+                    try {
+                        $ipsResult = @(Receive-Job $ipsJob -ErrorAction SilentlyContinue)
+                        Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Resultados IPs: $($ipsResult.Count)" -Color Cyan
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Error recibiendo IPs: $($_.Exception.Message)" -Color Red
+                    }
+                    Remove-Job $ipsJob -Force -ErrorAction SilentlyContinue
+                    $ipsLabel = Resolve-Control -ControlRef ([ref]$IpsTextBox) -Name "txt_IpAdress"
+                    $ipsText = if ($ipsResult.Count -gt 0) {
+                        $ipsResult | ForEach-Object { "- $($_.AdapterName) - IP: $($_.IPAddress)" } | Out-String
+                    } else {
+                        "No se encontraron direcciones IP"
+                    }
+                    if (-not (Set-TextSafe -Control $ipsLabel -Text $ipsText.TrimEnd() -Label "txt_IpAdress")) {
+                        Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] UI IPs no disponible, reintentando" -Color Yellow
+                        $ipsPendingTimer = New-Object System.Windows.Threading.DispatcherTimer
+                        $ipsPendingTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+                        $ipsPendingTimer.Add_Tick({
+                                $label = Resolve-Control -ControlRef ([ref]$IpsTextBox) -Name "txt_IpAdress"
+                                if ($label) {
+                                    Set-TextSafe -Control $label -Text $ipsText.TrimEnd() -Label "txt_IpAdress" | Out-Null
+                                    $ipsPendingTimer.Stop()
+                                }
+                            }.GetNewClosure())
+                        $ipsPendingTimer.Start()
+                    }
+                }
+            }.GetNewClosure())
+        $ipsTimer.Start()
+    }
+
+    $adaptersJob = Start-Job -ScriptBlock {
+        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' }
+        $profiles = Get-NetConnectionProfile -ErrorAction SilentlyContinue
+        $adapterInfo = foreach ($adapter in $adapters) {
+            $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
+            $networkType = if ($profile) {
+                switch ($profile.NetworkCategory) {
+                    'Private' { "Privada" }
+                    'Public' { "Pública" }
+                    'DomainAuthenticated' { "Dominio" }
+                    default { "Desconocida" }
+                }
+            } else {
+                "Sin perfil"
+            }
+            [pscustomobject]@{ Name = $adapter.Name; NetworkType = $networkType }
+        }
+        return $adapterInfo
+    }
+    if ($adaptersJob) {
+        $adaptersTimer = New-Object System.Windows.Threading.DispatcherTimer
+        $adaptersTimer.Interval = [TimeSpan]::FromMilliseconds(300)
+        $adaptersTimer.Add_Tick({
+                if ($null -eq $Window -or -not $Window.IsLoaded) {
+                    $adaptersTimer.Stop()
+                    Remove-Job $adaptersJob -Force -ErrorAction SilentlyContinue
+                    Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Ventana cerrada, deteniendo búsqueda de adaptadores" -Color Yellow
+                    return
+                }
+                if ($adaptersJob.State -in @("Completed", "Failed", "Stopped")) {
+                    $adaptersTimer.Stop()
+                    $adaptersResult = @()
+                    try {
+                        $adaptersResult = @(Receive-Job $adaptersJob -ErrorAction SilentlyContinue)
+                        Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Adaptadores activos: $($adaptersResult.Count)" -Color Cyan
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] Error recibiendo adaptadores: $($_.Exception.Message)" -Color Red
+                    }
+                    Remove-Job $adaptersJob -Force -ErrorAction SilentlyContinue
+                    $adapterLabel = Resolve-Control -ControlRef ([ref]$AdaptersTextBox) -Name "txt_AdapterStatus"
+                    $adapterText = if ($adaptersResult.Count -gt 0) {
+                        $adaptersResult | ForEach-Object { "$($_.Name): $($_.NetworkType)" } | Out-String
+                    } else {
+                        "Sin adaptadores activos"
+                    }
+                    if (-not (Set-TextSafe -Control $adapterLabel -Text $adapterText.TrimEnd() -Label "txt_AdapterStatus")) {
+                        Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] UI adaptadores no disponible, reintentando" -Color Yellow
+                        $adaptersPendingTimer = New-Object System.Windows.Threading.DispatcherTimer
+                        $adaptersPendingTimer.Interval = [TimeSpan]::FromMilliseconds(500)
+                        $adaptersPendingTimer.Add_Tick({
+                                $label = Resolve-Control -ControlRef ([ref]$AdaptersTextBox) -Name "txt_AdapterStatus"
+                                if ($label) {
+                                    Set-TextSafe -Control $label -Text $adapterText.TrimEnd() -Label "txt_AdapterStatus" | Out-Null
+                                    $adaptersPendingTimer.Stop()
+                                }
+                            }.GetNewClosure())
+                        $adaptersPendingTimer.Start()
+                    }
+                }
+            }.GetNewClosure())
+        $adaptersTimer.Start()
+    }
+    Write-DzDebug "`t[DEBUG][Start-NetworkDiscovery] FIN"
+}
 function Get-NSPrinters {
     [CmdletBinding()]
     param()
@@ -1520,5 +1810,5 @@ function Show-FirewallConfigDialog {
     Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] FIN"
 }
 Export-ModuleMember -Function @('Show-SystemComponents', 'Start-SystemUpdate', 'show-NSPrinters', 'Invoke-ClearPrintJobs',
-    'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog',
+    'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog', 'Start-NetworkDiscovery',
     'Show-InstallPrinterDialog')

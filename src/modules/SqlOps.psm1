@@ -1211,11 +1211,30 @@ Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
                 if (-not $backupFileName.ToLower().EndsWith(".bak")) { $backupFileName = "$backupFileName.bak"; $txtNombre.Text = $backupFileName }
                 $invalid = [System.IO.Path]::GetInvalidFileNameChars()
                 if ($backupFileName.IndexOfAny($invalid) -ge 0) { Show-WarnDialog -Message "El nombre contiene caracteres no válidos..." -Title "Nombre inválido" -Owner $window; Reset-BackupUI -ProgressText "Nombre inválido"; return }
-                if (Test-Path $scriptBackupPath) {
+                $backupExists = $false
+                try {
+                    $backupExists = Test-Path -LiteralPath $scriptBackupPath -ErrorAction Stop
+                } catch {
+                    Write-DzDebug "`t[DEBUG][Show-BackupDialog] No se pudo validar ruta backup: $scriptBackupPath | $($_.Exception.Message)"
+                    $backupExists = $false
+                }
+                if ($backupExists) {
                     $choice = Ui-Confirm "Ya existe un respaldo con ese nombre en:`n$scriptBackupPath`n`n¿Deseas sobrescribirlo?" "Archivo existente" $window
                     if (-not $choice) { $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'; $txtNombre.Text = "$Database-$timestampsDefault.bak"; Add-Log "⚠️ Operación cancelada: el archivo ya existe. Se sugirió un nuevo nombre."; Reset-BackupUI -ProgressText "Cancelado (elige otro nombre y vuelve a intentar)"; return }
                 }
-                if ($sameHost) { if (-not (Test-Path $sqlBackupFolder)) { New-Item -ItemType Directory -Path $sqlBackupFolder -Force | Out-Null } } else { $uncFolder = "\\$machineName\C$\Temp\SQLBackups"; if (-not (Test-Path $uncFolder)) { Add-Log "⚠️ No pude validar la carpeta UNC: $uncFolder (puede ser permisos). SQL intentará escribir en $sqlBackupFolder en el servidor." } }
+                if ($sameHost) {
+                    if (-not (Test-Path -LiteralPath $sqlBackupFolder)) { New-Item -ItemType Directory -Path $sqlBackupFolder -Force | Out-Null }
+                } else {
+                    $uncFolder = "\\$machineName\C$\Temp\SQLBackups"
+                    $uncExists = $false
+                    try {
+                        $uncExists = Test-Path -LiteralPath $uncFolder -ErrorAction Stop
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][Show-BackupDialog] Sin permisos para validar UNC: $uncFolder | $($_.Exception.Message)"
+                        $uncExists = $false
+                    }
+                    if (-not $uncExists) { Add-Log "⚠️ No pude validar la carpeta UNC: $uncFolder (puede ser permisos). SQL intentará escribir en $sqlBackupFolder en el servidor." }
+                }
                 $credential = New-SafeCredential -Username $User -PlainPassword $Password
                 Add-Log "✓ Credenciales listas"
                 $backupQuery = @"

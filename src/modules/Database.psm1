@@ -377,7 +377,13 @@ ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name
     $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $query -Credential $Credential
     if (-not $result.Success) { throw "Error obteniendo bases de datos: $($result.ErrorMessage)" }
     $databases = @()
-    foreach ($row in $result.DataTable.Rows) { $databases += $row["name"] }
+    foreach ($row in $result.DataTable.Rows) {
+        $databases += [PSCustomObject]@{
+            Name   = $row["name"]
+            State  = $row["state_desc"]
+            Access = $row["user_access_desc"]
+        }
+    }
     $databases
 }
 function Backup-Database {
@@ -1633,19 +1639,79 @@ function Show-ErrorResultTab {
         $ResultsTabControl.SelectedIndex = 0
     }
 }
-function Get-UseDatabaseFromQuery {
-    [CmdletBinding()]
+# Busca la sección donde cargas el ComboBox de bases de datos y reemplázala con:
+
+function Update-DatabasesComboBox {
     param(
-        [Parameter(Mandatory = $true)][string]$Query
+        [Parameter(Mandatory = $true)]$ComboBox,
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
     )
-    if ([string]::IsNullOrWhiteSpace($Query)) {
-        return $null
+
+    try {
+        Write-DzDebug "`t[DEBUG] Cargando bases de datos al ComboBox..."
+
+        $databases = Get-SqlDatabases -Server $Server -Credential $Credential
+
+        $ComboBox.Items.Clear()
+
+        foreach ($dbInfo in $databases) {
+            $dbName = if ($dbInfo -is [string]) {
+                $dbInfo
+            } else {
+                $dbInfo.Name
+            }
+
+            $state = if ($dbInfo -is [PSCustomObject] -and $dbInfo.State) {
+                $dbInfo.State
+            } else {
+                "ONLINE"
+            }
+
+            $access = if ($dbInfo -is [PSCustomObject] -and $dbInfo.Access) {
+                $dbInfo.Access
+            } else {
+                "MULTI_USER"
+            }
+
+            # Crear texto del item
+            $itemText = $dbName
+
+            if ($state -ne "ONLINE") {
+                $itemText += " ($state)"
+            } elseif ($access -eq "READ_ONLY") {
+                $itemText += " (READ_ONLY)"
+            } elseif ($access -eq "SINGLE_USER") {
+                $itemText += " (SINGLE_USER)"
+            }
+
+            # Agregar al ComboBox
+            # Nota: Guardamos el objeto completo para poder extraer el nombre real después
+            $item = [PSCustomObject]@{
+                DisplayText  = $itemText
+                DatabaseName = $dbName
+                State        = $state
+                Access       = $access
+            }
+
+            [void]$ComboBox.Items.Add($item)
+        }
+
+        Write-DzDebug "`t[DEBUG] ComboBox cargado con $($ComboBox.Items.Count) bases de datos"
+
+        # Seleccionar 'master' por defecto
+        for ($i = 0; $i -lt $ComboBox.Items.Count; $i++) {
+            $item = $ComboBox.Items[$i]
+            if ($item.DatabaseName -eq "master") {
+                $ComboBox.SelectedIndex = $i
+                break
+            }
+        }
+
+    } catch {
+        Write-DzDebug "`t[DEBUG] Error cargando bases al ComboBox: $($_.Exception.Message)" -Color Red
+        throw
     }
-    $matches = [regex]::Matches($Query, '(?im)^\s*use\s+(?:\[(?<db>[^\]]+)\]|(?<db>[^;\s]+))')
-    if ($matches.Count -eq 0) {
-        return $null
-    }
-    return $matches[$matches.Count - 1].Groups['db'].Value
 }
 Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet',
     'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery',
@@ -1671,5 +1737,4 @@ Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSe
     'Get-ResultTabHeaderText',
     'Get-ExportableResultTabs',
     'Write-DataTableConsole',
-    'Show-ErrorResultTab',
-    'Get-UseDatabaseFromQuery')
+    'Show-ErrorResultTab')

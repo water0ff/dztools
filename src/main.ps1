@@ -1450,17 +1450,41 @@ function New-MainForm {
         })
 
     $cmbDatabases.Add_SelectionChanged({
-            if ($global:cmbDatabases.SelectedItem) {
-                $global:database = $global:cmbDatabases.SelectedItem
-                if ($global:lblConnectionStatus.Content -like "Conectado a:*") {
-                    $global:lblConnectionStatus.Content = @"
-Conectado a:
-Servidor: $($global:server)
-Base de datos: $($global:database)
-"@.Trim()
+            param($sender, $e)
+            if ($sender.SelectedItem) {
+                $selectedItem = $sender.SelectedItem
+                $dbName = if ($selectedItem -is [PSCustomObject] -and $selectedItem.DatabaseName) {
+                    $selectedItem.DatabaseName
+                } elseif ($selectedItem -is [string]) {
+                    $selectedItem -replace ' \(.*?\)$', ''
+                } else {
+                    $selectedItem.ToString() -replace ' \(.*?\)$', ''
+                }
+                Write-DzDebug "`t[DEBUG] ComboBox DB seleccionada: '$dbName'"
+                if ($selectedItem -is [PSCustomObject] -and $selectedItem.State -ne "ONLINE") {
+                    Ui-Warn "La base de datos '$dbName' está en estado '$($selectedItem.State)'.`nNo se puede usar hasta que esté ONLINE." "Base de datos no disponible" $global:MainWindow
+                    if ($global:database) {
+                        for ($i = 0; $i -lt $sender.Items.Count; $i++) {
+                            $item = $sender.Items[$i]
+                            $itemDbName = if ($item -is [PSCustomObject]) { $item.DatabaseName } else { $item }
+                            if ($itemDbName -eq $global:database) {
+                                $sender.SelectedIndex = $i
+                                break
+                            }
+                        }
+                    }
+                    return
+                }
+                $global:database = $dbName
+                if ($global:lblConnectionStatus) {
+                    $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
+                }
+                if ($global:tvDatabases) {
+                    Select-SqlTreeDatabase -TreeView $global:tvDatabases -Server $global:server -Database $global:database
                 }
             }
         })
+
     $btnExecute.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Ejecutar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n`t- - - Ejecutando consulta - - -" -ForegroundColor Gray
@@ -1757,10 +1781,6 @@ Base de datos: $($global:database)
                                 }
                                 return
                             }
-                            $useDb = Get-UseDatabaseFromQuery -Query $query
-                            if ($useDb) {
-                                Update-SelectionFromUse -DatabaseName $useDb
-                            }
                             if ($result.DebugLog -and $global:txtMessages) {
                                 try {
                                     $dbg = ($result.DebugLog -join "`n")
@@ -1933,54 +1953,6 @@ Base de datos: $($global:database)
                 Write-DzDebug "`t[DEBUG][btnExport] CATCH: $($_.Exception.Message)" -Color Red
             }
         })
-    function Update-SelectionFromUse {
-        param([string]$DatabaseName)
-        if ([string]::IsNullOrWhiteSpace($DatabaseName)) { return }
-        if (-not $global:cmbDatabases) { return }
-        $targetDb = $DatabaseName.Trim()
-        Write-DzDebug "`t[DEBUG][USE] Cambiando selección a DB='$targetDb'"
-        $selected = $false
-        if ($global:cmbDatabases.Items.Contains($targetDb)) {
-            $global:cmbDatabases.SelectedItem = $targetDb
-            $selected = $true
-        } else {
-            for ($i = 0; $i -lt $global:cmbDatabases.Items.Count; $i++) {
-                if ([string]$global:cmbDatabases.Items[$i] -eq [string]$targetDb) {
-                    $global:cmbDatabases.SelectedIndex = $i
-                    $selected = $true
-                    break
-                }
-            }
-        }
-        if (-not $selected -and $global:server -and $global:dbCredential) {
-            try {
-                $databases = Get-SqlDatabases -Server $global:server -Credential $global:dbCredential
-                if ($databases -and $databases.Count -gt 0) {
-                    $global:cmbDatabases.Items.Clear()
-                    foreach ($db in $databases) {
-                        [void]$global:cmbDatabases.Items.Add($db)
-                    }
-                    if ($global:cmbDatabases.Items.Contains($targetDb)) {
-                        $global:cmbDatabases.SelectedItem = $targetDb
-                        $selected = $true
-                    }
-                }
-            } catch {
-                Write-DzDebug "`t[DEBUG][USE] Error refrescando bases: $($_.Exception.Message)"
-            }
-        }
-        if (-not $selected -or -not $global:cmbDatabases.SelectedItem) {
-            Write-DzDebug "`t[DEBUG][USE] No se encontró la base '$targetDb' en el ComboBox"
-            return
-        }
-        $global:database = $global:cmbDatabases.SelectedItem
-        if ($global:lblConnectionStatus) {
-            $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
-        }
-        if ($global:tvDatabases) {
-            Select-SqlTreeDatabase -TreeView $global:tvDatabases -Server $global:server -Database $global:database
-        }
-    }
     $window.Add_KeyDown({
             param($s, $e)
             if ($e.Key -eq 'F5' -and $btnExecute.IsEnabled) {

@@ -837,17 +837,15 @@ function Add-DatabaseContextMenu {
     $menuSize = New-Object System.Windows.Controls.MenuItem
     $menuSize.Header = "📊 Ver Tamaño..."
     $menuSize.Add_Click({
+            Write-DzDebug "`t[DEBUG][TreeView] Click Context SIZE DB Menu"
             $cm = $this.Parent
             $node = $null
             if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
             if ($null -eq $node -or $null -eq $node.Tag) { return }
-
             $dbName = [string]$node.Tag.Database
             $server = [string]$node.Tag.Server
             $credential = $node.Tag.Credential
-
             Write-DzDebug "`t[DEBUG][TreeView] Context SIZE DB: Server='$server' DB='$dbName'"
-
             Show-DatabaseSizeDialog -Server $server -Database $dbName -Credential $credential
         })
     $menuRepair = New-Object System.Windows.Controls.MenuItem

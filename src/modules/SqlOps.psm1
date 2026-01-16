@@ -1677,10 +1677,11 @@ function Show-DatabaseSizeDialog {
 
     Add-Type -AssemblyName PresentationFramework
 
-    # Consultar tamaños
-    $sizeQuery = @"
-USE [$Database];
+    # Escapar nombre de base de datos
+    $safeDbName = $Database -replace ']', ']]'
 
+    # Consultar tamaños - SIN usar USE, directamente en la query
+    $sizeQuery = @"
 SELECT
     name AS FileName,
     physical_name AS FilePath,
@@ -1689,29 +1690,39 @@ SELECT
     CAST(FILEPROPERTY(name, 'SpaceUsed') * 8.0 / 1024 AS DECIMAL(18,2)) AS UsedMB,
     CAST((size - FILEPROPERTY(name, 'SpaceUsed')) * 8.0 / 1024 AS DECIMAL(18,2)) AS FreeMB,
     CAST(FILEPROPERTY(name, 'SpaceUsed') * 100.0 / size AS DECIMAL(5,2)) AS PercentUsed
-FROM sys.database_files
+FROM [$safeDbName].sys.database_files
 ORDER BY type, name;
 "@
 
+    Write-DzDebug "`t[DEBUG][DBSize] Ejecutando query..."
     $result = Invoke-SqlQuery -Server $Server -Database $Database -Query $sizeQuery -Credential $Credential
 
     if (-not $result.Success) {
+        Write-DzDebug "`t[DEBUG][DBSize] ERROR en query: $($result.ErrorMessage)"
         Ui-Error "Error al consultar el tamaño de la base de datos:`n`n$($result.ErrorMessage)" "Error" $null
         return
     }
 
-    # Construir tabla HTML para mostrar
-    $htmlRows = ""
+    # Verificar que hay datos
+    if (-not $result.DataTable -or $result.DataTable.Rows.Count -eq 0) {
+        Write-DzDebug "`t[DEBUG][DBSize] No se obtuvieron filas"
+        Ui-Error "No se pudo obtener información de tamaño de la base de datos." "Error" $null
+        return
+    }
+
+    Write-DzDebug "`t[DEBUG][DBSize] Se obtuvieron $($result.DataTable.Rows.Count) archivos"
+
+    # Construir filas dinámicas del XAML
+    $dataRows = New-Object System.Collections.ArrayList
     $totalSizeMB = 0
     $totalUsedMB = 0
+    $rowIndex = 1
 
     foreach ($row in $result.DataTable.Rows) {
-        $fileName = $row.FileName
-        $filePath = $row.FilePath
-        $fileType = $row.FileType
+        $fileName = [string]$row.FileName
+        $fileType = [string]$row.FileType
         $sizeMB = [decimal]$row.SizeMB
         $usedMB = [decimal]$row.UsedMB
-        $freeMB = [decimal]$row.FreeMB
         $percentUsed = [decimal]$row.PercentUsed
 
         $totalSizeMB += $sizeMB
@@ -1719,35 +1730,49 @@ ORDER BY type, name;
 
         $typeIcon = if ($fileType -eq "ROWS") { "📄" } else { "📋" }
 
-        $htmlRows += @"
-        <Border Grid.Row="$($result.DataTable.Rows.IndexOf($row) + 1)" Grid.Column="0" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8">
-            <TextBlock Text="$typeIcon $fileName" FontWeight="SemiBold"/>
-        </Border>
-        <Border Grid.Row="$($result.DataTable.Rows.IndexOf($row) + 1)" Grid.Column="1" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8">
-            <TextBlock Text="$fileType"/>
-        </Border>
-        <Border Grid.Row="$($result.DataTable.Rows.IndexOf($row) + 1)" Grid.Column="2" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8" Background="{DynamicResource ControlBg}">
-            <TextBlock Text="$($sizeMB.ToString('N2')) MB" HorizontalAlignment="Right" FontFamily="Consolas"/>
-        </Border>
-        <Border Grid.Row="$($result.DataTable.Rows.IndexOf($row) + 1)" Grid.Column="3" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8">
-            <TextBlock Text="$($usedMB.ToString('N2')) MB" HorizontalAlignment="Right" FontFamily="Consolas"/>
-        </Border>
-        <Border Grid.Row="$($result.DataTable.Rows.IndexOf($row) + 1)" Grid.Column="4" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,0,1" Padding="8">
-            <TextBlock Text="$($percentUsed.ToString('N2'))%" HorizontalAlignment="Right" FontFamily="Consolas" Foreground="{DynamicResource AccentPrimary}"/>
-        </Border>
+        # Escapar para XML
+        $safeFileName = [Security.SecurityElement]::Escape($fileName)
+        $safeFileType = [Security.SecurityElement]::Escape($fileType)
+
+        $rowXaml = @"
+                    <!-- Row $rowIndex -->
+                    <Border Grid.Row="$rowIndex" Grid.Column="0" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8">
+                        <TextBlock Text="$typeIcon $safeFileName" FontWeight="SemiBold"/>
+                    </Border>
+                    <Border Grid.Row="$rowIndex" Grid.Column="1" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8">
+                        <TextBlock Text="$safeFileType"/>
+                    </Border>
+                    <Border Grid.Row="$rowIndex" Grid.Column="2" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8" Background="{DynamicResource ControlBg}">
+                        <TextBlock Text="$($sizeMB.ToString('N2')) MB" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                    </Border>
+                    <Border Grid.Row="$rowIndex" Grid.Column="3" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8">
+                        <TextBlock Text="$($usedMB.ToString('N2')) MB" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                    </Border>
+                    <Border Grid.Row="$rowIndex" Grid.Column="4" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,0,1" Padding="8">
+                        <TextBlock Text="$($percentUsed.ToString('N2'))%" HorizontalAlignment="Right" FontFamily="Consolas" Foreground="{DynamicResource AccentPrimary}"/>
+                    </Border>
 "@
+        [void]$dataRows.Add($rowXaml)
+        $rowIndex++
     }
 
     $totalFreeMB = $totalSizeMB - $totalUsedMB
     $totalPercentUsed = if ($totalSizeMB -gt 0) { ($totalUsedMB / $totalSizeMB) * 100 } else { 0 }
 
-    $safeDb = [Security.SecurityElement]::Escape($Database)
-    $rowCount = $result.DataTable.Rows.Count + 2
+    Write-DzDebug "`t[DEBUG][DBSize] Totales: Size=$($totalSizeMB.ToString('N2')) MB, Used=$($totalUsedMB.ToString('N2')) MB, Free=$($totalFreeMB.ToString('N2')) MB, PercentUsed=$($totalPercentUsed.ToString('N2'))%"
 
+    $safeDb = [Security.SecurityElement]::Escape($Database)
+    $totalRowCount = $result.DataTable.Rows.Count + 2  # Headers + data + total
+
+    # Generar definiciones de filas
     $rowDefs = ""
-    for ($i = 0; $i -lt $rowCount; $i++) {
-        $rowDefs += "<RowDefinition Height='Auto'/>`n"
+    for ($i = 0; $i -lt $totalRowCount; $i++) {
+        $rowDefs += "                        <RowDefinition Height='Auto'/>`n"
     }
+
+    # Unir todas las filas de datos
+    $allDataRows = $dataRows -join "`n"
+    $totalRowIndex = $result.DataTable.Rows.Count + 1
 
     $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -1825,7 +1850,7 @@ ORDER BY type, name;
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <Grid>
                     <Grid.RowDefinitions>
-                        $rowDefs
+$rowDefs
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*"/>
@@ -1858,27 +1883,27 @@ ORDER BY type, name;
                     </Border>
 
                     <!-- Data rows -->
-                    $htmlRows
+$allDataRows
 
                     <!-- Total row -->
-                    <Border Grid.Row="$($result.DataTable.Rows.Count + 1)" Grid.Column="0" Grid.ColumnSpan="2"
+                    <Border Grid.Row="$totalRowIndex" Grid.Column="0" Grid.ColumnSpan="2"
                             Background="{DynamicResource AccentMagenta}" BorderBrush="{DynamicResource BorderBrushColor}"
                             BorderThickness="1,2,1,1" Padding="8">
                         <TextBlock Text="📦 TOTAL" FontWeight="Bold" Foreground="{DynamicResource FormFg}" FontSize="13"/>
                     </Border>
-                    <Border Grid.Row="$($result.DataTable.Rows.Count + 1)" Grid.Column="2"
+                    <Border Grid.Row="$totalRowIndex" Grid.Column="2"
                             Background="{DynamicResource AccentMagenta}" BorderBrush="{DynamicResource BorderBrushColor}"
                             BorderThickness="0,2,1,1" Padding="8">
                         <TextBlock Text="$($totalSizeMB.ToString('N2')) MB" HorizontalAlignment="Right"
                                    FontFamily="Consolas" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
                     </Border>
-                    <Border Grid.Row="$($result.DataTable.Rows.Count + 1)" Grid.Column="3"
+                    <Border Grid.Row="$totalRowIndex" Grid.Column="3"
                             Background="{DynamicResource AccentMagenta}" BorderBrush="{DynamicResource BorderBrushColor}"
                             BorderThickness="0,2,1,1" Padding="8">
                         <TextBlock Text="$($totalUsedMB.ToString('N2')) MB" HorizontalAlignment="Right"
                                    FontFamily="Consolas" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
                     </Border>
-                    <Border Grid.Row="$($result.DataTable.Rows.Count + 1)" Grid.Column="4"
+                    <Border Grid.Row="$totalRowIndex" Grid.Column="4"
                             Background="{DynamicResource AccentMagenta}" BorderBrush="{DynamicResource BorderBrushColor}"
                             BorderThickness="0,2,1,1" Padding="8">
                         <TextBlock Text="$($totalPercentUsed.ToString('N2'))%" HorizontalAlignment="Right"
@@ -1923,6 +1948,7 @@ ORDER BY type, name;
 "@
 
     try {
+        Write-DzDebug "`t[DEBUG][DBSize] Creando ventana WPF..."
         $ui = New-WpfWindow -Xaml $xaml -PassThru
         $window = $ui.Window
         $theme = Get-DzUiTheme
@@ -1952,9 +1978,11 @@ ORDER BY type, name;
                 }
             })
 
+        Write-DzDebug "`t[DEBUG][DBSize] Mostrando diálogo..."
         $null = $window.ShowDialog()
+        Write-DzDebug "`t[DEBUG][DBSize] Diálogo cerrado"
     } catch {
-        Write-DzDebug "`t[DEBUG][DBSize] ERROR creando ventana: $($_.Exception.Message)" -Color Red
+        Write-DzDebug "`t[DEBUG][DBSize] ERROR creando ventana: $($_.Exception.Message)"
         Ui-Error "Error al mostrar el diálogo: $($_.Exception.Message)" "Error" $null
     }
 }
@@ -1992,7 +2020,7 @@ function Show-DatabaseRepairDialog {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Reparación de Base de Datos"
-        Height="680" Width="700"
+        Height="720" Width="700"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -2636,7 +2664,7 @@ Esta operación:
     try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch { }
 }
 Export-ModuleMember -Function @('Show-RestoreDialog', 'Show-AttachDialog',
-                                'Reset-RestoreUI', 'Reset-AttachUI',
-                                'Show-BackupDialog', 'Reset-BackupUI',
-                                'Show-DetachDialog', 'Reset-DetachUI','Show-DatabaseSizeDialog',
-                                'Show-DatabaseRepairDialog', 'Reset-DatabaseRepairUI')
+    'Reset-RestoreUI', 'Reset-AttachUI',
+    'Show-BackupDialog', 'Reset-BackupUI',
+    'Show-DetachDialog', 'Reset-DetachUI', 'Show-DatabaseSizeDialog',
+    'Show-DatabaseRepairDialog', 'Reset-DatabaseRepairUI')

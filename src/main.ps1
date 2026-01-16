@@ -70,11 +70,12 @@ foreach ($module in $modules) {
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
 - SSMS Portable
-    * TreeView Permite Eliminar bases de datos
-    * Ahora puedes crear bases de datos
-    * Restaurar permite seleccionar ruta de archivos logicos
+    * TreeView nuevo!
+    * Crear y eliminar bases de datos
     * Attach / detach de base de datos
-    * Backup de bases de datos
+    * Backup de bases de datos con compresión
+    * Restaurar permite seleccionar ruta de archivos logicos
+    * Funciones para ver tamaño y reparar base de datos
     * Ejecución de queries
     * Exportar resultados a CSV/Excel
     * Queries predefinidas

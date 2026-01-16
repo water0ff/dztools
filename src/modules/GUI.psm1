@@ -29,6 +29,13 @@ function Get-DzUiTheme {
             AccentDatabase = "#A7C6DB"
             AccentDatabaseHover = "#93B4CC"
             OnAccentForeground = "#FFFFFF"
+            AccentGreen = "#22C55E"
+            AccentGreenHover = "#16A34A"
+            AccentDisconnectBlue = "#3B82F6"
+            AccentDisconnectBlueHover = "#2563EB"
+            AccentRed = "#EF4444"
+            AccentRedHover = "#DC2626"
+
         }
         Dark  = @{
             FormBackground = "#000000"; FormForeground = "#FFFFFF"
@@ -52,6 +59,13 @@ function Get-DzUiTheme {
             AccentDatabase = "#A7C6DB"
             AccentDatabaseHover = "#93B4CC"
             OnAccentForeground = "#FFFFFF"
+            AccentGreen = "#22C55E"
+            AccentGreenHover = "#16A34A"
+            AccentDisconnectBlue = "#3B82F6"
+            AccentDisconnectBlueHover = "#2563EB"
+            AccentRed = "#EF4444"
+            AccentRedHover = "#DC2626"
+
         }
     }
     $selectedMode = if ($iniMode -match '^(dark|light)$') { ($iniMode.Substring(0, 1).ToUpper() + $iniMode.Substring(1).ToLower()) } else { "Dark" }
@@ -127,6 +141,12 @@ function Set-DzWpfThemeResources {
     Set-BrushResource -Resources $Window.Resources -Key "AccentMagentaHover" -Hex $Theme.AccentMagentaHover
     Set-BrushResource -Resources $Window.Resources -Key "AccentDatabase" -Hex $Theme.AccentDatabase
     Set-BrushResource -Resources $Window.Resources -Key "AccentDatabaseHover" -Hex $Theme.AccentDatabaseHover
+    Set-BrushResource -Resources $Window.Resources -Key "AccentGreen" -Hex $Theme.AccentGreen
+    Set-BrushResource -Resources $Window.Resources -Key "AccentGreenHover" -Hex $Theme.AccentGreenHover
+    Set-BrushResource -Resources $Window.Resources -Key "AccentDisconnectBlue" -Hex $Theme.AccentDisconnectBlue
+    Set-BrushResource -Resources $Window.Resources -Key "AccentDisconnectBlueHover" -Hex $Theme.AccentDisconnectBlueHover
+    Set-BrushResource -Resources $Window.Resources -Key "AccentRed" -Hex $Theme.AccentRed
+    Set-BrushResource -Resources $Window.Resources -Key "AccentRedHover" -Hex $Theme.AccentRedHover
     $onAccent = "#000000"
     if ($Theme -and $Theme.PSObject -and ($Theme.PSObject.Properties.Match('OnAccentForeground').Count -gt 0)) {
         if (-not [string]::IsNullOrWhiteSpace([string]$Theme.OnAccentForeground)) { $onAccent = [string]$Theme.OnAccentForeground }

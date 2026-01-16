@@ -344,6 +344,26 @@ function New-MainForm {
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="DbConnectButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+        <Setter Property="Background" Value="{DynamicResource AccentGreen}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+            <Setter Property="Background" Value="{DynamicResource AccentGreenHover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            </Trigger>
+        </Style.Triggers>
+        </Style>
+        <Style x:Key="DbDisconnectButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+        <Setter Property="Background" Value="{DynamicResource AccentRed}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+            <Setter Property="Background" Value="{DynamicResource AccentRedHover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            </Trigger>
+        </Style.Triggers>
+        </Style>
         <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource AccentOrange}"/>
             <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
@@ -557,8 +577,6 @@ function New-MainForm {
       <RowDefinition Height="*"/>     <!-- Área principal -->
       <RowDefinition Height="Auto"/>  <!-- StatusBar -->
     </Grid.RowDefinitions>
-
-    <!-- 📊 Conexión -->
     <Border Grid.Row="0" Margin="10" Padding="10"
             BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
             CornerRadius="6" Background="{DynamicResource ControlBg}">
@@ -567,39 +585,33 @@ function New-MainForm {
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-
-        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,18,16,0">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
           <Button Name="btnConnectDb"
-                  Width="36" Height="30" Margin="0,0,8,0"
-                  Style="{StaticResource DatabaseButtonStyle}"
-                  ToolTip="Conectar">
-            <TextBlock Text="🔌" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
-          </Button>
-          <Button Name="btnDisconnectDb"
-                  Width="36" Height="30"
-                  Style="{StaticResource DatabaseButtonStyle}"
-                  ToolTip="Desconectar" IsEnabled="False">
-            <TextBlock Text="🔌✖" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
-          </Button>
+                Width="60" Height="30" Margin="0,0,8,0"
+                Style="{StaticResource DbConnectButtonStyle}"
+                ToolTip="Conectar">
+        <TextBlock Text="🔌✅" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+        </Button>
+        <Button Name="btnDisconnectDb"
+                Width="60" Height="30"
+                Style="{StaticResource DbDisconnectButtonStyle}"
+                ToolTip="Desconectar" IsEnabled="False">
+        <TextBlock Text="🔌✖" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+        </Button>
         </StackPanel>
-
-        <!-- Fila de datos -->
         <WrapPanel Grid.Column="1">
           <StackPanel Margin="0,0,16,0">
             <TextBlock Text="Instancia SQL:"/>
             <ComboBox Name="txtServer" Width="180" IsEditable="True" Text=".\NationalSoft"/>
           </StackPanel>
-
           <StackPanel Margin="0,0,16,0">
             <TextBlock Text="Usuario:"/>
             <TextBox Name="txtUser" Width="160" Text="sa"/>
           </StackPanel>
-
           <StackPanel Margin="0,0,16,0">
             <TextBlock Text="Contraseña:"/>
             <PasswordBox Name="txtPassword" Width="160"/>
           </StackPanel>
-
           <StackPanel Margin="0,0,16,0">
             <TextBlock Text="Base de datos:"/>
             <ComboBox Name="cmbDatabases" Width="180" IsEnabled="False"/>
@@ -682,8 +694,6 @@ function New-MainForm {
         </TabControl>
       </Grid>
     </Grid>
-
-    <!-- 📍 Barra de estado falta el timer -->
     <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
       <StatusBarItem>
         <TextBlock Name="lblConnectionStatus" Text="Desconectado"/>

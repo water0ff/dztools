@@ -789,7 +789,7 @@ function New-MainForm {
                 if (-not $selectedQuery -or $selectedQuery -eq "Selecciona una consulta predefinida") { return }
                 if (-not $script:predefinedQueries.ContainsKey($selectedQuery)) { return }
                 $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
-                Write-DzDebug "Insertando consulta predefinida '$selectedQuery' en la pestaña consulta: $($rtb.Name)"
+                Write-DzDebug "`t[DEBUG]Insertando consulta predefinida '$selectedQuery' en la pestaña consulta: $($rtb.Name)"
                 if (-not $rtb) { return }
                 $queryText = $script:predefinedQueries[$selectedQuery]
                 $rtb.Document.Blocks.Clear()
@@ -874,7 +874,7 @@ function New-MainForm {
             }
         }
     }
-    $global:txt_AdapterStatus = $txt_AdapterStatus
+
     $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
     $script:initializingToggles = $true
@@ -926,22 +926,8 @@ function New-MainForm {
                 Write-Host "[DEBUG] Desactivado" -ForegroundColor DarkGray
             })
     }
-    $ipsWithAdapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | Where-Object { $_.OperationalStatus -eq 'Up' } | ForEach-Object {
-        $interface = $_
-        $interface.GetIPProperties().UnicastAddresses | Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' -and $_.Address.ToString() -ne '127.0.0.1' } | ForEach-Object {
-            @{AdapterName = $interface.Name; IPAddress = $_.Address.ToString() }
-        }
-    }
-    if ($ipsWithAdapters.Count -gt 0) {
-        $ipsTextForLabel = $ipsWithAdapters | ForEach-Object { "- $($_.AdapterName) - IP: $($_.IPAddress)" } | Out-String
-        $txt_IpAdress.Text = $ipsTextForLabel
-        Write-DzDebug "`t[DEBUG] txt_IpAdress poblado con: '$($txt_IpAdress.Text)'"
-        Write-DzDebug "`t[DEBUG] txt_IpAdress.Text.Length: $($txt_IpAdress.Text.Length)"
-    } else {
-        $txt_IpAdress.Text = "No se encontraron direcciones IP"
-        Write-DzDebug "`t[DEBUG] No se encontraron IPs" -Color Yellow
-    }
-    Refresh-AdapterStatus
+    $global:txt_AdapterStatus = $txt_AdapterStatus
+    Initialize-SystemInfo -LblPort $lblPort -LblIpAddress $txt_IpAdress -LblAdapterStatus $txt_AdapterStatus -ModulesPath $modulesPath
     Load-IniConnectionsToComboBox -Combo $txtServer
     $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler,
         $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
@@ -950,177 +936,6 @@ function New-MainForm {
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
-    Write-DzDebug "`t[DEBUG] lblPort encontrado: $($lblPort -ne $null)" -Color Cyan
-    $updateSqlPortsUi = {
-        param($portsResult)
-        $portsArray = @(
-            $portsResult |
-            Where-Object {
-                $_ -ne $null -and
-                $_.PSObject.Properties.Match('Port').Count -gt 0 -and
-                $_.PSObject.Properties.Match('Instance').Count -gt 0 -and
-                [string]::IsNullOrWhiteSpace([string]$_.Port) -eq $false
-            }
-        )
-        $global:sqlPortsData = @{Ports = $portsArray; Summary = $null; DetailedText = $null; DisplayText = $null }
-        Write-DzDebug "`t[DEBUG] En updateSqlPortsUi, lblPort es null: $($null -eq $lblPort)" -Color Yellow
-        if ($null -eq $lblPort) {
-            Write-DzDebug "`t[DEBUG] ERROR: lblPort es NULL en updateSqlPortsUi" -Color Red
-            if ($global:MainWindow -and $global:MainWindow.IsLoaded) {
-                $lblPort = $global:MainWindow.FindName("lblPort")
-                Write-DzDebug "`t[DEBUG] lblPort obtenido de MainWindow: $($lblPort -ne $null)" -Color Yellow
-            }
-        }
-        if ($null -eq $lblPort) {
-            Write-DzDebug "`t[DEBUG] No se pudo obtener lblPort, saliendo..." -Color Red
-            return
-        }
-        if ($portsArray.Count -gt 0) {
-            $sortedPorts = $portsArray | Sort-Object -Property Instance
-            $displayParts = @()
-            foreach ($port in $sortedPorts) {
-                $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
-                $displayParts += "$instanceName : $($port.Port)"
-            }
-            $global:sqlPortsData.DisplayText = $displayParts -join " | "
-            $global:sqlPortsData.DetailedText = $sortedPorts | ForEach-Object {
-                $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
-                "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
-            } | Out-String
-            $global:sqlPortsData.Summary = "Total de instancias con puerto encontradas: $($sortedPorts.Count)"
-            Write-DzDebug "`t[DEBUG] lblPort type: $($lblPort.GetType().FullName)" -Color Cyan
-            Write-DzDebug "`t[DEBUG] lblPort.Name: $($lblPort.Name)" -Color Cyan
-            $lblPort.Dispatcher.Invoke([action] {
-                    Write-DzDebug "`t[DEBUG] Actualizando UI con puertos encontrados" -Color Green
-                    $lblPort.Text = $global:sqlPortsData.DisplayText
-                    $lblPort.Tag = $global:sqlPortsData.DetailedText.Trim()
-                    $lblPort.ToolTip = if ($sortedPorts.Count -eq 1) {
-                        "Haz clic para mostrar en consola y copiar al portapapeles"
-                    } else {
-                        "$($sortedPorts.Count) instancias encontradas. Haz clic para detalles"
-                    }
-                    $lblPort.UpdateLayout()
-                }, [System.Windows.Threading.DispatcherPriority]::Render)
-            Write-Host "`n=== RESUMEN DE BÚSQUEDA SQL ===" -ForegroundColor Cyan
-            Write-Host $global:sqlPortsData.Summary -ForegroundColor White
-            Write-Host "Puertos: " -ForegroundColor White -NoNewline
-            foreach ($port in $sortedPorts) {
-                $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
-                Write-Host "$instanceName : " -ForegroundColor White -NoNewline
-                Write-Host "$($port.Port) " -ForegroundColor Magenta -NoNewline
-                if ($port -ne $sortedPorts[-1]) { Write-Host "| " -ForegroundColor Gray -NoNewline }
-            }
-            Write-Host ""
-            Write-Host "=== FIN DE BÚSQUEDA ===" -ForegroundColor Cyan
-        } else {
-            Write-DzDebug "`t[DEBUG] No se encontraron puertos, actualizando UI..." -Color Yellow
-            $global:sqlPortsData.DetailedText = "No se encontraron puertos SQL ni instalaciones de SQL Server"
-            $global:sqlPortsData.Summary = "No se encontraron puertos SQL"
-            $global:sqlPortsData.DisplayText = "No se encontraron puertos SQL"
-            $lblPort.Dispatcher.Invoke([action] {
-                    Write-DzDebug "`t[DEBUG] Dentro del dispatcher: Estableciendo 'No se encontraron puertos SQL'" -Color Green
-                    $lblPort.Text = "No se encontraron puertos SQL"
-                    $lblPort.Tag = $global:sqlPortsData.DetailedText
-                    $lblPort.ToolTip = "Haz clic para mostrar el resumen de búsqueda"
-                    $lblPort.UpdateLayout()
-                    Write-DzDebug "`t[DEBUG] lblPort.Text después de actualizar: $($lblPort.Text)" -Color Green
-                }, [System.Windows.Threading.DispatcherPriority]::Render)
-        }
-    }.GetNewClosure()
-    $lblPort.Dispatcher.Invoke([action] {
-            $lblPort.Text = "Buscando puertos SQL..."
-            $lblPort.ToolTip = "Buscando puertos SQL..."
-            $lblPort.UpdateLayout()
-        }, [System.Windows.Threading.DispatcherPriority]::Render)
-    try {
-        $portsJob = Start-Job -ScriptBlock {
-            param($modulePath)
-            Import-Module $modulePath -Force -DisableNameChecking
-            Get-SqlPortWithDebug
-        } -ArgumentList (Join-Path $modulesPath "Utilities.psm1")
-        if ($portsJob) {
-            $portsTimer = New-Object System.Windows.Threading.DispatcherTimer
-            $portsTimer.Interval = [TimeSpan]::FromMilliseconds(300)
-            $portsTimer.Add_Tick({
-                    if ($null -eq $global:MainWindow -or -not $global:MainWindow.IsLoaded) {
-                        $portsTimer.Stop()
-                        Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
-                        Write-DzDebug "`t[DEBUG] Ventana cerrada, deteniendo búsqueda de puertos" -Color Yellow
-                        return
-                    }
-                    if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
-                        $portsTimer.Stop()
-                        $portsResult = @()
-                        try {
-                            $portsResult = @(Receive-Job $portsJob -ErrorAction SilentlyContinue)
-                            Write-DzDebug "`t[DEBUG] Resultados recibidos del job (raw count): $($portsResult.Count)" -Color Cyan
-                        } catch {
-                            Write-DzDebug "`t[DEBUG] Error recibiendo resultados del job: $($_.Exception.Message)" -Color Red
-                        }
-                        Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
-                        if ($global:MainWindow -and $global:MainWindow.IsLoaded -and $lblPort -and $lblPort.IsLoaded) {
-                            & $updateSqlPortsUi $portsResult
-                        } else {
-                            Write-DzDebug "`t[DEBUG] UI no disponible para actualizar resultados" -Color Yellow
-                        }
-                    }
-                }.GetNewClosure())
-            $portsTimer.Start()
-        } else {
-            Write-DzDebug "`t[DEBUG] No se pudo iniciar job, ejecutando sincrónicamente" -Color Yellow
-            $portsResult = Get-SqlPortWithDebug
-            & $updateSqlPortsUi $portsResult
-        }
-    } catch {
-        Write-DzDebug "`t[DEBUG] Error iniciando búsqueda de puertos SQL async: $($_.Exception.Message)" -Color Yellow
-        $portsResult = Get-SqlPortWithDebug
-        & $updateSqlPortsUi $portsResult
-    }
-    $lblPort.Add_PreviewMouseLeftButtonDown({
-            param($sender, $e)
-            Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
-            try {
-                $textToCopy = $global:sqlPortsData.DetailedText.Trim()
-                Write-DzDebug "`t[DEBUG] Contenido a copiar: '$textToCopy'" -Color DarkGray
-                Write-Host "`n=== INFORMACIÓN DE PUERTOS SQL ===" -ForegroundColor Cyan
-                if ($global:sqlPortsData.Ports.Count -gt 0) {
-                    Write-Host $global:sqlPortsData.Summary -ForegroundColor White
-                    Write-Host ""
-                    $textToCopy -split "`n" | ForEach-Object { Write-Host $_ -ForegroundColor Green }
-                } else {
-                    Write-Host $textToCopy -ForegroundColor Red
-                }
-                Write-Host "=====================================" -ForegroundColor Cyan
-                $retryCount = 0
-                $maxRetries = 3
-                $copied = $false
-                while (-not $copied -and $retryCount -lt $maxRetries) {
-                    try {
-                        [System.Windows.Clipboard]::SetText($textToCopy)
-                        $copied = $true
-                    } catch {
-                        $retryCount++
-                        if ($retryCount -ge $maxRetries) {
-                            Write-Host "`n[ERROR] No se pudo copiar al portapapeles: $($_.Exception.Message)" -ForegroundColor Red
-                            Ui-Error "Error al copiar al portapapeles: $($_.Exception.Message)" $global:MainWindow
-                        } else {
-                            Start-Sleep -Milliseconds 100
-                        }
-                    }
-                }
-                if ($copied) {
-                    if ($global:sqlPortsData.Ports.Count -gt 0) {
-                        Write-Host "`n[ÉXITO] Información de puertos SQL copiada al portapapeles:" -ForegroundColor Green
-                        $textToCopy -split "`n" | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
-                    } else {
-                        Write-Host "`n[INFORMACIÓN] $textToCopy (copiado al portapapeles)" -ForegroundColor Yellow
-                    }
-                }
-            } catch {
-                Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                Ui-Error "Error: $($_.Exception.Message)" $global:MainWindow
-            }
-        })
     $lblHostname.Add_PreviewMouseLeftButtonDown({
             param($sender, $e)
             Write-DzDebug "`t[DEBUG] Click en lblHostname - Evento iniciado" -Color DarkGray
@@ -1136,31 +951,6 @@ function New-MainForm {
                 $e.Handled = $true
             }
         }.GetNewClosure())
-    $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
-            param($sender, $e)
-            Write-DzDebug "`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
-            try {
-                $ipsText = [string]$sender.Text
-                Write-DzDebug "`t[DEBUG] Contenido (sender): '$ipsText'" -Color DarkGray
-                Write-DzDebug "`t[DEBUG] Length: $($ipsText.Length)" -Color DarkGray
-                if ([string]::IsNullOrWhiteSpace($ipsText)) { Write-Host "`n[AVISO] No hay IPs para copiar." -ForegroundColor Yellow; return }
-                $textToCopy = $ipsText.TrimEnd()
-                $ok = Set-ClipboardTextSafe -Text $textToCopy -Owner $global:MainWindow
-                if ($ok) { Write-Host "`nIP's copiadas al portapapeles:`n$textToCopy" -ForegroundColor Green } else { Ui-Error "No se pudieron copiar las IPs al portapapeles." $global:MainWindow }
-            } catch {
-                Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
-                Ui-Error "Error: $($_.Exception.Message)" $global:MainWindow
-            } finally {
-                $e.Handled = $true
-            }
-        }.GetNewClosure())
-    $txt_AdapterStatus.Add_PreviewMouseLeftButtonDown({
-            param($sender, $e)
-            Get-NetConnectionProfile | Where-Object { $_.NetworkCategory -ne 'Private' } | ForEach-Object { Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private }
-            Write-Host "Todas las redes se han establecido como Privadas."
-            Refresh-AdapterStatus
-            $e.Handled = $true
-        })
     $btnInstalarHerramientas.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Instalar Herramientas' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n- - - Comenzando el proceso de 'Instalar Herramientas' - - -" -ForegroundColor Magenta

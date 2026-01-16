@@ -582,66 +582,6 @@ function Test-MegaToolsInstalled {
     return ([bool](Get-Command megatools -ErrorAction SilentlyContinue))
 }
 
-function Refresh-AdapterStatus {
-    try {
-        if ($null -eq $global:txt_AdapterStatus) {
-            Write-Host "ADVERTENCIA: El control de estado de adaptadores no está disponible." -ForegroundColor Yellow
-            return
-        }
-
-        $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
-        $adapterInfo = @()
-
-        foreach ($adapter in $adapters) {
-            $profile = Get-NetConnectionProfile -InterfaceAlias $adapter.Name -ErrorAction SilentlyContinue
-            $networkType = if ($profile) {
-                switch ($profile.NetworkCategory) {
-                    'Private' { "Privada" }
-                    'Public' { "Pública" }
-                    'DomainAuthenticated' { "Dominio" }
-                    default { "Desconocida" }
-                }
-            } else {
-                "Sin perfil"
-            }
-
-            $adapterInfo += "$($adapter.Name): $networkType"
-        }
-
-        if ($adapterInfo.Count -gt 0) {
-            $global:txt_AdapterStatus.Dispatcher.Invoke([action] {
-                    $global:txt_AdapterStatus.Text = $adapterInfo -join "`n"
-                })
-        } else {
-            $global:txt_AdapterStatus.Dispatcher.Invoke([action] {
-                    $global:txt_AdapterStatus.Text = "Sin adaptadores activos"
-                })
-        }
-    } catch {
-        Write-Host "Error al actualizar estado de adaptadores: $_" -ForegroundColor Red
-    }
-}
-function Get-NetworkAdapterStatus {
-    <#
-    .SYNOPSIS
-    Obtiene el estado de los adaptadores de red
-    #>
-    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
-    $profiles = Get-NetConnectionProfile
-    $adapterStatus = @()
-    foreach ($adapter in $adapters) {
-        $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
-        $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
-
-        $adapterStatus += [PSCustomObject]@{
-            AdapterName     = $adapter.Name
-            NetworkCategory = $networkCategory
-            InterfaceIndex  = $adapter.ifIndex
-        }
-    }
-    return $adapterStatus
-}
-
 function Get-SqlPortWithDebug {
     Write-DzDebug "`t[DEBUG] === INICIANDO BÚSQUEDA DE PUERTOS SQL ==="
     Write-DzDebug "`t[DEBUG] Fecha/Hora: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
@@ -972,11 +912,9 @@ function Show-WarnDialog {
         [System.Windows.MessageBoxImage]::Warning
     ) | Out-Null
 }
-
 function Test-7ZipInstalled {
     [CmdletBinding()]
     param()
-
     $paths = @(
         "C:\Program Files\7-Zip\7z.exe",
         "C:\Program Files (x86)\7-Zip\7z.exe"
@@ -984,15 +922,11 @@ function Test-7ZipInstalled {
     foreach ($p in $paths) {
         if (Test-Path $p) { return $true }
     }
-
-    # Por si existe en PATH
     return [bool](Get-Command 7z -ErrorAction SilentlyContinue)
 }
-
 function Get-7ZipPath {
     [CmdletBinding()]
     param()
-
     $paths = @(
         "C:\Program Files\7-Zip\7z.exe",
         "C:\Program Files (x86)\7-Zip\7z.exe"
@@ -1000,30 +934,21 @@ function Get-7ZipPath {
     foreach ($p in $paths) {
         if (Test-Path $p) { return $p }
     }
-
     $cmd = Get-Command 7z -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
-
     return $null
 }
-
 function Install-7ZipWithChoco {
     [CmdletBinding()]
     param()
-
     if (-not (Test-ChocolateyInstalled)) {
         Write-DzDebug "`t[DEBUG] [Install-7ZipWithChoco] Chocolatey no está instalado"
         return $false
     }
-
     try {
         Write-Host "Instalando 7zip con Chocolatey..." -ForegroundColor Yellow
         choco install 7zip -y --no-progress | Out-Null
-
-        # refrescar PATH para el proceso actual (a veces choco no refresca inmediatamente)
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
-        [System.Environment]::GetEnvironmentVariable("Path", "User")
-
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
         Start-Sleep -Seconds 2
         return (Test-7ZipInstalled)
     } catch {
@@ -1031,7 +956,6 @@ function Install-7ZipWithChoco {
         return $false
     }
 }
-
 function Download-FileWithProgressWpfStream {
     param(
         [Parameter(Mandatory)] [string]$Url,
@@ -1039,12 +963,9 @@ function Download-FileWithProgressWpfStream {
         [Parameter(Mandatory)] $Window,
         [Parameter()] [ScriptBlock]$OnStatus
     )
-
     try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
-
     $dir = Split-Path $OutFile -Parent
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-
     $total = $null
     try {
         $head = Invoke-WebRequest -Uri $Url -Method Head -UseBasicParsing -ErrorAction Stop
@@ -1053,31 +974,25 @@ function Download-FileWithProgressWpfStream {
     } catch {
         $total = $null
     }
-
     $req = [System.Net.HttpWebRequest]::Create($Url)
     $req.Method = "GET"
     $req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
     $req.Accept = "*/*"
     $req.AllowAutoRedirect = $true
-
     $resp = $null
     $inStream = $null
     $outStream = $null
-
     try {
         $resp = $req.GetResponse()
         if (-not $total) {
             try { $total = [int64]$resp.ContentLength } catch { $total = $null }
         }
-
         $inStream = $resp.GetResponseStream()
         $outStream = New-Object System.IO.FileStream($OutFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
-
         $buffer = New-Object byte[] (1024 * 128)
         [int64]$readTotal = 0
         [int64]$lastUi = 0
         $sw = [System.Diagnostics.Stopwatch]::StartNew()
-
         if ($Window -and $Window.ProgressBar) {
             try {
                 $Window.Dispatcher.Invoke([Action] {
@@ -1086,42 +1001,34 @@ function Download-FileWithProgressWpfStream {
                     }, [System.Windows.Threading.DispatcherPriority]::Render) | Out-Null
             } catch {}
         }
-
         while (($read = $inStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
             $outStream.Write($buffer, 0, $read)
             $readTotal += $read
-
             if (($readTotal - $lastUi) -ge (512KB) -or $sw.ElapsedMilliseconds -ge 200) {
                 $lastUi = $readTotal
                 $sw.Restart()
-
                 $percent = 0
                 if ($total -and $total -gt 0) {
                     $percent = [int][Math]::Min(100, [Math]::Floor(($readTotal * 100.0) / $total))
                 }
-
                 $mb = [Math]::Round($readTotal / 1MB, 2)
                 $totalMb = if ($total) { [Math]::Round($total / 1MB, 2) } else { $null }
                 $msg = if ($totalMb) { "Descargando... $mb / $totalMb MB ($percent%)" } else { "Descargando... $mb MB" }
-
                 if ($Window) {
                     try {
                         Update-WpfProgressBar -Window $Window -Percent $percent -Message $msg
                         $Window.Dispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Render) | Out-Null
                     } catch {}
                 }
-
                 if ($OnStatus) { try { & $OnStatus $percent $msg } catch {} }
             }
         }
-
         if ($Window) {
             try {
                 Update-WpfProgressBar -Window $Window -Percent 100 -Message "Descarga completada."
                 $Window.Dispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Render) | Out-Null
             } catch {}
         }
-
         return $true
     } finally {
         try { if ($outStream) { $outStream.Flush(); $outStream.Close() } } catch {}
@@ -1134,118 +1041,89 @@ function Show-SQLselector {
         [array]$Managers,
         [array]$SSMSVersions
     )
-
     function Get-ManagerBits {
         param([string]$Path)
         if ($Path -match "\\SysWOW64\\") { return "32 bits" }
         return "64 bits"
     }
-
     function Get-ManagerVersion {
         param([string]$Path)
         if ($Path -match "SQLServerManager(\d+)\.msc") { return $matches[1] }
         return "?"
     }
-
     function New-SelectorItem {
         param(
             [string]$Path,
             [string]$Display,
             [string]$DisplayShort
         )
-
         [PSCustomObject]@{
             Path         = $Path
             Display      = $Display
             DisplayShort = $DisplayShort
         }
     }
-
-
-
     if ($Managers -and $Managers.Count -gt 0) {
         $items = @()
         $unique = $Managers | Where-Object { $_ } | Select-Object -Unique
-
         foreach ($m in $unique) {
             $ver = Get-ManagerVersion -Path $m
-            $bits = Get-ManagerBits    -Path $m
-
+            $bits = Get-ManagerBits -Path $m
             $display = "SQLServerManager$ver  |  $bits  |  $m"
             $displayShort = "SQLServerManager$ver  |  $bits"
-
             $items += (New-SelectorItem -Path $m -Display $display -DisplayShort $displayShort)
         }
-
-
         $selected = Show-WpfPathSelectionDialog `
-            -Title  "Seleccionar Configuration Manager" `
+            -Title "Seleccionar Configuration Manager" `
             -Prompt "Seleccione la versión de SQL Server Configuration Manager a ejecutar:" `
-            -Items  $items `
+            -Items $items `
             -ExecuteButtonText "Abrir"
-
         if ($selected) {
             Write-DzDebug "`t[DEBUG][Show-SQLselector] Seleccionado: $($selected.Display)"
             Start-Process -FilePath $selected.Path
         }
-
         return
     }
-
-    # 2) SSMS
     if ($SSMSVersions -and $SSMSVersions.Count -gt 0) {
         $items = @()
         $unique = $SSMSVersions | Where-Object { $_ } | Select-Object -Unique
-
         foreach ($p in $unique) {
             try {
                 $vi = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($p)
                 $prod = if ($vi.ProductName) { $vi.ProductName } else { "SSMS" }
                 $ver = if ($vi.FileVersion) { $vi.FileVersion } else { "" }
-
                 $display = "$prod  |  $ver  |  $p"
                 $displayShort = "$prod  |  $ver"
-
                 $items += (New-SelectorItem -Path $p -Display $display -DisplayShort $displayShort)
             } catch {
                 $items += (New-SelectorItem -Path $p -Display "SSMS  |  $p" -DisplayShort "SSMS")
             }
         }
-
         $selected = Show-WpfPathSelectionDialog `
-            -Title  "Seleccionar SSMS" `
+            -Title "Seleccionar SSMS" `
             -Prompt "Seleccione la versión de SQL Server Management Studio a ejecutar:" `
-            -Items  $items `
+            -Items $items `
             -ExecuteButtonText "Ejecutar"
-
         if ($selected) {
             Write-DzDebug "`t[DEBUG][Show-SQLselector] Seleccionado: $($selected.DisplayShort)"
             Start-Process -FilePath $selected.Path
         }
         return
-
     }
-
     Write-DzDebug "`t[DEBUG][Show-SQLselector] No se recibieron rutas para Managers ni para SSMS." Yellow
 }
-
 function Get-NSIniConnectionInfo {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$FilePath
     )
-
     if (-not (Test-Path -LiteralPath $FilePath)) { return $null }
-
     try {
         $content = Get-Content -LiteralPath $FilePath -ErrorAction Stop
-
         $dataSource = ($content | Select-String -Pattern '^DataSource=(.*)' -ErrorAction SilentlyContinue | Select-Object -First 1).Matches.Groups[1].Value
-        $catalog = ($content | Select-String -Pattern '^Catalog=(.*)'    -ErrorAction SilentlyContinue | Select-Object -First 1).Matches.Groups[1].Value
+        $catalog = ($content | Select-String -Pattern '^Catalog=(.*)' -ErrorAction SilentlyContinue | Select-Object -First 1).Matches.Groups[1].Value
         $authType = ($content | Select-String -Pattern '^autenticacion=(\d+)' -ErrorAction SilentlyContinue | Select-Object -First 1).Matches.Groups[1].Value
-
         $authUser = if ($authType -eq "2") { "sa" } elseif ($authType -eq "1") { "Windows" } else { "Desconocido" }
-
         return [pscustomobject]@{
             DataSource = $dataSource
             Catalog    = $catalog
@@ -1256,7 +1134,6 @@ function Get-NSIniConnectionInfo {
         return $null
     }
 }
-
 function Get-NSApplicationsIniReport {
     [CmdletBinding()]
     param(
@@ -1270,14 +1147,11 @@ function Get-NSApplicationsIniReport {
         ),
         [string]$RestCardPath = "C:\NationalSoft\Restcard\RestCard.ini"
     )
-
     $resultados = New-Object System.Collections.Generic.List[object]
-
     foreach ($entry in $PathsToCheck) {
         $basePath = $entry.Path
         $mainIni = Join-Path $basePath $entry.INI
         $appName = $entry.Nombre
-
         if (Test-Path -LiteralPath $mainIni) {
             $iniData = Get-NSIniConnectionInfo -FilePath $mainIni
             if ($iniData) {
@@ -1306,14 +1180,10 @@ function Get-NSApplicationsIniReport {
                     Usuario    = "NA"
                 })
         }
-
-        # Leer INIS\*.ini adicionales
         $inisFolder = Join-Path $basePath "INIS"
         if (Test-Path -LiteralPath $inisFolder) {
             $iniFiles = Get-ChildItem -LiteralPath $inisFolder -Filter "*.ini" -ErrorAction SilentlyContinue
-
             if ($appName -eq "OnTheMinute") {
-                # Tu lógica: solo si hay más de 1
                 if ($iniFiles -and $iniFiles.Count -gt 1) {
                     foreach ($iniFile in $iniFiles) {
                         $iniData = Get-NSIniConnectionInfo -FilePath $iniFile.FullName
@@ -1344,8 +1214,6 @@ function Get-NSApplicationsIniReport {
             }
         }
     }
-
-    # Restcard (tal cual tu regla)
     if (Test-Path -LiteralPath $RestCardPath) {
         $resultados.Add([pscustomobject]@{
                 Aplicacion = "Restcard"
@@ -1363,21 +1231,15 @@ function Get-NSApplicationsIniReport {
                 Usuario    = "NA"
             })
     }
-
     return $resultados
 }
-
-
-
-
 function Show-WpfPathSelectionDialog {
     param(
         [Parameter(Mandatory)][string]$Title,
         [Parameter(Mandatory)][string]$Prompt,
-        [Parameter(Mandatory)][array] $Items,  # PSCustomObject { Path, Display }
+        [Parameter(Mandatory)][array] $Items,
         [string]$ExecuteButtonText = "Ejecutar"
     )
-
     $theme = Get-DzUiTheme
     $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -1424,7 +1286,6 @@ function Show-WpfPathSelectionDialog {
         <Border.Effect>
             <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
         </Border.Effect>
-
         <Grid Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="36"/>
@@ -1432,19 +1293,15 @@ function Show-WpfPathSelectionDialog {
                 <RowDefinition Height="250"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-
-            <!-- Header -->
             <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-
                 <TextBlock Name="txtHeader"
                            Text="$Title"
                            VerticalAlignment="Center"
                            FontWeight="SemiBold"/>
-
                 <Button Name="btnClose"
                         Grid.Column="1"
                         Content="✕"
@@ -1454,25 +1311,20 @@ function Show-WpfPathSelectionDialog {
                         Background="Transparent"
                         BorderBrush="Transparent"/>
             </Grid>
-
             <TextBlock Grid.Row="1"
                        Name="lblPrompt"
                        Text="$Prompt"
                        FontWeight="SemiBold"
                        Margin="0,0,0,10"/>
-
             <ListBox Grid.Row="2"
                      Name="lstItems"
                      DisplayMemberPath="Display"
                      SelectedValuePath="Path" />
-
-            <!-- Footer: versión seleccionada + botones a la derecha -->
             <Grid Grid.Row="3" Margin="0,10,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="Versión seleccionada:" Margin="0,0,0,2"/>
                     <TextBlock Name="lblSelectedDisplay"
@@ -1481,7 +1333,6 @@ function Show-WpfPathSelectionDialog {
                             TextWrapping="NoWrap"
                             TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
-
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
                     <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
                     <Button Name="btnExecute" Content="$ExecuteButtonText" Width="110" Height="30" Style="{StaticResource SystemButtonStyle}" IsDefault="True"/>
@@ -1491,27 +1342,18 @@ function Show-WpfPathSelectionDialog {
     </Border>
 </Window>
 "@
-
-
     $ui = New-WpfWindow -Xaml $stringXaml -PassThru
     $w = $ui.Window
     $c = $ui.Controls
     Set-DzWpfThemeResources -Window $w -Theme $theme
-
-    # Owner / centrado
     try { if (Get-Command Set-WpfDialogOwner -ErrorAction SilentlyContinue) { Set-WpfDialogOwner -Dialog $w } } catch {}
     if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
-
-    # Cerrar + Drag
     $c['btnClose'].Add_Click({ $w.Close() })
     $c['HeaderBar'].Add_MouseLeftButtonDown({
             if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() }
         })
-
-    # Cargar items
     $c['lstItems'].ItemsSource = $Items
     if ($Items.Count -gt 0) { $c['lstItems'].SelectedIndex = 0 }
-
     $updateSelected = {
         $it = $c['lstItems'].SelectedItem
         if ($it) {
@@ -1524,31 +1366,24 @@ function Show-WpfPathSelectionDialog {
             $c['lblSelectedDisplay'].Text = ""
         }
     }
-
-
     & $updateSelected
     $c['lstItems'].Add_SelectionChanged({ & $updateSelected })
     $script:_selectedItem = $null
-
     $c['btnExecute'].Add_Click({
             $it = $c['lstItems'].SelectedItem
             if (-not $it) { return }
-            $script:_selectedItem = $it   # <- devolvemos el objeto completo
+            $script:_selectedItem = $it
             $w.DialogResult = $true
             $w.Close()
         })
-
     $c['btnCancel'].Add_Click({
             $w.DialogResult = $false
             $w.Close()
         })
-
     $ok = $w.ShowDialog()
     if ($ok) { return $script:_selectedItem }
     return $null
 }
-
-
 function Set-ClipboardTextSafe {
     param(
         [Parameter(Mandatory)][string]$Text,
@@ -1583,8 +1418,221 @@ function Set-ClipboardTextSafe {
     if ($Owner) { Ui-Error "No se pudo copiar al portapapeles (posiblemente está en uso). Intenta de nuevo." $Owner }
     return $false
 }
-
-
+function Initialize-SystemInfo {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]$LblPort,
+        [Parameter(Mandatory = $true)]$LblIpAddress,
+        [Parameter(Mandatory = $true)]$LblAdapterStatus,
+        [Parameter(Mandatory = $false)][string]$ModulesPath = $PSScriptRoot
+    )
+    $portsJob = Start-Job -ScriptBlock {
+        param($modulePath)
+        Import-Module $modulePath -Force -DisableNameChecking
+        Get-SqlPortWithDebug
+    } -ArgumentList (Join-Path $ModulesPath "Utilities.psm1")
+    $networkJob = Start-Job -ScriptBlock {
+        try {
+            $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+            $profiles = Get-NetConnectionProfile -ErrorAction SilentlyContinue
+            $ipsWithAdapters = @()
+            $adapterDetails = @()
+            foreach ($adapter in $adapters) {
+                $adapterIPs = Get-NetIPAddress -InterfaceAlias $adapter.Name -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -ne '127.0.0.1' }
+                $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
+                $networkType = if ($profile) {
+                    switch ($profile.NetworkCategory) {
+                        'Private' { "Privada" }
+                        'Public' { "Pública" }
+                        'DomainAuthenticated' { "Dominio" }
+                        default { "Desconocida" }
+                    }
+                } else {
+                    "Sin perfil"
+                }
+                foreach ($ip in $adapterIPs) {
+                    $ipsWithAdapters += @{
+                        AdapterName = $adapter.Name
+                        IPAddress   = $ip.IPAddress
+                    }
+                }
+                $adapterDetails += [PSCustomObject]@{
+                    AdapterName    = $adapter.Name
+                    NetworkType    = $networkType
+                    InterfaceIndex = $adapter.ifIndex
+                }
+            }
+            $privateCount = ($profiles | Where-Object { $_.NetworkCategory -eq 'Private' }).Count
+            $totalCount = $profiles.Count
+            @{
+                IPs            = $ipsWithAdapters
+                AdapterDetails = $adapterDetails
+                AdapterStatus  = "Redes: $privateCount/$totalCount privadas"
+            }
+        } catch {
+            @{
+                IPs            = @()
+                AdapterDetails = @()
+                AdapterStatus  = "Error: $_"
+            }
+        }
+    }
+    $LblPort.Dispatcher.Invoke([action] {
+            $LblPort.Text = "🔍 Buscando puertos SQL..."
+            $LblPort.UpdateLayout()
+        })
+    $LblIpAddress.Dispatcher.Invoke([action] {
+            $LblIpAddress.Text = "🔍 Obteniendo IPs..."
+            $LblIpAddress.UpdateLayout()
+        })
+    $LblAdapterStatus.Dispatcher.Invoke([action] {
+            $LblAdapterStatus.Text = "🔍 Verificando adaptadores..."
+            $LblAdapterStatus.UpdateLayout()
+        })
+    $timer = New-Object System.Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromMilliseconds(200)
+    $timer.Add_Tick({
+            if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
+                try {
+                    $portsResult = @(Receive-Job $portsJob -ErrorAction SilentlyContinue)
+                    Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
+                    Update-PortsUI -LblPort $LblPort -PortsResult $portsResult
+                } catch {
+                    Write-DzDebug "`t[DEBUG][SystemInfo] Error procesando puertos: $_"
+                }
+                $portsJob = $null
+            }
+            if ($networkJob.State -in @("Completed", "Failed", "Stopped")) {
+                try {
+                    $networkResult = Receive-Job $networkJob -ErrorAction SilentlyContinue
+                    Remove-Job $networkJob -Force -ErrorAction SilentlyContinue
+                    if ($networkResult) {
+                        Update-NetworkUI -LblIpAddress $LblIpAddress -LblAdapterStatus $LblAdapterStatus -NetworkResult $networkResult
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG][SystemInfo] Error procesando red: $_"
+                }
+                $networkJob = $null
+            }
+            if ($null -eq $portsJob -and $null -eq $networkJob) {
+                $timer.Stop()
+                Write-DzDebug "`t[DEBUG][SystemInfo] Carga de información del sistema completada"
+            }
+        }.GetNewClosure())
+    $timer.Start()
+    Write-DzDebug "`t[DEBUG][SystemInfo] Iniciada carga asíncrona de información del sistema"
+}
+function Update-PortsUI {
+    param($LblPort, $PortsResult)
+    $portsArray = @($PortsResult | Where-Object {
+            $_ -ne $null -and
+            $_.PSObject.Properties.Match('Port').Count -gt 0 -and
+            $_.PSObject.Properties.Match('Instance').Count -gt 0 -and
+            ![string]::IsNullOrWhiteSpace([string]$_.Port)
+        })
+    $LblPort.Dispatcher.Invoke([action] {
+            if ($portsArray.Count -gt 0) {
+                $sortedPorts = $portsArray | Sort-Object -Property Instance
+                $displayParts = @()
+                foreach ($port in $sortedPorts) {
+                    $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
+                    $displayParts += "$instanceName : $($port.Port)"
+                }
+                $LblPort.Text = $displayParts -join " | "
+                $LblPort.Tag = ($sortedPorts | ForEach-Object {
+                        $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
+                        "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
+                    } | Out-String).Trim()
+                $LblPort.ToolTip = "$($sortedPorts.Count) instancia(s) encontrada(s). Clic para detalles"
+                Write-Host "✓ Puertos SQL encontrados: $($LblPort.Text)" -ForegroundColor Green
+            } else {
+                $LblPort.Text = "No se encontraron puertos SQL"
+                $LblPort.Tag = "No se encontraron instalaciones de SQL Server"
+                $LblPort.ToolTip = "Clic para más información"
+                Write-DzDebug "`t[DEBUG] ⚠ No se encontraron puertos SQL 1"
+            }
+            $LblPort.UpdateLayout()
+        })
+}
+function Update-NetworkUI {
+    param($LblIpAddress, $LblAdapterStatus, $NetworkResult)
+    $LblIpAddress.Dispatcher.Invoke([action] {
+            if ($NetworkResult.IPs -and $NetworkResult.IPs.Count -gt 0) {
+                $ipsText = ($NetworkResult.IPs | ForEach-Object {
+                        "- $($_.AdapterName): $($_.IPAddress)"
+                    }) -join "`n"
+                $LblIpAddress.Text = $ipsText
+                Write-DzDebug "`t[DEBUG][Update-NetworkUI] ✓ IPs encontradas: $($NetworkResult.IPs.Count)"
+            } else {
+                $LblIpAddress.Text = "No se encontraron direcciones IP"
+                Write-DzDebug "`t[DEBUG][Update-NetworkUI] ⚠ No se encontraron direcciones IP"
+            }
+            $LblIpAddress.UpdateLayout()
+        })
+    $LblAdapterStatus.Dispatcher.Invoke([action] {
+            if ($NetworkResult.AdapterDetails -and $NetworkResult.AdapterDetails.Count -gt 0) {
+                $adapterText = ($NetworkResult.AdapterDetails | ForEach-Object {
+                        "$($_.AdapterName): $($_.NetworkType)"
+                    }) -join "`n"
+                $LblAdapterStatus.Text = $adapterText
+                Write-DzDebug "`t[DEBUG][Update-NetworkUI] ✓ Detalles de adaptadores actualizados"
+            } else {
+                $LblAdapterStatus.Text = "Sin adaptadores activos"
+                Write-DzDebug "`t[DEBUG][Update-NetworkUI] ⚠ No se encontraron adaptadores activos"
+            }
+            $LblAdapterStatus.UpdateLayout()
+        })
+}
+function Refresh-AdapterStatus {
+    try {
+        if ($null -eq $global:txt_AdapterStatus) {
+            Write-Host "ADVERTENCIA: El control de estado de adaptadores no está disponible." -ForegroundColor Yellow
+            return
+        }
+        $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+        $adapterInfo = @()
+        foreach ($adapter in $adapters) {
+            $profile = Get-NetConnectionProfile -InterfaceAlias $adapter.Name -ErrorAction SilentlyContinue
+            $networkType = if ($profile) {
+                switch ($profile.NetworkCategory) {
+                    'Private' { "Privada" }
+                    'Public' { "Pública" }
+                    'DomainAuthenticated' { "Dominio" }
+                    default { "Desconocida" }
+                }
+            } else {
+                "Sin perfil"
+            }
+            $adapterInfo += "$($adapter.Name): $networkType"
+        }
+        if ($adapterInfo.Count -gt 0) {
+            $global:txt_AdapterStatus.Dispatcher.Invoke([action] {
+                    $global:txt_AdapterStatus.Text = $adapterInfo -join "`n"
+                })
+        } else {
+            $global:txt_AdapterStatus.Dispatcher.Invoke([action] {
+                    $global:txt_AdapterStatus.Text = "Sin adaptadores activos"
+                })
+        }
+    } catch {
+        Write-Host "Error al actualizar estado de adaptadores: $_"
+    }
+}
+function Get-NetworkAdapterStatus {
+    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+    $profiles = Get-NetConnectionProfile
+    $adapterStatus = @()
+    foreach ($adapter in $adapters) {
+        $profile = $profiles | Where-Object { $_.InterfaceIndex -eq $adapter.ifIndex }
+        $networkCategory = if ($profile) { $profile.NetworkCategory } else { "Desconocido" }
+        $adapterStatus += [PSCustomObject]@{
+            AdapterName     = $adapter.Name
+            NetworkCategory = $networkCategory
+            InterfaceIndex  = $adapter.ifIndex
+        }
+    }
+    return $adapterStatus
+}
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
@@ -1614,5 +1662,8 @@ Export-ModuleMember -Function @(
     'Install-7ZipWithChoco',
     'Show-SQLselector',
     'get-NSApplicationsIniReport',
-    'Set-ClipboardTextSafe'
+    'Set-ClipboardTextSafe',
+    'Initialize-SystemInfo',
+    'Update-PortsUI',
+    'Update-NetworkUI'
 )

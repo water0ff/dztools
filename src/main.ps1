@@ -803,6 +803,9 @@ function New-MainForm {
                 $rtb.Focus() | Out-Null
             })
     }
+    if ($cmbDatabases) {
+        $cmbDatabases.DisplayMemberPath = "DisplayText"
+    }
     if ($tabAddQuery) {
         $tabAddQuery.Add_PreviewMouseLeftButtonDown({
                 New-QueryTab -TabControl $tcQueries | Out-Null
@@ -1338,6 +1341,34 @@ function New-MainForm {
                 Ui-Error "Error al desconectar:`n`n$($_.Exception.Message)" $global:MainWindow
             }
         })
+    function Resolve-DatabaseName {
+        param($item)
+        if ($null -eq $item) { return $null }
+        if ($item -is [PSCustomObject]) {
+            if ($item.DatabaseName) { return [string]$item.DatabaseName }
+            if ($item.Name) { return [string]$item.Name }
+        }
+        if ($item -is [string]) { return ($item -replace ' \(.*?\)$', '') }
+        return ($item.ToString() -replace ' \(.*?\)$', '')
+    }
+
+    function Select-DatabaseInComboBox {
+        param(
+            [Parameter(Mandatory = $true)]$ComboBox,
+            [Parameter(Mandatory = $true)][string]$DatabaseName
+        )
+        $ComboBox.SelectedItem = $DatabaseName
+        if (-not $ComboBox.SelectedItem) {
+            for ($i = 0; $i -lt $ComboBox.Items.Count; $i++) {
+                $itemName = Resolve-DatabaseName $ComboBox.Items[$i]
+                if ($itemName -eq $DatabaseName) {
+                    $ComboBox.SelectedIndex = $i
+                    break
+                }
+            }
+        }
+    }
+
     $btnConnectDb.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Conectar Base de Datos' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Magenta
@@ -1370,7 +1401,7 @@ function New-MainForm {
                 }
                 $global:cmbDatabases.IsEnabled = $true
                 $global:cmbDatabases.SelectedIndex = 0
-                $global:database = $global:cmbDatabases.SelectedItem
+                $global:database = Resolve-DatabaseName $global:cmbDatabases.SelectedItem
                 $global:lblConnectionStatus.Text = "✓ Conectado a: $serverText | DB: $($global:database)"
                 $global:txtServer.IsEnabled = $false
                 $global:txtUser.IsEnabled = $false
@@ -1393,16 +1424,8 @@ function New-MainForm {
                     -OnDatabaseSelected {
                     param($dbName)
                     if (-not $global:cmbDatabases) { return }
-                    $global:cmbDatabases.SelectedItem = $dbName
-                    if (-not $global:cmbDatabases.SelectedItem) {
-                        for ($i = 0; $i -lt $global:cmbDatabases.Items.Count; $i++) {
-                            if ([string]$global:cmbDatabases.Items[$i] -eq [string]$dbName) {
-                                $global:cmbDatabases.SelectedIndex = $i
-                                break
-                            }
-                        }
-                    }
-                    $global:database = $global:cmbDatabases.SelectedItem
+                    Select-DatabaseInComboBox -ComboBox $global:cmbDatabases -DatabaseName $dbName
+                    $global:database = Resolve-DatabaseName $global:cmbDatabases.SelectedItem
                     if ($global:lblConnectionStatus) {
                         $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
                     }
@@ -1417,11 +1440,12 @@ function New-MainForm {
                             foreach ($db in $databases) {
                                 [void]$global:cmbDatabases.Items.Add($db)
                             }
-                            if ($global:database -and $global:cmbDatabases.Items.Contains($global:database)) {
-                                $global:cmbDatabases.SelectedItem = $global:database
-                            } elseif ($global:cmbDatabases.Items.Count -gt 0) {
+                            if ($global:database) {
+                                Select-DatabaseInComboBox -ComboBox $global:cmbDatabases -DatabaseName $global:database
+                            }
+                            if (-not $global:cmbDatabases.SelectedItem -and $global:cmbDatabases.Items.Count -gt 0) {
                                 $global:cmbDatabases.SelectedIndex = 0
-                                $global:database = $global:cmbDatabases.SelectedItem
+                                $global:database = Resolve-DatabaseName $global:cmbDatabases.SelectedItem
                             }
                             if ($global:lblConnectionStatus) {
                                 $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $($global:database)"
@@ -1453,13 +1477,7 @@ function New-MainForm {
             param($sender, $e)
             if ($sender.SelectedItem) {
                 $selectedItem = $sender.SelectedItem
-                $dbName = if ($selectedItem -is [PSCustomObject] -and $selectedItem.DatabaseName) {
-                    $selectedItem.DatabaseName
-                } elseif ($selectedItem -is [string]) {
-                    $selectedItem -replace ' \(.*?\)$', ''
-                } else {
-                    $selectedItem.ToString() -replace ' \(.*?\)$', ''
-                }
+                $dbName = Resolve-DatabaseName $selectedItem
                 Write-DzDebug "`t[DEBUG] ComboBox DB seleccionada: '$dbName'"
                 if ($selectedItem -is [PSCustomObject] -and $selectedItem.State -ne "ONLINE") {
                     Ui-Warn "La base de datos '$dbName' está en estado '$($selectedItem.State)'.`nNo se puede usar hasta que esté ONLINE." "Base de datos no disponible" $global:MainWindow

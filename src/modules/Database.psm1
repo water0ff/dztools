@@ -368,20 +368,34 @@ function Get-SqlDatabases {
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
     )
     $query = @"
-SELECT name
+SELECT name,
+       state_desc,
+       user_access_desc
 FROM sys.databases
 WHERE name NOT IN ('tempdb','model','msdb')
-  AND state_desc = 'ONLINE'
 ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name
 "@
     $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $query -Credential $Credential
     if (-not $result.Success) { throw "Error obteniendo bases de datos: $($result.ErrorMessage)" }
     $databases = @()
     foreach ($row in $result.DataTable.Rows) {
+        $dbName = $row["name"]
+        $state = $row["state_desc"]
+        $access = $row["user_access_desc"]
+        $itemText = $dbName
+        if ($state -ne "ONLINE") {
+            $itemText += " ($state)"
+        } elseif ($access -eq "READ_ONLY") {
+            $itemText += " (READ_ONLY)"
+        } elseif ($access -eq "SINGLE_USER") {
+            $itemText += " (SINGLE_USER)"
+        }
         $databases += [PSCustomObject]@{
-            Name   = $row["name"]
-            State  = $row["state_desc"]
-            Access = $row["user_access_desc"]
+            Name         = $dbName
+            DatabaseName = $dbName
+            DisplayText  = $itemText
+            State        = $state
+            Access       = $access
         }
     }
     $databases

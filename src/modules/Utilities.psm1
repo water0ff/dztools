@@ -845,9 +845,8 @@ function Get-SqlPortWithDebug {
         }
     } else {
         Write-DzDebug "`t[DEBUG]   ✗ No se encontraron puertos SQL configurados"
-
         # Sugerencias para debugging
-        Write-DzDebug "`t[DEBUG] `n=== SUGERENCIAS ==="
+        Write-DzDebug "`t[DEBUG] === SUGERENCIAS ==="
         Write-DzDebug "`t[DEBUG] 1. Verifica si SQL Server está instalado"
         Write-DzDebug "`t[DEBUG] 2. Revisa el Configuration Manager de SQL Server"
         Write-DzDebug "`t[DEBUG] 3. Verifica si el servicio SQL Server está ejecutándose"

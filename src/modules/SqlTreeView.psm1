@@ -405,8 +405,8 @@ function Load-DatabasesIntoTree {
         if (-not $databases -or $databases.Count -eq 0) {
             Write-DzDebug "`t[DEBUG][TreeView] No hay Databases precargadas, consultando a SQL..."
             try {
-                $databases = Get-SqlDatabases -Server $server -Credential $credential
-                $ServerNode.Tag.Databases = $databases
+                $dbInfoList = Get-SqlDatabasesInfo -Server $server -Credential $credential
+                $ServerNode.Tag.Databases = $dbInfoList
             } catch {
                 $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{ Type = "Error" } -HasPlaceholder $false
                 [void]$ServerNode.Items.Add($errorNode)
@@ -420,7 +420,10 @@ function Load-DatabasesIntoTree {
         [void]$ServerNode.Items.Add($errorNode)
         return
     }
-    foreach ($db in $databases) {
+    foreach ($dbInfo in $dbInfoList) {
+        $db = $dbInfo.Name
+        $badge = Get-DbStatusBadgeText -StateDesc $dbInfo.StateDesc -UserAccessDesc $dbInfo.UserAccessDesc -IsReadOnly $dbInfo.IsReadOnly
+        $header = "🗄️ $db  —  $badge"
         $dbTag = @{
             Type               = "Database"
             Database           = $db
@@ -430,11 +433,22 @@ function Load-DatabasesIntoTree {
             Password           = $ServerNode.Tag.Password
             InsertTextHandler  = $ServerNode.Tag.InsertTextHandler
             OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected
+            # (opcional) guarda estatus para lógica posterior
+            DbStateDesc        = $dbInfo.StateDesc
+            DbUserAccessDesc   = $dbInfo.UserAccessDesc
+            DbIsReadOnly       = $dbInfo.IsReadOnly
         }
-        $dbNode = New-SqlTreeNode -Header "🗄️ $db" -Tag $dbTag -HasPlaceholder $false
+        $dbNode = New-SqlTreeNode -Header $header -Tag $dbTag -HasPlaceholder $false
+        # Si NO está ONLINE, evita cargar Tablas/Vistas/Procs (para no tronar consultas)
+        if ($dbInfo.StateDesc -ne "ONLINE") {
+            $note = New-SqlTreeNode -Header "No disponible: BD en estado $($dbInfo.StateDesc)" -Tag @{ Type = "Info" } -HasPlaceholder $false
+            [void]$dbNode.Items.Add($note)
+            [void]$ServerNode.Items.Add($dbNode)
+            continue
+        }
+        # Si está ONLINE, tu flujo normal:
         $dbNode.Add_MouseDoubleClick({
                 param($s, $e)
-                Write-DzDebug "`t[DEBUG][TreeView] Doble clic DB: $($s.Tag.Database) | HasHandler=$([bool]$s.Tag.OnDatabaseSelected)"
                 if ($s.Tag.OnDatabaseSelected) { & $s.Tag.OnDatabaseSelected $s.Tag.Database }
                 $e.Handled = $true
             })
@@ -1450,6 +1464,36 @@ function Show-DeleteDatabaseDialog {
     Write-DzDebug "`t[DEBUG][DeleteDB] Mostrando ventana"
     $null = $window.ShowDialog()
 }
+function Get-DbStatusBadgeText {
+    param(
+        [Parameter(Mandatory = $true)][string]$StateDesc,
+        [Parameter(Mandatory = $true)][string]$UserAccessDesc,
+        [Parameter(Mandatory = $true)][bool]$IsReadOnly
+    )
+
+    $stateIcon = switch ($StateDesc) {
+        "ONLINE" { "🟢" }
+        "OFFLINE" { "🔴" }
+        "RESTORING" { "🟠" }
+        "RECOVERING" { "🟠" }
+        "SUSPECT" { "🟣" }
+        "EMERGENCY" { "🟣" }
+        default { "⚪" }
+    }
+
+    $accessIcon = switch ($UserAccessDesc) {
+        "MULTI_USER" { "👥" }
+        "SINGLE_USER" { "👤" }
+        "RESTRICTED_USER" { "🔒" }
+        default { "❔" }
+    }
+
+    $roText = if ($IsReadOnly) { " | RO" } else { "" }
+
+    # Ej: 🟢 ONLINE | 👥 MULTI_USER
+    return "$stateIcon $StateDesc | $accessIcon $UserAccessDesc$roText"
+}
+
 Export-ModuleMember -Function @(
     "bdd_RenameFromTree",
     "Initialize-SqlTreeView",
@@ -1461,4 +1505,5 @@ Export-ModuleMember -Function @(
     "Add-TreeNodeContextMenu",
     "Add-DatabaseContextMenu",
     "Add-ServerContextMenu",
-    "Show-DeleteDatabaseDialog")
+    "Show-DeleteDatabaseDialog",
+    'Get-DbStatusBadgeText')

@@ -371,15 +371,49 @@ function Get-SqlDatabases {
 SELECT name
 FROM sys.databases
 WHERE name NOT IN ('tempdb','model','msdb')
-  AND state_desc = 'ONLINE'
+
 ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name
 "@
+    #AND state_desc = 'ONLINE' de momento mostrar todas!
     $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $query -Credential $Credential
     if (-not $result.Success) { throw "Error obteniendo bases de datos: $($result.ErrorMessage)" }
     $databases = @()
     foreach ($row in $result.DataTable.Rows) { $databases += $row["name"] }
     $databases
 }
+function Get-SqlDatabasesInfo {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
+    )
+
+    $query = @"
+SELECT
+    name,
+    state_desc,
+    user_access_desc,
+    is_read_only,
+    recovery_model_desc
+FROM sys.databases
+WHERE name NOT IN ('tempdb','model','msdb')
+ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name
+"@
+
+    $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $query -Credential $Credential
+    if (-not $result.Success) { throw "Error obteniendo bases de datos (info): $($result.ErrorMessage)" }
+
+    foreach ($row in $result.DataTable.Rows) {
+        [pscustomobject]@{
+            Name           = [string]$row["name"]
+            StateDesc      = [string]$row["state_desc"]         # ONLINE / OFFLINE / RESTORING / etc.
+            UserAccessDesc = [string]$row["user_access_desc"]   # MULTI_USER / SINGLE_USER / RESTRICTED_USER
+            IsReadOnly     = [bool]$row["is_read_only"]
+            RecoveryModel  = [string]$row["recovery_model_desc"]
+        }
+    }
+}
+
 function Backup-Database {
     [CmdletBinding()]
     param(
@@ -1657,4 +1691,5 @@ Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSe
     'Get-ResultTabHeaderText',
     'Get-ExportableResultTabs',
     'Write-DataTableConsole',
-    'Show-ErrorResultTab')
+    'Show-ErrorResultTab',
+    'Get-sqlDatabasesInfo')

@@ -396,18 +396,24 @@ function Refresh-SqlTreeView {
 function Load-DatabasesIntoTree {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$ServerNode)
+
     $ServerNode.Items.Clear()
     $server = [string]$ServerNode.Tag.Server
     $credential = $ServerNode.Tag.Credential
+
     Write-DzDebug "`t[DEBUG][TreeView] Load DBs: Server='$server'"
+
     try {
         $databases = $ServerNode.Tag.Databases
+
         if (-not $databases -or $databases.Count -eq 0) {
             Write-DzDebug "`t[DEBUG][TreeView] No hay Databases precargadas, consultando a SQL..."
             try {
-                $dbInfoList = Get-SqlDatabasesInfo -Server $server -Credential $credential
-                $ServerNode.Tag.Databases = $dbInfoList
+                $databases = Get-SqlDatabasesInfo -Server $server -Credential $credential
+                $ServerNode.Tag.Databases = $databases
+                Write-DzDebug "`t[DEBUG][TreeView] Obtenidas $($databases.Count) bases de datos"
             } catch {
+                Write-DzDebug "`t[DEBUG][TreeView] Error obteniendo bases: $($_.Exception.Message)" -Color Red
                 $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{ Type = "Error" } -HasPlaceholder $false
                 [void]$ServerNode.Items.Add($errorNode)
                 return
@@ -416,13 +422,20 @@ function Load-DatabasesIntoTree {
             Write-DzDebug "`t[DEBUG][TreeView] Usando Databases precargadas: $($databases.Count)"
         }
     } catch {
+        Write-DzDebug "`t[DEBUG][TreeView] Excepción general: $($_.Exception.Message)" -Color Red
         $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{ Type = "Error" } -HasPlaceholder $false
         [void]$ServerNode.Items.Add($errorNode)
         return
     }
-    foreach ($dbInfo in $dbInfoList) {
+
+    # IMPORTANTE: Iterar sobre $databases, no $dbInfoList
+    foreach ($dbInfo in $databases) {
         $db = $dbInfo.Name
-        $badge = Get-DbStatusBadgeText -StateDesc $dbInfo.StateDesc -UserAccessDesc $dbInfo.UserAccessDesc -IsReadOnly $dbInfo.IsReadOnly
+        $stateDesc = $dbInfo.StateDesc
+        $userAccessDesc = $dbInfo.UserAccessDesc
+        $isReadOnly = $dbInfo.IsReadOnly
+        Write-DzDebug "`t[DEBUG][TreeView] Procesando DB: $db | State=$stateDesc | Access=$userAccessDesc | ReadOnly=$isReadOnly"
+        $badge = Get-DbStatusBadgeText -StateDesc $stateDesc -UserAccessDesc $userAccessDesc -IsReadOnly $isReadOnly
         $header = "🗄️ $db  —  $badge"
         $dbTag = @{
             Type               = "Database"
@@ -433,26 +446,33 @@ function Load-DatabasesIntoTree {
             Password           = $ServerNode.Tag.Password
             InsertTextHandler  = $ServerNode.Tag.InsertTextHandler
             OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected
-            # (opcional) guarda estatus para lógica posterior
-            DbStateDesc        = $dbInfo.StateDesc
-            DbUserAccessDesc   = $dbInfo.UserAccessDesc
-            DbIsReadOnly       = $dbInfo.IsReadOnly
+            DbStateDesc        = $stateDesc
+            DbUserAccessDesc   = $userAccessDesc
+            DbIsReadOnly       = $isReadOnly
         }
         $dbNode = New-SqlTreeNode -Header $header -Tag $dbTag -HasPlaceholder $false
-        # Si NO está ONLINE, evita cargar Tablas/Vistas/Procs (para no tronar consultas)
-        if ($dbInfo.StateDesc -ne "ONLINE") {
-            $note = New-SqlTreeNode -Header "No disponible: BD en estado $($dbInfo.StateDesc)" -Tag @{ Type = "Info" } -HasPlaceholder $false
-            [void]$dbNode.Items.Add($note)
+        Add-DatabaseContextMenu -DatabaseNode $dbNode
+        if ($stateDesc -ne "ONLINE") {
+            Write-DzDebug "`t[DEBUG][TreeView] DB '$db' no está ONLINE, agregando nodo informativo"
+            $infoNode = New-SqlTreeNode -Header "⚠️ Base de datos no disponible ($stateDesc)" -Tag @{ Type = "Info" } -HasPlaceholder $false
+            [void]$dbNode.Items.Add($infoNode)
             [void]$ServerNode.Items.Add($dbNode)
             continue
         }
-        # Si está ONLINE, tu flujo normal:
+        Write-DzDebug "`t[DEBUG][TreeView] DB '$db' está ONLINE, agregando nodos de tablas/vistas/procs"
         $dbNode.Add_MouseDoubleClick({
                 param($s, $e)
-                if ($s.Tag.OnDatabaseSelected) { & $s.Tag.OnDatabaseSelected $s.Tag.Database }
+                Write-DzDebug "`t[DEBUG][TreeView] Doble clic DB: $($s.Tag.Database) | State=$($s.Tag.DbStateDesc)"
+                if ($s.Tag.DbStateDesc -ne "ONLINE") {
+                    Ui-Warn "La base de datos '$($s.Tag.Database)' está en estado '$($s.Tag.DbStateDesc)'.`nDebes ponerla ONLINE primero." "Base de datos no disponible" $global:MainWindow
+                    $e.Handled = $true
+                    return
+                }
+                if ($s.Tag.OnDatabaseSelected) {
+                    & $s.Tag.OnDatabaseSelected $s.Tag.Database
+                }
                 $e.Handled = $true
             })
-        Add-DatabaseContextMenu -DatabaseNode $dbNode
         $tablesTag = @{
             Type               = "TablesRoot"
             Database           = $db
@@ -483,14 +503,27 @@ function Load-DatabasesIntoTree {
         $tablesNode = New-SqlTreeNode -Header "📋 Tablas" -Tag $tablesTag -HasPlaceholder $true
         $viewsNode = New-SqlTreeNode -Header "👁️ Vistas" -Tag $viewsTag -HasPlaceholder $true
         $procsNode = New-SqlTreeNode -Header "⚙️ Procedimientos" -Tag $procsTag -HasPlaceholder $true
-        $tablesNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand TablasRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
-        $viewsNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand VistasRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
-        $procsNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand ProcsRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
+        $tablesNode.Add_Expanded({
+                param($s, $e)
+                Write-DzDebug "`t[DEBUG][TreeView] Expand TablasRoot DB: $($s.Tag.Database)"
+                Load-TablesIntoNode -RootNode $s
+            })
+        $viewsNode.Add_Expanded({
+                param($s, $e)
+                Write-DzDebug "`t[DEBUG][TreeView] Expand VistasRoot DB: $($s.Tag.Database)"
+                Load-TablesIntoNode -RootNode $s
+            })
+        $procsNode.Add_Expanded({
+                param($s, $e)
+                Write-DzDebug "`t[DEBUG][TreeView] Expand ProcsRoot DB: $($s.Tag.Database)"
+                Load-TablesIntoNode -RootNode $s
+            })
         [void]$dbNode.Items.Add($tablesNode)
         [void]$dbNode.Items.Add($viewsNode)
         [void]$dbNode.Items.Add($procsNode)
         [void]$ServerNode.Items.Add($dbNode)
     }
+    Write-DzDebug "`t[DEBUG][TreeView] Load DBs completado. Total nodos: $($ServerNode.Items.Count)"
 }
 function Load-TablesIntoNode {
     [CmdletBinding()]
@@ -1116,121 +1149,7 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
     [void]$menuState.Items.Add($menuReadOnly)
     [void]$menuState.Items.Add($menuReadWrite)
 
-    # Menú Shrink
-    $menuShrink = New-Object System.Windows.Controls.MenuItem
-    $menuShrink.Header = "📉 Shrink..."
 
-    # Shrink Data
-    $menuShrinkData = New-Object System.Windows.Controls.MenuItem
-    $menuShrinkData.Header = "Shrink Data"
-    $menuShrinkData.Add_Click({
-            param($sender, $e)
-            Write-DzDebug "`t[DEBUG][TreeView] Click Context SHRINK DATA Menu"
-            $cm = $sender.Parent.Parent
-            $node = $null
-            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
-            if ($null -eq $node -or $null -eq $node.Tag) {
-                Write-DzDebug "`t[DEBUG][TreeView] SHRINK DATA: node null or tag null" -Color Red
-                return
-            }
-
-            $dbName = [string]$node.Tag.Database
-            $server = [string]$node.Tag.Server
-            $credential = $node.Tag.Credential
-            $escapedDb = $dbName -replace "'", "''"
-
-            Write-DzDebug "`t[DEBUG][TreeView] Context SHRINK DATA: Server='$server' DB='$dbName'"
-
-            $confirm = Ui-Confirm "⚠️ Shrink puede causar fragmentación y no siempre es recomendable.`n`n¿Deseas continuar con SHRINK DATA para '$dbName'?" "Confirmar Shrink" $global:MainWindow
-            if (-not $confirm) {
-                Write-DzDebug "`t[DEBUG][TreeView] SHRINK DATA cancelado por usuario"
-                return
-            }
-
-            $filesQuery = "SELECT name FROM sys.master_files WHERE database_id = DB_ID(N'$escapedDb') AND type_desc = 'ROWS'"
-            $filesResult = Invoke-SqlQuery -Server $server -Database "master" -Query $filesQuery -Credential $credential
-
-            if (-not $filesResult.Success) {
-                Ui-Error "No se pudieron obtener archivos de datos para shrink.`n`n$($filesResult.ErrorMessage)" $global:MainWindow
-                return
-            }
-
-            $rows = $filesResult.DataTable.Rows
-            if ($rows.Count -eq 0) {
-                Ui-Error "No se encontraron archivos de datos para shrink." $global:MainWindow
-                return
-            }
-
-            $commands = ($rows | ForEach-Object { "DBCC SHRINKFILE (N'$($_.name)', 0);" }) -join "`n"
-            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $commands -Credential $credential
-
-            if (-not $result.Success) {
-                Ui-Error "Error al ejecutar shrink de datos:`n`n$($result.ErrorMessage)" $global:MainWindow
-                return
-            }
-
-            Ui-Info "Shrink de datos completado para '$dbName'." "Shrink completado" $global:MainWindow
-        })
-
-    # Shrink Log
-    $menuShrinkLog = New-Object System.Windows.Controls.MenuItem
-    $menuShrinkLog.Header = "Shrink Log"
-    $menuShrinkLog.Add_Click({
-            param($sender, $e)
-            Write-DzDebug "`t[DEBUG][TreeView] Click Context SHRINK LOG Menu"
-            $cm = $sender.Parent.Parent
-            $node = $null
-            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
-            if ($null -eq $node -or $null -eq $node.Tag) {
-                Write-DzDebug "`t[DEBUG][TreeView] SHRINK LOG: node null or tag null" -Color Red
-                return
-            }
-
-            $dbName = [string]$node.Tag.Database
-            $server = [string]$node.Tag.Server
-            $credential = $node.Tag.Credential
-            $escapedDb = $dbName -replace "'", "''"
-
-            Write-DzDebug "`t[DEBUG][TreeView] Context SHRINK LOG: Server='$server' DB='$dbName'"
-
-            $confirm = Ui-Confirm "⚠️ Shrink del log puede causar crecimiento frecuente del archivo.`n`n¿Deseas continuar con SHRINK LOG para '$dbName'?" "Confirmar Shrink" $global:MainWindow
-            Write-DzDebug "`t[DEBUG][TreeView] Confirm SHRINK LOG: $confirm"
-
-            if (-not $confirm) {
-                Write-DzDebug "`t[DEBUG][TreeView] SHRINK LOG cancelado por usuario"
-                return
-            }
-
-            Write-DzDebug "`t[DEBUG][TreeView] Ejecutando SHRINK LOG para '$dbName'"
-
-            $filesQuery = "SELECT name FROM sys.master_files WHERE database_id = DB_ID(N'$escapedDb') AND type_desc = 'LOG'"
-            $filesResult = Invoke-SqlQuery -Server $server -Database "master" -Query $filesQuery -Credential $credential
-
-            if (-not $filesResult.Success) {
-                Ui-Error "No se pudieron obtener archivos de log para shrink.`n`n$($filesResult.ErrorMessage)" $global:MainWindow
-                return
-            }
-
-            $rows = $filesResult.DataTable.Rows
-            if ($rows.Count -eq 0) {
-                Ui-Error "No se encontraron archivos de log para shrink." $global:MainWindow
-                return
-            }
-
-            $commands = ($rows | ForEach-Object { "DBCC SHRINKFILE (N'$($_.name)', 0);" }) -join "`n"
-            Write-DzDebug "`t[DEBUG][TreeView] Comandos SHRINK LOG: $commands"
-
-            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $commands -Credential $credential
-
-            if (-not $result.Success) {
-                Ui-Error "Error al ejecutar shrink del log:`n`n$($result.ErrorMessage)" $global:MainWindow
-                return
-            }
-
-            Ui-Info "Shrink de log completado para '$dbName'." "Shrink completado" $global:MainWindow
-        })
-    [void]$menuShrink.Items.Add($menuShrinkData)
-    [void]$menuShrink.Items.Add($menuShrinkLog)
     $menuDetach = New-Object System.Windows.Controls.MenuItem
     $menuDetach.Header = "📎 Separar (Detach)..."
     $menuDetach.Add_Click({
@@ -1296,7 +1215,6 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
     [void]$menu.Items.Add($menuNewQuery)
     [void]$menu.Items.Add($separator1)
     [void]$menu.Items.Add($menuState)
-    [void]$menu.Items.Add($menuShrink)
     [void]$menu.Items.Add($menuDetach)
     [void]$menu.Items.Add($menuDelete)
     [void]$menu.Items.Add($separator2)
@@ -1784,4 +1702,6 @@ Export-ModuleMember -Function @(
     "Add-DatabaseContextMenu",
     "Add-ServerContextMenu",
     "Show-DeleteDatabaseDialog",
-    'Get-DbStatusBadgeText')
+    'Get-DbStatusBadgeText',
+    'Select-SqlTreeDatabase'
+)

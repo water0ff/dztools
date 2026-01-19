@@ -387,33 +387,34 @@ function Get-SqlDatabasesInfo {
         [Parameter(Mandatory = $true)][string]$Server,
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
     )
-
     $query = @"
 SELECT
     name,
     state_desc,
     user_access_desc,
-    is_read_only,
-    recovery_model_desc
+    CAST(is_read_only AS bit) AS is_read_only
 FROM sys.databases
-WHERE name NOT IN ('tempdb','model','msdb')
-ORDER BY CASE WHEN name = 'master' THEN 0 ELSE 1 END, name
+WHERE name NOT IN ('tempdb', 'model', 'msdb')
+ORDER BY
+    CASE WHEN name = 'master' THEN 0 ELSE 1 END,
+    name
 "@
-
     $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $query -Credential $Credential
-    if (-not $result.Success) { throw "Error obteniendo bases de datos (info): $($result.ErrorMessage)" }
-
+    if (-not $result.Success) {
+        throw "Error obteniendo bases de datos: $($result.ErrorMessage)"
+    }
+    $databases = @()
     foreach ($row in $result.DataTable.Rows) {
-        [pscustomobject]@{
-            Name           = [string]$row["name"]
-            StateDesc      = [string]$row["state_desc"]         # ONLINE / OFFLINE / RESTORING / etc.
-            UserAccessDesc = [string]$row["user_access_desc"]   # MULTI_USER / SINGLE_USER / RESTRICTED_USER
+        $databases += [PSCustomObject]@{
+            Name           = $row["name"]
+            StateDesc      = $row["state_desc"]
+            UserAccessDesc = $row["user_access_desc"]
             IsReadOnly     = [bool]$row["is_read_only"]
-            RecoveryModel  = [string]$row["recovery_model_desc"]
         }
     }
+    Write-DzDebug "`t[DEBUG][Get-SqlDatabasesInfo] Retornando $($databases.Count) bases de datos"
+    return $databases
 }
-
 function Backup-Database {
     [CmdletBinding()]
     param(
@@ -1667,10 +1668,19 @@ function Show-ErrorResultTab {
         $ResultsTabControl.SelectedIndex = 0
     }
 }
-Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet',
-    'Remove-SqlComments', 'Get-SqlDatabases', 'Backup-Database', 'Execute-SqlQuery',
-    'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox',
-    'ConvertTo-DataTable', 'New-QueryTab',
+Export-ModuleMember -Function @(
+    'Invoke-SqlQuery',
+    'Invoke-SqlQueryMultiResultSet',
+    'Remove-SqlComments',
+    'Get-SqlDatabases',
+    'Get-SqlDatabasesInfo',  # <--- AGREGAR ESTA LÍNEA
+    'Backup-Database',
+    'Execute-SqlQuery',
+    'Show-ResultsConsole',
+    'Get-IniConnections',
+    'Load-IniConnectionsToComboBox',
+    'ConvertTo-DataTable',
+    'New-QueryTab',
     'Close-QueryTab',
     'Execute-QueryInTab',
     'Show-MultipleResultSets',
@@ -1692,4 +1702,5 @@ Export-ModuleMember -Function @('Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSe
     'Get-ExportableResultTabs',
     'Write-DataTableConsole',
     'Show-ErrorResultTab',
-    'Get-sqlDatabasesInfo')
+    'Get-UseDatabaseFromQuery'
+)

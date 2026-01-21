@@ -856,6 +856,44 @@ function New-MainForm {
     $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")
     $global:lblRowCount = $window.FindName("lblRowCount")
     $global:lblConnectionStatus = $lblConnectionStatus
+    if ($tvDatabases) {
+        try {
+            Write-Host "Aplicando estilo al TreeView..." -ForegroundColor Yellow
+
+            $style = New-Object System.Windows.Style([System.Windows.Controls.TreeViewItem])
+
+            # Trigger para item seleccionado
+            $triggerSelected = New-Object System.Windows.Trigger
+            $triggerSelected.Property = [System.Windows.Controls.TreeViewItem]::IsSelectedProperty
+            $triggerSelected.Value = $true
+            $triggerSelected.Setters.Add((New-Object System.Windows.Setter(
+                        [System.Windows.Controls.TreeViewItem]::BackgroundProperty,
+                        $window.FindResource("AccentPrimary")
+                    )))
+            $triggerSelected.Setters.Add((New-Object System.Windows.Setter(
+                        [System.Windows.Controls.TreeViewItem]::ForegroundProperty,
+                        $window.FindResource("FormFg")
+                    )))
+
+            # Trigger para item con foco
+            $triggerFocused = New-Object System.Windows.Trigger
+            $triggerFocused.Property = [System.Windows.Controls.TreeViewItem]::IsFocusedProperty
+            $triggerFocused.Value = $true
+            $triggerFocused.Setters.Add((New-Object System.Windows.Setter(
+                        [System.Windows.Controls.TreeViewItem]::BackgroundProperty,
+                        $window.FindResource("AccentPrimary")
+                    )))
+
+            $style.Triggers.Add($triggerSelected)
+            $style.Triggers.Add($triggerFocused)
+
+            $tvDatabases.ItemContainerStyle = $style
+
+            Write-Host "✓ Estilo de TreeView aplicado correctamente" -ForegroundColor Green
+        } catch {
+            Write-Host "✗ Error aplicando estilo al TreeView: $($_.Exception.Message)" -ForegroundColor Red
+        }
+    }
     if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:rtbQueryEditor1) {
         $firstTab = $global:tcQueries.Items[0]
         if ($firstTab -is [System.Windows.Controls.TabItem]) {

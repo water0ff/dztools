@@ -35,6 +35,13 @@ function Get-DzUiTheme {
             AccentDisconnectBlueHover = "#2563EB"
             AccentRed = "#EF4444"
             AccentRedHover = "#DC2626"
+            DbOnline = "#22C55E"           # Verde para ONLINE
+            DbOffline = "#EF4444"          # Rojo para OFFLINE
+            DbRestoring = "#F59E0B"        # Naranja para RESTORING/RECOVERING
+            DbSuspect = "#A855F7"          # Púrpura para SUSPECT/EMERGENCY
+            DbReadOnly = "#3B82F6"         # Azul para READ_ONLY
+            DbSingleUser = "#F97316"       # Naranja claro para SINGLE_USER
+            DbRestricted = "#EC4899"       # Rosa para RESTRICTED_USER
 
         }
         Dark  = @{
@@ -65,7 +72,13 @@ function Get-DzUiTheme {
             AccentDisconnectBlueHover = "#2563EB"
             AccentRed = "#EF4444"
             AccentRedHover = "#DC2626"
-
+            DbOnline = "#22C55E"           # Verde para ONLINE
+            DbOffline = "#EF4444"          # Rojo para OFFLINE
+            DbRestoring = "#F59E0B"        # Naranja para RESTORING/RECOVERING
+            DbSuspect = "#A855F7"          # Púrpura para SUSPECT/EMERGENCY
+            DbReadOnly = "#3B82F6"         # Azul para READ_ONLY
+            DbSingleUser = "#F97316"       # Naranja claro para SINGLE_USER
+            DbRestricted = "#EC4899"       # Rosa para RESTRICTED_USER
         }
     }
     $selectedMode = if ($iniMode -match '^(dark|light)$') { ($iniMode.Substring(0, 1).ToUpper() + $iniMode.Substring(1).ToLower()) } else { "Dark" }
@@ -147,6 +160,13 @@ function Set-DzWpfThemeResources {
     Set-BrushResource -Resources $Window.Resources -Key "AccentDisconnectBlueHover" -Hex $Theme.AccentDisconnectBlueHover
     Set-BrushResource -Resources $Window.Resources -Key "AccentRed" -Hex $Theme.AccentRed
     Set-BrushResource -Resources $Window.Resources -Key "AccentRedHover" -Hex $Theme.AccentRedHover
+    Set-BrushResource -Resources $Window.Resources -Key "DbOnline" -Hex $Theme.DbOnline
+    Set-BrushResource -Resources $Window.Resources -Key "DbOffline" -Hex $Theme.DbOffline
+    Set-BrushResource -Resources $Window.Resources -Key "DbRestoring" -Hex $Theme.DbRestoring
+    Set-BrushResource -Resources $Window.Resources -Key "DbSuspect" -Hex $Theme.DbSuspect
+    Set-BrushResource -Resources $Window.Resources -Key "DbReadOnly" -Hex $Theme.DbReadOnly
+    Set-BrushResource -Resources $Window.Resources -Key "DbSingleUser" -Hex $Theme.DbSingleUser
+    Set-BrushResource -Resources $Window.Resources -Key "DbRestricted" -Hex $Theme.DbRestricted
     $onAccent = "#000000"
     if ($Theme -and $Theme.PSObject -and ($Theme.PSObject.Properties.Match('OnAccentForeground').Count -gt 0)) {
         if (-not [string]::IsNullOrWhiteSpace([string]$Theme.OnAccentForeground)) { $onAccent = [string]$Theme.OnAccentForeground }

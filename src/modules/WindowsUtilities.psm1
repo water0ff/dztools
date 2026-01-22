@@ -805,25 +805,100 @@ function Show-AddUserDialog {
 function Show-IPConfigDialog {
     Write-Host "`n- - - Comenzando el proceso - - -" -ForegroundColor Magenta
     $theme = Get-DzUiTheme
+
     function Test-IPv4 {
         param([string]$Ip)
         if ([string]::IsNullOrWhiteSpace($Ip)) { return $false }
         $Ip = $Ip.Trim()
         return [System.Net.IPAddress]::TryParse($Ip, [ref]([System.Net.IPAddress]$null)) -and ($Ip -match '^\d{1,3}(\.\d{1,3}){3}$')
     }
+
     function Get-AdapterIpsText {
         param([string]$Alias)
         try {
-            $ips = Get-NetIPAddress -InterfaceAlias $Alias -AddressFamily IPv4 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty IPAddress
+            $ips = Get-NetIPAddress -InterfaceAlias $Alias -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPAddress -and $_.IPAddress -notmatch '^169\.254\.' } |
+            Select-Object -ExpandProperty IPAddress
             if ($ips) { return "IPs asignadas: " + ($ips -join ", ") }
         } catch {}
         return "IPs asignadas: -"
     }
+
+    function Get-PrimaryIPv4 {
+        param([string]$Alias)
+        $all = @(Get-NetIPAddress -InterfaceAlias $Alias -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPAddress -and $_.IPAddress -notmatch '^169\.254\.' })
+        if (-not $all -or $all.Count -eq 0) { return $null }
+
+        $dhcp = $all | Where-Object { $_.PrefixOrigin -eq 'Dhcp' } | Select-Object -First 1
+        if ($dhcp) { return $dhcp }
+
+        $manual = $all | Where-Object { $_.PrefixOrigin -eq 'Manual' } | Select-Object -First 1
+        if ($manual) { return $manual }
+
+        return ($all | Select-Object -First 1)
+    }
+
+    function Get-Ipv4ConfigSnapshot {
+        param([string]$Alias)
+        $ip = Get-PrimaryIPv4 -Alias $Alias
+        if (-not $ip) { return $null }
+
+        $cfg = Get-NetIPConfiguration -InterfaceAlias $Alias -ErrorAction SilentlyContinue
+        $gw = $null
+        try { $gw = $cfg.IPv4DefaultGateway | Select-Object -ExpandProperty NextHop -ErrorAction SilentlyContinue } catch {}
+
+        $dns = $null
+        try { $dns = (Get-DnsClientServerAddress -InterfaceAlias $Alias -AddressFamily IPv4 -ErrorAction SilentlyContinue).ServerAddresses } catch {}
+
+        [pscustomobject]@{
+            IPAddress    = $ip.IPAddress
+            PrefixLength = $ip.PrefixLength
+            IsDhcp       = ($ip.PrefixOrigin -eq 'Dhcp')
+            Gateway      = $gw
+            DnsServers   = $dns
+        }
+    }
+
+    function Convert-DhcpToStatic {
+        param([string]$Alias)
+
+        $snap = Get-Ipv4ConfigSnapshot -Alias $Alias
+        if (-not $snap) { throw "No se pudo obtener configuración IPv4 del adaptador." }
+
+        if (-not $snap.IsDhcp) { return $snap }
+
+        Set-NetIPInterface -InterfaceAlias $Alias -Dhcp Disabled -ErrorAction Stop | Out-Null
+
+        $existing = Get-NetIPAddress -InterfaceAlias $Alias -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object { $_.IPAddress -eq $snap.IPAddress -and $_.PrefixLength -eq $snap.PrefixLength }
+        if (-not $existing) {
+            New-NetIPAddress -InterfaceAlias $Alias -IPAddress $snap.IPAddress -PrefixLength $snap.PrefixLength -ErrorAction Stop | Out-Null
+        }
+
+        if ($snap.Gateway) {
+            try {
+                Remove-NetRoute -InterfaceAlias $Alias -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue -Confirm:$false | Out-Null
+            } catch {}
+            try {
+                New-NetRoute -InterfaceAlias $Alias -AddressFamily IPv4 -NextHop $snap.Gateway -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue | Out-Null
+            } catch {}
+        }
+
+        try {
+            $dnsServers = @('8.8.8.8', '8.8.4.4') | Where-Object { $_ -and $_.Trim() } | ForEach-Object { $_.Trim() }
+            Set-DnsClientServerAddress -InterfaceAlias $Alias -AddressFamily IPv4 -ServerAddresses $dnsServers -ErrorAction Stop | Out-Null
+        } catch {}
+
+        return (Get-Ipv4ConfigSnapshot -Alias $Alias)
+    }
+
+
     $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Asignación de IPs"
-        Height="250" Width="560"
+        Height="280" Width="620"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -852,88 +927,134 @@ function Show-IPConfigDialog {
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0"
-                   Text="Seleccione el adaptador de red:"
-                   Margin="0,0,0,8"/>
-        <ComboBox Name="cmbAdapters"
-                  Grid.Row="1"
-                  Height="28"
-                  Margin="0,0,0,10"/>
-        <TextBlock Name="lblIps"
-                   Grid.Row="2"
-                   Text="IPs asignadas: -"
-                   TextWrapping="Wrap"
-                   Margin="0,0,0,12"
-                   MinHeight="36"/>
+
+        <TextBlock Grid.Row="0" Text="Seleccione el adaptador de red:" Margin="0,0,0,8"/>
+        <ComboBox Name="cmbAdapters" Grid.Row="1" Height="28" Margin="0,0,0,10"/>
+        <TextBlock Name="lblIps" Grid.Row="2" Text="IPs asignadas: -" TextWrapping="Wrap" Margin="0,0,0,12" MinHeight="36"/>
+
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Name="btnAssignIp" Content="Asignar Nueva IP" Width="140" Height="32" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
-            <Button Name="btnDhcp"     Content="Cambiar a DHCP"  Width="140" Height="32" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
-            <Button Name="btnClose"    Content="Cerrar"         Width="110" Height="32" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
+            <Button Name="btnConvertStatic" Content="Convertir a IP fija" Width="150" Height="32" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
+            <Button Name="btnAssignIp"      Content="Agregar IP adicional" Width="150" Height="32" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
+            <Button Name="btnDhcp"          Content="Cambiar a DHCP" Width="140" Height="32" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
+            <Button Name="btnClose"         Content="Cerrar" Width="110" Height="32" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
         </StackPanel>
     </Grid>
 </Window>
 "@
+
     $ui = New-WpfWindow -Xaml $stringXaml -PassThru
     $window = $ui.Window
     $c = $ui.Controls
     Set-DzWpfThemeResources -Window $window -Theme $theme
-    try {
-        if ($Global:window -is [System.Windows.Window]) {
-            $window.Owner = $Global:window
-            $window.WindowStartupLocation = "CenterOwner"
-        } else { $window.WindowStartupLocation = "CenterScreen" }
-    } catch { $window.WindowStartupLocation = "CenterScreen" }
+    Set-WpfDialogOwner -Dialog $window
+
     $adapters = @(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" })
     $c['cmbAdapters'].Items.Clear()
     $c['cmbAdapters'].Items.Add("Selecciona 1 adaptador de red") | Out-Null
     foreach ($a in $adapters) { $c['cmbAdapters'].Items.Add($a.Name) | Out-Null }
     $c['cmbAdapters'].SelectedIndex = 0
+
     $updateUi = {
         $sel = [string]$c['cmbAdapters'].SelectedItem
         $valid = ($sel -and $sel -ne "Selecciona 1 adaptador de red")
         $c['btnAssignIp'].IsEnabled = $valid
         $c['btnDhcp'].IsEnabled = $valid
-        if ($valid) { $c['lblIps'].Text = (Get-AdapterIpsText -Alias $sel) }else { $c['lblIps'].Text = "IPs asignadas: -" }
+        $c['btnConvertStatic'].IsEnabled = $valid
+        if ($valid) { $c['lblIps'].Text = (Get-AdapterIpsText -Alias $sel) } else { $c['lblIps'].Text = "IPs asignadas: -" }
     }
+
     $c['cmbAdapters'].Add_SelectionChanged({ & $updateUi })
     & $updateUi
+
+    $c['btnConvertStatic'].Add_Click({
+            $alias = [string]$c['cmbAdapters'].SelectedItem
+            if (-not $alias -or $alias -eq "Selecciona 1 adaptador de red") { Show-WpfMessageBox -Message "Por favor, selecciona un adaptador de red." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
+
+            $snap = Get-Ipv4ConfigSnapshot -Alias $alias
+            if (-not $snap) { Show-WpfMessageBox -Message "No se pudo obtener la configuración IPv4 del adaptador." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
+
+            if (-not $snap.IsDhcp) { Show-WpfMessageBox -Message "El adaptador ya está en IP fija (Manual)." -Title "Información" -Buttons OK -Icon Information | Out-Null; return }
+
+            $conf = Show-WpfMessageBox -Message "¿Desea convertir a IP fija usando la IP actual ($($snap.IPAddress))?" -Title "Confirmación" -Buttons YesNo -Icon Question
+            if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { return }
+
+            try {
+                Convert-DhcpToStatic -Alias $alias | Out-Null
+                Show-WpfMessageBox -Message "Listo. Se convirtió a IP fija usando $($snap.IPAddress)." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+                $c['lblIps'].Text = (Get-AdapterIpsText -Alias $alias)
+            } catch {
+                Show-WpfMessageBox -Message "Error al convertir a IP fija:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+            }
+        })
+
     $c['btnAssignIp'].Add_Click({
             $alias = [string]$c['cmbAdapters'].SelectedItem
             if (-not $alias -or $alias -eq "Selecciona 1 adaptador de red") { Show-WpfMessageBox -Message "Por favor, selecciona un adaptador de red." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
-            $current = Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -ErrorAction SilentlyContinue | Select-Object -First 1
-            if (-not $current) { Show-WpfMessageBox -Message "No se pudo obtener la configuración IPv4 del adaptador." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
-            $prefixLen = $current.PrefixLength
-            $newIp = New-WpfInputDialog -Title "Nueva IP" -Prompt "Ingrese la nueva dirección IP IPv4:" -DefaultValue ""
+
+            $snap = Get-Ipv4ConfigSnapshot -Alias $alias
+            if (-not $snap) { Show-WpfMessageBox -Message "No se pudo obtener la configuración IPv4 del adaptador." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
+
+            if ($snap.IsDhcp) {
+                $conf = Show-WpfMessageBox -Message "El adaptador está en DHCP. Para agregar IP adicional se convertirá primero a IP fija usando la IP actual ($($snap.IPAddress)). ¿Continuar?" -Title "Confirmación" -Buttons YesNo -Icon Question
+                if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { return }
+                try { $snap = Convert-DhcpToStatic -Alias $alias } catch {
+                    Show-WpfMessageBox -Message "Error al convertir a fija:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
+                    return
+                }
+            }
+
+            $newIp = New-WpfInputDialog -Title "IP adicional" -Prompt "Ingrese la IP IPv4 adicional:" -DefaultValue ""
             if ([string]::IsNullOrWhiteSpace($newIp)) { return }
             if (-not (Test-IPv4 -Ip $newIp)) { Show-WpfMessageBox -Message "La IP '$newIp' no es válida." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
-            $exists = Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -eq $newIp.Trim() }
+
+            $newIp = $newIp.Trim()
+            $exists = Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -eq $newIp }
             if ($exists) { Show-WpfMessageBox -Message "La IP $newIp ya está asignada a $alias." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
+
             try {
-                New-NetIPAddress -IPAddress $newIp.Trim() -PrefixLength $prefixLen -InterfaceAlias $alias -ErrorAction Stop | Out-Null
-                Show-WpfMessageBox -Message "Se agregó la IP $newIp al adaptador $alias." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+                New-NetIPAddress -InterfaceAlias $alias -IPAddress $newIp -PrefixLength $snap.PrefixLength -ErrorAction Stop | Out-Null
+                Show-WpfMessageBox -Message "Se agregó la IP adicional $newIp al adaptador $alias." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
                 $c['lblIps'].Text = (Get-AdapterIpsText -Alias $alias)
             } catch {
                 Show-WpfMessageBox -Message "Error al agregar IP:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
             }
         })
+
     $c['btnDhcp'].Add_Click({
             $alias = [string]$c['cmbAdapters'].SelectedItem
             if (-not $alias -or $alias -eq "Selecciona 1 adaptador de red") { Show-WpfMessageBox -Message "Por favor, selecciona un adaptador de red." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
-            $any = Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($any -and $any.PrefixOrigin -eq "Dhcp") { Show-WpfMessageBox -Message "El adaptador ya está en DHCP." -Title "Información" -Buttons OK -Icon Information | Out-Null; return }
-            $conf = Show-WpfMessageBox -Message "¿Está seguro de que desea cambiar a DHCP?" -Title "Confirmación" -Buttons YesNo -Icon Question
+
+            $conf = Show-WpfMessageBox -Message "¿Está seguro de que desea cambiar a DHCP? (Se eliminarán IPs Manual adicionales y se limpiará la puerta de enlace)" -Title "Confirmación" -Buttons YesNo -Icon Question
             if ($conf -ne [System.Windows.MessageBoxResult]::Yes) { return }
+
             try {
+                $adapter = Get-NetAdapter -Name $alias -ErrorAction Stop
+                $ifIndex = $adapter.ifIndex
+
                 $manualIps = Get-NetIPAddress -InterfaceAlias $alias -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.PrefixOrigin -eq "Manual" }
-                foreach ($ip in $manualIps) { Remove-NetIPAddress -IPAddress $ip.IPAddress -PrefixLength $ip.PrefixLength -InterfaceAlias $alias -Confirm:$false -ErrorAction SilentlyContinue }
+                foreach ($ip in $manualIps) {
+                    Remove-NetIPAddress -InterfaceAlias $alias -IPAddress $ip.IPAddress -PrefixLength $ip.PrefixLength -Confirm:$false -ErrorAction SilentlyContinue
+                }
+
+                $routes = Get-NetRoute -InterfaceIndex $ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object { $_.DestinationPrefix -eq "0.0.0.0/0" -or $_.RouteMetric -ge 0 }
+                foreach ($r in $routes) {
+                    Remove-NetRoute -InterfaceIndex $ifIndex -DestinationPrefix $r.DestinationPrefix -NextHop $r.NextHop -Confirm:$false -ErrorAction SilentlyContinue
+                }
+
                 Set-NetIPInterface -InterfaceAlias $alias -Dhcp Enabled -ErrorAction Stop | Out-Null
                 Set-DnsClientServerAddress -InterfaceAlias $alias -ResetServerAddresses -ErrorAction SilentlyContinue | Out-Null
-                Show-WpfMessageBox -Message "Se cambió a DHCP en el adaptador $alias." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
+
+                ipconfig /renew $alias | Out-Null
+
+                Show-WpfMessageBox -Message "Se cambió a DHCP y se limpió la puerta de enlace/rutas del adaptador $alias." -Title "Éxito" -Buttons OK -Icon Information | Out-Null
                 $c['lblIps'].Text = "Generando IP por DHCP. Seleccione de nuevo."
             } catch {
                 Show-WpfMessageBox -Message "Error al cambiar a DHCP:`n$($_.Exception.Message)" -Title "Error" -Buttons OK -Icon Error | Out-Null
             }
+
         })
+
     $c['btnClose'].Add_Click({ $window.Close() })
     $window.ShowDialog() | Out-Null
 }

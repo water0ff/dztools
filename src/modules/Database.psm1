@@ -1668,6 +1668,336 @@ function Show-ErrorResultTab {
         $ResultsTabControl.SelectedIndex = 0
     }
 }
+function Disconnect-DbCore {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][hashtable]$Ctx
+    )
+
+    if ($Ctx.QueryRunning) {
+        Write-DzDebug "`t[DEBUG][Disconnect] Cancelando query en ejecución..."
+        try {
+            if ($Ctx.CurrentQueryPowerShell) {
+                $Ctx.CurrentQueryPowerShell.Stop()
+                $Ctx.CurrentQueryPowerShell.Dispose()
+            }
+            if ($Ctx.CurrentQueryRunspace) {
+                $Ctx.CurrentQueryRunspace.Close()
+                $Ctx.CurrentQueryRunspace.Dispose()
+            }
+        } catch {
+            Write-DzDebug "`t[DEBUG][Disconnect] Error cancelando query: $_"
+        }
+        $Ctx.CurrentQueryPowerShell = $null
+        $Ctx.CurrentQueryRunspace = $null
+        $Ctx.CurrentQueryAsync = $null
+        $Ctx.QueryRunning = $false
+        Write-DzDebug "`t[DEBUG][Disconnect] Query cancelada"
+    }
+
+    if ($Ctx.execUiTimer -and $Ctx.execUiTimer.IsEnabled) {
+        Write-DzDebug "`t[DEBUG][Disconnect] Deteniendo execUiTimer..."
+        $Ctx.execUiTimer.Stop()
+    }
+
+    if ($Ctx.QueryDoneTimer -and $Ctx.QueryDoneTimer.IsEnabled) {
+        Write-DzDebug "`t[DEBUG][Disconnect] Deteniendo QueryDoneTimer..."
+        $Ctx.QueryDoneTimer.Stop()
+    }
+
+    if ($Ctx.execStopwatch) {
+        Write-DzDebug "`t[DEBUG][Disconnect] Deteniendo stopwatch..."
+        $Ctx.execStopwatch.Stop()
+        $Ctx.execStopwatch = $null
+    }
+
+    if ($Ctx.Connection) {
+        Write-DzDebug "`t[DEBUG][Disconnect] Cerrando conexión SQL..."
+        try {
+            if ($Ctx.Connection.State -ne [System.Data.ConnectionState]::Closed) {
+                $Ctx.Connection.Close()
+            }
+            $Ctx.Connection.Dispose()
+        } catch {
+            Write-DzDebug "`t[DEBUG][Disconnect] Error cerrando conexión: $_"
+        }
+        $Ctx.Connection = $null
+    }
+
+    Write-DzDebug "`t[DEBUG][Disconnect] Limpiando datos de conexión..."
+    $Ctx.Server = $null
+    $Ctx.User = $null
+    $Ctx.Password = $null
+    $Ctx.Database = $null
+    $Ctx.DbCredential = $null
+
+    if ($Ctx.tvDatabases) {
+        Write-DzDebug "`t[DEBUG][Disconnect] Limpiando TreeView..."
+        $Ctx.tvDatabases.Items.Clear()
+    }
+
+    if ($Ctx.cmbDatabases) {
+        Write-DzDebug "`t[DEBUG][Disconnect] Limpiando ComboBox..."
+        $Ctx.cmbDatabases.Items.Clear()
+        $Ctx.cmbDatabases.IsEnabled = $false
+    }
+
+    if ($Ctx.lblConnectionStatus) {
+        $Ctx.lblConnectionStatus.Text = "⚫ Desconectado"
+    }
+
+    Write-DzDebug "`t[DEBUG][Disconnect] Habilitando controles de conexión..."
+    if ($Ctx.txtServer) { $Ctx.txtServer.IsEnabled = $true }
+    if ($Ctx.txtUser) { $Ctx.txtUser.IsEnabled = $true }
+    if ($Ctx.txtPassword) { $Ctx.txtPassword.IsEnabled = $true }
+    if ($Ctx.btnConnectDb) { $Ctx.btnConnectDb.IsEnabled = $true }
+
+    Write-DzDebug "`t[DEBUG][Disconnect] Deshabilitando controles de operaciones..."
+    if ($Ctx.btnDisconnectDb) { $Ctx.btnDisconnectDb.IsEnabled = $false }
+    if ($Ctx.btnExecute) { $Ctx.btnExecute.IsEnabled = $false }
+    if ($Ctx.btnClearQuery) { $Ctx.btnClearQuery.IsEnabled = $false }
+    if ($Ctx.btnExport) { $Ctx.btnExport.IsEnabled = $false }
+    if ($Ctx.cmbQueries) { $Ctx.cmbQueries.IsEnabled = $false }
+    if ($Ctx.tcQueries) { $Ctx.tcQueries.IsEnabled = $false }
+    if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $false }
+    if ($Ctx.rtbQueryEditor1) { $Ctx.rtbQueryEditor1.IsEnabled = $false }
+    if ($Ctx.dgResults) { $Ctx.dgResults.IsEnabled = $false }
+    if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $false }
+
+    if ($Ctx.txtMessages) {
+        $Ctx.txtMessages.Text = "Desconectado de la base de datos."
+    }
+
+    if ($Ctx.txtServer) {
+        try { $Ctx.txtServer.Focus() | Out-Null } catch {}
+    }
+
+    Write-DzDebug "`t[DEBUG][Disconnect] Desconexión completada exitosamente"
+}
+
+function Get-DbUiContext {
+    [CmdletBinding()]
+    param()
+
+    @{
+        QueryRunning           = $script:QueryRunning
+        CurrentQueryPowerShell = $script:CurrentQueryPowerShell
+        CurrentQueryRunspace   = $script:CurrentQueryRunspace
+        CurrentQueryAsync      = $script:CurrentQueryAsync
+        execUiTimer            = $script:execUiTimer
+        QueryDoneTimer         = $script:QueryDoneTimer
+        execStopwatch          = $script:execStopwatch
+
+        Connection             = $global:connection
+        Server                 = $global:server
+        User                   = $global:user
+        Password               = $global:password
+        Database               = $global:database
+        DbCredential           = $global:dbCredential
+
+        tvDatabases            = $global:tvDatabases
+        cmbDatabases           = $global:cmbDatabases
+        lblConnectionStatus    = $global:lblConnectionStatus
+
+        txtServer              = $global:txtServer
+        txtUser                = $global:txtUser
+        txtPassword            = $global:txtPassword
+        btnConnectDb           = $global:btnConnectDb
+
+        btnDisconnectDb        = $global:btnDisconnectDb
+        btnExecute             = $global:btnExecute
+        btnClearQuery          = $global:btnClearQuery
+        btnExport              = $global:btnExport
+        cmbQueries             = $global:cmbQueries
+        tcQueries              = $global:tcQueries
+        tcResults              = $global:tcResults
+        rtbQueryEditor1        = $global:rtbQueryEditor1
+        dgResults              = $global:dgResults
+        txtMessages            = $global:txtMessages
+
+        MainWindow             = $global:MainWindow
+    }
+}
+
+function Save-DbUiContext {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][hashtable]$Ctx)
+
+    $script:QueryRunning = [bool]$Ctx.QueryRunning
+    $script:CurrentQueryPowerShell = $Ctx.CurrentQueryPowerShell
+    $script:CurrentQueryRunspace = $Ctx.CurrentQueryRunspace
+    $script:CurrentQueryAsync = $Ctx.CurrentQueryAsync
+    $script:execUiTimer = $Ctx.execUiTimer
+    $script:QueryDoneTimer = $Ctx.QueryDoneTimer
+    $script:execStopwatch = $Ctx.execStopwatch
+
+    $global:connection = $Ctx.Connection
+    $global:server = $Ctx.Server
+    $global:user = $Ctx.User
+    $global:password = $Ctx.Password
+    $global:database = $Ctx.Database
+    $global:dbCredential = $Ctx.DbCredential
+    $global:database = $Ctx.Database
+    $global:dbCredential = $Ctx.DbCredential
+    $global:server = $Ctx.Server
+    $global:user = $Ctx.User
+    $global:password = $Ctx.Password
+
+}
+
+function Disconnect-DbUiSafe {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $ctx = Get-DbUiContext
+        Disconnect-DbCore -Ctx $ctx
+        Save-DbUiContext -Ctx $ctx
+        Write-Host "✓ Desconectado exitosamente" -ForegroundColor Green
+    } catch {
+        Write-DzDebug "`t[DEBUG][Disconnect] ERROR: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Disconnect] Stack: $($_.ScriptStackTrace)"
+        Write-Host "Error al desconectar: $($_.Exception.Message)" -ForegroundColor Red
+        Ui-Error "Error al desconectar:`n`n$($_.Exception.Message)" $global:MainWindow
+    }
+}
+function Connect-DbCore {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][hashtable]$Ctx)
+
+    if ($null -eq $Ctx.txtServer -or $null -eq $Ctx.txtUser -or $null -eq $Ctx.txtPassword) {
+        throw "Error interno: controles de conexión no inicializados."
+    }
+
+    $serverText = ([string]$Ctx.txtServer.Text).Trim()
+    $userText = ([string]$Ctx.txtUser.Text).Trim()
+    $passwordText = [string]$Ctx.txtPassword.Password
+
+    Write-DzDebug "`t[DEBUG] | Server='$serverText' User='$userText' PasswordLen=$($passwordText.Length)"
+
+    if ([string]::IsNullOrWhiteSpace($serverText) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordText)) {
+        throw "Complete todos los campos de conexión"
+    }
+
+    $securePassword = (New-Object System.Net.NetworkCredential('', $passwordText)).SecurePassword
+    $credential = New-Object System.Management.Automation.PSCredential($userText, $securePassword)
+
+    $Ctx.Server = $serverText
+    $Ctx.User = $userText
+    $Ctx.Password = $passwordText
+    $Ctx.DbCredential = $credential
+
+    Write-DzDebug "`t[DEBUG] Obteniendo lista de bases de datos..."
+    $databases = Get-SqlDatabases -Server $serverText -Credential $credential
+    if (-not $databases -or $databases.Count -eq 0) {
+        throw "Conexión correcta, pero no se encontraron bases de datos disponibles."
+    }
+
+    Write-DzDebug "`t[DEBUG] Se encontraron $($databases.Count) bases de datos"
+
+    if ($Ctx.cmbDatabases) {
+        $Ctx.cmbDatabases.Items.Clear()
+        foreach ($db in $databases) { [void]$Ctx.cmbDatabases.Items.Add($db) }
+        $Ctx.cmbDatabases.IsEnabled = $true
+        $Ctx.cmbDatabases.SelectedIndex = 0
+        $Ctx.Database = $Ctx.cmbDatabases.SelectedItem
+    }
+
+    if ($Ctx.lblConnectionStatus) {
+        $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $serverText | DB: $($Ctx.Database)"
+    }
+
+    if ($Ctx.txtServer) { $Ctx.txtServer.IsEnabled = $false }
+    if ($Ctx.txtUser) { $Ctx.txtUser.IsEnabled = $false }
+    if ($Ctx.txtPassword) { $Ctx.txtPassword.IsEnabled = $false }
+    if ($Ctx.btnConnectDb) { $Ctx.btnConnectDb.IsEnabled = $false }
+
+    if ($Ctx.btnDisconnectDb) { $Ctx.btnDisconnectDb.IsEnabled = $true }
+    if ($Ctx.btnExecute) { $Ctx.btnExecute.IsEnabled = $true }
+    if ($Ctx.btnClearQuery) { $Ctx.btnClearQuery.IsEnabled = $true }
+    if ($Ctx.cmbQueries) { $Ctx.cmbQueries.IsEnabled = $true }
+    if ($Ctx.btnExport) { $Ctx.btnExport.IsEnabled = $true }
+    if ($Ctx.tcQueries) { $Ctx.tcQueries.IsEnabled = $true }
+    if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $true }
+    if ($Ctx.rtbQueryEditor1) { $Ctx.rtbQueryEditor1.IsEnabled = $true }
+    if ($Ctx.dgResults) { $Ctx.dgResults.IsEnabled = $true }
+    if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $true }
+
+    if ($Ctx.rtbQueryEditor1) { try { $Ctx.rtbQueryEditor1.Focus() | Out-Null } catch {} }
+
+    if ($Ctx.tvDatabases) {
+        Write-DzDebug "`t[DEBUG] Inicializando TreeView..."
+        Initialize-SqlTreeView -TreeView $Ctx.tvDatabases -Server $serverText -Credential $credential -User $userText -Password $passwordText -GetCurrentDatabase { $Ctx.Database } `
+            -AutoExpand $true `
+            -OnDatabaseSelected {
+            param($dbName)
+            if (-not $Ctx.cmbDatabases) { return }
+            $Ctx.cmbDatabases.SelectedItem = $dbName
+            if (-not $Ctx.cmbDatabases.SelectedItem) {
+                for ($i = 0; $i -lt $Ctx.cmbDatabases.Items.Count; $i++) {
+                    if ([string]$Ctx.cmbDatabases.Items[$i] -eq [string]$dbName) {
+                        $Ctx.cmbDatabases.SelectedIndex = $i
+                        break
+                    }
+                }
+            }
+            $Ctx.Database = $Ctx.cmbDatabases.SelectedItem
+            if ($Ctx.lblConnectionStatus) {
+                $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
+            }
+            Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($Ctx.Database)"
+        } `
+            -OnDatabasesRefreshed {
+            try {
+                if (-not $Ctx.Server -or -not $Ctx.DbCredential) { return }
+                $dbs = Get-SqlDatabases -Server $Ctx.Server -Credential $Ctx.DbCredential
+                if ($dbs -and $dbs.Count -gt 0 -and $Ctx.cmbDatabases) {
+                    $Ctx.cmbDatabases.Items.Clear()
+                    foreach ($db in $dbs) { [void]$Ctx.cmbDatabases.Items.Add($db) }
+                    if ($Ctx.Database -and $Ctx.cmbDatabases.Items.Contains($Ctx.Database)) {
+                        $Ctx.cmbDatabases.SelectedItem = $Ctx.Database
+                    } elseif ($Ctx.cmbDatabases.Items.Count -gt 0) {
+                        $Ctx.cmbDatabases.SelectedIndex = 0
+                        $Ctx.Database = $Ctx.cmbDatabases.SelectedItem
+                    }
+                    if ($Ctx.lblConnectionStatus) {
+                        $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
+                    }
+                    Write-DzDebug "`t[DEBUG][TreeView] ComboBox actualizado con $($dbs.Count) bases de datos"
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][OnDatabasesRefreshed] Error: $_"
+            }
+        } `
+            -InsertTextHandler {
+            param($text)
+            if ($Ctx.tcQueries) {
+                Insert-TextIntoActiveQuery -TabControl $Ctx.tcQueries -Text $text
+            }
+        }
+    }
+
+    Write-DzDebug "`t[DEBUG] Conexión establecida exitosamente"
+}
+
+function Connect-DbUiSafe {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $ctx = Get-DbUiContext
+        Connect-DbCore -Ctx $ctx
+        Save-DbUiContext -Ctx $ctx
+        Write-Host "✓ Conectado exitosamente a: $($ctx.Server)" -ForegroundColor Green
+    } catch {
+        Write-DzDebug "`t[DEBUG][Connect] CATCH: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Connect] Tipo: $($_.Exception.GetType().FullName)"
+        Write-DzDebug "`t[DEBUG][Connect] Stack: $($_.ScriptStackTrace)"
+        Ui-Error "Error de conexión: $($_.Exception.Message)" $global:MainWindow
+        Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
 Export-ModuleMember -Function @(
     'Invoke-SqlQuery',
     'Invoke-SqlQueryMultiResultSet',
@@ -1702,5 +2032,7 @@ Export-ModuleMember -Function @(
     'Get-ExportableResultTabs',
     'Write-DataTableConsole',
     'Show-ErrorResultTab',
-    'Get-UseDatabaseFromQuery'
+    'Get-UseDatabaseFromQuery',
+    'Disconnect-DbUiSafe',
+    'Connect-DbUiSafe'
 )

@@ -818,7 +818,7 @@ function Show-AttachDialog {
                 Paint-Progress -Percent 10 -Message "Conectando a SQL Server..."
                 $dbModulePath = Join-Path $ModulesPath "Database.psm1"
                 $utilModulePath = Join-Path $ModulesPath "Utilities.psm1"
-                $dbModulePath = Join-Path -Path $ModulesPath -ChildPath "Database.psm1"
+                #$dbModulePath = Join-Path -Path $ModulesPath -ChildPath "Database.psm1"
                 Add-Log "ModulesPath: '$ModulesPath'"
                 Add-Log "DatabaseModulePath: '$dbModulePath'"
                 if ([string]::IsNullOrWhiteSpace($ModulesPath)) {

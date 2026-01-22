@@ -1255,7 +1255,7 @@ function Add-ServerContextMenu {
             }
             $modulesPath = Join-Path $PSScriptRoot "modules"
             Show-AttachDialog -Server $server -User $user -Password $password -Database "master" `
-                -ModulesPath $modulesPath `
+                -ModulesPath $PSScriptRoot `
                 -OnAttachCompleted {
                 param($dbName)
                 Write-DzDebug "`t[DEBUG][TreeView] Attach completed. Refresh Server: $server"

@@ -24,20 +24,27 @@ jobs:
 
       - name: Análisis de código
         run: |
-          $results = Invoke-ScriptAnalyzer -Path ./src/ -Recurse -Severity Error, Warning
-          if ($results) {
-            foreach ($result in $results) {
-              Write-Host "$( $result.Severity ): $( $result.RuleName ) - $( $result.Message )" -ForegroundColor Yellow
-              Write-Host "  Archivo: $( $result.ScriptPath )" -ForegroundColor Gray
-              Write-Host "  Línea: $( $result.Line )" -ForegroundColor Gray
+          $results = Invoke-ScriptAnalyzer -Path ./src/ -Recurse -Severity @('Error','Warning')
+          $errors   = @($results | Where-Object Severity -eq 'Error')
+          $warnings = @($results | Where-Object Severity -eq 'Warning')
+          Write-Host "Resumen ScriptAnalyzer:" -ForegroundColor Cyan
+          Write-Host "  Errors:   $($errors.Count)" -ForegroundColor Cyan
+          Write-Host "  Warnings: $($warnings.Count)" -ForegroundColor Cyan
+          if ($errors.Count -gt 0) {
+            Write-Host "Errores encontrados:" -ForegroundColor Red
+            foreach ($e in $errors) {
+              Write-Host "Error: $($e.RuleName) - $($e.Message)" -ForegroundColor Red
+              Write-Host "  File: $($e.ScriptPath)" -ForegroundColor Gray
+              Write-Host "  Line: $($e.Line)" -ForegroundColor Gray
             }
-            if ($results | Where-Object { $_.Severity -eq 'Error' }) {
-              exit 1
-            }
+            exit 1
           }
-          else {
-            Write-Host "No se encontraron problemas" -ForegroundColor Green
+          $warnings | Select-Object -First 25 | ForEach-Object {
+            Write-Host "Warning: $($_.RuleName) - $($_.Message)" -ForegroundColor Yellow
+            Write-Host "  File: $($_.ScriptPath)" -ForegroundColor Gray
+            Write-Host "  Line: $($_.Line)" -ForegroundColor Gray
           }
+          Write-Host "[OK] Sin errores de ScriptAnalyzer" -ForegroundColor Green
 
       - name: Verificar compatibilidad PS5
         run: |

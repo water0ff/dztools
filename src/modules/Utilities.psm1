@@ -1425,17 +1425,10 @@ function Initialize-SystemInfo {
         [Parameter(Mandatory = $true)]$LblAdapterStatus,
         [Parameter(Mandatory = $false)][string]$ModulesPath = $PSScriptRoot
     )
-    $script:portsJobCompleted = $false
-    $script:networkJobCompleted = $false
     $portsJob = Start-Job -ScriptBlock {
         param($modulePath)
-        try {
-            Import-Module $modulePath -Force -DisableNameChecking
-            Get-SqlPortWithDebug
-        } catch {
-            Write-Error "Error en job de puertos: $_"
-            @()
-        }
+        Import-Module $modulePath -Force -DisableNameChecking
+        Get-SqlPortWithDebug
     } -ArgumentList (Join-Path $ModulesPath "Utilities.psm1")
     $networkJob = Start-Job -ScriptBlock {
         try {
@@ -1496,43 +1489,37 @@ function Initialize-SystemInfo {
             $LblAdapterStatus.UpdateLayout()
         })
     $timer = New-Object System.Windows.Threading.DispatcherTimer
-    $timer.Interval = [TimeSpan]::FromMilliseconds(500)
+    $timer.Interval = [TimeSpan]::FromMilliseconds(200)
     $timer.Add_Tick({
-            Write-DzDebug "`t[DEBUG][SystemInfo Timer] Verificando jobs..." -Color DarkGray
-            if (-not $script:portsJobCompleted -and $portsJob.State -in @("Completed", "Failed", "Stopped")) {
+            if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
                 try {
-                    Write-DzDebug "`t[DEBUG][SystemInfo Timer] Job de puertos completado, recibiendo resultados..." -Color Cyan
                     $portsResult = @(Receive-Job $portsJob -ErrorAction SilentlyContinue)
-                    Write-DzDebug "`t[DEBUG][SystemInfo Timer] Resultados de puertos recibidos: $($portsResult.Count)" -Color Cyan
                     Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
                     Update-PortsUI -LblPort $LblPort -PortsResult $portsResult
-                    $script:portsJobCompleted = $true
                 } catch {
-                    Write-DzDebug "`t[DEBUG][SystemInfo Timer] Error procesando puertos: $_" -Color Red
-                    $script:portsJobCompleted = $true
+                    Write-DzDebug "`t[DEBUG][SystemInfo] Error procesando puertos: $_"
                 }
+                $portsJob = $null
             }
-            if (-not $script:networkJobCompleted -and $networkJob.State -in @("Completed", "Failed", "Stopped")) {
+            if ($networkJob.State -in @("Completed", "Failed", "Stopped")) {
                 try {
-                    Write-DzDebug "`t[DEBUG][SystemInfo Timer] Job de red completado, recibiendo resultados..." -Color Cyan
                     $networkResult = Receive-Job $networkJob -ErrorAction SilentlyContinue
                     Remove-Job $networkJob -Force -ErrorAction SilentlyContinue
                     if ($networkResult) {
                         Update-NetworkUI -LblIpAddress $LblIpAddress -LblAdapterStatus $LblAdapterStatus -NetworkResult $networkResult
                     }
-                    $script:networkJobCompleted = $true
                 } catch {
-                    Write-DzDebug "`t[DEBUG][SystemInfo Timer] Error procesando red: $_" -Color Red
-                    $script:networkJobCompleted = $true
+                    Write-DzDebug "`t[DEBUG][SystemInfo] Error procesando red: $_"
                 }
+                $networkJob = $null
             }
-            if ($script:portsJobCompleted -and $script:networkJobCompleted) {
-                Write-DzDebug "`t[DEBUG][SystemInfo Timer] Ambos jobs completados, deteniendo timer" -Color Green
+            if ($null -eq $portsJob -and $null -eq $networkJob) {
                 $timer.Stop()
+                Write-DzDebug "`t[DEBUG][SystemInfo] Carga de información del sistema completada"
             }
-        })
+        }.GetNewClosure())
     $timer.Start()
-    Write-DzDebug "`t[DEBUG][SystemInfo] Iniciada carga asíncrona de información del sistema" -Color Green
+    Write-DzDebug "`t[DEBUG][SystemInfo] Iniciada carga asíncrona de información del sistema"
 }
 
 function Update-PortsUI {

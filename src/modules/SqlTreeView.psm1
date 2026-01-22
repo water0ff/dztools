@@ -480,14 +480,25 @@ function Load-DatabasesIntoTree {
         Write-DzDebug "`t[DEBUG][TreeView] DB '$db' está ONLINE, agregando nodos de tablas/vistas/procs"
         $dbNode.Add_MouseDoubleClick({
                 param($s, $e)
-                Write-DzDebug "`t[DEBUG][TreeView] Doble clic DB: $($s.Tag.Database) | State=$($s.Tag.DbStateDesc)"
-                if ($s.Tag.DbStateDesc -ne "ONLINE") {
-                    Ui-Warn "La base de datos '$($s.Tag.Database)' está en estado '$($s.Tag.DbStateDesc)'.`nDebes ponerla ONLINE primero." "Base de datos no disponible" $global:MainWindow
+                $db = [string]$s.Tag.Database
+                $state = [string]$s.Tag.DbStateDesc
+                $hasHandler = ($null -ne $s.Tag.OnDatabaseSelected)
+                Write-DzDebug "`t[DEBUG][TreeView] Doble clic DB: $db | State=$state | HasOnDatabaseSelected=$hasHandler"
+                if ($state -ne "ONLINE") {
+                    Ui-Warn "La base de datos '$db' está en estado '$state'.`nDebes ponerla ONLINE primero." "Base de datos no disponible" $global:MainWindow
                     $e.Handled = $true
                     return
                 }
-                if ($s.Tag.OnDatabaseSelected) {
-                    & $s.Tag.OnDatabaseSelected $s.Tag.Database
+                if ($hasHandler) {
+                    try {
+                        & $s.Tag.OnDatabaseSelected $db
+                        Write-DzDebug "`t[DEBUG][TreeView] OnDatabaseSelected ejecutado OK para DB='$db'"
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][TreeView] ERROR OnDatabaseSelected: $($_.Exception.Message)" -Color Red
+                        Write-DzDebug "`t[DEBUG][TreeView] Stack: $($_.ScriptStackTrace)" -Color Red
+                    }
+                } else {
+                    Write-DzDebug "`t[DEBUG][TreeView] OnDatabaseSelected es NULL (no hay handler)" -Color Red
                 }
                 $e.Handled = $true
             })

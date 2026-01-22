@@ -1897,10 +1897,25 @@ function Connect-DbCore {
 
     if ($Ctx.cmbDatabases) {
         $Ctx.cmbDatabases.Items.Clear()
-        foreach ($db in $databases) { [void]$Ctx.cmbDatabases.Items.Add($db) }
+        $Ctx.cmbDatabases.DisplayMemberPath = "Name"
+        $Ctx.cmbDatabases.SelectedValuePath = "Name"
+
+        foreach ($db in $databases) {
+            $name = $null
+            if ($db -is [string]) { $name = $db }
+            elseif ($db.PSObject.Properties["Name"]) { $name = [string]$db.Name }
+            elseif ($db.PSObject.Properties["Database"]) { $name = [string]$db.Database }
+            else { $name = [string]$db }  # último recurso
+
+            if (-not [string]::IsNullOrWhiteSpace($name)) {
+                [void]$Ctx.cmbDatabases.Items.Add([pscustomobject]@{ Name = $name })
+            }
+        }
+
         $Ctx.cmbDatabases.IsEnabled = $true
         $Ctx.cmbDatabases.SelectedIndex = 0
-        $Ctx.Database = $Ctx.cmbDatabases.SelectedItem
+        $Ctx.Database = [string]$Ctx.cmbDatabases.SelectedValue
+
     }
 
     if ($Ctx.lblConnectionStatus) {
@@ -1924,57 +1939,128 @@ function Connect-DbCore {
     if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $true }
 
     if ($Ctx.rtbQueryEditor1) { try { $Ctx.rtbQueryEditor1.Focus() | Out-Null } catch {} }
-
     if ($Ctx.tvDatabases) {
         Write-DzDebug "`t[DEBUG] Inicializando TreeView..."
-        Initialize-SqlTreeView -TreeView $Ctx.tvDatabases -Server $serverText -Credential $credential -User $userText -Password $passwordText -GetCurrentDatabase { $Ctx.Database } `
+
+        Initialize-SqlTreeView `
+            -TreeView $Ctx.tvDatabases `
+            -Server $serverText `
+            -Credential $credential `
+            -User $userText `
+            -Password $passwordText `
+            -GetCurrentDatabase ({ $Ctx.Database }.GetNewClosure()) `
             -AutoExpand $true `
-            -OnDatabaseSelected {
-            param($dbName)
-            if (-not $Ctx.cmbDatabases) { return }
-            $Ctx.cmbDatabases.SelectedItem = $dbName
-            if (-not $Ctx.cmbDatabases.SelectedItem) {
-                for ($i = 0; $i -lt $Ctx.cmbDatabases.Items.Count; $i++) {
-                    if ([string]$Ctx.cmbDatabases.Items[$i] -eq [string]$dbName) {
-                        $Ctx.cmbDatabases.SelectedIndex = $i
-                        break
+            -OnDatabaseSelected ({
+                param($dbName)
+
+                if (-not $Ctx.cmbDatabases) { return }
+
+                $dbName = [string]$dbName
+
+                try {
+                    if ($Ctx.cmbDatabases.SelectedValuePath -and $Ctx.cmbDatabases.SelectedValuePath.Trim().Length -gt 0) {
+                        $Ctx.cmbDatabases.SelectedValue = $dbName
+                    } else {
+                        $Ctx.cmbDatabases.SelectedItem = $dbName
                     }
-                }
-            }
-            $Ctx.Database = $Ctx.cmbDatabases.SelectedItem
-            if ($Ctx.lblConnectionStatus) {
-                $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
-            }
-            Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($Ctx.Database)"
-        } `
-            -OnDatabasesRefreshed {
-            try {
-                if (-not $Ctx.Server -or -not $Ctx.DbCredential) { return }
-                $dbs = Get-SqlDatabases -Server $Ctx.Server -Credential $Ctx.DbCredential
-                if ($dbs -and $dbs.Count -gt 0 -and $Ctx.cmbDatabases) {
-                    $Ctx.cmbDatabases.Items.Clear()
-                    foreach ($db in $dbs) { [void]$Ctx.cmbDatabases.Items.Add($db) }
-                    if ($Ctx.Database -and $Ctx.cmbDatabases.Items.Contains($Ctx.Database)) {
-                        $Ctx.cmbDatabases.SelectedItem = $Ctx.Database
-                    } elseif ($Ctx.cmbDatabases.Items.Count -gt 0) {
-                        $Ctx.cmbDatabases.SelectedIndex = 0
-                        $Ctx.Database = $Ctx.cmbDatabases.SelectedItem
+
+                    if (-not $Ctx.cmbDatabases.SelectedItem -and -not $Ctx.cmbDatabases.SelectedValue) {
+                        for ($i = 0; $i -lt $Ctx.cmbDatabases.Items.Count; $i++) {
+                            $item = $Ctx.cmbDatabases.Items[$i]
+                            $n = $null
+                            if ($item -is [string]) { $n = $item }
+                            elseif ($item.PSObject.Properties["Name"]) { $n = [string]$item.Name }
+                            elseif ($item.PSObject.Properties["Database"]) { $n = [string]$item.Database }
+                            else { $n = [string]$item }
+
+                            if ($n -eq $dbName) {
+                                $Ctx.cmbDatabases.SelectedIndex = $i
+                                break
+                            }
+                        }
                     }
+
+                    if ($Ctx.cmbDatabases.SelectedValuePath -and $Ctx.cmbDatabases.SelectedValuePath.Trim().Length -gt 0) {
+                        $Ctx.Database = [string]$Ctx.cmbDatabases.SelectedValue
+                    } else {
+                        $sel = $Ctx.cmbDatabases.SelectedItem
+                        if ($sel -is [string]) { $Ctx.Database = $sel }
+                        elseif ($sel -and $sel.PSObject.Properties["Name"]) { $Ctx.Database = [string]$sel.Name }
+                        elseif ($sel -and $sel.PSObject.Properties["Database"]) { $Ctx.Database = [string]$sel.Database }
+                        else { $Ctx.Database = [string]$sel }
+                    }
+
                     if ($Ctx.lblConnectionStatus) {
                         $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
                     }
-                    Write-DzDebug "`t[DEBUG][TreeView] ComboBox actualizado con $($dbs.Count) bases de datos"
+
+                    Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($Ctx.Database) (dbName='$dbName')"
+                } catch {
+                    Write-DzDebug "`t[DEBUG][OnDatabaseSelected] ERROR: $($_.Exception.Message)" -Color Red
                 }
-            } catch {
-                Write-DzDebug "`t[DEBUG][OnDatabasesRefreshed] Error: $_"
-            }
-        } `
-            -InsertTextHandler {
-            param($text)
-            if ($Ctx.tcQueries) {
-                Insert-TextIntoActiveQuery -TabControl $Ctx.tcQueries -Text $text
-            }
-        }
+            }).GetNewClosure() `
+            -OnDatabasesRefreshed ({
+                try {
+                    if (-not $Ctx.Server -or -not $Ctx.DbCredential) { return }
+
+                    $dbs = Get-SqlDatabases -Server $Ctx.Server -Credential $Ctx.DbCredential
+                    if (-not $dbs -or $dbs.Count -lt 1 -or -not $Ctx.cmbDatabases) { return }
+
+                    $Ctx.cmbDatabases.Items.Clear()
+
+                    if ($Ctx.cmbDatabases.DisplayMemberPath -and $Ctx.cmbDatabases.DisplayMemberPath.Trim().Length -gt 0) {
+                        foreach ($db in $dbs) {
+                            $name = $null
+                            if ($db -is [string]) { $name = $db }
+                            elseif ($db.PSObject.Properties["Name"]) { $name = [string]$db.Name }
+                            elseif ($db.PSObject.Properties["Database"]) { $name = [string]$db.Database }
+                            else { $name = [string]$db }
+
+                            if (-not [string]::IsNullOrWhiteSpace($name)) {
+                                [void]$Ctx.cmbDatabases.Items.Add([pscustomobject]@{ Name = $name })
+                            }
+                        }
+                    } else {
+                        foreach ($db in $dbs) { [void]$Ctx.cmbDatabases.Items.Add($db) }
+                    }
+
+                    if ($Ctx.Database) {
+                        if ($Ctx.cmbDatabases.SelectedValuePath -and $Ctx.cmbDatabases.SelectedValuePath.Trim().Length -gt 0) {
+                            $Ctx.cmbDatabases.SelectedValue = [string]$Ctx.Database
+                        } else {
+                            $Ctx.cmbDatabases.SelectedItem = $Ctx.Database
+                        }
+                    }
+
+                    if (-not $Ctx.cmbDatabases.SelectedItem -and $Ctx.cmbDatabases.Items.Count -gt 0) {
+                        $Ctx.cmbDatabases.SelectedIndex = 0
+                    }
+
+                    if ($Ctx.cmbDatabases.SelectedValuePath -and $Ctx.cmbDatabases.SelectedValuePath.Trim().Length -gt 0) {
+                        $Ctx.Database = [string]$Ctx.cmbDatabases.SelectedValue
+                    } else {
+                        $sel = $Ctx.cmbDatabases.SelectedItem
+                        if ($sel -is [string]) { $Ctx.Database = $sel }
+                        elseif ($sel -and $sel.PSObject.Properties["Name"]) { $Ctx.Database = [string]$sel.Name }
+                        elseif ($sel -and $sel.PSObject.Properties["Database"]) { $Ctx.Database = [string]$sel.Database }
+                        else { $Ctx.Database = [string]$sel }
+                    }
+
+                    if ($Ctx.lblConnectionStatus) {
+                        $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
+                    }
+
+                    Write-DzDebug "`t[DEBUG][TreeView] ComboBox actualizado con $($dbs.Count) bases de datos"
+                } catch {
+                    Write-DzDebug "`t[DEBUG][OnDatabasesRefreshed] Error: $_"
+                }
+            }).GetNewClosure() `
+            -InsertTextHandler ({
+                param($text)
+                if ($Ctx.tcQueries) {
+                    Insert-TextIntoActiveQuery -TabControl $Ctx.tcQueries -Text $text
+                }
+            }).GetNewClosure()
     }
 
     Write-DzDebug "`t[DEBUG] Conexión establecida exitosamente"
@@ -2068,6 +2154,381 @@ function Export-ResultsUiSafe {
         Write-DzDebug "`t[DEBUG][Export] CATCH: $($_.Exception.Message)" -Color Red
     }
 }
+# Database.psm1
+
+function Get-DbUiContext {
+    [CmdletBinding()]
+    param()
+
+    @{
+        QueryRunning           = $script:QueryRunning
+        CurrentQueryPowerShell = $script:CurrentQueryPowerShell
+        CurrentQueryRunspace   = $script:CurrentQueryRunspace
+        CurrentQueryAsync      = $script:CurrentQueryAsync
+        execUiTimer            = $script:execUiTimer
+        QueryDoneTimer         = $script:QueryDoneTimer
+        execStopwatch          = $script:execStopwatch
+
+        Connection             = $global:connection
+        Server                 = $global:server
+        User                   = $global:user
+        Password               = $global:password
+        Database               = $global:database
+        DbCredential           = $global:dbCredential
+
+        tvDatabases            = $global:tvDatabases
+        cmbDatabases           = $global:cmbDatabases
+        lblConnectionStatus    = $global:lblConnectionStatus
+
+        txtServer              = $global:txtServer
+        txtUser                = $global:txtUser
+        txtPassword            = $global:txtPassword
+        btnConnectDb           = $global:btnConnectDb
+
+        btnDisconnectDb        = $global:btnDisconnectDb
+        btnExecute             = $global:btnExecute
+        btnClearQuery          = $global:btnClearQuery
+        btnExport              = $global:btnExport
+        cmbQueries             = $global:cmbQueries
+        tcQueries              = $global:tcQueries
+        tcResults              = $global:tcResults
+        rtbQueryEditor1        = $global:rtbQueryEditor1
+        dgResults              = $global:dgResults
+        txtMessages            = $global:txtMessages
+        lblRowCount            = $global:lblRowCount
+        lblExecutionTimer      = $global:lblExecutionTimer
+
+        MainWindow             = $global:MainWindow
+    }
+}
+
+function Save-DbUiContext {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][hashtable]$Ctx)
+
+    $script:QueryRunning = [bool]$Ctx.QueryRunning
+    $script:CurrentQueryPowerShell = $Ctx.CurrentQueryPowerShell
+    $script:CurrentQueryRunspace = $Ctx.CurrentQueryRunspace
+    $script:CurrentQueryAsync = $Ctx.CurrentQueryAsync
+    $script:execUiTimer = $Ctx.execUiTimer
+    $script:QueryDoneTimer = $Ctx.QueryDoneTimer
+    $script:execStopwatch = $Ctx.execStopwatch
+
+    $global:connection = $Ctx.Connection
+    $global:server = $Ctx.Server
+    $global:user = $Ctx.User
+    $global:password = $Ctx.Password
+    $global:database = $Ctx.Database
+    $global:dbCredential = $Ctx.DbCredential
+}
+
+function Get-DbNameFromComboSelection {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)]$ComboBox)
+
+    $selected = $ComboBox.SelectedItem
+    if (-not $selected) { return $null }
+
+    $db = $null
+    if ($ComboBox.SelectedValuePath -and $ComboBox.SelectedValuePath.Trim().Length -gt 0) {
+        $db = [string]$ComboBox.SelectedValue
+    } else {
+        if ($selected -is [string]) { $db = [string]$selected }
+        elseif ($selected.PSObject.Properties["Name"]) { $db = [string]$selected.Name }
+        elseif ($selected.PSObject.Properties["Database"]) { $db = [string]$selected.Database }
+        else { $db = [string]$selected }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($db)) { return $null }
+    return $db
+}
+
+function Execute-QueryCore {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][hashtable]$Ctx)
+
+    if ($Ctx.QueryRunning) {
+        Write-DzDebug "`t[DEBUG] Query ya en ejecución, ignorando click"
+        return
+    }
+
+    $Ctx.QueryRunning = $true
+
+    $activeRtb = Get-ActiveQueryRichTextBox -TabControl $Ctx.tcQueries
+    if (-not $activeRtb) { throw "No hay una pestaña de consulta activa." }
+
+    $textRange = New-Object System.Windows.Documents.TextRange(
+        $activeRtb.Document.ContentStart,
+        $activeRtb.Document.ContentEnd
+    )
+
+    $rawQuery = $textRange.Text
+    if ([string]::IsNullOrWhiteSpace($rawQuery)) { throw "La consulta está vacía." }
+
+    $query = Remove-SqlComments -Query $rawQuery
+    if ([string]::IsNullOrWhiteSpace($query)) { throw "La consulta está vacía después de limpiar comentarios." }
+
+    if (-not $Ctx.cmbDatabases) { throw "Control de bases de datos no inicializado." }
+    $db = Get-DbNameFromComboSelection -ComboBox $Ctx.cmbDatabases
+    if ([string]::IsNullOrWhiteSpace($db)) { throw "Selecciona una base de datos válida." }
+
+    $server = [string]$Ctx.Server
+    $userText = [string]$Ctx.User
+    $passwordTxt = [string]$Ctx.Password
+    if ([string]::IsNullOrWhiteSpace($server) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordTxt)) {
+        throw "Faltan datos de conexión."
+    }
+
+    if ($Ctx.tcResults) { $Ctx.tcResults.Items.Clear() }
+    if ($Ctx.dgResults) { $Ctx.dgResults.ItemsSource = $null }
+    if ($Ctx.txtMessages) { $Ctx.txtMessages.Text = "" }
+    if ($Ctx.lblRowCount) { $Ctx.lblRowCount.Text = "Filas: --" }
+    if ($Ctx.lblExecutionTimer) { $Ctx.lblExecutionTimer.Text = "Tiempo: 00:00.0" }
+
+    if (-not $Ctx.execStopwatch) { $Ctx.execStopwatch = [System.Diagnostics.Stopwatch]::new() }
+
+    if ($Ctx.execUiTimer) {
+        try { if ($Ctx.execUiTimer.IsEnabled) { $Ctx.execUiTimer.Stop() } } catch {}
+    }
+
+    $Ctx.execUiTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $Ctx.execUiTimer.Interval = [TimeSpan]::FromMilliseconds(100)
+    $Ctx.execUiTimer.Add_Tick({
+            try {
+                if ($global:lblExecutionTimer -and $script:execStopwatch) {
+                    $t = $script:execStopwatch.Elapsed
+                    $global:lblExecutionTimer.Text = ("Tiempo: {0:mm\:ss\.f}" -f $t)
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][Timer] Error actualizando: $_"
+            }
+        })
+
+    $Ctx.execStopwatch.Restart()
+    $Ctx.execUiTimer.Start()
+
+    if ($Ctx.btnExecute) { $Ctx.btnExecute.IsEnabled = $false }
+
+    Write-Host "Query:" -ForegroundColor Cyan
+    foreach ($line in ($query -split "`r?`n")) { Write-Host "`t$line" -ForegroundColor Green }
+    Write-Host ""
+    Write-Host "Ejecutando consulta en '$db'..." -ForegroundColor Cyan
+
+    $modulesPath = Join-Path $PSScriptRoot "modules"
+
+    $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+    $rs.ApartmentState = 'MTA'
+    $rs.ThreadOptions = 'ReuseThread'
+    $rs.Open()
+
+    $ps = [PowerShell]::Create()
+    $ps.Runspace = $rs
+
+    $Ctx.CurrentQueryRunspace = $rs
+    $Ctx.CurrentQueryPowerShell = $ps
+
+    $worker = {
+        param($Server, $Database, $Query, $User, $Password, $ModulesPath)
+        try {
+            $utilPath = Join-Path $ModulesPath "Utilities.psm1"
+            $dbPath = Join-Path $ModulesPath "Database.psm1"
+
+            Import-Module $utilPath -Force -DisableNameChecking -ErrorAction Stop
+            Import-Module $dbPath -Force -DisableNameChecking -ErrorAction Stop
+
+            $secure = New-Object System.Security.SecureString
+            foreach ($ch in $Password.ToCharArray()) { $secure.AppendChar($ch) }
+            $secure.MakeReadOnly()
+            $cred = New-Object System.Management.Automation.PSCredential($User, $secure)
+
+            $r = Invoke-SqlQueryMultiResultSet -Server $Server -Database $Database -Query $Query -Credential $cred
+
+            if ($null -eq $r) {
+                return @{
+                    Success      = $false
+                    ErrorMessage = "La ejecución devolvió NULL."
+                    ResultSets   = @()
+                    Messages     = @()
+                    Type         = "Error"
+                }
+            }
+
+            return $r
+        } catch {
+            return @{
+                Success      = $false
+                ErrorMessage = $_.Exception.Message
+                ResultSets   = @()
+                Messages     = @()
+                Type         = "Error"
+            }
+        }
+    }
+
+    [void]$ps.AddScript($worker).
+    AddArgument($server).
+    AddArgument($db).
+    AddArgument($query).
+    AddArgument($userText).
+    AddArgument($passwordTxt).
+    AddArgument($modulesPath)
+
+    $Ctx.CurrentQueryAsync = $ps.BeginInvoke()
+
+    if ($Ctx.QueryDoneTimer) {
+        try { if ($Ctx.QueryDoneTimer.IsEnabled) { $Ctx.QueryDoneTimer.Stop() } } catch {}
+    }
+
+    $Ctx.QueryDoneTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $Ctx.QueryDoneTimer.Interval = [TimeSpan]::FromMilliseconds(150)
+    $Ctx.QueryDoneTimer.Add_Tick({
+            try {
+                Write-DzDebug "`t[DEBUG][TICK] Verificando query..."
+                if (-not $script:CurrentQueryAsync) { Write-DzDebug "`t[DEBUG][TICK] No hay async"; return }
+                if (-not $script:CurrentQueryAsync.IsCompleted) { Write-DzDebug "`t[DEBUG] Aún en ejecución..."; return }
+
+                $script:QueryDoneTimer.Stop()
+                Write-DzDebug "`t[DEBUG][TICK] Query completada, procesando..."
+
+                $result = $null
+                try {
+                    $result = $script:CurrentQueryPowerShell.EndInvoke($script:CurrentQueryAsync)
+                } catch {
+                    $result = @{
+                        Success      = $false
+                        ErrorMessage = $_.Exception.Message
+                        ResultSets   = @()
+                        Messages     = @()
+                        Type         = "Error"
+                    }
+                }
+
+                if ($result -is [System.Management.Automation.PSDataCollection[psobject]]) {
+                    if ($result.Count -gt 0) { $result = $result[0] } else { $result = $null }
+                } elseif ($result -is [System.Array]) {
+                    if ($result.Count -gt 0) { $result = $result[0] } else { $result = $null }
+                }
+
+                try { if ($script:CurrentQueryPowerShell) { $script:CurrentQueryPowerShell.Dispose() } } catch {}
+                try { if ($script:CurrentQueryRunspace) { $script:CurrentQueryRunspace.Close(); $script:CurrentQueryRunspace.Dispose() } } catch {}
+
+                $script:CurrentQueryPowerShell = $null
+                $script:CurrentQueryRunspace = $null
+                $script:CurrentQueryAsync = $null
+
+                try {
+                    if ($script:execStopwatch) { $script:execStopwatch.Stop() }
+                    if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) { $script:execUiTimer.Stop() }
+                    if ($global:lblExecutionTimer -and $script:execStopwatch) {
+                        $t = $script:execStopwatch.Elapsed
+                        $global:lblExecutionTimer.Text = ("Tiempo: {0:mm\:ss\.fff}" -f $t)
+                    }
+                } catch {}
+
+                try { if ($global:btnExecute) { $global:btnExecute.IsEnabled = $true } } catch {}
+                $script:QueryRunning = $false
+
+                if (-not $result -or -not $result.Success) {
+                    $msg = ""
+                    try { $msg = [string]$result.ErrorMessage } catch {}
+                    if ([string]::IsNullOrWhiteSpace($msg) -and $result -and $result.Messages) { try { $msg = ($result.Messages -join "`n") } catch {} }
+                    if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "Error desconocido al ejecutar la consulta." }
+
+                    if ($result -and $result.ResultSets -and $result.ResultSets.Count -gt 0) {
+                        try {
+                            Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
+                            Show-ErrorResultTab -ResultsTabControl $global:tcResults -Message $msg -AddWithoutClear
+                            if ($global:txtMessages) {
+                                $currentText = $global:txtMessages.Text
+                                $global:txtMessages.Text = "ERROR: $msg`n`n$currentText"
+                            }
+                            if ($global:lblRowCount) {
+                                $totalRows = ($result.ResultSets | Measure-Object -Property RowCount -Sum).Sum
+                                if ($result.ResultSets.Count -eq 1) { $global:lblRowCount.Text = "Filas: $totalRows (con error)" }
+                                else { $global:lblRowCount.Text = "Filas: $totalRows ($($result.ResultSets.Count) resultsets, con error)" }
+                            }
+                        } catch {
+                            if ($global:txtMessages) { $global:txtMessages.Text = "Error mostrando resultados: $($_.Exception.Message)" }
+                        }
+                    } else {
+                        if ($global:txtMessages) { $global:txtMessages.Text = $msg }
+                        if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
+                        if ($global:tcResults) { try { Show-ErrorResultTab -ResultsTabControl $global:tcResults -Message $msg } catch {} }
+                    }
+                    return
+                }
+
+                if ($result.DebugLog -and $global:txtMessages) {
+                    try {
+                        $dbg = ($result.DebugLog -join "`n")
+                        if (-not [string]::IsNullOrWhiteSpace($dbg)) { $global:txtMessages.Text = $dbg + "`n`n" + $global:txtMessages.Text }
+                    } catch {}
+                }
+
+                if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
+                    try { Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets } catch {
+                        if ($global:txtMessages) { $global:txtMessages.Text = "Error mostrando resultados: $($_.Exception.Message)" }
+                    }
+                    return
+                }
+
+                if ($result -and ($result -is [hashtable]) -and $result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
+                    if ($global:tcResults) {
+                        $global:tcResults.Items.Clear()
+                        $tab = New-Object System.Windows.Controls.TabItem
+                        $tab.Header = "Resultado"
+                        $text = New-Object System.Windows.Controls.TextBlock
+                        $text.Text = "Filas afectadas: $($result.RowsAffected)"
+                        $text.Margin = "10"
+                        $text.FontSize = 14
+                        $text.FontWeight = "Bold"
+                        $tab.Content = $text
+                        [void]$global:tcResults.Items.Add($tab)
+                        $global:tcResults.SelectedItem = $tab
+                    }
+                    if ($global:txtMessages) { $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)" }
+                    if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas afectadas: $($result.RowsAffected)" }
+                    return
+                }
+
+                Show-MultipleResultSets -TabControl $global:tcResults -ResultSets @()
+                if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: 0" }
+            } catch {
+                $err = "[UI][QueryDoneTimer ERROR] $($_.Exception.Message)`n$($_.ScriptStackTrace)"
+                if ($global:txtMessages) { $global:txtMessages.Text = $err }
+                Write-Host $err -ForegroundColor Red
+                try { if ($global:btnExecute) { $global:btnExecute.IsEnabled = $true } } catch {}
+                $script:QueryRunning = $false
+                try {
+                    if ($script:execStopwatch) { $script:execStopwatch.Stop() }
+                    if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) { $script:execUiTimer.Stop() }
+                } catch {}
+            }
+        })
+
+    $Ctx.QueryDoneTimer.Start()
+}
+
+function Execute-QueryUiSafe {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $ctx = Get-DbUiContext
+        Execute-QueryCore -Ctx $ctx
+        Save-DbUiContext -Ctx $ctx
+    } catch {
+        $msg = $_.Exception.Message
+        if ($global:txtMessages) { $global:txtMessages.Text = $msg }
+        Write-Host "`n[ERROR Execute-QueryUiSafe] $msg" -ForegroundColor Red
+        try { if ($global:btnExecute) { $global:btnExecute.IsEnabled = $true } } catch {}
+        $script:QueryRunning = $false
+        try {
+            if ($script:execStopwatch) { $script:execStopwatch.Stop() }
+            if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) { $script:execUiTimer.Stop() }
+        } catch {}
+    }
+}
 Export-ModuleMember -Function @(
     'Invoke-SqlQuery',
     'Invoke-SqlQueryMultiResultSet',
@@ -2105,5 +2566,6 @@ Export-ModuleMember -Function @(
     'Get-UseDatabaseFromQuery',
     'Disconnect-DbUiSafe',
     'Connect-DbUiSafe',
-    'Export-ResultsUiSafe'
+    'Export-ResultsUiSafe',
+    'Execute-QueryUiSafe'
 )

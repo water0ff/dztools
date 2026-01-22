@@ -1570,7 +1570,6 @@ function Show-DetachDialog {
                 $escapedDb = $Database -replace "'", "''"
                 $safeName = $Database -replace ']', ']]'
 
-                # Paso 1: Actualizar estadísticas (opcional)
                 if ($updateStats) {
                     Write-DzDebug "`t[DEBUG][DetachDB] Paso 1: Actualizando estadísticas"
                     $updateQuery = "USE [$safeName]; EXEC sp_updatestats"
@@ -1584,7 +1583,6 @@ function Show-DetachDialog {
                     Write-DzDebug "`t[DEBUG][DetachDB] Estadísticas actualizadas OK"
                 }
 
-                # Paso 2: Cerrar conexiones (opcional)
                 if ($closeConnections) {
                     Write-DzDebug "`t[DEBUG][DetachDB] Paso 2: Cerrando conexiones"
                     $closeQuery = "ALTER DATABASE [$safeName] SET SINGLE_USER WITH ROLLBACK IMMEDIATE"
@@ -1598,7 +1596,6 @@ function Show-DetachDialog {
                     Write-DzDebug "`t[DEBUG][DetachDB] Conexiones cerradas OK"
                 }
 
-                # Paso 3: Separar la base de datos
                 Write-DzDebug "`t[DEBUG][DetachDB] Paso 3: Separando base de datos"
                 $detachQuery = "EXEC sp_detach_db @dbname = N'$escapedDb', @skipchecks = 'false'"
                 $result3 = Invoke-SqlQuery -Server $Server -Database "master" -Query $detachQuery -Credential $Credential
@@ -1606,7 +1603,6 @@ function Show-DetachDialog {
                 if (-not $result3.Success) {
                     Write-DzDebug "`t[DEBUG][DetachDB] Error separando BD: $($result3.ErrorMessage)"
 
-                    # Si falla, intentar restaurar MULTI_USER si se había cerrado conexiones
                     if ($closeConnections) {
                         try {
                             $restoreQuery = "ALTER DATABASE [$safeName] SET MULTI_USER"
@@ -1624,7 +1620,6 @@ function Show-DetachDialog {
 
                 Ui-Info "La base de datos '$Database' ha sido separada exitosamente.`n`nLos archivos físicos permanecen en el disco y pueden ser adjuntados nuevamente cuando lo necesites." "✓ Éxito" $window
 
-                # Refrescar el TreeView
                 $serverNode = $ParentNode.Parent
                 if ($serverNode -and $serverNode.Tag.Type -eq "Server") {
                     if ($serverNode.Tag.OnDatabasesRefreshed) {
@@ -1638,7 +1633,6 @@ function Show-DetachDialog {
                     Refresh-SqlTreeServerNode -ServerNode $serverNode
                 }
 
-                # Remover el nodo del TreeView
                 if ($ParentNode.Parent -is [System.Windows.Controls.ItemsControl]) {
                     $window.Dispatcher.Invoke([action] {
                             try {
@@ -1661,6 +1655,7 @@ function Show-DetachDialog {
     Write-DzDebug "`t[DEBUG][DetachDB] Mostrando ventana"
     $null = $window.ShowDialog()
 }
+
 function Show-DatabaseSizeDialog {
     [CmdletBinding()]
     param(
@@ -1677,10 +1672,8 @@ function Show-DatabaseSizeDialog {
 
     Add-Type -AssemblyName PresentationFramework
 
-    # Escapar nombre de base de datos
     $safeDbName = $Database -replace ']', ']]'
 
-    # Consultar tamaños - SIN usar USE, directamente en la query
     $sizeQuery = @"
 SELECT
     name AS FileName,
@@ -1703,7 +1696,6 @@ ORDER BY type, name;
         return
     }
 
-    # Verificar que hay datos
     if (-not $result.DataTable -or $result.DataTable.Rows.Count -eq 0) {
         Write-DzDebug "`t[DEBUG][DBSize] No se obtuvieron filas"
         Ui-Error "No se pudo obtener información de tamaño de la base de datos." "Error" $null
@@ -1712,7 +1704,6 @@ ORDER BY type, name;
 
     Write-DzDebug "`t[DEBUG][DBSize] Se obtuvieron $($result.DataTable.Rows.Count) archivos"
 
-    # Construir filas dinámicas del XAML
     $dataRows = New-Object System.Collections.ArrayList
     $totalSizeMB = 0
     $totalUsedMB = 0
@@ -1730,12 +1721,10 @@ ORDER BY type, name;
 
         $typeIcon = if ($fileType -eq "ROWS") { "📄" } else { "📋" }
 
-        # Escapar para XML
         $safeFileName = [Security.SecurityElement]::Escape($fileName)
         $safeFileType = [Security.SecurityElement]::Escape($fileType)
 
         $rowXaml = @"
-                    <!-- Row $rowIndex -->
                     <Border Grid.Row="$rowIndex" Grid.Column="0" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="0,0,1,1" Padding="8">
                         <TextBlock Text="$typeIcon $safeFileName" FontWeight="SemiBold"/>
                     </Border>
@@ -1762,15 +1751,13 @@ ORDER BY type, name;
     Write-DzDebug "`t[DEBUG][DBSize] Totales: Size=$($totalSizeMB.ToString('N2')) MB, Used=$($totalUsedMB.ToString('N2')) MB, Free=$($totalFreeMB.ToString('N2')) MB, PercentUsed=$($totalPercentUsed.ToString('N2'))%"
 
     $safeDb = [Security.SecurityElement]::Escape($Database)
-    $totalRowCount = $result.DataTable.Rows.Count + 2  # Headers + data + total
+    $totalRowCount = $result.DataTable.Rows.Count + 2
 
-    # Generar definiciones de filas
     $rowDefs = ""
     for ($i = 0; $i -lt $totalRowCount; $i++) {
         $rowDefs += "                        <RowDefinition Height='Auto'/>`n"
     }
 
-    # Unir todas las filas de datos
     $allDataRows = $dataRows -join "`n"
     $totalRowIndex = $result.DataTable.Rows.Count + 1
 
@@ -1860,7 +1847,6 @@ $rowDefs
                         <ColumnDefinition Width="0.8*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Headers -->
                     <Border Grid.Row="0" Grid.Column="0" Background="{DynamicResource AccentSecondary}"
                             BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1,1,1,2" Padding="8">
                         <TextBlock Text="Archivo" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
@@ -1882,10 +1868,8 @@ $rowDefs
                         <TextBlock Text="% Usado" FontWeight="Bold" Foreground="{DynamicResource FormFg}"/>
                     </Border>
 
-                    <!-- Data rows -->
 $allDataRows
 
-                    <!-- Total row -->
                     <Border Grid.Row="$totalRowIndex" Grid.Column="0" Grid.ColumnSpan="2"
                             Background="{DynamicResource AccentMagenta}" BorderBrush="{DynamicResource BorderBrushColor}"
                             BorderThickness="1,2,1,1" Padding="8">
@@ -1986,7 +1970,6 @@ $allDataRows
         Ui-Error "Error al mostrar el diálogo: $($_.Exception.Message)" "Error" $null
     }
 }
-
 function Show-DatabaseRepairDialog {
     [CmdletBinding()]
     param(
@@ -1994,28 +1977,14 @@ function Show-DatabaseRepairDialog {
         [Parameter(Mandatory = $true)][string]$Database,
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
     )
-
     $script:RepairRunning = $false
     $script:RepairDone = $false
-
-    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) {
-        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null
-    }
-
-    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) {
-        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null
-    }
-
-    function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) {
-        (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes
-    }
-
+    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
+    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
+    function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) { (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes }
     Write-DzDebug "`t[DEBUG][DBRepair] INICIO: Server='$Server' Database='$Database'"
-
     Add-Type -AssemblyName PresentationFramework
-
     $safeDb = [Security.SecurityElement]::Escape($Database)
-
     $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -2118,7 +2087,6 @@ function Show-DatabaseRepairDialog {
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-
         <Border Grid.Row="0" Name="brdTitleBar" Background="{DynamicResource PanelBg}"
                 BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
                 CornerRadius="10" Padding="12" Margin="0,0,0,10">
@@ -2132,13 +2100,11 @@ function Show-DatabaseRepairDialog {
                 <Button DockPanel.Dock="Right" Name="btnClose" Style="{StaticResource CloseButtonStyle}"/>
             </DockPanel>
         </Border>
-
         <Border Grid.Row="1" Background="{DynamicResource PanelBg}"
                 BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
                 CornerRadius="10" Padding="12" Margin="0,0,0,10">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
-                    <!-- Advertencia -->
                     <Border Background="#33FF0000" BorderBrush="#FFFF0000" BorderThickness="2"
                             CornerRadius="8" Padding="12" Margin="0,0,0,12">
                         <StackPanel>
@@ -2151,73 +2117,49 @@ function Show-DatabaseRepairDialog {
                             </TextBlock>
                         </StackPanel>
                     </Border>
-
-                    <!-- Paso 1: Verificación -->
                     <TextBlock Text="Paso 1: Verificar Integridad" FontWeight="Bold" FontSize="13"
                                Margin="0,0,0,8"/>
                     <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}"
                             BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
                         <StackPanel>
                             <RadioButton x:Name="rbCheckOnly" IsChecked="True" GroupName="Action" Margin="0,0,0,8">
-                                <TextBlock TextWrapping="Wrap">
-                                    🔍 Solo verificar (DBCC CHECKDB sin reparación)
-                                </TextBlock>
+                                <TextBlock TextWrapping="Wrap">🔍 Solo verificar (DBCC CHECKDB sin reparación)</TextBlock>
                             </RadioButton>
                             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource AccentMuted}"
-                                       Margin="20,0,0,0">
-                                Recomendado: Primero verifica si hay errores antes de intentar reparar.
-                            </TextBlock>
+                                       Margin="20,0,0,0">Recomendado: Primero verifica si hay errores antes de intentar reparar.</TextBlock>
                         </StackPanel>
                     </Border>
-
-                    <!-- Paso 2: Reparación -->
                     <TextBlock Text="Paso 2: Reparación (Solo si hay errores)" FontWeight="Bold" FontSize="13"
                                Margin="0,0,0,8"/>
                     <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}"
                             BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
                         <StackPanel>
                             <RadioButton x:Name="rbRepairFast" GroupName="Action" Margin="0,0,0,8">
-                                <TextBlock TextWrapping="Wrap">
-                                    🔧 REPAIR_FAST (reparación rápida, sin pérdida de datos)
-                                </TextBlock>
+                                <TextBlock TextWrapping="Wrap">🔧 REPAIR_FAST (reparación rápida, sin pérdida de datos)</TextBlock>
                             </RadioButton>
                             <RadioButton x:Name="rbRepairRebuild" GroupName="Action" Margin="0,0,0,8">
-                                <TextBlock TextWrapping="Wrap">
-                                    🔨 REPAIR_REBUILD (reconstruir índices, sin pérdida de datos)
-                                </TextBlock>
+                                <TextBlock TextWrapping="Wrap">🔨 REPAIR_REBUILD (reconstruir índices, sin pérdida de datos)</TextBlock>
                             </RadioButton>
                             <RadioButton x:Name="rbRepairAllowDataLoss" GroupName="Action" Margin="0,0,0,8">
-                                <TextBlock TextWrapping="Wrap" Foreground="#FFFF6666">
-                                    ⚠️ REPAIR_ALLOW_DATA_LOSS (puede causar PÉRDIDA DE DATOS)
-                                </TextBlock>
+                                <TextBlock TextWrapping="Wrap" Foreground="#FFFF6666">⚠️ REPAIR_ALLOW_DATA_LOSS (puede causar PÉRDIDA DE DATOS)</TextBlock>
                             </RadioButton>
                             <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#FFFF6666"
-                                       Margin="20,0,0,0">
-                                PELIGRO: Esta opción eliminará datos corruptos. Úsala solo como último recurso.
-                            </TextBlock>
+                                       Margin="20,0,0,0">PELIGRO: Esta opción eliminará datos corruptos. Úsala solo como último recurso.</TextBlock>
                         </StackPanel>
                     </Border>
-
-                    <!-- Opciones adicionales -->
                     <TextBlock Text="Opciones Adicionales" FontWeight="Bold" FontSize="13"
                                Margin="0,0,0,8"/>
                     <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}"
                             BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
                         <StackPanel>
                             <CheckBox x:Name="chkCloseConnections" IsChecked="True" Margin="0,0,0,8">
-                                <TextBlock TextWrapping="Wrap">
-                                    Cerrar conexiones activas (SINGLE_USER)
-                                </TextBlock>
+                                <TextBlock TextWrapping="Wrap">Cerrar conexiones activas (SINGLE_USER)</TextBlock>
                             </CheckBox>
                             <CheckBox x:Name="chkEmergencyMode" IsChecked="True">
-                                <TextBlock TextWrapping="Wrap">
-                                    Poner en modo EMERGENCY antes de reparar
-                                </TextBlock>
+                                <TextBlock TextWrapping="Wrap">Poner en modo EMERGENCY antes de reparar</TextBlock>
                             </CheckBox>
                         </StackPanel>
                     </Border>
-
-                    <!-- Progress -->
                     <Border Background="{DynamicResource FormBg}" BorderBrush="{DynamicResource BorderBrushColor}"
                             BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
                         <StackPanel>
@@ -2225,8 +2167,6 @@ function Show-DatabaseRepairDialog {
                             <ProgressBar x:Name="pbProgress" Height="20" Minimum="0" Maximum="100" Value="0"/>
                         </StackPanel>
                     </Border>
-
-                    <!-- Log -->
                     <TextBlock Text="Log de Operaciones" FontWeight="Bold" FontSize="13" Margin="0,0,0,8"/>
                     <Border Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}"
                             BorderThickness="1" CornerRadius="8" Padding="8">
@@ -2237,7 +2177,6 @@ function Show-DatabaseRepairDialog {
                 </StackPanel>
             </ScrollViewer>
         </Border>
-
         <Border Grid.Row="2" Background="{DynamicResource PanelBg}"
                 BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
                 CornerRadius="10" Padding="10">
@@ -2259,14 +2198,12 @@ function Show-DatabaseRepairDialog {
     </Grid>
 </Window>
 "@
-
     try {
         $ui = New-WpfWindow -Xaml $xaml -PassThru
         $window = $ui.Window
         $theme = Get-DzUiTheme
         Set-DzWpfThemeResources -Window $window -Theme $theme
         try { Set-WpfDialogOwner -Dialog $window } catch {}
-
         $brdTitleBar = $window.FindName("brdTitleBar")
         if ($brdTitleBar) {
             $brdTitleBar.Add_MouseLeftButtonDown({
@@ -2280,7 +2217,6 @@ function Show-DatabaseRepairDialog {
         Write-DzDebug "`t[DEBUG][DBRepair] ERROR creando ventana: $($_.Exception.Message)"
         throw "No se pudo crear la ventana (XAML). $($_.Exception.Message)"
     }
-
     $rbCheckOnly = $window.FindName("rbCheckOnly")
     $rbRepairFast = $window.FindName("rbRepairFast")
     $rbRepairRebuild = $window.FindName("rbRepairRebuild")
@@ -2293,21 +2229,17 @@ function Show-DatabaseRepairDialog {
     $btnIniciar = $window.FindName("btnIniciar")
     $btnCancelar = $window.FindName("btnCancelar")
     $btnClose = $window.FindName("btnClose")
-
     $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
     $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
-
     function Paint-Progress {
         param([int]$Percent, [string]$Message)
         $pbProgress.Value = $Percent
         $txtProgress.Text = $Message
     }
-
     function Add-Log {
         param([string]$Message)
         $logQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $Message))
     }
-
     function Start-RepairWorkAsync {
         param(
             [string]$Server,
@@ -2319,47 +2251,35 @@ function Show-DatabaseRepairDialog {
             [System.Collections.Concurrent.ConcurrentQueue[string]]$LogQueue,
             [System.Collections.Concurrent.ConcurrentQueue[hashtable]]$ProgressQueue
         )
-
         $worker = {
             param($Server, $Database, $RepairOption, $CloseConnections, $EmergencyMode, $Credential, $LogQueue, $ProgressQueue)
-
             function EnqLog([string]$m) { $LogQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $m)) }
             function EnqProg([int]$p, [string]$m) { $ProgressQueue.Enqueue(@{Percent = $p; Message = $m }) }
-
             function Invoke-SqlQueryLite {
                 param([string]$Server, [string]$Database, [string]$Query, [System.Management.Automation.PSCredential]$Credential)
-
                 $connection = $null
                 $passwordBstr = [IntPtr]::Zero
                 $plainPassword = $null
-
                 try {
                     $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
                     $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
                     $cs = "Server=$Server;Database=master;User Id=$($Credential.UserName);Password=$plainPassword;Connection Timeout=300"
                     $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
                     $connection.Open()
-
                     $cmd = $connection.CreateCommand()
                     $cmd.CommandText = $Query
                     $cmd.CommandTimeout = 0
-
                     $reader = $cmd.ExecuteReader()
                     $messages = New-Object System.Collections.ArrayList
-
                     do {
                         while ($reader.Read()) {
                             for ($i = 0; $i -lt $reader.FieldCount; $i++) {
                                 $val = $reader.GetValue($i)
-                                if ($val -and $val -ne [DBNull]::Value) {
-                                    [void]$messages.Add($val.ToString())
-                                }
+                                if ($val -and $val -ne [DBNull]::Value) { [void]$messages.Add($val.ToString()) }
                             }
                         }
                     } while ($reader.NextResult())
-
                     $reader.Close()
-
                     @{ Success = $true; Messages = $messages }
                 } catch {
                     @{ Success = $false; ErrorMessage = $_.Exception.Message }
@@ -2369,26 +2289,20 @@ function Show-DatabaseRepairDialog {
                     if ($connection) { try { $connection.Close(); $connection.Dispose() } catch { } }
                 }
             }
-
             try {
                 $safeName = $Database -replace ']', ']]'
                 $steps = 0
                 $currentStep = 0
-
                 if ($EmergencyMode -and $RepairOption -ne "CHECK") { $steps++ }
                 if ($CloseConnections) { $steps++ }
-                $steps++ # La operación principal
-                if ($CloseConnections) { $steps++ } # Restaurar MULTI_USER
-
-                # Paso 1: Emergency Mode
+                $steps++
+                if ($CloseConnections) { $steps++ }
                 if ($EmergencyMode -and $RepairOption -ne "CHECK") {
                     $currentStep++
                     EnqProg ([int](($currentStep / $steps) * 90)) "Configurando modo EMERGENCY..."
                     EnqLog "🔧 Configurando base de datos en modo EMERGENCY"
-
                     $emergencyQuery = "ALTER DATABASE [$safeName] SET EMERGENCY"
                     $result = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $emergencyQuery -Credential $Credential
-
                     if (-not $result.Success) {
                         EnqProg 0 "Error"
                         EnqLog "❌ Error al configurar modo EMERGENCY: $($result.ErrorMessage)"
@@ -2398,16 +2312,12 @@ function Show-DatabaseRepairDialog {
                     }
                     EnqLog "✅ Modo EMERGENCY configurado"
                 }
-
-                # Paso 2: Close Connections
                 if ($CloseConnections) {
                     $currentStep++
                     EnqProg ([int](($currentStep / $steps) * 90)) "Cerrando conexiones..."
                     EnqLog "🔒 Cerrando conexiones existentes (SINGLE_USER)"
-
                     $closeQuery = "ALTER DATABASE [$safeName] SET SINGLE_USER WITH ROLLBACK IMMEDIATE"
                     $result = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $closeQuery -Credential $Credential
-
                     if (-not $result.Success) {
                         EnqProg 0 "Error"
                         EnqLog "❌ Error al cerrar conexiones: $($result.ErrorMessage)"
@@ -2417,72 +2327,47 @@ function Show-DatabaseRepairDialog {
                     }
                     EnqLog "✅ Conexiones cerradas"
                 }
-
-                # Paso 3: Ejecutar DBCC CHECKDB
                 $currentStep++
                 $actionText = if ($RepairOption -eq "CHECK") { "Verificando integridad..." } else { "Ejecutando reparación..." }
                 EnqProg ([int](($currentStep / $steps) * 90)) $actionText
                 EnqLog "🔍 Ejecutando DBCC CHECKDB ($RepairOption)"
-
                 $dbccQuery = switch ($RepairOption) {
                     "CHECK" { "DBCC CHECKDB([$safeName]) WITH NO_INFOMSGS" }
                     "REPAIR_FAST" { "DBCC CHECKDB([$safeName], REPAIR_FAST) WITH NO_INFOMSGS" }
                     "REPAIR_REBUILD" { "DBCC CHECKDB([$safeName], REPAIR_REBUILD) WITH NO_INFOMSGS" }
                     "REPAIR_ALLOW_DATA_LOSS" { "DBCC CHECKDB([$safeName], REPAIR_ALLOW_DATA_LOSS) WITH NO_INFOMSGS" }
                 }
-
                 $result = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $dbccQuery -Credential $Credential
-
                 if (-not $result.Success) {
                     EnqProg 0 "Error"
                     EnqLog "❌ Error ejecutando DBCC: $($result.ErrorMessage)"
-
-                    # Intentar restaurar MULTI_USER si es necesario
                     if ($CloseConnections) {
                         try {
                             $restoreQuery = "ALTER DATABASE [$safeName] SET MULTI_USER"
                             Invoke-SqlQueryLite -Server $Server -Database "master" -Query $restoreQuery -Credential $Credential | Out-Null
                         } catch { }
                     }
-
                     EnqLog "ERROR_RESULT|$($result.ErrorMessage)"
                     EnqLog "__DONE__"
                     return
                 }
-
-                # Procesar mensajes del DBCC
                 $hasErrors = $false
                 foreach ($msg in $result.Messages) {
                     EnqLog "[DBCC] $msg"
-                    if ($msg -match "(?i)(error|corruption|corrupt|dañ|inconsisten)") {
-                        $hasErrors = $true
-                    }
+                    if ($msg -match "(?i)(error|corruption|corrupt|dañ|inconsisten)") { $hasErrors = $true }
                 }
-
-                if ($result.Messages.Count -eq 0) {
-                    EnqLog "✅ No se encontraron problemas de integridad"
-                } elseif (-not $hasErrors) {
-                    EnqLog "✅ Verificación completada sin errores críticos"
-                } else {
-                    EnqLog "⚠️ Se encontraron problemas de integridad"
-                }
-
-                # Paso 4: Restaurar MULTI_USER
+                if ($result.Messages.Count -eq 0) { EnqLog "✅ No se encontraron problemas de integridad" }
+                elseif (-not $hasErrors) { EnqLog "✅ Verificación completada sin errores críticos" }
+                else { EnqLog "⚠️ Se encontraron problemas de integridad" }
                 if ($CloseConnections) {
                     $currentStep++
                     EnqProg ([int](($currentStep / $steps) * 90)) "Restaurando acceso normal..."
                     EnqLog "🔓 Restaurando modo MULTI_USER"
-
                     $restoreQuery = "ALTER DATABASE [$safeName] SET MULTI_USER"
                     $result = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $restoreQuery -Credential $Credential
-
-                    if (-not $result.Success) {
-                        EnqLog "⚠️ Advertencia: No se pudo restaurar MULTI_USER: $($result.ErrorMessage)"
-                    } else {
-                        EnqLog "✅ Modo MULTI_USER restaurado"
-                    }
+                    if (-not $result.Success) { EnqLog "⚠️ Advertencia: No se pudo restaurar MULTI_USER: $($result.ErrorMessage)" }
+                    else { EnqLog "✅ Modo MULTI_USER restaurado" }
                 }
-
                 EnqProg 100 "Operación completada"
                 EnqLog "✅ Proceso completado exitosamente"
                 EnqLog "SUCCESS_RESULT|Operación completada. Revisa el log para detalles."
@@ -2494,19 +2379,15 @@ function Show-DatabaseRepairDialog {
                 EnqLog "__DONE__"
             }
         }
-
         $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
         $rs.ApartmentState = 'MTA'
         $rs.ThreadOptions = 'ReuseThread'
         $rs.Open()
-
         $ps = [PowerShell]::Create()
         $ps.Runspace = $rs
         [void]$ps.AddScript($worker).AddArgument($Server).AddArgument($Database).AddArgument($RepairOption).AddArgument($CloseConnections).AddArgument($EmergencyMode).AddArgument($Credential).AddArgument($LogQueue).AddArgument($ProgressQueue)
-
         $null = $ps.BeginInvoke()
     }
-
     $logTimer = [System.Windows.Threading.DispatcherTimer]::new()
     $logTimer.Interval = [TimeSpan]::FromMilliseconds(200)
     $logTimer.Add_Tick({
@@ -2514,48 +2395,33 @@ function Show-DatabaseRepairDialog {
                 $count = 0
                 $doneThisTick = $false
                 $finalResult = $null
-
                 while ($count -lt 50) {
                     $line = $null
                     if (-not $logQueue.TryDequeue([ref]$line)) { break }
-
-                    if ($line -like "*SUCCESS_RESULT|*") {
-                        $finalResult = @{ Success = $true; Message = $line -replace '^.*SUCCESS_RESULT\|', '' }
-                    }
-                    if ($line -like "*ERROR_RESULT|*") {
-                        $finalResult = @{ Success = $false; Message = $line -replace '^.*ERROR_RESULT\|', '' }
-                    }
-
+                    if ($line -like "*SUCCESS_RESULT|*") { $finalResult = @{ Success = $true; Message = $line -replace '^.*SUCCESS_RESULT\|', '' } }
+                    if ($line -like "*ERROR_RESULT|*") { $finalResult = @{ Success = $false; Message = $line -replace '^.*ERROR_RESULT\|', '' } }
                     if ($line -notmatch '(SUCCESS_RESULT|ERROR_RESULT)') {
                         $txtLog.AppendText("$line`n")
                         $txtLog.ScrollToEnd()
                     }
-
                     if ($line -like "*__DONE__*") {
                         $doneThisTick = $true
                         $script:RepairRunning = $false
                         $btnIniciar.IsEnabled = $true
                         $btnIniciar.Content = "Iniciar"
-
                         $tmp = $null
                         while ($progressQueue.TryDequeue([ref]$tmp)) { }
                         Paint-Progress -Percent 100 -Message "Completado"
-
                         $script:RepairDone = $true
-
                         if ($finalResult) {
                             $window.Dispatcher.Invoke([action] {
-                                    if ($finalResult.Success) {
-                                        Ui-Info "Operación completada.`n`n$($finalResult.Message)`n`nRevisa el log para más detalles." "✓ Completado" $window
-                                    } else {
-                                        Ui-Error "La operación falló:`n`n$($finalResult.Message)" "✗ Error" $window
-                                    }
+                                    if ($finalResult.Success) { Ui-Info "Operación completada.`n`n$($finalResult.Message)`n`nRevisa el log para más detalles." "✓ Completado" $window }
+                                    else { Ui-Error "La operación falló:`n`n$($finalResult.Message)" "✗ Error" $window }
                                 }, [System.Windows.Threading.DispatcherPriority]::Normal)
                         }
                     }
                     $count++
                 }
-
                 if (-not $doneThisTick) {
                     $last = $null
                     while ($true) {
@@ -2568,7 +2434,6 @@ function Show-DatabaseRepairDialog {
             } catch {
                 Write-DzDebug "`t[DEBUG][UI][logTimer][repair] ERROR: $($_.Exception.Message)"
             }
-
             if ($script:RepairDone) {
                 $tmpLine = $null
                 $tmpProg = $null
@@ -2578,34 +2443,19 @@ function Show-DatabaseRepairDialog {
                 }
             }
         })
-
     $logTimer.Start()
-
-    $btnClose.Add_Click({
-            $window.Close()
-        })
-
-    $btnCancelar.Add_Click({
-            $window.Close()
-        })
-
+    $btnClose.Add_Click({ $window.Close() })
+    $btnCancelar.Add_Click({ $window.Close() })
     $window.Add_PreviewKeyDown({
             param($sender, $e)
-            if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
-                $window.Close()
-            }
+            if ($e.Key -eq [System.Windows.Input.Key]::Escape) { $window.Close() }
         })
-
     $btnIniciar.Add_Click({
             if ($script:RepairRunning) { return }
-
-            # Determinar opción seleccionada
             $repairOption = "CHECK"
             if ($rbRepairFast.IsChecked) { $repairOption = "REPAIR_FAST" }
             elseif ($rbRepairRebuild.IsChecked) { $repairOption = "REPAIR_REBUILD" }
             elseif ($rbRepairAllowDataLoss.IsChecked) { $repairOption = "REPAIR_ALLOW_DATA_LOSS" }
-
-            # Confirmación especial para REPAIR_ALLOW_DATA_LOSS
             if ($repairOption -eq "REPAIR_ALLOW_DATA_LOSS") {
                 $msg = @"
 ⚠️ ADVERTENCIA FINAL ⚠️
@@ -2620,21 +2470,16 @@ Esta operación:
 
 ¿Estás ABSOLUTAMENTE SEGURO de continuar?
 "@
-                if (-not (Ui-Confirm $msg "⚠️ Confirmar Reparación Destructiva" $window)) {
-                    return
-                }
+                if (-not (Ui-Confirm $msg "⚠️ Confirmar Reparación Destructiva" $window)) { return }
             }
-
             $script:RepairDone = $false
             if (-not $logTimer.IsEnabled) { $logTimer.Start() }
-
             try {
                 $btnIniciar.IsEnabled = $false
                 $btnIniciar.Content = "Procesando..."
                 $txtLog.Text = ""
                 $pbProgress.Value = 0
                 $txtProgress.Text = "Iniciando..."
-
                 Add-Log "═══════════════════════════════════════"
                 Add-Log "Iniciando operación de reparación"
                 Add-Log "Base de datos: $Database"
@@ -2643,12 +2488,10 @@ Esta operación:
                 Add-Log "Cerrar conexiones: $(if ($chkCloseConnections.IsChecked) { 'Sí' } else { 'No' })"
                 Add-Log "Modo EMERGENCY: $(if ($chkEmergencyMode.IsChecked) { 'Sí' } else { 'No' })"
                 Add-Log "═══════════════════════════════════════"
-
                 Start-RepairWorkAsync -Server $Server -Database $Database -RepairOption $repairOption `
                     -CloseConnections ($chkCloseConnections.IsChecked -eq $true) `
                     -EmergencyMode ($chkEmergencyMode.IsChecked -eq $true) `
                     -Credential $Credential -LogQueue $logQueue -ProgressQueue $progressQueue
-
                 $script:RepairRunning = $true
             } catch {
                 Write-DzDebug "`t[DEBUG][UI] ERROR btnIniciar: $($_.Exception.Message)"
@@ -2658,11 +2501,10 @@ Esta operación:
                 Paint-Progress -Percent 0 -Message "Error"
             }
         })
-
     $null = $window.ShowDialog()
-
     try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch { }
 }
+
 Export-ModuleMember -Function @('Show-RestoreDialog', 'Show-AttachDialog',
     'Reset-RestoreUI', 'Reset-AttachUI',
     'Show-BackupDialog', 'Reset-BackupUI',

@@ -1425,10 +1425,17 @@ function Initialize-SystemInfo {
         [Parameter(Mandatory = $true)]$LblAdapterStatus,
         [Parameter(Mandatory = $false)][string]$ModulesPath = $PSScriptRoot
     )
+    $script:portsJobCompleted = $false
+    $script:networkJobCompleted = $false
     $portsJob = Start-Job -ScriptBlock {
         param($modulePath)
-        Import-Module $modulePath -Force -DisableNameChecking
-        Get-SqlPortWithDebug
+        try {
+            Import-Module $modulePath -Force -DisableNameChecking
+            Get-SqlPortWithDebug
+        } catch {
+            Write-Error "Error en job de puertos: $_"
+            @()
+        }
     } -ArgumentList (Join-Path $ModulesPath "Utilities.psm1")
     $networkJob = Start-Job -ScriptBlock {
         try {
@@ -1489,46 +1496,55 @@ function Initialize-SystemInfo {
             $LblAdapterStatus.UpdateLayout()
         })
     $timer = New-Object System.Windows.Threading.DispatcherTimer
-    $timer.Interval = [TimeSpan]::FromMilliseconds(200)
+    $timer.Interval = [TimeSpan]::FromMilliseconds(500)
     $timer.Add_Tick({
-            if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
+            Write-DzDebug "`t[DEBUG][SystemInfo Timer] Verificando jobs..." -Color DarkGray
+            if (-not $script:portsJobCompleted -and $portsJob.State -in @("Completed", "Failed", "Stopped")) {
                 try {
+                    Write-DzDebug "`t[DEBUG][SystemInfo Timer] Job de puertos completado, recibiendo resultados..." -Color Cyan
                     $portsResult = @(Receive-Job $portsJob -ErrorAction SilentlyContinue)
+                    Write-DzDebug "`t[DEBUG][SystemInfo Timer] Resultados de puertos recibidos: $($portsResult.Count)" -Color Cyan
                     Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
                     Update-PortsUI -LblPort $LblPort -PortsResult $portsResult
+                    $script:portsJobCompleted = $true
                 } catch {
-                    Write-DzDebug "`t[DEBUG][SystemInfo] Error procesando puertos: $_"
+                    Write-DzDebug "`t[DEBUG][SystemInfo Timer] Error procesando puertos: $_" -Color Red
+                    $script:portsJobCompleted = $true
                 }
-                $portsJob = $null
             }
-            if ($networkJob.State -in @("Completed", "Failed", "Stopped")) {
+            if (-not $script:networkJobCompleted -and $networkJob.State -in @("Completed", "Failed", "Stopped")) {
                 try {
+                    Write-DzDebug "`t[DEBUG][SystemInfo Timer] Job de red completado, recibiendo resultados..." -Color Cyan
                     $networkResult = Receive-Job $networkJob -ErrorAction SilentlyContinue
                     Remove-Job $networkJob -Force -ErrorAction SilentlyContinue
                     if ($networkResult) {
                         Update-NetworkUI -LblIpAddress $LblIpAddress -LblAdapterStatus $LblAdapterStatus -NetworkResult $networkResult
                     }
+                    $script:networkJobCompleted = $true
                 } catch {
-                    Write-DzDebug "`t[DEBUG][SystemInfo] Error procesando red: $_"
+                    Write-DzDebug "`t[DEBUG][SystemInfo Timer] Error procesando red: $_" -Color Red
+                    $script:networkJobCompleted = $true
                 }
-                $networkJob = $null
             }
-            if ($null -eq $portsJob -and $null -eq $networkJob) {
+            if ($script:portsJobCompleted -and $script:networkJobCompleted) {
+                Write-DzDebug "`t[DEBUG][SystemInfo Timer] Ambos jobs completados, deteniendo timer" -Color Green
                 $timer.Stop()
-                Write-DzDebug "`t[DEBUG][SystemInfo] Carga de información del sistema completada"
             }
-        }.GetNewClosure())
+        })
     $timer.Start()
-    Write-DzDebug "`t[DEBUG][SystemInfo] Iniciada carga asíncrona de información del sistema"
+    Write-DzDebug "`t[DEBUG][SystemInfo] Iniciada carga asíncrona de información del sistema" -Color Green
 }
+
 function Update-PortsUI {
     param($LblPort, $PortsResult)
+    Write-DzDebug "`t[DEBUG][Update-PortsUI] Iniciando actualización de UI de puertos" -Color Cyan
     $portsArray = @($PortsResult | Where-Object {
             $_ -ne $null -and
             $_.PSObject.Properties.Match('Port').Count -gt 0 -and
             $_.PSObject.Properties.Match('Instance').Count -gt 0 -and
             ![string]::IsNullOrWhiteSpace([string]$_.Port)
         })
+    Write-DzDebug "`t[DEBUG][Update-PortsUI] Puertos filtrados: $($portsArray.Count)" -Color Cyan
     $LblPort.Dispatcher.Invoke([action] {
             if ($portsArray.Count -gt 0) {
                 $sortedPorts = $portsArray | Sort-Object -Property Instance
@@ -1537,18 +1553,26 @@ function Update-PortsUI {
                     $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
                     $displayParts += "$instanceName : $($port.Port)"
                 }
-                $LblPort.Text = $displayParts -join " | "
-                $LblPort.Tag = ($sortedPorts | ForEach-Object {
-                        $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
-                        "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
-                    } | Out-String).Trim()
-                $LblPort.ToolTip = "$($sortedPorts.Count) instancia(s) encontrada(s). Clic para detalles"
-                Write-Host "✓ Puertos SQL encontrados: $($LblPort.Text)" -ForegroundColor Green
+                $displayText = $displayParts -join " | "
+                if ($LblPort.Text -ne $displayText) {
+                    $LblPort.Text = $displayText
+                    $LblPort.Tag = ($sortedPorts | ForEach-Object {
+                            $instanceName = if ($_.Instance -eq "MSSQLSERVER") { "Default" } else { $_.Instance }
+                            "- Instancia: $instanceName | Puerto: $($_.Port) | Tipo: $($_.Type)"
+                        } | Out-String).Trim()
+                    $LblPort.ToolTip = "$($sortedPorts.Count) instancia(s) encontrada(s). Clic para detalles"
+
+                    Write-DzDebug "`t[DEBUG][Update-PortsUI] UI actualizada con: $displayText" -Color Green
+                } else {
+                    Write-DzDebug "`t[DEBUG][Update-PortsUI] UI ya tiene el mismo texto, omitiendo actualización" -Color Yellow
+                }
             } else {
-                $LblPort.Text = "No se encontraron puertos SQL"
-                $LblPort.Tag = "No se encontraron instalaciones de SQL Server"
-                $LblPort.ToolTip = "Clic para más información"
-                Write-DzDebug "`t[DEBUG] ⚠ No se encontraron puertos SQL 1"
+                if ($LblPort.Text -ne "No se encontraron puertos SQL") {
+                    $LblPort.Text = "No se encontraron puertos SQL"
+                    $LblPort.Tag = "No se encontraron instalaciones de SQL Server"
+                    $LblPort.ToolTip = "Clic para más información"
+                    Write-DzDebug "`t[DEBUG][Update-PortsUI] UI actualizada: No se encontraron puertos SQL" -Color Yellow
+                }
             }
             $LblPort.UpdateLayout()
         })

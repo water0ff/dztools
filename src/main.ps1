@@ -1429,7 +1429,6 @@ function New-MainForm {
                 Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
             }
         })
-
     $cmbDatabases.Add_SelectionChanged({
             if ($global:cmbDatabases.SelectedItem) {
                 $global:database = $global:cmbDatabases.SelectedItem

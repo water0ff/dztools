@@ -75,7 +75,7 @@ Describe "Pruebas básicas del proyecto" {
     Context "Compatibilidad PowerShell 5" {
         It "Los archivos no deben usar características de PS6+" {
             $matches = Get-ChildItem -Path $srcPath -Recurse -Filter "*.ps*1" |
-                Select-String -Pattern '#requires.*-Version.*([6-9]|\d{2,})'
+            Select-String -Pattern '#requires.*-Version.*([6-9]|\d{2,})'
 
             $matches | Should -BeNullOrEmpty
         }

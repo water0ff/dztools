@@ -1328,6 +1328,172 @@ function Rename-OtmIniForTarget {
         Rename-Item -LiteralPath $IniDbfFile.FullName -NewName "checadorsql.ini" -ErrorAction Stop
     }
 }
+function Invoke-NSMonitorServicesLogSetup {
+    [CmdletBinding()]
+    param(
+        [System.Windows.Window]$Owner
+    )
+    $uiInfo = {
+        param([string]$msg, [string]$title = "Información")
+        if (Get-Command Ui-Info -ErrorAction SilentlyContinue) { Ui-Info -Message $msg -Title $title -Owner $Owner; return }
+        if (Get-Command Show-WpfMessageBox -ErrorAction SilentlyContinue) { Show-WpfMessageBox -Message $msg -Title $title -Buttons OK -Icon Information -Owner $Owner | Out-Null; return }
+        Write-Host $msg -ForegroundColor Cyan
+    }.GetNewClosure()
+    $uiWarn = {
+        param([string]$msg, [string]$title = "Atención")
+        if (Get-Command Ui-Warn -ErrorAction SilentlyContinue) { Ui-Warn -Message $msg -Title $title -Owner $Owner; return }
+        if (Get-Command Show-WpfMessageBox -ErrorAction SilentlyContinue) { Show-WpfMessageBox -Message $msg -Title $title -Buttons OK -Icon Warning -Owner $Owner | Out-Null; return }
+        Write-Host $msg -ForegroundColor Yellow
+    }.GetNewClosure()
+    $uiError = {
+        param([string]$msg, [string]$title = "Error")
+        if (Get-Command Ui-Error -ErrorAction SilentlyContinue) { Ui-Error -Message $msg -Title $title -Owner $Owner; return }
+        if (Get-Command Show-WpfMessageBox -ErrorAction SilentlyContinue) { Show-WpfMessageBox -Message $msg -Title $title -Buttons OK -Icon Error -Owner $Owner | Out-Null; return }
+        Write-Host $msg -ForegroundColor Red
+    }.GetNewClosure()
+    $uiConfirm = {
+        param([string]$msg, [string]$title = "Confirmar")
+        if (Get-Command Ui-Confirm -ErrorAction SilentlyContinue) { return (Ui-Confirm -Message $msg -Title $title -Owner $Owner) }
+        if (Get-Command Show-WpfMessageBox -ErrorAction SilentlyContinue) {
+            return ((Show-WpfMessageBox -Message $msg -Title $title -Buttons YesNo -Icon Question -Owner $Owner) -eq [System.Windows.MessageBoxResult]::Yes)
+        }
+        return $false
+    }.GetNewClosure()
+    Write-DzDebug "`t[DEBUG][Invoke-NSMonitorServicesLogSetup] INICIO"
+    $programRoots = @($env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ } | Select-Object -Unique
+    $monitorFolders = foreach ($root in $programRoots) {
+        if (-not (Test-Path -LiteralPath $root)) { continue }
+        Get-ChildItem -Path $root -Directory -Filter "MonitorServicios*" -ErrorAction SilentlyContinue
+    }
+    $monitorEntries = foreach ($dir in ($monitorFolders | Where-Object { $_ })) {
+        $exePath = Join-Path $dir.FullName "ServiciosNS.exe"
+        if (-not (Test-Path -LiteralPath $exePath -PathType Leaf)) { continue }
+        $versionText = ($dir.Name -replace "^MonitorServicios", "").Trim()
+        if ([string]::IsNullOrWhiteSpace($versionText)) { $versionText = "Desconocida" }
+        [pscustomobject]@{
+            Name    = $dir.Name
+            Path    = $dir.FullName
+            Version = $versionText
+        }
+    }
+    if (-not $monitorEntries -or $monitorEntries.Count -eq 0) {
+        $uiWarn.Invoke("No se encontró una instalación válida de Monitor de Servicios en Program Files.`nSe requiere la carpeta 'MonitorServiciosX' con el ejecutable ServiciosNS.exe.")
+        Write-DzDebug "`t[DEBUG][Invoke-NSMonitorServicesLogSetup] No hay instalaciones válidas" ([System.ConsoleColor]::Yellow)
+        return
+    }
+    if ($monitorEntries.Count -gt 1) {
+        $detalle = ($monitorEntries | Sort-Object Path | ForEach-Object { "- $($_.Path)" }) -join "`n"
+        $msg = "Se detectaron varias instalaciones de Monitor de Servicios:`n$detalle`n`nEsto puede ocasionar errores. Se recomienda desinstalar las versiones sobrantes antes de continuar.`n¿Deseas continuar usando la versión más reciente?"
+        if (-not $uiConfirm.Invoke($msg, "Múltiples instalaciones")) {
+            Write-DzDebug "`t[DEBUG][Invoke-NSMonitorServicesLogSetup] Usuario canceló por múltiples instalaciones" ([System.ConsoleColor]::Yellow)
+            return
+        }
+    }
+    $selectedMonitor = $monitorEntries | Sort-Object -Property @{
+            Expression = {
+                $parsed = [version]"0.0"
+                if ([version]::TryParse($_.Version, [ref]$parsed)) { $parsed } else { [version]"0.0" }
+            }
+        } -Descending | Select-Object -First 1
+    $monitorPath = $selectedMonitor.Path
+    Write-DzDebug "`t[DEBUG][Invoke-NSMonitorServicesLogSetup] Seleccionado: $monitorPath" ([System.ConsoleColor]::Cyan)
+    $service = Get-Service -Name "SrvReportesSR" -ErrorAction SilentlyContinue
+    $process = Get-Process -Name "ServiciosNS" -ErrorAction SilentlyContinue
+    if ($service -and $service.Status -eq "Running") {
+        $confirmStop = $uiConfirm.Invoke("El servicio 'ReportesSR' (SrvReportesSR) está en ejecución.`nPara activar el log es necesario detener el servicio.`n¿Deseas detenerlo ahora?", "Servicio en ejecución")
+        if (-not $confirmStop) {
+            $uiWarn.Invoke("Operación cancelada. El servicio debe estar detenido para continuar.")
+            return
+        }
+        try {
+            Stop-Service -Name "SrvReportesSR" -Force -ErrorAction Stop
+            $service.WaitForStatus("Stopped", [TimeSpan]::FromSeconds(20))
+        } catch {
+            $uiError.Invoke("No se pudo detener el servicio SrvReportesSR.`n$($_.Exception.Message)")
+            return
+        }
+    }
+    if ($process) {
+        $uiWarn.Invoke("ServiciosNS.exe está en ejecución.`nSe recomienda cerrarlo antes de continuar para evitar bloqueos.")
+    }
+    $configFiles = @("SrvReportesSR.exe.Config", "ServiciosNS.exe.Config")
+    $updated = @()
+    $skipped = @()
+    foreach ($configName in $configFiles) {
+        $configPath = Join-Path $monitorPath $configName
+        if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
+            $skipped += $configPath
+            continue
+        }
+        try {
+            [xml]$xml = Get-Content -LiteralPath $configPath -Raw
+        } catch {
+            $skipped += $configPath
+            continue
+        }
+        $appSettings = $xml.configuration.appSettings
+        if (-not $appSettings) {
+            $appSettings = $xml.CreateElement("appSettings")
+            $xml.configuration.AppendChild($appSettings) | Out-Null
+        }
+        $logNode = $appSettings.SelectSingleNode("add[@key='log']")
+        $logQueryNode = $appSettings.SelectSingleNode("add[@key='logQuery']")
+        if ($logNode -and $logQueryNode) {
+            $isEnabled = ($logNode.value -eq "true" -and $logQueryNode.value -eq "true")
+            $prompt = if ($isEnabled) {
+                "El log ya está activado en:`n$configPath`n¿Deseas desactivarlo?"
+            } else {
+                "El log está desactivado en:`n$configPath`n¿Deseas activarlo?"
+            }
+            if (-not $uiConfirm.Invoke($prompt, "Confirmar cambio")) { continue }
+            $newValue = if ($isEnabled) { "false" } else { "true" }
+            $logNode.SetAttribute("value", $newValue)
+            $logQueryNode.SetAttribute("value", $newValue)
+            $updated += "$configPath ($newValue)"
+        } else {
+            if (-not $logNode) {
+                $logNode = $xml.CreateElement("add")
+                $logNode.SetAttribute("key", "log")
+                $logNode.SetAttribute("value", "true")
+                $appSettings.AppendChild($logNode) | Out-Null
+            }
+            if (-not $logQueryNode) {
+                $logQueryNode = $xml.CreateElement("add")
+                $logQueryNode.SetAttribute("key", "logQuery")
+                $logQueryNode.SetAttribute("value", "true")
+                $appSettings.AppendChild($logQueryNode) | Out-Null
+            }
+            $updated += "$configPath (true)"
+        }
+        try {
+            $xml.Save($configPath)
+        } catch {
+            $skipped += $configPath
+            continue
+        }
+    }
+    if ($updated.Count -gt 0) {
+        $uiInfo.Invoke("Cambios aplicados en:`n$($updated -join "`n")", "Log actualizado")
+    }
+    if ($skipped.Count -gt 0) {
+        $uiWarn.Invoke("No se pudieron actualizar estos archivos:`n$($skipped -join "`n")", "Archivos omitidos")
+    }
+    $monitorLocalPath = "C:\NationalSoft\MonitorLocal"
+    if (-not (Test-Path -LiteralPath $monitorLocalPath)) {
+        try {
+            New-Item -Path $monitorLocalPath -ItemType Directory -Force | Out-Null
+        } catch {
+            $uiError.Invoke("No se pudo crear la carpeta:`n$monitorLocalPath`n$($_.Exception.Message)")
+            return
+        }
+    }
+    try {
+        Start-Process -FilePath "explorer.exe" -ArgumentList "`"$monitorLocalPath`""
+    } catch {
+        $uiWarn.Invoke("No se pudo abrir la carpeta:`n$monitorLocalPath")
+    }
+    Write-DzDebug "`t[DEBUG][Invoke-NSMonitorServicesLogSetup] FIN"
+}
 function Invoke-LectorDP {
     $pwPs = $null
     $pwDrv = $null
@@ -1488,4 +1654,4 @@ function Invoke-LectorDP {
     }
 }
 Export-ModuleMember -Function @('Show-DllRegistrationDialog', 'Check-Permissions', 'Show-InstallerExtractorDialog', 'Invoke-CreateApk',
-    'Invoke-CambiarOTMConfig', 'Show-NSApplicationsIniReport', 'Invoke-LectorDP')
+    'Invoke-CambiarOTMConfig', 'Show-NSApplicationsIniReport', 'Invoke-LectorDP', 'Invoke-NSMonitorServicesLogSetup')

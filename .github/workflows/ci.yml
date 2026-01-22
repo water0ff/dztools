@@ -36,7 +36,7 @@ jobs:
             }
           }
           else {
-            Write-Host "✓ No se encontraron problemas" -ForegroundColor Green
+            Write-Host "No se encontraron problemas" -ForegroundColor Green
           }
 
       - name: Verificar compatibilidad PS5
@@ -45,12 +45,12 @@ jobs:
             Select-String -Pattern '#requires.*-Version.*([6-9]|\d{2,})' |
             Select-Object -ExpandProperty FileName
           if ($incompatible) {
-            Write-Error "❌ Scripts incompatibles con PS5: $incompatible"
+            Write-Error "Scripts incompatibles con PS5: $incompatible"
             exit 1
           }
-          Write-Host "✓ Compatible con PowerShell 5.0" -ForegroundColor Green
+          Write-Host " Compatible con PowerShell 5.0" -ForegroundColor Green
 
-  test:   # 👈 OJO: misma indentación que "analyze" y "build"
+  test:
     runs-on: windows-latest
     needs: analyze
     steps:

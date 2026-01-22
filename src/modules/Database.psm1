@@ -2313,8 +2313,11 @@ function Execute-QueryCore {
     foreach ($line in ($query -split "`r?`n")) { Write-Host "`t$line" -ForegroundColor Green }
     Write-Host ""
     Write-Host "Ejecutando consulta en '$db'..." -ForegroundColor Cyan
-
-    $modulesPath = Join-Path $PSScriptRoot "modules"
+    # CORRECTO
+    $modulesPath = $PSScriptRoot
+    if (-not (Test-Path $modulesPath)) {
+        throw "No se encuentra la carpeta de módulos en: $modulesPath"
+    }
 
     $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
     $rs.ApartmentState = 'MTA'
@@ -2330,8 +2333,17 @@ function Execute-QueryCore {
     $worker = {
         param($Server, $Database, $Query, $User, $Password, $ModulesPath)
         try {
+            # Los paths ya vienen correctos desde el main
             $utilPath = Join-Path $ModulesPath "Utilities.psm1"
             $dbPath = Join-Path $ModulesPath "Database.psm1"
+
+            # Verificar que existan antes de importar
+            if (-not (Test-Path $utilPath)) {
+                throw "No se encuentra Utilities.psm1 en: $utilPath"
+            }
+            if (-not (Test-Path $dbPath)) {
+                throw "No se encuentra Database.psm1 en: $dbPath"
+            }
 
             Import-Module $utilPath -Force -DisableNameChecking -ErrorAction Stop
             Import-Module $dbPath -Force -DisableNameChecking -ErrorAction Stop
@@ -2361,6 +2373,8 @@ function Execute-QueryCore {
                 ResultSets   = @()
                 Messages     = @()
                 Type         = "Error"
+                InnerError   = $_.Exception.InnerException.Message
+                StackTrace   = $_.ScriptStackTrace
             }
         }
     }
@@ -2431,7 +2445,14 @@ function Execute-QueryCore {
                 if (-not $result -or -not $result.Success) {
                     $msg = ""
                     try { $msg = [string]$result.ErrorMessage } catch {}
-                    if ([string]::IsNullOrWhiteSpace($msg) -and $result -and $result.Messages) { try { $msg = ($result.Messages -join "`n") } catch {} }
+
+                    # Agregar detalles adicionales del error si existen
+                    if ($result.InnerError) { $msg += "`n`nError interno: $($result.InnerError)" }
+                    if ($result.StackTrace) { $msg += "`n`nStack trace:`n$($result.StackTrace)" }
+
+                    if ([string]::IsNullOrWhiteSpace($msg) -and $result -and $result.Messages) {
+                        try { $msg = ($result.Messages -join "`n") } catch {}
+                    }
                     if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "Error desconocido al ejecutar la consulta." }
 
                     if ($result -and $result.ResultSets -and $result.ResultSets.Count -gt 0) {
@@ -2508,7 +2529,6 @@ function Execute-QueryCore {
 
     $Ctx.QueryDoneTimer.Start()
 }
-
 function Execute-QueryUiSafe {
     [CmdletBinding()]
     param()

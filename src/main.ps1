@@ -264,6 +264,10 @@ function New-MainForm {
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTabStop" Value="False"/>
         </Style>
         <Style x:Key="ConsoleTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="FontFamily" Value="{DynamicResource CodeFontFamily}"/>
@@ -281,6 +285,8 @@ function New-MainForm {
             <Setter Property="Padding" Value="10,6"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
@@ -292,8 +298,8 @@ function New-MainForm {
                                 SnapsToDevicePixels="True">
                             <ContentPresenter
                                 Margin="{TemplateBinding Padding}"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                 RecognizesAccessKey="True"
                                 TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
@@ -345,24 +351,24 @@ function New-MainForm {
             </Style.Triggers>
         </Style>
         <Style x:Key="DbConnectButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
-        <Setter Property="Background" Value="{DynamicResource AccentGreen}"/>
-        <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-        <Style.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-            <Setter Property="Background" Value="{DynamicResource AccentGreenHover}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentGreen}"/>
             <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-            </Trigger>
-        </Style.Triggers>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentGreenHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="DbDisconnectButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
-        <Setter Property="Background" Value="{DynamicResource AccentRed}"/>
-        <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-        <Style.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-            <Setter Property="Background" Value="{DynamicResource AccentRedHover}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentRed}"/>
             <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-            </Trigger>
-        </Style.Triggers>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentRedHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource AccentOrange}"/>
@@ -431,286 +437,225 @@ function New-MainForm {
                     </StackPanel>
                 </TabItem.Header>
                 <Grid Background="{DynamicResource PanelBg}">
-                    <TextBox Name="lblHostname"
-                             Width="220" Height="40" Margin="10,1,0,0"
-                             VerticalAlignment="Top" HorizontalAlignment="Left"
-                             Style="{StaticResource InfoHeaderTextBoxStyle}"
-                             Text="HOSTNAME"
-                             Cursor="Hand"
-                             IsReadOnly="True"
-                             IsReadOnlyCaretVisible="False"
-                             TextAlignment="Center"
-                             VerticalContentAlignment="Center"
-                             HorizontalContentAlignment="Center"
-                             Focusable="False"
-                             IsTabStop="False"/>
-                    <TextBox Name="lblPort"
-                             Width="220" Height="40" Margin="250,1,0,0"
-                             VerticalAlignment="Top" HorizontalAlignment="Left"
-                             Style="{StaticResource InfoHeaderTextBoxStyle}"
-                             Text="Puerto: No disponible"/>
-                    <TextBox Name="txt_IpAdress"
-                             Width="220" Height="40" Margin="490,1,0,0"
-                             VerticalAlignment="Top" HorizontalAlignment="Left"
-                             Style="{StaticResource InfoHeaderTextBoxStyle}"/>
-                    <TextBox Name="txt_AdapterStatus"
-                             Width="220" Height="40" Margin="730,1,0,0"
-                             VerticalAlignment="Top" HorizontalAlignment="Left"
-                             Style="{StaticResource InfoHeaderTextBoxStyle}"/>
-                    <Button Content="Instalar Herramientas" Name="btnInstalarHerramientas" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,50,0,0" Style="{StaticResource Column1ButtonStyle}"/>
-                    <Button Content="Ejecutar ExpressProfiler" Name="btnProfiler" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,90,0,0" Style="{StaticResource Column1ButtonStyle}"/>
-                    <Button Content="Ejecutar Database4" Name="btnDatabase" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,130,0,0" Style="{StaticResource Column1ButtonStyle}"/>
-                    <Button Content="Ejecutar Manager" Name="btnSQLManager" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,170,0,0" Style="{StaticResource Column1ButtonStyle}"/>
-                    <Button Content="Ejecutar Management" Name="btnSQLManagement" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,210,0,0" Style="{StaticResource Column1ButtonStyle}"/>
-                    <Button Content="Printer Tools" Name="btnPrinterTool" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,250,0,0" Style="{StaticResource Column1ButtonStyle}"/>
-                    <Button Content="Clear AnyDesk" Name="btnClearAnyDesk" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,290,0,0"
-                            Style="{StaticResource Column1ButtonStyle}"/>
-                    <Button Content="Lector DP - Permisos" Name="btnLectorDPicacls" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,50,0,0"
-                            Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Buscar Instalador LZMA" Name="LZMAbtnBuscarCarpeta" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,90,0,0"
-                            Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Agregar IPs" Name="btnConfigurarIPs" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,130,0,0"
-                            Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Agregar usuario de Windows" Name="btnAddUser" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,170,0,0"
-                            Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,210,0,0"
-                            Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,250,0,0"
-                            Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Mostrar Impresoras" Name="btnShowPrinters" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,290,0,0"
-                            Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Instalar impresora" Name="btnInstallPrinter" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,330,0,0"
-                            Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Limpia y Reinicia Cola de Impresión" Name="btnClearPrintJobs" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="250,370,0,0"
-                            Style="{StaticResource SystemButtonStyle}"/>
-                    <Button Content="Aplicaciones National Soft" Name="btnAplicacionesNS" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,50,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
-                    <Button Content="Cambiar OTM a SQL/DBF" Name="btnCambiarOTM" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,90,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
-                    <Button Content="Permisos C:\NationalSoft" Name="btnCheckPermissions" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,130,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
-                    <Button Content="Creación de SRM APK" Name="btnCreateAPK" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,170,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
-                    <Button Content="Extractor de Instalador" Name="btnExtractInstaller" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,210,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
-                    <Button Content="Instaladores NS" Name="btnInstaladoresNS" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,250,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
-                    <Button Content="Registro de dlls" Name="btnRegisterDlls" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,290,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
-                    <Button Content="Log Monitor Servicios" Name="btnMonitorServiciosLog" Width="220" Height="30"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,330,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
-                    <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
-                             Width="220" Height="300" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
-                             IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
-                    <Border Name="cardQuickSettings"
-                            Width="220" Height="150"
-                            Margin="730,370,0,0"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Top"
-                            Background="{DynamicResource ControlBg}"
-                            BorderBrush="{DynamicResource BorderBrushColor}"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="10">
-                        <Border.Effect>
-                            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
-                        </Border.Effect>
-                        <StackPanel>
-                            <TextBlock Text="Ajustes rápidos"
-                                       FontWeight="Bold"
-                                       Foreground="{DynamicResource AccentPrimary}"
-                                       Margin="0,0,0,8"/>
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                            </Grid>
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <ToggleButton Name="tglDarkMode" Grid.Column="0" Style="{StaticResource TogglePillStyle}"/>
-                                <TextBlock Grid.Column="2" Text="🌙 Dark Mode" VerticalAlignment="Center"/>
-                            </Grid>
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <ToggleButton Name="tglDebugMode" Grid.Column="0" Style="{StaticResource TogglePillStyle}"/>
-                                <TextBlock Grid.Column="2" Text="🐞 DEBUG" VerticalAlignment="Center"/>
-                            </Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <UniformGrid Grid.Row="0" Rows="1" Columns="4" Margin="10">
+                        <TextBox Name="lblHostname" Style="{StaticResource InfoHeaderTextBoxStyle}" Text="HOSTNAME"/>
+                        <TextBox Name="lblPort" Style="{StaticResource InfoHeaderTextBoxStyle}" Text="Puerto: No disponible"/>
+                        <TextBox Name="txt_IpAdress" Style="{StaticResource InfoHeaderTextBoxStyle}"/>
+                        <TextBox Name="txt_AdapterStatus" Style="{StaticResource InfoHeaderTextBoxStyle}"/>
+                    </UniformGrid>
+                    <Grid Grid.Row="1" Margin="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="220"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0" VerticalAlignment="Top">
+                            <Button Content="Instalar Herramientas" Name="btnInstalarHerramientas" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Ejecutar ExpressProfiler" Name="btnProfiler" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Ejecutar Database4" Name="btnDatabase" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Ejecutar Manager" Name="btnSQLManager" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Ejecutar Management" Name="btnSQLManagement" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Printer Tools" Name="btnPrinterTool" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Clear AnyDesk" Name="btnClearAnyDesk" Style="{StaticResource Column1ButtonStyle}"/>
                         </StackPanel>
-                    </Border>
+
+                        <StackPanel Grid.Column="1" Margin="0,0,10,0" VerticalAlignment="Top">
+                            <Button Content="Lector DP - Permisos" Name="btnLectorDPicacls" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Buscar Instalador LZMA" Name="LZMAbtnBuscarCarpeta" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Agregar IPs" Name="btnConfigurarIPs" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Agregar usuario de Windows" Name="btnAddUser" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Mostrar Impresoras" Name="btnShowPrinters" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Instalar impresora" Name="btnInstallPrinter" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Limpia y Reinicia Cola de Impresión" Name="btnClearPrintJobs" Style="{StaticResource SystemButtonStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" Margin="0,0,10,0" VerticalAlignment="Top">
+                            <Button Content="Aplicaciones National Soft" Name="btnAplicacionesNS" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Cambiar OTM a SQL/DBF" Name="btnCambiarOTM" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Permisos C:\NationalSoft" Name="btnCheckPermissions" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Creación de SRM APK" Name="btnCreateAPK" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Extractor de Instalador" Name="btnExtractInstaller" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Instaladores NS" Name="btnInstaladoresNS" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Registro de dlls" Name="btnRegisterDlls" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Log Monitor Servicios" Name="btnMonitorServiciosLog" Style="{StaticResource NationalSoftButtonStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="3" VerticalAlignment="Top">
+                            <TextBox Name="txt_InfoInstrucciones" Height="300" Margin="0,0,0,20" Style="{StaticResource ConsoleTextBoxStyle}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                            <Border Name="cardQuickSettings"
+                                    Height="150"
+                                    Background="{DynamicResource ControlBg}"
+                                    BorderBrush="{DynamicResource BorderBrushColor}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="10">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
+                                </Border.Effect>
+                                <StackPanel>
+                                    <TextBlock Text="Ajustes rápidos" FontWeight="Bold" Foreground="{DynamicResource AccentPrimary}" Margin="0,0,0,8"/>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ToggleButton Name="tglDarkMode" Grid.Column="0" Style="{StaticResource TogglePillStyle}"/>
+                                        <TextBlock Grid.Column="2" Text="🌙 Dark Mode" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ToggleButton Name="tglDebugMode" Grid.Column="0" Style="{StaticResource TogglePillStyle}"/>
+                                        <TextBlock Grid.Column="2" Text="🐞 DEBUG" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
             </TabItem>
-<TabItem Name="tabProSql">
-  <TabItem.Header>
-    <StackPanel Orientation="Horizontal">
-      <TextBlock Text="🗄️" Margin="0,0,6,0"/>
-      <TextBlock Text="SSMS portable"/>
-    </StackPanel>
-  </TabItem.Header>
-  <Grid Background="{DynamicResource PanelBg}">
-    <Grid.RowDefinitions>
-      <RowDefinition Height="Auto"/>  <!-- Conexión -->
-      <RowDefinition Height="Auto"/>  <!-- Barra intermedia -->
-      <RowDefinition Height="*"/>     <!-- Área principal -->
-      <RowDefinition Height="Auto"/>  <!-- StatusBar -->
-    </Grid.RowDefinitions>
-    <Border Grid.Row="0" Margin="10" Padding="10"
-            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
-            CornerRadius="6" Background="{DynamicResource ControlBg}">
-      <Grid>
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto"/>
-          <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-          <Button Name="btnConnectDb"
-                Width="60" Height="30" Margin="0,0,8,0"
-                Style="{StaticResource DbConnectButtonStyle}"
-                ToolTip="Conectar">
-        <TextBlock Text="🔌✅" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
-        </Button>
-        <Button Name="btnDisconnectDb"
-                Width="60" Height="30"
-                Style="{StaticResource DbDisconnectButtonStyle}"
-                ToolTip="Desconectar" IsEnabled="False">
-        <TextBlock Text="🔌✖" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
-        </Button>
-        </StackPanel>
-        <WrapPanel Grid.Column="1">
-          <StackPanel Margin="0,0,16,0">
-            <TextBlock Text="Instancia SQL:"/>
-            <ComboBox Name="txtServer" Width="180" IsEditable="True" Text=".\NationalSoft"/>
-          </StackPanel>
-          <StackPanel Margin="0,0,16,0">
-            <TextBlock Text="Usuario:"/>
-            <TextBox Name="txtUser" Width="160" Text="sa"/>
-          </StackPanel>
-          <StackPanel Margin="0,0,16,0">
-            <TextBlock Text="Contraseña:"/>
-            <PasswordBox Name="txtPassword" Width="160"/>
-          </StackPanel>
-          <StackPanel Margin="0,0,16,0">
-            <TextBlock Text="Base de datos:"/>
-            <ComboBox Name="cmbDatabases" Width="180" IsEnabled="False"/>
-          </StackPanel>
-        </WrapPanel>
-      </Grid>
-    </Border>
-    <Border Grid.Row="1" Margin="10,0,10,10" Padding="10"
-            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
-            CornerRadius="6" Background="{DynamicResource ControlBg}">
-      <StackPanel Orientation="Horizontal">
-        <Button Content="Ejecutar (F5)" Name="btnExecute"
-                Width="110" Height="30" Margin="0,0,8,0"
-                Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-        <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0"
-                  IsEnabled="False" ToolTip="Consultas predefinidas"/>
-        <Button Content="Limpiar" Name="btnClearQuery"
-                Width="90" Height="30"
-                Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-        <Button Content="Exportar" Name="btnExport"
-                Width="100" Height="30" Margin="8,0,0,0"
-                Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-      </StackPanel>
-    </Border>
-    <Grid Grid.Row="2" Margin="10">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="250" MinWidth="200"/>
-        <ColumnDefinition Width="5"/>
-        <ColumnDefinition Width="*"/>
-      </Grid.ColumnDefinitions>
-      <Border Grid.Column="0"
-              BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
-              CornerRadius="6" Background="{DynamicResource ControlBg}">
-        <Grid>
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-          </Grid.RowDefinitions>
-          <TextBlock Grid.Row="0" Text="Explorador de Objetos"
-                     Padding="8" FontWeight="Bold"
-                     Background="{DynamicResource AccentPrimary}"
-                     Foreground="{DynamicResource OnAccentFg}"/>
-          <TreeView Grid.Row="1" Name="tvDatabases" Padding="4"/>
-        </Grid>
-      </Border>
-      <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
-                    Background="{DynamicResource BorderBrushColor}"/>
-      <Grid Grid.Column="2">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="*" MinHeight="150"/>
-          <RowDefinition Height="5"/>
-          <RowDefinition Height="2*" MinHeight="200"/>
-        </Grid.RowDefinitions>
-        <TabControl Name="tcQueries" Grid.Row="0" Background="{DynamicResource ControlBg}">
-          <TabItem Header="Consulta 1">
-            <Border BorderBrush="{DynamicResource BorderBrushColor}"
-                    BorderThickness="1" Margin="5" CornerRadius="4">
-              <RichTextBox Name="rtbQueryEditor1"
-                           VerticalScrollBarVisibility="Auto"
-                           AcceptsReturn="True" AcceptsTab="True"
-                           FontFamily="Consolas" FontSize="12"/>
-            </Border>
-          </TabItem>
-          <TabItem Header="+" Name="tabAddQuery" IsEnabled="True"/>
-        </TabControl>
-        <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch"
-                      Background="{DynamicResource BorderBrushColor}"/>
 
-        <TabControl Name="tcResults" Grid.Row="2" Background="{DynamicResource ControlBg}">
-          <TabItem Header="Resultados">
-            <DataGrid Name="dgResults" IsReadOnly="True" AutoGenerateColumns="True"
-                      CanUserAddRows="False" CanUserDeleteRows="False"/>
-          </TabItem>
-          <TabItem Header="Mensajes">
-            <TextBox Name="txtMessages" IsReadOnly="True"
-                     VerticalScrollBarVisibility="Auto"
-                     FontFamily="Consolas" Background="Transparent"
-                     BorderThickness="0"/>
-          </TabItem>
-        </TabControl>
-      </Grid>
-    </Grid>
-    <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
-      <StatusBarItem>
-        <TextBlock Name="lblConnectionStatus" Text="Desconectado"/>
-      </StatusBarItem>
-      <Separator/>
-            <StatusBarItem>
-                <TextBlock Name="lblExecutionTimer" Text="Tiempo: --"/>
-            </StatusBarItem>
-      <Separator/>
-      <StatusBarItem>
-        <TextBlock Name="lblRowCount" Text="Filas: --"/>
-      </StatusBarItem>
-    </StatusBar>
-  </Grid>
-</TabItem>
+            <TabItem Name="tabProSql">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🗄️" Margin="0,0,6,0"/>
+                        <TextBlock Text="SSMS portable"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid Background="{DynamicResource PanelBg}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Margin="10" Padding="10" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                                <Button Name="btnConnectDb" Width="60" Height="30" Margin="0,0,8,0" Style="{StaticResource DbConnectButtonStyle}" ToolTip="Conectar">
+                                    <TextBlock Text="🔌✅" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+                                </Button>
+                                <Button Name="btnDisconnectDb" Width="60" Height="30" Style="{StaticResource DbDisconnectButtonStyle}" ToolTip="Desconectar" IsEnabled="False">
+                                    <TextBlock Text="🔌✖" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+                                </Button>
+                            </StackPanel>
+                            <WrapPanel Grid.Column="1">
+                                <StackPanel Margin="0,0,16,0">
+                                    <TextBlock Text="Instancia SQL:"/>
+                                    <ComboBox Name="txtServer" Width="180" IsEditable="True" Text=".\NationalSoft"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,16,0">
+                                    <TextBlock Text="Usuario:"/>
+                                    <TextBox Name="txtUser" Width="160" Text="sa"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,16,0">
+                                    <TextBlock Text="Contraseña:"/>
+                                    <PasswordBox Name="txtPassword" Width="160"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,16,0">
+                                    <TextBlock Text="Base de datos:"/>
+                                    <ComboBox Name="cmbDatabases" Width="180" IsEnabled="False"/>
+                                </StackPanel>
+                            </WrapPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" Margin="10,0,10,10" Padding="10" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Ejecutar (F5)" Name="btnExecute" Width="110" Height="30" Margin="0,0,8,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                            <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0" IsEnabled="False" ToolTip="Consultas predefinidas"/>
+                            <Button Content="Limpiar" Name="btnClearQuery" Width="90" Height="30" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                            <Button Content="Exportar" Name="btnExport" Width="100" Height="30" Margin="8,0,0,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Row="2" Margin="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="250" MinWidth="200"/>
+                            <ColumnDefinition Width="5"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Explorador de Objetos" Padding="8" FontWeight="Bold" Background="{DynamicResource AccentPrimary}" Foreground="{DynamicResource OnAccentFg}"/>
+                                <TreeView Grid.Row="1" Name="tvDatabases" Padding="4"/>
+                            </Grid>
+                        </Border>
+
+                        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrushColor}"/>
+
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" MinHeight="150"/>
+                                <RowDefinition Height="5"/>
+                                <RowDefinition Height="2*" MinHeight="200"/>
+                            </Grid.RowDefinitions>
+
+                            <TabControl Name="tcQueries" Grid.Row="0" Background="{DynamicResource ControlBg}">
+                                <TabItem Header="Consulta 1">
+                                    <Border BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Margin="5" CornerRadius="4">
+                                        <RichTextBox Name="rtbQueryEditor1" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" AcceptsTab="True" FontFamily="Consolas" FontSize="12"/>
+                                    </Border>
+                                </TabItem>
+                                <TabItem Header="+" Name="tabAddQuery" IsEnabled="True"/>
+                            </TabControl>
+
+                            <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrushColor}"/>
+
+                            <TabControl Name="tcResults" Grid.Row="2" Background="{DynamicResource ControlBg}">
+                                <TabItem Header="Resultados">
+                                    <DataGrid Name="dgResults" IsReadOnly="True" AutoGenerateColumns="True" CanUserAddRows="False" CanUserDeleteRows="False"/>
+                                </TabItem>
+                                <TabItem Header="Mensajes">
+                                    <TextBox Name="txtMessages" IsReadOnly="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" Background="Transparent" BorderThickness="0"/>
+                                </TabItem>
+                            </TabControl>
+                        </Grid>
+                    </Grid>
+
+                    <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
+                        <StatusBarItem>
+                            <TextBlock Name="lblConnectionStatus" Text="Desconectado"/>
+                        </StatusBarItem>
+                        <Separator/>
+                        <StatusBarItem>
+                            <TextBlock Name="lblExecutionTimer" Text="Tiempo: --"/>
+                        </StatusBarItem>
+                        <Separator/>
+                        <StatusBarItem>
+                            <TextBlock Name="lblRowCount" Text="Filas: --"/>
+                        </StatusBarItem>
+                    </StatusBar>
+                </Grid>
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>

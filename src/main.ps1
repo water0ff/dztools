@@ -513,6 +513,8 @@ function New-MainForm {
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,250,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <Button Content="Registro de dlls" Name="btnRegisterDlls" Width="220" Height="30"
                             HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,290,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
+                    <Button Content="Log Monitor Servicios" Name="btnMonitorServiciosLog" Width="220" Height="30"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="490,330,0,0" Style="{StaticResource NationalSoftButtonStyle}"/>
                     <TextBox Name="txt_InfoInstrucciones" HorizontalAlignment="Left" VerticalAlignment="Top"
                              Width="220" Height="300" Margin="730,50,0,0" Style="{StaticResource ConsoleTextBoxStyle}"
                              IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
@@ -758,6 +760,7 @@ function New-MainForm {
     $btnExtractInstaller = $window.FindName("btnExtractInstaller")
     $btnInstaladoresNS = $window.FindName("btnInstaladoresNS")
     $btnRegisterDlls = $window.FindName("btnRegisterDlls")
+    $btnMonitorServiciosLog = $window.FindName("btnMonitorServiciosLog")
     $txtServer = $window.FindName("txtServer")
     $txtUser = $window.FindName("txtUser")
     $txtPassword = $window.FindName("txtPassword")
@@ -970,7 +973,7 @@ function New-MainForm {
     $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler,
         $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
         $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnInstallPrinter, $btnClearPrintJobs, $btnAplicacionesNS,
-        $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS, $btnRegisterDlls)
+        $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS, $btnRegisterDlls, $btnMonitorServiciosLog)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
@@ -1180,6 +1183,11 @@ function New-MainForm {
             Write-DzDebug ("`t[DEBUG] Click en 'Registro registro de dlls' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n- - - Comenzando el proceso de 'Registro registro de dlls' - - -" -ForegroundColor Magenta
             Show-DllRegistrationDialog
+        })
+    $btnMonitorServiciosLog.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Log Monitor Servicios' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Comenzando el proceso de 'Log Monitor Servicios' - - -" -ForegroundColor Magenta
+            Invoke-NSMonitorServicesLogSetup -Owner $window
         })
     $btnCambiarOTM.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Cambiar OTM' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow

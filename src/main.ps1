@@ -1669,55 +1669,7 @@ Base de datos: $($global:database)
         })
     $btnExport.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Exportar resultados' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
-            try {
-                if (-not $global:tcResults) {
-                    Ui-Warn "No existe un panel de resultados para exportar." "Atención" $global:MainWindow
-                    return
-                }
-                $resultTabs = Get-ExportableResultTabs -TabControl $global:tcResults
-                if (-not $resultTabs -or $resultTabs.Count -eq 0) {
-                    Ui-Warn "No existe pestaña con resultados para exportar." "Atención" $global:MainWindow
-                    return
-                }
-                $target = $null
-                if ($resultTabs.Count -gt 1) {
-                    $items = $resultTabs | ForEach-Object {
-                        [pscustomobject]@{
-                            Path         = $_
-                            Display      = $_.Display
-                            DisplayShort = $_.DisplayShort
-                        }
-                    }
-                    $selected = Show-WpfPathSelectionDialog -Title "Exportar resultados" -Prompt "Seleccione la pestaña de resultados a exportar:" -Items $items -ExecuteButtonText "Exportar"
-                    if (-not $selected) { return }
-                    $target = $selected.Path
-                } else {
-                    $target = $resultTabs[0]
-                }
-                $rowCount = $target.RowCount
-                $headerText = $target.DisplayShort
-                if (-not (Ui-Confirm "Se exportarán $rowCount filas de '$headerText'. ¿Deseas continuar?" "Confirmar exportación" $global:MainWindow)) { return }
-                $safeName = ($headerText -replace '[\\/:*?"<>|]', '-')
-                if ([string]::IsNullOrWhiteSpace($safeName)) { $safeName = "resultado" }
-                $saveDialog = New-Object Microsoft.Win32.SaveFileDialog
-                $saveDialog.Filter = "CSV (*.csv)|*.csv|Texto delimitado (*.txt)|*.txt"
-                $saveDialog.FileName = "$safeName.csv"
-                $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
-                if ($saveDialog.ShowDialog() -ne $true) { return }
-                $filePath = $saveDialog.FileName
-                $extension = [System.IO.Path]::GetExtension($filePath).ToLowerInvariant()
-                if ($extension -eq ".txt" -or $saveDialog.FilterIndex -eq 2) {
-                    $separator = New-WpfInputDialog -Title "Separador de exportación" -Prompt "Ingrese el separador para el archivo de texto:" -DefaultValue "|"
-                    if ($null -eq $separator) { return }
-                    Export-ResultSetToDelimitedText -ResultSet $target.DataTable -Path $filePath -Separator $separator
-                } else {
-                    Export-ResultSetToCsv -ResultSet ([pscustomobject]@{ DataTable = $target.DataTable }) -Path $filePath
-                }
-                Ui-Info "Exportación completada en:`n$filePath" "Exportación" $global:MainWindow
-            } catch {
-                Ui-Error "Error al exportar resultados:`n$($_.Exception.Message)" "Error" $global:MainWindow
-                Write-DzDebug "`t[DEBUG][btnExport] CATCH: $($_.Exception.Message)" -Color Red
-            }
+            Export-ResultsUiSafe
         })
     $window.Add_KeyDown({
             param($s, $e)

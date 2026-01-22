@@ -1997,7 +1997,77 @@ function Connect-DbUiSafe {
         Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
+function Export-ResultsCore {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][hashtable]$Ctx)
 
+    if (-not $Ctx.tcResults) {
+        Ui-Warn "No existe un panel de resultados para exportar." "Atención" $Ctx.MainWindow
+        return
+    }
+
+    $resultTabs = Get-ExportableResultTabs -TabControl $Ctx.tcResults
+    if (-not $resultTabs -or $resultTabs.Count -eq 0) {
+        Ui-Warn "No existe pestaña con resultados para exportar." "Atención" $Ctx.MainWindow
+        return
+    }
+
+    $target = $null
+    if ($resultTabs.Count -gt 1) {
+        $items = $resultTabs | ForEach-Object {
+            [pscustomobject]@{
+                Path         = $_
+                Display      = $_.Display
+                DisplayShort = $_.DisplayShort
+            }
+        }
+        $selected = Show-WpfPathSelectionDialog -Title "Exportar resultados" -Prompt "Seleccione la pestaña de resultados a exportar:" -Items $items -ExecuteButtonText "Exportar"
+        if (-not $selected) { return }
+        $target = $selected.Path
+    } else {
+        $target = $resultTabs[0]
+    }
+
+    $rowCount = [int]$target.RowCount
+    $headerText = [string]$target.DisplayShort
+
+    if (-not (Ui-Confirm "Se exportarán $rowCount filas de '$headerText'. ¿Deseas continuar?" "Confirmar exportación" $Ctx.MainWindow)) { return }
+
+    $safeName = ($headerText -replace '[\\/:*?"<>|]', '-')
+    if ([string]::IsNullOrWhiteSpace($safeName)) { $safeName = "resultado" }
+
+    $saveDialog = New-Object Microsoft.Win32.SaveFileDialog
+    $saveDialog.Filter = "CSV (*.csv)|*.csv|Texto delimitado (*.txt)|*.txt"
+    $saveDialog.FileName = "$safeName.csv"
+    $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
+    if ($saveDialog.ShowDialog() -ne $true) { return }
+
+    $filePath = $saveDialog.FileName
+    $extension = [System.IO.Path]::GetExtension($filePath).ToLowerInvariant()
+
+    if ($extension -eq ".txt" -or $saveDialog.FilterIndex -eq 2) {
+        $separator = New-WpfInputDialog -Title "Separador de exportación" -Prompt "Ingrese el separador para el archivo de texto:" -DefaultValue "|"
+        if ($null -eq $separator) { return }
+        Export-ResultSetToDelimitedText -ResultSet $target.DataTable -Path $filePath -Separator $separator
+    } else {
+        Export-ResultSetToCsv -ResultSet ([pscustomobject]@{ DataTable = $target.DataTable }) -Path $filePath
+    }
+
+    Ui-Info "Exportación completada en:`n$filePath" "Exportación" $Ctx.MainWindow
+}
+
+function Export-ResultsUiSafe {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $ctx = Get-DbUiContext
+        Export-ResultsCore -Ctx $ctx
+    } catch {
+        Ui-Error "Error al exportar resultados:`n$($_.Exception.Message)" "Error" $global:MainWindow
+        Write-DzDebug "`t[DEBUG][Export] CATCH: $($_.Exception.Message)" -Color Red
+    }
+}
 Export-ModuleMember -Function @(
     'Invoke-SqlQuery',
     'Invoke-SqlQueryMultiResultSet',
@@ -2034,5 +2104,6 @@ Export-ModuleMember -Function @(
     'Show-ErrorResultTab',
     'Get-UseDatabaseFromQuery',
     'Disconnect-DbUiSafe',
-    'Connect-DbUiSafe'
+    'Connect-DbUiSafe',
+    'Export-ResultsUiSafe'
 )

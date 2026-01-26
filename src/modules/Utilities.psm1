@@ -4,19 +4,10 @@ $script:DzToolsConfigPath = "C:\Temp\dztools.ini"
 $script:DzDebugEnabled = $null
 
 function Get-DzToolsConfigPath {
-    <#
-    .SYNOPSIS
-    Obtiene la ruta del archivo de configuración
-    #>
     return $script:DzToolsConfigPath
 }
 function Get-DzDebugPreference {
-    <#
-    .SYNOPSIS
-    Obtiene la preferencia de debug desde el archivo de configuración
-    #>
     $configPath = Get-DzToolsConfigPath
-
     if (-not (Test-Path -LiteralPath $configPath)) {
         return $false
     }
@@ -38,6 +29,7 @@ function Get-DzDebugPreference {
     }
     return $false
 }
+
 function Ensure-DzUiConfig {
     param(
         [Parameter(Mandatory = $true)]
@@ -168,12 +160,7 @@ function Update-DzIniSetting {
 }
 
 function Get-DzUiMode {
-    <#
-    .SYNOPSIS
-    Obtiene el modo de UI desde el archivo de configuración
-    #>
     $configPath = Get-DzToolsConfigPath
-
     if (-not (Test-Path -LiteralPath $configPath)) {
         return "dark"
     }
@@ -181,7 +168,9 @@ function Get-DzUiMode {
     $inUiSection = $false
     foreach ($line in $content) {
         $trimmed = $line.Trim()
-        if ($trimmed -match '^\s*;') { continue }
+        if ($trimmed -match '^\s*;') {
+            continue
+        }
         if ($trimmed -match '^\[UI\]\s*$') {
             $inUiSection = $true
             continue
@@ -197,39 +186,30 @@ function Get-DzUiMode {
 }
 
 function Set-DzUiMode {
-    <#
-    .SYNOPSIS
-    Actualiza el modo de UI en el archivo de configuración
-    #>
     param(
         [Parameter(Mandatory = $true)]
         [ValidateSet('dark', 'light')]
         [string]$Mode
     )
-
     Update-DzIniSetting -Section "UI" -Key "mode" -Value $Mode
 }
 
 function Set-DzDebugPreference {
-    <#
-    .SYNOPSIS
-    Actualiza la preferencia de debug en el archivo de configuración
-    #>
     param(
         [Parameter(Mandatory = $true)]
         [bool]$Enabled
     )
-
-    $value = if ($Enabled) { 'true' } else { 'false' }
+    $value = if ($Enabled) {
+        'true'
+    } else {
+        'false'
+    }
     Update-DzIniSetting -Section "desarrollo" -Key "debug" -Value $value
     $script:DzDebugEnabled = $Enabled
 }
 
+
 function Initialize-DzToolsConfig {
-    <#
-    .SYNOPSIS
-    Inicializa el archivo de configuración
-    #>
     $configPath = Get-DzToolsConfigPath
     $configDir = Split-Path -Path $configPath -Parent
     if (-not (Test-Path -LiteralPath $configDir)) {
@@ -244,10 +224,6 @@ function Initialize-DzToolsConfig {
 }
 
 function Write-DzDebug {
-    <#
-    .SYNOPSIS
-    Escribe mensajes de debug si está habilitado
-    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$Message,
@@ -261,12 +237,9 @@ function Write-DzDebug {
     }
 
     if ($script:DzDebugEnabled) {
-
-        # ✅ Si hay una barra de progreso “inline”, ciérrala para no mezclar texto
         if (Get-Command Stop-GlobalProgress -ErrorAction SilentlyContinue) {
             Stop-GlobalProgress
         } else {
-            # fallback: por si no existe, evita pegarse a un -NoNewline
             Write-Host ""
         }
 
@@ -275,21 +248,14 @@ function Write-DzDebug {
 }
 
 function Test-Administrator {
-    <#
-    .SYNOPSIS
-    Verifica si el script se ejecuta con privilegios de administrador
-    #>
     [CmdletBinding()]
     param()
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
+
 function Get-SystemInfo {
-    <#
-    .SYNOPSIS
-    Obtiene información del sistema
-    #>
     [CmdletBinding()]
     param()
     $info = @{
@@ -306,9 +272,7 @@ function Get-SystemInfo {
             MacAddress  = $adapter.MacAddress
             IPAddresses = @()
         }
-        $ipAddresses = Get-NetIPAddress -InterfaceAlias $adapter.Name -AddressFamily IPv4 |
-        Where-Object { $_.IPAddress -ne '127.0.0.1' }
-
+        $ipAddresses = Get-NetIPAddress -InterfaceAlias $adapter.Name -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' }
         foreach ($ip in $ipAddresses) {
             $adapterInfo.IPAddresses += $ip.IPAddress
         }
@@ -316,11 +280,8 @@ function Get-SystemInfo {
     }
     return $info
 }
+
 function Clear-TemporaryFiles {
-    <#
-    .SYNOPSIS
-    Limpia archivos temporales del sistema
-    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
@@ -355,26 +316,22 @@ function Clear-TemporaryFiles {
         SpaceFreedMB = [math]::Round($totalSize / 1MB, 2)
     }
 }
+
 function Test-ChocolateyInstalled {
-    <#
-    .SYNOPSIS
-    Verifica si Chocolatey está instalado
-    #>
     [CmdletBinding()]
     param()
     return [bool](Get-Command choco -ErrorAction SilentlyContinue)
 }
+
 function Install-Chocolatey {
-    <#
-    .SYNOPSIS
-    Instala Chocolatey
-    #>
     [CmdletBinding()]
     param()
+
     if (Test-ChocolateyInstalled) {
         Write-Verbose "Chocolatey ya está instalado"
         return $true
     }
+
     try {
         Write-Host "Instalando Chocolatey..." -ForegroundColor Yellow
         Set-ExecutionPolicy Bypass -Scope Process -Force
@@ -388,17 +345,16 @@ function Install-Chocolatey {
         return $false
     }
 }
+
 function Get-AdminGroupName {
-    <#
-    .SYNOPSIS
-    Obtiene el nombre del grupo de administradores del sistema
-    #>
     $groups = net localgroup | Where-Object { $_ -match "Administrador|Administrators" }
+
     if ($groups -match "\bAdministradores\b") {
         return "Administradores"
     } elseif ($groups -match "\bAdministrators\b") {
         return "Administrators"
     }
+
     try {
         $adminGroup = Get-LocalGroup | Where-Object { $_.SID -like "S-1-5-32-544" }
         return $adminGroup.Name
@@ -406,11 +362,8 @@ function Get-AdminGroupName {
         return "Administrators"
     }
 }
+
 function Invoke-DiskCleanup {
-    <#
-    .SYNOPSIS
-    Ejecuta el liberador de espacio en disco de Windows
-    #>
     [CmdletBinding()]
     param(
         [switch]$Configure,
@@ -418,40 +371,45 @@ function Invoke-DiskCleanup {
         [int]$TimeoutMinutes = 3,
         $ProgressWindow = $null
     )
+
     try {
         $cleanmgr = Join-Path $env:SystemRoot "System32\cleanmgr.exe"
         $profileId = 9999
+
         Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: INICIO Configure=$Configure, Wait=$Wait, TimeoutMinutes=$TimeoutMinutes"
+
         if ($Configure) {
             Write-Host "`n`tAbriendo configuración del Liberador de espacio..." -ForegroundColor Cyan
             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzando /sageset:$profileId"
             Start-Process $cleanmgr -ArgumentList "/sageset:$profileId" -Verb RunAs
             return
         }
+
         Write-Host "`n`tEjecutando Liberador de espacio en disco..." -ForegroundColor Cyan
+
         if ($Wait) {
             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzando /sagerun:$profileId (BLOQUEANTE con timeout)"
             Write-Host "`n`tEsperando a que termine la limpieza de disco..." -ForegroundColor Yellow
             Write-Host "`t(Timeout: $TimeoutMinutes minutos)" -ForegroundColor Yellow
+
             $proc = Start-Process $cleanmgr -ArgumentList "/sagerun:$profileId" -WindowStyle Hidden -PassThru
             if ($null -eq $proc) {
                 throw "Invoke-DiskCleanup: Start-Process devolvió NULL (no se pudo iniciar cleanmgr)."
             }
+
             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso iniciado. PID=$($proc.Id)"
+
             $timeoutSeconds = $TimeoutMinutes * 60
             $script:remainingSeconds = $timeoutSeconds
             $script:cleanupCompleted = $false
-            # antes del if ($ProgressWindow...)
             $timer = $null
 
             if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
-
                 $timer = New-Object System.Windows.Threading.DispatcherTimer
                 $timer.Interval = [TimeSpan]::FromSeconds(1)
 
                 $timer.Add_Tick({
                         param($sender, $e)
-
                         try {
                             if ($script:remainingSeconds -gt 0) {
                                 $script:remainingSeconds--
@@ -463,7 +421,6 @@ function Invoke-DiskCleanup {
                                     $ProgressWindow.MessageLabel.Text = "Liberando espacio en disco...`nTiempo restante: $mins min $secs seg"
                                 }
                             } else {
-                                # ✅ en vez de $this.Stop()
                                 $sender.Stop()
                             }
                         } catch {
@@ -475,11 +432,14 @@ function Invoke-DiskCleanup {
                 $timer.Start()
                 Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Timer iniciado"
             }
+
             $checkInterval = 500
             $elapsed = 0
+
             while (-not $proc.HasExited -and $elapsed -lt ($timeoutSeconds * 1000)) {
                 Start-Sleep -Milliseconds $checkInterval
                 $elapsed += $checkInterval
+
                 if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
                     $ProgressWindow.Dispatcher.Invoke(
                         [System.Windows.Threading.DispatcherPriority]::Background,
@@ -487,12 +447,15 @@ function Invoke-DiskCleanup {
                     )
                 }
             }
+
             if ($timer) {
                 $timer.Stop()
             }
+
             if ($proc.HasExited) {
                 Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso completado. ExitCode=$($proc.ExitCode)"
                 Write-Host "`n`tLiberador de espacio completado." -ForegroundColor Green
+
                 if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
                     if ($ProgressWindow.PSObject.Properties.Name -contains 'MessageLabel') {
                         $ProgressWindow.MessageLabel.Text = "Limpieza completada exitosamente"
@@ -501,6 +464,7 @@ function Invoke-DiskCleanup {
             } else {
                 Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: TIMEOUT alcanzado" Yellow
                 Write-Host "`n`tAdvertencia: El proceso excedió el tiempo límite." -ForegroundColor Yellow
+
                 try {
                     $proc.Kill()
                     $proc.WaitForExit(5000)
@@ -518,29 +482,31 @@ function Invoke-DiskCleanup {
             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzado. PID=$($proc.Id)"
             Write-Host "`n`tLiberador de espacio iniciado." -ForegroundColor Green
         }
+
         Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: FIN OK"
     } catch {
         Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: EXCEPCIÓN: $($_.Exception.Message)" Red
         Write-Host "`n`tError en limpieza de disco: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
+
 function Stop-CleanmgrProcesses {
-    <#
-    .SYNOPSIS
-    Detiene todos los procesos de cleanmgr activos
-    #>
     [CmdletBinding()]
     param()
+
     try {
         $cleanmgrProcesses = Get-Process -Name "cleanmgr" -ErrorAction SilentlyContinue
+
         if ($cleanmgrProcesses) {
             Write-Host "`n`tEncontrando procesos cleanmgr activos..." -ForegroundColor Yellow
             Write-DzDebug "`t[DEBUG]Stop-CleanmgrProcesses: Encontrados $($cleanmgrProcesses.Count) procesos"
+
             foreach ($proc in $cleanmgrProcesses) {
                 Write-Host "`t  Terminando proceso cleanmgr (PID: $($proc.Id))..." -ForegroundColor Yellow
                 $proc.Kill()
                 Start-Sleep -Milliseconds 500
             }
+
             Write-Host "`tProcesos cleanmgr terminados." -ForegroundColor Green
             Write-DzDebug "`t[DEBUG]Stop-CleanmgrProcesses: Procesos terminados"
         } else {
@@ -552,11 +518,8 @@ function Stop-CleanmgrProcesses {
     }
 }
 
+
 function Test-SameHost {
-    <#
-    .SYNOPSIS
-    Verifica si el servidor SQL está en el mismo host
-    #>
     param(
         [string]$serverName
     )
@@ -567,18 +530,12 @@ function Test-SameHost {
     }
     return ($env:COMPUTERNAME -eq $machineName)
 }
+
 function Test-7ZipInstalled {
-    <#
-    .SYNOPSIS
-    Verifica si 7-Zip está instalado
-    #>
     return (Test-Path "C:\Program Files\7-Zip\7z.exe")
 }
+
 function Test-MegaToolsInstalled {
-    <#
-    .SYNOPSIS
-    Verifica si MegaTools está instalado
-    #>
     return ([bool](Get-Command megatools -ErrorAction SilentlyContinue))
 }
 
@@ -588,13 +545,11 @@ function Get-SqlPortWithDebug {
 
     $ports = @()
 
-    # Definir rutas de registro a buscar (64-bit y 32-bit)
     $registryPaths = @(
-        "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server",  # 64-bit
-        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Microsoft SQL Server"  # 32-bit
+        "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Microsoft SQL Server"
     )
 
-    # 1. Buscar por todas las instancias instaladas
     Write-DzDebug "`t[DEBUG] 1. Buscando instancias SQL instaladas..."
 
     foreach ($basePath in $registryPaths) {
@@ -606,7 +561,6 @@ function Get-SqlPortWithDebug {
                 continue
             }
 
-            # Método 1: Obtener de InstalledInstances
             Write-DzDebug "`t[DEBUG]   Método 1: Buscando en 'InstalledInstances'..."
             $installedInstances = Get-ItemProperty -Path $basePath -Name "InstalledInstances" -ErrorAction SilentlyContinue
 
@@ -614,7 +568,6 @@ function Get-SqlPortWithDebug {
                 Write-DzDebug "`t[DEBUG]   ✓ Instancias encontradas: $($installedInstances.InstalledInstances -join ', ')"
 
                 foreach ($instance in $installedInstances.InstalledInstances) {
-                    # Si ya procesamos esta instancia, saltar
                     if ($ports.Instance -contains $instance) {
                         Write-DzDebug "`t[DEBUG]     Instancia '$instance' ya procesada, saltando..."
                         continue
@@ -622,7 +575,6 @@ function Get-SqlPortWithDebug {
 
                     Write-DzDebug "`t[DEBUG]     Procesando instancia: '$instance'"
 
-                    # Construir rutas posibles para esta instancia
                     $possiblePaths = @(
                         "$basePath\$instance\MSSQLServer\SuperSocketNetLib\Tcp",
                         "$basePath\$instance\MSSQLServer\SuperSocketNetLib\Tcp\IPAll",
@@ -636,7 +588,6 @@ function Get-SqlPortWithDebug {
                         if (Test-Path $tcpPath) {
                             Write-DzDebug "`t[DEBUG]       ✓ Ruta existe"
 
-                            # Buscar puerto TCP
                             $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
                             $tcpDynamicPorts = Get-ItemProperty -Path $tcpPath -Name "TcpDynamicPorts" -ErrorAction SilentlyContinue
 
@@ -678,7 +629,6 @@ function Get-SqlPortWithDebug {
                 Write-DzDebug "`t[DEBUG]   ✗ No se encontró la clave 'InstalledInstances' en esta ruta"
             }
 
-            # Método 2: Explorar todas las carpetas bajo SQL Server
             Write-DzDebug "`t[DEBUG]   Método 2: Explorando todas las carpetas..."
 
             $allSqlEntries = Get-ChildItem -Path $basePath -ErrorAction SilentlyContinue |
@@ -689,9 +639,7 @@ function Get-SqlPortWithDebug {
                 Write-DzDebug "`t[DEBUG]   Carpetas encontradas: $($allSqlEntries -join ', ')"
 
                 foreach ($entry in $allSqlEntries) {
-                    # Filtrar nombres que parecen instancias
                     if ($entry -match "^MSSQL\d+" -or $entry -match "^SQL" -or $entry -match "NATIONALSOFT") {
-                        # Si ya procesamos esta instancia, saltar
                         if ($ports.Instance -contains $entry) {
                             Write-DzDebug "`t[DEBUG]     Instancia '$entry' ya procesada, saltando..."
                             continue
@@ -732,14 +680,12 @@ function Get-SqlPortWithDebug {
                     }
                 }
             }
-
         } catch {
             Write-DzDebug "`t[DEBUG]   ERROR en búsqueda: $($_.Exception.Message)"
             Write-DzDebug "`t[DEBUG]   StackTrace: $($_.ScriptStackTrace)"
         }
     }
 
-    # Método 3: Buscar por servicios SQL Server (común para ambos)
     Write-DzDebug "`t[DEBUG]   Método 3: Buscando servicios SQL Server..."
 
     $sqlServices = Get-Service -Name "*SQL*" -ErrorAction SilentlyContinue |
@@ -748,18 +694,16 @@ function Get-SqlPortWithDebug {
     foreach ($service in $sqlServices) {
         Write-DzDebug "`t[DEBUG]     Servicio: $($service.DisplayName)"
 
-        # Extraer nombre de instancia del servicio
         if ($service.DisplayName -match "SQL Server \((.+)\)") {
             $instanceName = $matches[1]
 
-            # Si ya procesamos esta instancia, saltar
             if ($ports.Instance -contains $instanceName) {
                 Write-DzDebug "`t[DEBUG]       Instancia '$instanceName' ya procesada, saltando..."
                 continue
             }
 
             Write-DzDebug "`t[DEBUG]       Posible instancia: '$instanceName'"
-            # Buscar en ambas rutas del registro
+
             foreach ($basePath in $registryPaths) {
                 $tcpPath = "$basePath\MSSQLServer\$instanceName\SuperSocketNetLib\Tcp"
 
@@ -793,7 +737,6 @@ function Get-SqlPortWithDebug {
         }
     }
 
-    # Método 4: Buscar puertos en uso por SQL Server
     Write-DzDebug "`t[DEBUG]   Método 4: Buscando puertos en uso por sqlservr.exe..."
 
     $sqlProcesses = Get-Process -Name "sqlservr" -ErrorAction SilentlyContinue
@@ -801,7 +744,6 @@ function Get-SqlPortWithDebug {
         foreach ($process in $sqlProcesses) {
             Write-DzDebug "`t[DEBUG]     Proceso sqlservr.exe encontrado (PID: $($process.Id))"
 
-            # Obtener puertos usando netstat
             $netstatOutput = netstat -ano | Select-String ":$($process.Id)\s"
 
             foreach ($line in $netstatOutput) {
@@ -809,9 +751,7 @@ function Get-SqlPortWithDebug {
                     $port = $matches[1]
                     Write-DzDebug "`t[DEBUG]       Puerto en uso: $port"
 
-                    # Si no tenemos esta instancia en la lista, agregarla
                     if (-not ($ports.Port -contains $port)) {
-                        # Intentar obtener nombre de instancia del proceso
                         $processInfo = Get-WmiObject Win32_Process -Filter "ProcessId = $($process.Id)" | Select-Object CommandLine
                         if ($processInfo.CommandLine -match "-s(.+?)\s") {
                             $instanceFromCmd = $matches[1]
@@ -834,7 +774,6 @@ function Get-SqlPortWithDebug {
         Write-DzDebug "`t[DEBUG]     ✗ No se encontraron procesos sqlservr.exe"
     }
 
-    # Resumen final
     Write-DzDebug "`t[DEBUG] `n=== RESUMEN DE BÚSQUEDA ==="
     Write-DzDebug "`t[DEBUG] Total de instancias con puerto encontradas: $($ports.Count)"
 
@@ -845,23 +784,21 @@ function Get-SqlPortWithDebug {
         }
     } else {
         Write-DzDebug "`t[DEBUG]   ✗ No se encontraron puertos SQL configurados"
-        # Sugerencias para debugging
         Write-DzDebug "`t[DEBUG] === SUGERENCIAS ==="
         Write-DzDebug "`t[DEBUG] 1. Verifica si SQL Server está instalado"
         Write-DzDebug "`t[DEBUG] 2. Revisa el Configuration Manager de SQL Server"
         Write-DzDebug "`t[DEBUG] 3. Verifica si el servicio SQL Server está ejecutándose"
         Write-DzDebug "`t[DEBUG] 4. Consulta el log de errores de SQL Server"
     }
+
     Write-DzDebug "`t[DEBUG] === FIN DE BÚSQUEDA ===`n"
+
     if ($ports.Count -gt 0) {
-        # Ordenar por instancia
         $ports = $ports | Sort-Object -Property Instance
-        # Formatear cada puerto con una línea por instancia
         $formattedPorts = @()
+
         foreach ($port in $ports) {
-            # Formatear nombre de instancia
             $instanceName = if ($port.Instance -eq "MSSQLSERVER") { "Default" } else { $port.Instance }
-            # Crear un nuevo objeto con todas las propiedades necesarias
             $formattedPort = [PSCustomObject]@{
                 Instance       = $port.Instance
                 Port           = $port.Port
@@ -872,10 +809,13 @@ function Get-SqlPortWithDebug {
             }
             $formattedPorts += $formattedPort
         }
+
         $ports = $formattedPorts
     }
+
     return $ports
 }
+
 function Show-SqlPortsInfo {
     param([array]$sqlPorts)
     if ($sqlPorts.Count -eq 0) {
@@ -1488,18 +1428,23 @@ function Initialize-SystemInfo {
             $LblAdapterStatus.Text = "🔍 Verificando adaptadores..."
             $LblAdapterStatus.UpdateLayout()
         })
+    $script:portsApplied = $false
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromMilliseconds(200)
     $timer.Add_Tick({
-            if ($portsJob.State -in @("Completed", "Failed", "Stopped")) {
+            if (-not $script:portsApplied -and $portsJob -and $portsJob.State -in @("Completed", "Failed", "Stopped")) {
+                $script:portsApplied = $true
+
                 try {
-                    $portsResult = @(Receive-Job $portsJob -ErrorAction SilentlyContinue)
+                    $portsResult = Receive-Job $portsJob -ErrorAction SilentlyContinue | ForEach-Object { $_ }
                     Remove-Job $portsJob -Force -ErrorAction SilentlyContinue
+                    $portsJob = $null
+
                     Update-PortsUI -LblPort $LblPort -PortsResult $portsResult
                 } catch {
                     Write-DzDebug "`t[DEBUG][SystemInfo] Error procesando puertos: $_"
+                    $portsJob = $null
                 }
-                $portsJob = $null
             }
             if ($networkJob.State -in @("Completed", "Failed", "Stopped")) {
                 try {
@@ -1521,7 +1466,6 @@ function Initialize-SystemInfo {
     $timer.Start()
     Write-DzDebug "`t[DEBUG][SystemInfo] Iniciada carga asíncrona de información del sistema"
 }
-
 function Update-PortsUI {
     param($LblPort, $PortsResult)
     Write-DzDebug "`t[DEBUG][Update-PortsUI] Iniciando actualización de UI de puertos" -Color Cyan
@@ -1554,6 +1498,10 @@ function Update-PortsUI {
                     Write-DzDebug "`t[DEBUG][Update-PortsUI] UI ya tiene el mismo texto, omitiendo actualización" -Color Yellow
                 }
             } else {
+                if ($LblPort.Text -and $LblPort.Text -notlike "🔍*" -and $LblPort.Text -ne "No se encontraron puertos SQL") {
+                    Write-DzDebug "`t[DEBUG][Update-PortsUI] Resultado vacío, pero ya había datos. No se pisa la UI." -Color Yellow
+                    return
+                }
                 if ($LblPort.Text -ne "No se encontraron puertos SQL") {
                     $LblPort.Text = "No se encontraron puertos SQL"
                     $LblPort.Tag = "No se encontraron instalaciones de SQL Server"

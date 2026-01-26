@@ -10,7 +10,7 @@ try {
     Add-Type -AssemblyName PresentationCore
     Add-Type -AssemblyName WindowsBase
     Add-Type -AssemblyName System.Windows.Forms
-    Write-Host "✓ WPF cargado" -ForegroundColor Green
+    Write-Host "`t✓ WPF cargado" -ForegroundColor Green
 } catch {
     Write-Host "✗ Error cargando WPF: $_" -ForegroundColor Red
     pause
@@ -295,7 +295,7 @@ function New-MainForm {
             $style.Triggers.Add($triggerSelected)
             $style.Triggers.Add($triggerFocused)
             $tvDatabases.ItemContainerStyle = $style
-            Write-Host "✓ Estilo de TreeView aplicado correctamente" -ForegroundColor Green
+            Write-Host "`t✓ Estilo de TreeView aplicado correctamente" -ForegroundColor Green
         } catch {
             Write-Host "✗ Error aplicando estilo al TreeView: $($_.Exception.Message)" -ForegroundColor Red
         }
@@ -711,7 +711,7 @@ Base de datos: $($global:database)
             Write-DzDebug "`t[DEBUG] Error: $_" -Color Red
         }
     }.GetNewClosure()
-    Write-Host "✓ Formulario WPF creado exitosamente" -ForegroundColor Green
+    Write-Host "`t✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     $window.Dispatcher.Add_UnhandledException({
             param($sender, $e)
             $ex = $e.Exception

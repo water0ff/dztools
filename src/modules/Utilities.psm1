@@ -240,7 +240,7 @@ function Write-DzDebug {
         if (Get-Command Stop-GlobalProgress -ErrorAction SilentlyContinue) {
             Stop-GlobalProgress
         } else {
-            Write-Host ""
+            #Write-Host ""
         }
 
         Write-Host $Message -ForegroundColor $Color
@@ -540,7 +540,7 @@ function Test-MegaToolsInstalled {
 }
 
 function Get-SqlPortWithDebug {
-    Write-DzDebug "`t[DEBUG] === INICIANDO BÚSQUEDA DE PUERTOS SQL ==="
+    Write-DzDebug "`n`t[DEBUG][Update-PortsUI] === INICIANDO BÚSQUEDA DE PUERTOS SQL ==="
     Write-DzDebug "`t[DEBUG] Fecha/Hora: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 
     $ports = @()
@@ -550,30 +550,29 @@ function Get-SqlPortWithDebug {
         "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Microsoft SQL Server"
     )
 
-    Write-DzDebug "`t[DEBUG] 1. Buscando instancias SQL instaladas..."
+    Write-DzDebug "`t[DEBUG][Update-PortsUI] 1. Buscando instancias SQL instaladas..."
 
     foreach ($basePath in $registryPaths) {
         try {
-            Write-DzDebug "`t[DEBUG]   Examinando ruta: $basePath"
+            Write-DzDebug "`t[DEBUG][Update-PortsUI]   Examinando ruta: $basePath"
 
             if (-not (Test-Path $basePath)) {
-                Write-DzDebug "`t[DEBUG]   ✗ La ruta no existe"
+                Write-DzDebug "`t[DEBUG][Update-PortsUI]   ✗ La ruta no existe"
                 continue
             }
 
-            Write-DzDebug "`t[DEBUG]   Método 1: Buscando en 'InstalledInstances'..."
+            Write-DzDebug "`t[DEBUG][Update-PortsUI]   Método 1: Buscando en 'InstalledInstances'..."
             $installedInstances = Get-ItemProperty -Path $basePath -Name "InstalledInstances" -ErrorAction SilentlyContinue
 
             if ($installedInstances -and $installedInstances.InstalledInstances) {
-                Write-DzDebug "`t[DEBUG]   ✓ Instancias encontradas: $($installedInstances.InstalledInstances -join ', ')"
-
+                Write-DzDebug "`t[DEBUG][Update-PortsUI]   ✓ Instancias encontradas: $($installedInstances.InstalledInstances -join ', ')"
                 foreach ($instance in $installedInstances.InstalledInstances) {
                     if ($ports.Instance -contains $instance) {
-                        Write-DzDebug "`t[DEBUG]     Instancia '$instance' ya procesada, saltando..."
+                        Write-DzDebug "`t[DEBUG][Update-PortsUI]     Instancia '$instance' ya procesada, saltando..."
                         continue
                     }
 
-                    Write-DzDebug "`t[DEBUG]     Procesando instancia: '$instance'"
+                    Write-DzDebug "`t[DEBUG][Update-PortsUI]     Procesando instancia: '$instance'"
 
                     $possiblePaths = @(
                         "$basePath\$instance\MSSQLServer\SuperSocketNetLib\Tcp",
@@ -583,10 +582,10 @@ function Get-SqlPortWithDebug {
 
                     $portFound = $false
                     foreach ($tcpPath in $possiblePaths) {
-                        Write-DzDebug "`t[DEBUG]       Probando ruta: $tcpPath"
+                        Write-DzDebug "`t[DEBUG][Update-PortsUI]       Probando ruta: $tcpPath"
 
                         if (Test-Path $tcpPath) {
-                            Write-DzDebug "`t[DEBUG]       ✓ Ruta existe"
+                            Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✓ Ruta existe"
 
                             $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
                             $tcpDynamicPorts = Get-ItemProperty -Path $tcpPath -Name "TcpDynamicPorts" -ErrorAction SilentlyContinue
@@ -599,7 +598,7 @@ function Get-SqlPortWithDebug {
                                     Type     = "Static"
                                 }
                                 $ports += $portInfo
-                                Write-DzDebug "`t[DEBUG]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
+                                Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
                                 $portFound = $true
                                 break
                             } elseif ($tcpDynamicPorts -and $tcpDynamicPorts.TcpDynamicPorts) {
@@ -610,47 +609,46 @@ function Get-SqlPortWithDebug {
                                     Type     = "Dynamic"
                                 }
                                 $ports += $portInfo
-                                Write-DzDebug "`t[DEBUG]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
+                                Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
                                 $portFound = $true
                                 break
                             } else {
-                                Write-DzDebug "`t[DEBUG]       ✗ No se encontró puerto en esta ruta"
+                                Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✗ No se encontró puerto en esta ruta"
                             }
                         } else {
-                            Write-DzDebug "`t[DEBUG]       ✗ Ruta no existe"
+                            Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✗ Ruta no existe"
                         }
                     }
 
                     if (-not $portFound) {
-                        Write-DzDebug "`t[DEBUG]     ✗ No se encontró puerto para la instancia '$instance'"
+                        Write-DzDebug "`t[DEBUG][Update-PortsUI]     ✗ No se encontró puerto para la instancia '$instance'"
                     }
                 }
             } else {
-                Write-DzDebug "`t[DEBUG]   ✗ No se encontró la clave 'InstalledInstances' en esta ruta"
+                Write-DzDebug "`t[DEBUG][Update-PortsUI]   ✗ No se encontró la clave 'InstalledInstances' en esta ruta"
             }
 
-            Write-DzDebug "`t[DEBUG]   Método 2: Explorando todas las carpetas..."
+            Write-DzDebug "`t[DEBUG][Update-PortsUI]   Método 2: Explorando todas las carpetas..."
 
             $allSqlEntries = Get-ChildItem -Path $basePath -ErrorAction SilentlyContinue |
             Where-Object { $_.PSIsContainer } |
             Select-Object -ExpandProperty PSChildName
 
             if ($allSqlEntries) {
-                Write-DzDebug "`t[DEBUG]   Carpetas encontradas: $($allSqlEntries -join ', ')"
+                Write-DzDebug "`t[DEBUG][Update-PortsUI]   Carpetas encontradas: $($allSqlEntries -join ', ')"
 
                 foreach ($entry in $allSqlEntries) {
                     if ($entry -match "^MSSQL\d+" -or $entry -match "^SQL" -or $entry -match "NATIONALSOFT") {
                         if ($ports.Instance -contains $entry) {
-                            Write-DzDebug "`t[DEBUG]     Instancia '$entry' ya procesada, saltando..."
+                            Write-DzDebug "`t[DEBUG][Update-PortsUI]     Instancia '$entry' ya procesada, saltando..."
                             continue
                         }
 
-                        Write-DzDebug "`t[DEBUG]     Analizando posible instancia: '$entry'"
-
+                        Write-DzDebug "`t[DEBUG][Update-PortsUI]     Analizando posible instancia: '$entry'"
                         $tcpPath = "$basePath\$entry\MSSQLServer\SuperSocketNetLib\Tcp"
 
                         if (Test-Path $tcpPath) {
-                            Write-DzDebug "`t[DEBUG]       ✓ Ruta TCP encontrada: $tcpPath"
+                            Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✓ Ruta TCP encontrada: $tcpPath"
 
                             $tcpPort = Get-ItemProperty -Path $tcpPath -Name "TcpPort" -ErrorAction SilentlyContinue
                             $tcpDynamicPorts = Get-ItemProperty -Path $tcpPath -Name "TcpDynamicPorts" -ErrorAction SilentlyContinue
@@ -663,7 +661,7 @@ function Get-SqlPortWithDebug {
                                     Type     = "Static"
                                 }
                                 $ports += $portInfo
-                                Write-DzDebug "`t[DEBUG]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
+                                Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
                             } elseif ($tcpDynamicPorts -and $tcpDynamicPorts.TcpDynamicPorts) {
                                 $portInfo = [PSCustomObject]@{
                                     Instance = $entry
@@ -672,37 +670,37 @@ function Get-SqlPortWithDebug {
                                     Type     = "Dynamic"
                                 }
                                 $ports += $portInfo
-                                Write-DzDebug "`t[DEBUG]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
+                                Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
                             } else {
-                                Write-DzDebug "`t[DEBUG]       ✗ No se encontró puerto en esta ruta"
+                                Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✗ No se encontró puerto en esta ruta"
                             }
                         }
                     }
                 }
             }
         } catch {
-            Write-DzDebug "`t[DEBUG]   ERROR en búsqueda: $($_.Exception.Message)"
-            Write-DzDebug "`t[DEBUG]   StackTrace: $($_.ScriptStackTrace)"
+            Write-DzDebug "`t[DEBUG][Update-PortsUI]   ERROR en búsqueda: $($_.Exception.Message)"
+            Write-DzDebug "`t[DEBUG][Update-PortsUI]   StackTrace: $($_.ScriptStackTrace)"
         }
     }
 
-    Write-DzDebug "`t[DEBUG]   Método 3: Buscando servicios SQL Server..."
+    Write-DzDebug "`t[DEBUG][Update-PortsUI]   Método 3: Buscando servicios SQL Server..."
 
     $sqlServices = Get-Service -Name "*SQL*" -ErrorAction SilentlyContinue |
     Where-Object { $_.DisplayName -like "*SQL Server (*" }
 
     foreach ($service in $sqlServices) {
-        Write-DzDebug "`t[DEBUG]     Servicio: $($service.DisplayName)"
+        Write-DzDebug "`t[DEBUG][Update-PortsUI]     Servicio: $($service.DisplayName)"
 
         if ($service.DisplayName -match "SQL Server \((.+)\)") {
             $instanceName = $matches[1]
 
             if ($ports.Instance -contains $instanceName) {
-                Write-DzDebug "`t[DEBUG]       Instancia '$instanceName' ya procesada, saltando..."
+                Write-DzDebug "`t[DEBUG][Update-PortsUI]       Instancia '$instanceName' ya procesada, saltando..."
                 continue
             }
 
-            Write-DzDebug "`t[DEBUG]       Posible instancia: '$instanceName'"
+            Write-DzDebug "`t[DEBUG][Update-PortsUI]       Posible instancia: '$instanceName'"
 
             foreach ($basePath in $registryPaths) {
                 $tcpPath = "$basePath\MSSQLServer\$instanceName\SuperSocketNetLib\Tcp"
@@ -719,7 +717,7 @@ function Get-SqlPortWithDebug {
                             Type     = "Static"
                         }
                         $ports += $portInfo
-                        Write-DzDebug "`t[DEBUG]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
+                        Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✓ Puerto estático encontrado: $($tcpPort.TcpPort)"
                         break
                     } elseif ($tcpDynamicPorts -and $tcpDynamicPorts.TcpDynamicPorts) {
                         $portInfo = [PSCustomObject]@{
@@ -729,7 +727,7 @@ function Get-SqlPortWithDebug {
                             Type     = "Dynamic"
                         }
                         $ports += $portInfo
-                        Write-DzDebug "`t[DEBUG]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
+                        Write-DzDebug "`t[DEBUG][Update-PortsUI]       ✓ Puerto dinámico encontrado: $($tcpDynamicPorts.TcpDynamicPorts)"
                         break
                     }
                 }
@@ -737,19 +735,19 @@ function Get-SqlPortWithDebug {
         }
     }
 
-    Write-DzDebug "`t[DEBUG]   Método 4: Buscando puertos en uso por sqlservr.exe..."
+    Write-DzDebug "`t[DEBUG][Update-PortsUI]   Método 4: Buscando puertos en uso por sqlservr.exe..."
 
     $sqlProcesses = Get-Process -Name "sqlservr" -ErrorAction SilentlyContinue
     if ($sqlProcesses) {
         foreach ($process in $sqlProcesses) {
-            Write-DzDebug "`t[DEBUG]     Proceso sqlservr.exe encontrado (PID: $($process.Id))"
+            Write-DzDebug "`t[DEBUG][Update-PortsUI]     Proceso sqlservr.exe encontrado (PID: $($process.Id))"
 
             $netstatOutput = netstat -ano | Select-String ":$($process.Id)\s"
 
             foreach ($line in $netstatOutput) {
                 if ($line -match ":(\d+)\s.*$($process.Id)$") {
                     $port = $matches[1]
-                    Write-DzDebug "`t[DEBUG]       Puerto en uso: $port"
+                    Write-DzDebug "`t[DEBUG][Update-PortsUI]       Puerto en uso: $port"
 
                     if (-not ($ports.Port -contains $port)) {
                         $processInfo = Get-WmiObject Win32_Process -Filter "ProcessId = $($process.Id)" | Select-Object CommandLine
@@ -771,27 +769,26 @@ function Get-SqlPortWithDebug {
             }
         }
     } else {
-        Write-DzDebug "`t[DEBUG]     ✗ No se encontraron procesos sqlservr.exe"
+        Write-DzDebug "`t[DEBUG][Update-PortsUI]    ✗ No se encontraron procesos sqlservr.exe"
     }
 
-    Write-DzDebug "`t[DEBUG] `n=== RESUMEN DE BÚSQUEDA ==="
-    Write-DzDebug "`t[DEBUG] Total de instancias con puerto encontradas: $($ports.Count)"
-
+    Write-DzDebug "`t[DEBUG][Update-PortsUI] `n=== RESUMEN DE BÚSQUEDA ==="
+    Write-DzDebug "`t[DEBUG][Update-PortsUI] Total de instancias con puerto encontradas: $($ports.Count)"
     if ($ports.Count -gt 0) {
         foreach ($port in $ports) {
-            Write-DzDebug "`t[DEBUG]   - Instancia: $($port.Instance) | Puerto: $($port.Port) | Tipo: $($port.Type)"
-            Write-DzDebug "`t[DEBUG]     Ruta: $($port.Path)"
+            Write-DzDebug "`t[DEBUG][Update-PortsUI]   - Instancia: $($port.Instance) | Puerto: $($port.Port) | Tipo: $($port.Type)"
+            Write-DzDebug "`t[DEBUG][Update-PortsUI]     Ruta: $($port.Path)"
         }
     } else {
-        Write-DzDebug "`t[DEBUG]   ✗ No se encontraron puertos SQL configurados"
-        Write-DzDebug "`t[DEBUG] === SUGERENCIAS ==="
-        Write-DzDebug "`t[DEBUG] 1. Verifica si SQL Server está instalado"
-        Write-DzDebug "`t[DEBUG] 2. Revisa el Configuration Manager de SQL Server"
-        Write-DzDebug "`t[DEBUG] 3. Verifica si el servicio SQL Server está ejecutándose"
-        Write-DzDebug "`t[DEBUG] 4. Consulta el log de errores de SQL Server"
+        Write-DzDebug "`t[DEBUG][Update-PortsUI]   ✗ No se encontraron puertos SQL configurados"
+        Write-DzDebug "`t[DEBUG][Update-PortsUI] === SUGERENCIAS ==="
+        Write-DzDebug "`t[DEBUG][Update-PortsUI] 1. Verifica si SQL Server está instalado"
+        Write-DzDebug "`t[DEBUG][Update-PortsUI] 2. Revisa el Configuration Manager de SQL Server"
+        Write-DzDebug "`t[DEBUG][Update-PortsUI] 3. Verifica si el servicio SQL Server está ejecutándose"
+        Write-DzDebug "`t[DEBUG][Update-PortsUI] 4. Consulta el log de errores de SQL Server"
     }
 
-    Write-DzDebug "`t[DEBUG] === FIN DE BÚSQUEDA ===`n"
+    Write-DzDebug "`t[DEBUG][Update-PortsUI] === FIN DE BÚSQUEDA ===`n"
 
     if ($ports.Count -gt 0) {
         $ports = $ports | Sort-Object -Property Instance
@@ -1464,7 +1461,7 @@ function Initialize-SystemInfo {
             }
         }.GetNewClosure())
     $timer.Start()
-    Write-DzDebug "`t[DEBUG][SystemInfo] Iniciada carga asíncrona de información del sistema"
+    Write-Host "`nIniciada carga asíncrona de información del sistema" -ForegroundColor Yellow
 }
 function Update-PortsUI {
     param($LblPort, $PortsResult)

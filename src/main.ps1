@@ -5,6 +5,7 @@ chcp 65001 > $null
 $OutputEncoding = [Console]::OutputEncoding
 $global:version = "beta.25.12.03.1046"
 try {
+    Write-Host "PSVersion: $($PSVersionTable.PSVersion) | STA: $([Threading.Thread]::CurrentThread.ApartmentState)" -ForegroundColor Cyan
     Write-Host "Cargando ensamblados de WPF..." -ForegroundColor Yellow
     Add-Type -AssemblyName PresentationFramework
     Add-Type -AssemblyName PresentationCore

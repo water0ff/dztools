@@ -1172,7 +1172,7 @@ function Show-MultipleResultSets {
             })
         $tab.Content = $dg
         [void]$TabControl.Items.Add($tab)
-        Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i creada con $rowCount filas"
+        Write-Host "`tPestaña $i creada con $rowCount filas" -ForegroundColor Green
     }
     if ($global:lblRowCount) {
         $totalRows = ($ResultSets | Measure-Object -Property RowCount -Sum).Sum
@@ -2550,42 +2550,11 @@ function Execute-QueryUiSafe {
     }
 }
 Export-ModuleMember -Function @(
-    'Invoke-SqlQuery',
-    'Invoke-SqlQueryMultiResultSet',
-    'Remove-SqlComments',
-    'Get-SqlDatabases',
-    'Get-SqlDatabasesInfo',  # <--- AGREGAR ESTA LÍNEA
-    'Backup-Database',
-    'Execute-SqlQuery',
-    'Show-ResultsConsole',
-    'Get-IniConnections',
-    'Load-IniConnectionsToComboBox',
-    'ConvertTo-DataTable',
-    'New-QueryTab',
-    'Close-QueryTab',
-    'Execute-QueryInTab',
-    'Show-MultipleResultSets',
-    'Export-ResultSetToCsv',
-    'Export-ResultSetToDelimitedText',
-    'Get-ActiveQueryRichTextBox',
-    'Set-QueryTextInActiveTab',
-    'Insert-TextIntoActiveQuery',
-    'Clear-ActiveQueryTab',
-    'Update-QueryTabHeader',
-    'Get-ActiveQueryTab',
-    'Get-TextPointerAtOffset',
-    'Get-PredefinedQueries',
-    'Initialize-PredefinedQueries',
-    'Remove-SqlComments',
-    'Set-WpfSqlHighlighting',
-    'Get-TextPointerFromOffset',
-    'Get-ResultTabHeaderText',
-    'Get-ExportableResultTabs',
-    'Write-DataTableConsole',
-    'Show-ErrorResultTab',
-    'Get-UseDatabaseFromQuery',
-    'Disconnect-DbUiSafe',
-    'Connect-DbUiSafe',
-    'Export-ResultsUiSafe',
-    'Execute-QueryUiSafe'
+    'Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Get-SqlDatabasesInfo', 'Backup-Database',
+    'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable', 'New-QueryTab',
+    'Close-QueryTab', 'Execute-QueryInTab', 'Show-MultipleResultSets', 'Export-ResultSetToCsv', 'Export-ResultSetToDelimitedText', 'Get-ActiveQueryRichTextBox',
+    'Set-QueryTextInActiveTab', 'Insert-TextIntoActiveQuery', 'Clear-ActiveQueryTab', 'Update-QueryTabHeader', 'Get-ActiveQueryTab', 'Get-TextPointerAtOffset',
+    'Get-PredefinedQueries', 'Initialize-PredefinedQueries', 'Remove-SqlComments', 'Set-WpfSqlHighlighting', 'Get-TextPointerFromOffset', 'Get-ResultTabHeaderText',
+    'Get-ExportableResultTabs', 'Write-DataTableConsole', 'Show-ErrorResultTab', 'Get-UseDatabaseFromQuery', 'Disconnect-DbUiSafe', 'Connect-DbUiSafe',
+    'Export-ResultsUiSafe', 'Execute-QueryUiSafe'
 )

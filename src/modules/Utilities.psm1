@@ -1675,5 +1675,4 @@ Export-ModuleMember -Function @(
     'Set-ClipboardTextSafe',
     'Initialize-SystemInfo',
     'Update-PortsUI',
-    'Update-NetworkUI'
-)
+    'Update-NetworkUI')

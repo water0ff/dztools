@@ -11,7 +11,7 @@ try {
     Add-Type -AssemblyName PresentationCore
     Add-Type -AssemblyName WindowsBase
     Add-Type -AssemblyName System.Windows.Forms
-    Write-Host "`t✓ WPF cargado" -ForegroundColor Green
+    Write-Host "  ✓ WPF cargado" -ForegroundColor Green
 } catch {
     Write-Host "✗ Error cargando WPF: $_" -ForegroundColor Red
     pause
@@ -51,7 +51,7 @@ function Write-Log {
 }
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
-$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1")
+$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1", "QueriesPad.psm1")
 foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
@@ -135,6 +135,12 @@ function Initialize-Environment {
         $debugEnabled = Initialize-DzToolsConfig
     } catch {
         Write-Host "Advertencia: No se pudo inicializar la configuración de debug. $_" -ForegroundColor Yellow
+    }
+    try {
+        Initialize-QueriesConfig | Out-Null
+        Write-Host "`n  ✓ Sistema de queries inicializado" -ForegroundColor Green
+    } catch {
+        Write-Host "Advertencia: No se pudo inicializar el sistema de queries. $_" -ForegroundColor Yellow
     }
     return $true
 }
@@ -224,8 +230,65 @@ function New-MainForm {
                 $_.Handled = $true
             })
     }
-    if ($tcQueries -and $tcQueries.Items.Count -eq 1) {
-        New-QueryTab -TabControl $tcQueries | Out-Null
+    Write-Host "`nRestaurando pestañas de queries..." -ForegroundColor Yellow
+    try {
+        $restoredCount = Restore-OpenQueryTabs -TabControl $tcQueries
+        if ($restoredCount -gt 0) {
+            Write-Host "  ✓ Restauradas $restoredCount pestaña(s)" -ForegroundColor Green
+            $emptyTabs = @($tcQueries.Items | Where-Object {
+                    $_ -is [System.Windows.Controls.TabItem] -and
+                    $_.Tag -and
+                    $_.Tag.Type -eq 'QueryTab' -and
+                    $_.Tag.RichTextBox -and
+                    [string]::IsNullOrWhiteSpace(
+                        (New-Object System.Windows.Documents.TextRange(
+                            $_.Tag.RichTextBox.Document.ContentStart,
+                            $_.Tag.RichTextBox.Document.ContentEnd
+                        )).Text
+                    )
+                })
+            if ($restoredCount -gt 0 -and $emptyTabs.Count -gt 0) {
+                foreach ($emptyTab in $emptyTabs) {
+                    try {
+                        $tcQueries.Items.Remove($emptyTab)
+                        Write-DzDebug "`t[DEBUG] Pestaña vacía eliminada"
+                    } catch {}
+                }
+            }
+        } else {
+            Write-Host "  No hay pestañas guardadas, creando una nueva" -ForegroundColor Gray
+            $existingQueryTabs = @($tcQueries.Items | Where-Object {
+                    $_ -is [System.Windows.Controls.TabItem] -and
+                    $_.Tag -and
+                    $_.Tag.Type -eq 'QueryTab'
+                })
+
+            if ($existingQueryTabs.Count -eq 0) {
+                #New-QueryTab -TabControl $tcQueries | Out-Null
+            }
+        }
+    } catch {
+        Write-Host "  Advertencia: No se pudieron restaurar las pestañas: $_" -ForegroundColor Yellow
+        $existingQueryTabs = @($tcQueries.Items | Where-Object {
+                $_ -is [System.Windows.Controls.TabItem] -and
+                $_.Tag -and
+                $_.Tag.Type -eq 'QueryTab'
+            })
+
+        if ($existingQueryTabs.Count -eq 0) {
+            New-QueryTab -TabControl $tcQueries | Out-Null
+        }
+    }
+    Write-Host "`nAgregando pestaña de historial..." -ForegroundColor Yellow
+    try {
+        $historyTab = Add-QueryHistoryTab -TabControl $tcQueries
+        if ($historyTab) {
+            Write-Host "`t✓ Pestaña de historial agregada" -ForegroundColor Green
+        } else {
+            Write-Host "`t⚠ No se pudo agregar pestaña de historial" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "`tAdvertencia: Error agregando pestaña de historial: $_" -ForegroundColor Yellow
     }
     if ($btnExecute -and -not $btnExecute.IsEnabled) {
         if ($tcQueries) { $tcQueries.IsEnabled = $false }
@@ -304,18 +367,54 @@ function New-MainForm {
     if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:rtbQueryEditor1) {
         $firstTab = $global:tcQueries.Items[0]
         if ($firstTab -is [System.Windows.Controls.TabItem]) {
-            if (-not $firstTab.Tag -or $firstTab.Tag.Type -ne 'QueryTab') {
-                $title = if ($firstTab.Header) { [string]$firstTab.Header } else { "Consulta 1" }
-                $firstTab.Tag = [pscustomobject]@{
-                    Type            = "QueryTab"
-                    RichTextBox     = $global:rtbQueryEditor1
-                    Title           = $title
-                    HeaderTextBlock = $null
-                    IsDirty         = $false
+
+            # 1) Asegura Tag igual que en New-QueryTab
+            $title = if ($firstTab.Header) { [string]$firstTab.Header } else { "Consulta 1" }
+
+            # Intenta obtener el TextBlock del header si tu header es un panel con TextBlock
+            $headerTb = $null
+            try {
+                if ($firstTab.Header -is [System.Windows.Controls.Panel]) {
+                    foreach ($c in $firstTab.Header.Children) {
+                        if ($c -is [System.Windows.Controls.TextBlock]) { $headerTb = $c; break }
+                    }
+                } elseif ($firstTab.Header -is [System.Windows.Controls.TextBlock]) {
+                    $headerTb = $firstTab.Header
                 }
-                if (-not $global:tcQueries.SelectedItem) {
-                    $global:tcQueries.SelectedIndex = 0
-                }
+            } catch {}
+
+            $firstTab.Tag = [pscustomobject]@{
+                Type            = "QueryTab"
+                RichTextBox     = $global:rtbQueryEditor1
+                Title           = $title
+                HeaderTextBlock = $headerTb   # 👈 importante para Update-QueryTabHeader
+                IsDirty         = $false
+            }
+
+            # 2) Conecta el TextChanged (como New-QueryTab)
+            $rtb1 = $global:rtbQueryEditor1
+
+            # evita doble-suscripción si New-MainForm se llama más de una vez
+            if (-not $rtb1.Tag -or $rtb1.Tag -ne "DzTools_TextChangedHooked") {
+                $rtb1.Tag = "DzTools_TextChangedHooked"
+
+                $rtb1.Add_TextChanged({
+                        if ($global:isHighlightingQuery) { return }
+                        $global:isHighlightingQuery = $true
+                        try {
+                            if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { return }
+                            Set-WpfSqlHighlighting -RichTextBox $rtb1 -Keywords $global:DzSqlKeywords
+
+                            $firstTab.Tag.IsDirty = $true
+                            Update-QueryTabHeader -TabItem $firstTab
+                        } finally {
+                            $global:isHighlightingQuery = $false
+                        }
+                    }.GetNewClosure())
+            }
+
+            if (-not $global:tcQueries.SelectedItem) {
+                $global:tcQueries.SelectedIndex = 0
             }
         }
     }
@@ -712,7 +811,6 @@ Base de datos: $($global:database)
             Write-DzDebug "`t[DEBUG] Error: $_" -Color Red
         }
     }.GetNewClosure()
-    Write-Host "`t✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     $window.Dispatcher.Add_UnhandledException({
             param($sender, $e)
             $ex = $e.Exception
@@ -733,6 +831,40 @@ Base de datos: $($global:database)
             }
             $e.Handled = $true
         })
+    Write-DzDebug "`t[DEBUG] Configurando evento de cierre de ventana"
+    $window.Add_Closing({
+            param($sender, $e)
+            Write-Host "`n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+            Write-Host "  Cerrando aplicación..." -ForegroundColor Yellow
+            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+            try {
+                Write-Host "`n  📝 Guardando estado de pestañas..." -ForegroundColor Yellow
+
+                if ($global:tcQueries) {
+                    $saved = Save-OpenQueryTabs -TabControl $global:tcQueries
+
+                    if ($saved) {
+                        Write-Host "  ✓ Estado guardado exitosamente" -ForegroundColor Green
+                    } else {
+                        Write-Host "  ⚠ No se pudo guardar el estado" -ForegroundColor Yellow
+                    }
+                }
+            } catch {
+                Write-Host "  ✗ Error guardando pestañas: $_" -ForegroundColor Red
+            }
+
+            try {
+                if ($global:connection -and $global:connection.State -eq [System.Data.ConnectionState]::Open) {
+                    Write-Host "`n  🔌 Cerrando conexión a base de datos..." -ForegroundColor Yellow
+                    Disconnect-DbUiSafe
+                    Write-Host "  ✓ Conexión cerrada" -ForegroundColor Green
+                }
+            } catch {}
+            Write-Host "`n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+            Write-Host "  ¡Hasta pronto!" -ForegroundColor Green
+            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`n" -ForegroundColor Cyan
+        })
+    Write-Host "`t✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     return $window
 }
 function Start-Application {
@@ -741,7 +873,7 @@ function Start-Application {
     Show-GlobalProgress -Percent 10 -Status "Entorno listo"
     Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
     $modulesPath = Join-Path $PSScriptRoot "modules"
-    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1")
+    $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1", "QueriesPad.psm1")
     $i = 0
     foreach ($module in $modules) {
         $i++

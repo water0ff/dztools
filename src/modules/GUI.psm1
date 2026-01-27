@@ -604,32 +604,44 @@ function Get-MainWindowXaml {
             <Setter Property="Margin" Value="2,0,0,0"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type TabItem}">
-                        <Border Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6,6,0,0"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PanelBg}"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.55"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
+                <ControlTemplate TargetType="{x:Type TabItem}">
+                    <Grid>
+                    <Border
+                        x:Name="Bd"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="6,6,0,0"
+                        Padding="{TemplateBinding Padding}">
+                        <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                    <!-- TAB NO SELECCIONADA -->
+                    <Trigger Property="IsSelected" Value="False">
+                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ControlBg}"/>
+                        <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                    </Trigger>
+
+                    <!-- TAB SELECCIONADA: COLOREA TODO -->
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                        <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                    </Trigger>
+
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                    </Trigger>
+
+                    <Trigger Property="IsEnabled" Value="False">
+                        <Setter Property="Opacity" Value="0.55"/>
+                    </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
                 </Setter.Value>
             </Setter>
-        </Style>
+            </Style>
         <Style TargetType="{x:Type TextBox}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>

@@ -2257,12 +2257,19 @@ function Execute-QueryCore {
     $activeRtb = Get-ActiveQueryRichTextBox -TabControl $Ctx.tcQueries
     if (-not $activeRtb) { throw "No hay una pestaña de consulta activa." }
 
-    $textRange = New-Object System.Windows.Documents.TextRange(
-        $activeRtb.Document.ContentStart,
-        $activeRtb.Document.ContentEnd
-    )
-
-    $rawQuery = $textRange.Text
+    $rawQuery = $null
+    $selection = $activeRtb.Selection
+    if ($selection -and -not $selection.IsEmpty) {
+        $selectedRange = New-Object System.Windows.Documents.TextRange($selection.Start, $selection.End)
+        $rawQuery = $selectedRange.Text
+    }
+    if ([string]::IsNullOrWhiteSpace($rawQuery)) {
+        $textRange = New-Object System.Windows.Documents.TextRange(
+            $activeRtb.Document.ContentStart,
+            $activeRtb.Document.ContentEnd
+        )
+        $rawQuery = $textRange.Text
+    }
     if ([string]::IsNullOrWhiteSpace($rawQuery)) { throw "La consulta está vacía." }
 
     $query = Remove-SqlComments -Query $rawQuery

@@ -892,7 +892,7 @@ function Show-NSApplicationsIniReport {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Aplicaciones National Soft"
-        Height="400" Width="860"
+        Height="500" Width="900"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -902,258 +902,146 @@ function Show-NSApplicationsIniReport {
         Topmost="False"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
-  <Window.Resources>
-    <Style TargetType="TextBlock">
-      <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-    </Style>
-    <Style TargetType="TextBox">
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="10,6"/>
-      <Setter Property="VerticalContentAlignment" Value="Center"/>
-    </Style>
-    <Style x:Key="BaseButtonStyle" TargetType="Button">
-      <Setter Property="OverridesDefaultStyle" Value="True"/>
-      <Setter Property="SnapsToDevicePixels" Value="True"/>
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Padding" Value="12,6"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border Background="{TemplateBinding Background}"
-                    BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="8"
-                    Padding="{TemplateBinding Padding}">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    <Window.Resources>
+        <Style TargetType="{x:Type DataGrid}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="RowBackground" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="Cell"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="CanUserSortColumns" Value="True"/>
+        </Style>
+        <Style TargetType="{x:Type DataGridRow}">
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="{x:Type DataGridCell}">
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                    <Setter Property="BorderBrush" Value="Transparent"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="{DynamicResource AccentOrange}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+        <Style x:Key="CloseButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FFFF4444"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Border Background="{DynamicResource FormBg}"
+            BorderBrush="{DynamicResource BorderBrushColor}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Margin="10">
+        <Grid Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0"
+                    Name="brdTitleBar"
+                    Background="{DynamicResource AccentOrange}"
+                    CornerRadius="6"
+                    Padding="12,8"
+                    Margin="0,0,0,10">
+                <DockPanel LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Left"
+                               Text="🚀 Aplicaciones National Soft"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource FormFg}"
+                               VerticalAlignment="Center"/>
+                    <Button DockPanel.Dock="Right"
+                            Name="btnClose"
+                            Content="×"
+                            Style="{StaticResource CloseButtonStyle}"/>
+                </DockPanel>
             </Border>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-      <Style.Triggers>
-        <Trigger Property="IsEnabled" Value="False">
-          <Setter Property="Opacity" Value="1"/>
-          <Setter Property="Cursor" Value="Arrow"/>
-          <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
-        </Trigger>
-      </Style.Triggers>
-    </Style>
-    <Style x:Key="GeneralButtonStyle" TargetType="Button">
-      <Setter Property="OverridesDefaultStyle" Value="True"/>
-      <Setter Property="SnapsToDevicePixels" Value="True"/>
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Padding" Value="12,6"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border Background="{TemplateBinding Background}"
-                    BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="8"
-                    Padding="{TemplateBinding Padding}">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border Grid.Row="1"
+                    Background="{DynamicResource PanelBg}"
+                    BorderBrush="{DynamicResource BorderBrushColor}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="10,6"
+                    Margin="0,0,0,10">
+                <TextBlock Text="💡 Clic derecho en cualquier celda para copiar su contenido al portapapeles"
+                           Foreground="{DynamicResource AccentMuted}"
+                           FontStyle="Italic"/>
             </Border>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-      <Style.Triggers>
-        <Trigger Property="IsMouseOver" Value="True">
-          <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
-        </Trigger>
-        <Trigger Property="IsPressed" Value="True">
-          <Setter Property="Background" Value="{DynamicResource AccentMuted}"/>
-          <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-          <Setter Property="BorderThickness" Value="0"/>
-        </Trigger>
-        <Trigger Property="IsEnabled" Value="False">
-          <Setter Property="Opacity" Value="1"/>
-          <Setter Property="Cursor" Value="Arrow"/>
-          <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
-        </Trigger>
-      </Style.Triggers>
-    </Style>
-    <Style x:Key="ActionButtonStyle" TargetType="Button">
-      <Setter Property="OverridesDefaultStyle" Value="True"/>
-      <Setter Property="SnapsToDevicePixels" Value="True"/>
-      <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
-      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-      <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Padding" Value="12,6"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border Background="{TemplateBinding Background}"
-                    CornerRadius="8"
-                    Padding="{TemplateBinding Padding}">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border Grid.Row="2"
+                    BorderBrush="{DynamicResource BorderBrushColor}"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                <DataGrid Name="dgApps" IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="📱 Aplicación" Binding="{Binding Aplicacion}" Width="180"/>
+                        <DataGridTextColumn Header="📄 INI" Binding="{Binding INI}" Width="200"/>
+                        <DataGridTextColumn Header="🗄️ DataSource" Binding="{Binding DataSource}" Width="180"/>
+                        <DataGridTextColumn Header="💾 Catalog" Binding="{Binding Catalog}" Width="150"/>
+                        <DataGridTextColumn Header="👤 Usuario" Binding="{Binding Usuario}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
             </Border>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-      <Style.Triggers>
-        <Trigger Property="IsMouseOver" Value="True">
-          <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
-        </Trigger>
-        <Trigger Property="IsEnabled" Value="False">
-          <Setter Property="Opacity" Value="1"/>
-          <Setter Property="Cursor" Value="Arrow"/>
-          <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-          <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
-          <Setter Property="BorderThickness" Value="1"/>
-          <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-        </Trigger>
-      </Style.Triggers>
-    </Style>
-    <Style x:Key="OutlineButtonStyle" TargetType="Button">
-      <Setter Property="OverridesDefaultStyle" Value="True"/>
-      <Setter Property="SnapsToDevicePixels" Value="True"/>
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Padding" Value="12,6"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border Background="{TemplateBinding Background}"
-                    BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="8"
-                    Padding="{TemplateBinding Padding}">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-      <Style.Triggers>
-        <Trigger Property="IsMouseOver" Value="True">
-          <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
-          <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-          <Setter Property="BorderThickness" Value="0"/>
-        </Trigger>
-        <Trigger Property="IsEnabled" Value="False">
-          <Setter Property="Opacity" Value="1"/>
-          <Setter Property="Cursor" Value="Arrow"/>
-          <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
-        </Trigger>
-      </Style.Triggers>
-    </Style>
-    <Style TargetType="DataGrid">
-      <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="RowBackground" Value="{DynamicResource PanelBg}"/>
-      <Setter Property="AlternatingRowBackground" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-      <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="HeadersVisibility" Value="Column"/>
-      <Setter Property="CanUserResizeRows" Value="False"/>
-      <Setter Property="CanUserSortColumns" Value="True"/>
-    </Style>
-    <Style TargetType="DataGridColumnHeader">
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="0,0,0,1"/>
-      <Setter Property="Padding" Value="8,6"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-    </Style>
-    <Style TargetType="DataGridRow">
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Style.Triggers>
-        <Trigger Property="IsSelected" Value="True">
-          <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-          <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-        </Trigger>
-      </Style.Triggers>
-    </Style>
-    <Style TargetType="DataGridCell">
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="0,0,0,1"/>
-      <Setter Property="Padding" Value="8,0,8,0"/>
-      <Style.Triggers>
-        <Trigger Property="IsSelected" Value="True">
-          <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-        </Trigger>
-      </Style.Triggers>
-    </Style>
-  </Window.Resources>
-  <Border Background="{DynamicResource FormBg}"
-          BorderBrush="{DynamicResource BorderBrushColor}"
-          BorderThickness="1"
-          CornerRadius="12"
-          Padding="12"
-          Margin="10">
-    <Grid>
-      <Grid.RowDefinitions>
-        <RowDefinition Height="Auto"/>
-        <RowDefinition Height="*"/>
-      </Grid.RowDefinitions>
-      <Border Grid.Row="0"
-              Name="brdTitleBar"
-              Background="{DynamicResource PanelBg}"
-              BorderBrush="{DynamicResource BorderBrushColor}"
-              BorderThickness="1"
-              CornerRadius="10"
-              Padding="10"
-              Margin="0,0,0,10">
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
-          </Grid.ColumnDefinitions>
-          <TextBlock Name="txtTitleBar"
-                     Text="Aplicaciones National Soft"
-                     Foreground="{DynamicResource FormFg}"
-                     FontWeight="SemiBold"
-                     FontSize="14"
-                     VerticalAlignment="Center"
-                     IsHitTestVisible="False"/>
-          <Button Grid.Column="1"
-                  Name="btnClose"
-                  Content="✕"
-                  Width="34"
-                  Height="28"
-                  Margin="10,0,0,0"
-                  Background="{DynamicResource ControlBg}"
-                  Foreground="{DynamicResource ControlFg}"
-                  BorderBrush="{DynamicResource BorderBrushColor}"
-                  BorderThickness="1"
-                  Cursor="Hand"/>
         </Grid>
-      </Border>
-      <DataGrid Grid.Row="1"
-                Name="dgApps"
-                AutoGenerateColumns="False"
-                IsReadOnly="True"
-                CanUserAddRows="False"
-                SelectionMode="Single">
-        <DataGrid.Columns>
-          <DataGridTextColumn Header="Aplicación" Binding="{Binding Aplicacion}"/>
-          <DataGridTextColumn Header="INI" Binding="{Binding INI}"/>
-          <DataGridTextColumn Header="DataSource" Binding="{Binding DataSource}"/>
-          <DataGridTextColumn Header="Catalog" Binding="{Binding Catalog}"/>
-          <DataGridTextColumn Header="Usuario" Binding="{Binding Usuario}"/>
-        </DataGrid.Columns>
-      </DataGrid>
-    </Grid>
-  </Border>
+    </Border>
 </Window>
 "@
     try {
@@ -1161,81 +1049,63 @@ function Show-NSApplicationsIniReport {
         $w = $ui.Window
         $c = $ui.Controls
         Set-DzWpfThemeResources -Window $w -Theme $theme
-        $brdTitleBar = $w.FindName("brdTitleBar")
-        $btnClose = $w.FindName("btnClose")
-        if ($btnClose) {
-            $winRef = $w
-            $btnClose.Add_Click({
-                    try {
-                        if ($winRef -and ($winRef -is [System.Windows.Window])) { $winRef.Dispatcher.Invoke([action] { $winRef.Close() }) }
-                    } catch {
-                        try { $winRef.Close() } catch {}
+        try {
+            Set-WpfDialogOwner -Dialog $w
+            $brdTitleBar = $c['brdTitleBar']
+            if ($brdTitleBar) {
+                $brdTitleBar.Add_MouseLeftButtonDown({
+                        param($sender, $e)
+                        if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                            try { $w.DragMove() } catch {}
+                        }
+                    }.GetNewClosure())
+            }
+            $btnClose = $c['btnClose']
+            if ($btnClose) {
+                $btnClose.Add_Click({
+                        $w.Close()
+                    }.GetNewClosure())
+            }
+            $w.Add_PreviewKeyDown({
+                    param($sender, $e)
+                    if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                        $w.Close()
                     }
                 }.GetNewClosure())
-        }
-        $drag = {
-            param($sender, $e)
-            if ($e.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
-                try { $e.Handled = $true; $w.DragMove() } catch {}
-            }
-        }.GetNewClosure()
-        if ($brdTitleBar) { $brdTitleBar.Add_MouseLeftButtonDown($drag) }
-        $tbGrid = $brdTitleBar.Child
-        if ($tbGrid) { try { $tbGrid.Add_MouseLeftButtonDown($drag) } catch {} }
-        try { Set-WpfDialogOwner -Dialog $w } catch {}
-        $c['dgApps'].ItemsSource = $found
-        try {
-            $culture = [System.Globalization.CultureInfo]::CurrentCulture
-            $flow = [System.Windows.FlowDirection]::LeftToRight
-            $typeface = New-Object System.Windows.Media.Typeface($w.FontFamily, $w.FontStyle, $w.FontWeight, $w.FontStretch)
-            $measure = {
-                param([string]$text)
-                if ($null -eq $text) { $text = "" }
-                $ft = New-Object System.Windows.Media.FormattedText($text, $culture, $flow, $typeface, [double]$w.FontSize, [System.Windows.Media.Brushes]::Black)
-                return $ft.WidthIncludingTrailingWhitespace
-            }.GetNewClosure()
-            foreach ($col in $c['dgApps'].Columns) {
-                $path = $null
-                try { $path = $col.Binding.Path.Path } catch {}
-                $header = [string]$col.Header
-                $max = & $measure $header
-                if ($path) {
-                    foreach ($item in $found) {
-                        $v = ""
-                        try { $v = [string]$item.$path } catch { $v = "" }
-                        $w1 = & $measure $v
-                        if ($w1 -gt $max) { $max = $w1 }
-                    }
-                }
-                $target = [Math]::Ceiling($max + 28)
-                if ($target -lt 70) { $target = 70 }
-                if ($target -gt 520) { $target = 520 }
-                $col.Width = New-Object System.Windows.Controls.DataGridLength($target)
-            }
         } catch {}
+        $c['dgApps'].ItemsSource = $found
         $grid = $c['dgApps']
         if ($grid) {
             $menu = New-Object System.Windows.Controls.ContextMenu
             $menuItem = New-Object System.Windows.Controls.MenuItem
-            $menuItem.Header = "Copiar"
+            $menuItem.Header = "📋 Copiar celda"
             $menuItem.Add_Click({
                     try {
-                        $cell = $grid.SelectedCells | Select-Object -First 1
-                        if (-not $cell) { return }
-                        $column = $cell.Column
-                        $path = $null
-                        if ($column -is [System.Windows.Controls.DataGridBoundColumn]) {
-                            try { $path = $column.Binding.Path.Path } catch { $path = $null }
+                        $selectedCells = $grid.SelectedCells
+                        if ($selectedCells.Count -eq 0) {
+                            Write-Host "`n⚠️ No hay celda seleccionada" -ForegroundColor Yellow
+                            return
                         }
+                        $cell = $selectedCells[0]
                         $item = $cell.Item
+                        $column = $cell.Column
                         $value = ""
-                        if ($path) {
-                            try { $value = [string]$item.$path } catch { $value = "" }
-                        } else {
+                        if ($column -is [System.Windows.Controls.DataGridBoundColumn]) {
+                            $binding = $column.Binding -as [System.Windows.Data.Binding]
+                            if ($binding -and $binding.Path) {
+                                $propertyName = $binding.Path.Path
+                                if ($item.PSObject.Properties[$propertyName]) {
+                                    $value = [string]$item.PSObject.Properties[$propertyName].Value
+                                }
+                            }
+                        }
+                        if ([string]::IsNullOrEmpty($value)) {
                             $value = [string]$item
                         }
                         Set-ClipboardTextSafe -Text $value -Owner $w | Out-Null
+                        Write-Host "`n✅ Valor copiado al portapapeles: '$value'" -ForegroundColor Green
                     } catch {
+                        Write-Host "`n❌ Error copiando celda: $($_.Exception.Message)" -ForegroundColor Red
                         Write-DzDebug "`t[DEBUG][Show-NSApplicationsIniReport] Error copiando celda: $($_.Exception.Message)"
                     }
                 }.GetNewClosure())
@@ -1244,6 +1114,7 @@ function Show-NSApplicationsIniReport {
         }
         $w.Show() | Out-Null
     } catch {
+        Write-Host "`n❌ ERROR creando ventana: $($_.Exception.Message)" -ForegroundColor Red
         Write-DzDebug "`t[DEBUG][Show-NSApplicationsIniReport] ERROR creando ventana: $($_.Exception.Message)" Red
     }
 }
@@ -1251,41 +1122,28 @@ function Get-OtmConfigFromSyscfg {
     param(
         [Parameter(Mandatory)][string]$SyscfgPath
     )
-
-    # OJO: Tu código usa Get-Content (texto). Si el archivo fuera binario, esto no sería ideal.
-    # Mantengo tu lógica tal cual para no cambiar comportamiento.
     $fileContent = Get-Content -LiteralPath $SyscfgPath -ErrorAction Stop
-
     $isSQL = ($fileContent -match "494E5354414C4C=1") -and ($fileContent -match "56455253495354454D41=3")
     $isDBF = ($fileContent -match "494E5354414C4C=2") -and ($fileContent -match "56455253495354454D41=2")
-
     if ($isSQL) { return "SQL" }
     if ($isDBF) { return "DBF" }
     return $null
 }
-
 function Get-OtmIniFiles {
     param(
         [Parameter(Mandatory)][string]$IniPath
     )
-
     $iniFiles = Get-ChildItem -LiteralPath $IniPath -Filter "*.ini" -ErrorAction Stop
     if (-not $iniFiles -or $iniFiles.Count -eq 0) { return $null }
-
     $iniSQLFile = $null
     $iniDBFFile = $null
-
     foreach ($iniFile in $iniFiles) {
         $content = Get-Content -LiteralPath $iniFile.FullName -ErrorAction SilentlyContinue
-
         if (-not $iniDBFFile -and ($content -match "Provider=VFPOLEDB\.1")) { $iniDBFFile = $iniFile }
         if (-not $iniSQLFile -and ($content -match "Provider=SQLOLEDB\.1")) { $iniSQLFile = $iniFile }
-
         if ($iniSQLFile -and $iniDBFFile) { break }
     }
-
     if (-not $iniSQLFile -or -not $iniDBFFile) { return $null }
-
     return [pscustomobject]@{
         SQL = $iniSQLFile
         DBF = $iniDBFFile
@@ -1401,11 +1259,11 @@ function Invoke-NSMonitorServicesLogSetup {
         }
     }
     $selectedMonitor = $monitorEntries | Sort-Object -Property @{
-            Expression = {
-                $parsed = [version]"0.0"
-                if ([version]::TryParse($_.Version, [ref]$parsed)) { $parsed } else { [version]"0.0" }
-            }
-        } -Descending | Select-Object -First 1
+        Expression = {
+            $parsed = [version]"0.0"
+            if ([version]::TryParse($_.Version, [ref]$parsed)) { $parsed } else { [version]"0.0" }
+        }
+    } -Descending | Select-Object -First 1
     $monitorPath = $selectedMonitor.Path
     Write-DzDebug "`t[DEBUG][Invoke-NSMonitorServicesLogSetup] Seleccionado: $monitorPath" ([System.ConsoleColor]::Cyan)
     $service = Get-Service -Name "SrvReportesSR" -ErrorAction SilentlyContinue

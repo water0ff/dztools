@@ -188,7 +188,7 @@ function Show-NSPrinters {
             Name       = ([string]$_.Name).Substring(0, [Math]::Min(24, ([string]$_.Name).Length))
             PortName   = ([string]$_.PortName).Substring(0, [Math]::Min(19, ([string]$_.PortName).Length))
             DriverName = ([string]$_.DriverName).Substring(0, [Math]::Min(19, ([string]$_.DriverName).Length))
-            IsShared   = if ($_.Shared) { "Sí" }else { "No" }
+            IsShared   = if ($_.Shared) { "Sí" } else { "No" }
         }
     }
     $uiItems = $printers | ForEach-Object {
@@ -196,46 +196,149 @@ function Show-NSPrinters {
             Name       = [string]$_.Name
             PortName   = [string]$_.PortName
             DriverName = [string]$_.DriverName
-            IsShared   = if ($_.Shared) { "Sí" }else { "No" }
+            IsShared   = if ($_.Shared) { "Sí" } else { "No" }
         }
     }
     Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "Nombre", "Puerto", "Driver", "Compartida")
     Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f "------", "------", "------", "---------")
     $view | ForEach-Object { Write-Host ("{0,-25} {1,-20} {2,-20} {3,-10}" -f $_.Name, $_.PortName, $_.DriverName, $_.IsShared) }
-
     $theme = Get-DzUiTheme
     $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Impresoras instaladas"
-        Height="420" Width="820"
+        Height="500" Width="900"
         WindowStartupLocation="CenterOwner"
-        Topmost="True">
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="True"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
-        <Style x:Key="GeneralButtonStyle" TargetType="Button">
+        <Style TargetType="{x:Type DataGrid}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="RowBackground" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="Cell"/>
+        </Style>
+        <Style TargetType="{x:Type DataGridRow}">
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="{x:Type DataGridCell}">
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                    <Setter Property="BorderBrush" Value="Transparent"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+        <Style x:Key="CloseButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FFFF4444"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
-    <Grid Background="{DynamicResource FormBg}" Margin="10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Text="Más detalles en consola." Margin="2,0,0,6" Foreground="{DynamicResource AccentMuted}"/>
-        <DataGrid Grid.Row="1" Name="dgPrinters" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Nombre" Binding="{Binding Name}" Width="220"/>
-                <DataGridTextColumn Header="Puerto" Binding="{Binding PortName}" Width="160"/>
-                <DataGridTextColumn Header="Driver" Binding="{Binding DriverName}" Width="180"/>
-                <DataGridTextColumn Header="Compartida" Binding="{Binding IsShared}" Width="100"/>
-            </DataGrid.Columns>
-        </DataGrid>
-    </Grid>
+    <Border Background="{DynamicResource FormBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="8" Margin="10">
+        <Grid Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0"
+                    Name="brdTitleBar"
+                    Background="{DynamicResource AccentPrimary}"
+                    CornerRadius="6"
+                    Padding="12,8"
+                    Margin="0,0,0,10">
+                <DockPanel LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Left"
+                            Text="🖨️ Impresoras del Sistema"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Foreground="{DynamicResource OnAccentFg}"
+                            VerticalAlignment="Center"/>
+                    <Button DockPanel.Dock="Right"
+                            Name="btnClose"
+                            Content="×"
+                            Style="{StaticResource CloseButtonStyle}"/>
+                </DockPanel>
+            </Border>
+            <Border Grid.Row="1" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,0,0,10">
+                <TextBlock Text="💡 Clic derecho en cualquier celda para copiar su contenido al portapapeles" Foreground="{DynamicResource AccentMuted}" FontStyle="Italic"/>
+            </Border>
+            <Border Grid.Row="2" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6">
+                <DataGrid Name="dgPrinters" IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="📛 Nombre" Binding="{Binding Name}" Width="250"/>
+                        <DataGridTextColumn Header="🔌 Puerto" Binding="{Binding PortName}" Width="180"/>
+                        <DataGridTextColumn Header="⚙️ Driver" Binding="{Binding DriverName}" Width="220"/>
+                        <DataGridTextColumn Header="🌐 Compartida" Binding="{Binding IsShared}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </Grid>
+    </Border>
 </Window>
 "@
     try {
@@ -243,31 +346,61 @@ function Show-NSPrinters {
         $w = $ui.Window
         $c = $ui.Controls
         Set-DzWpfThemeResources -Window $w -Theme $theme
-        try { Set-WpfDialogOwner -Dialog $w } catch {}
+        try {
+            Set-WpfDialogOwner -Dialog $w
+            $brdTitleBar = $c['brdTitleBar']
+            if ($brdTitleBar) {
+                $brdTitleBar.Add_MouseLeftButtonDown({
+                        param($sender, $e)
+                        if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                            try { $w.DragMove() } catch {}
+                        }
+                    }.GetNewClosure())
+            }
+            $btnClose = $c['btnClose']
+            if ($btnClose) {
+                $btnClose.Add_Click({
+                        $w.Close()
+                    }.GetNewClosure())
+            }
+            $w.Add_PreviewKeyDown({
+                    param($sender, $e)
+                    if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                        $w.Close()
+                    }
+                }.GetNewClosure())
+        } catch {}
         $c['dgPrinters'].ItemsSource = $uiItems
         $grid = $c['dgPrinters']
         if ($grid) {
             $menu = New-Object System.Windows.Controls.ContextMenu
             $menuItem = New-Object System.Windows.Controls.MenuItem
-            $menuItem.Header = "Copiar"
+            $menuItem.Header = "📋 Copiar celda"
             $menuItem.Add_Click({
                     try {
-                        $cell = $grid.SelectedCells | Select-Object -First 1
-                        if (-not $cell) { return }
-                        $column = $cell.Column
-                        $path = $null
-                        if ($column -is [System.Windows.Controls.DataGridBoundColumn]) {
-                            try { $path = $column.Binding.Path.Path } catch { $path = $null }
+                        $selectedCells = $grid.SelectedCells
+                        if ($selectedCells.Count -eq 0) {
+                            Write-Host "`n⚠️ No hay celda seleccionada" -ForegroundColor Yellow
+                            return
                         }
+                        $cell = $selectedCells[0]
                         $item = $cell.Item
+                        $column = $cell.Column
                         $value = ""
-                        if ($path) {
-                            try { $value = [string]$item.$path } catch { $value = "" }
-                        } else {
-                            $value = [string]$item
+                        if ($column -is [System.Windows.Controls.DataGridBoundColumn]) {
+                            $binding = $column.Binding -as [System.Windows.Data.Binding]
+                            if ($binding -and $binding.Path) {
+                                $propertyName = $binding.Path.Path
+                                if ($item.PSObject.Properties[$propertyName]) {
+                                    $value = [string]$item.PSObject.Properties[$propertyName].Value
+                                }
+                            }
                         }
+                        if ([string]::IsNullOrEmpty($value)) { $value = [string]$item }
                         Set-ClipboardTextSafe -Text $value -Owner $w | Out-Null
+                        Write-Host "`n✅ Valor copiado al portapapeles: '$value'" -ForegroundColor Green
                     } catch {
+                        Write-Host "`n❌ Error copiando celda: $($_.Exception.Message)" -ForegroundColor Red
                         Write-DzDebug "`t[DEBUG][Show-NSPrinters] Error copiando celda: $($_.Exception.Message)"
                     }
                 }.GetNewClosure())
@@ -276,9 +409,11 @@ function Show-NSPrinters {
         }
         $w.Show() | Out-Null
     } catch {
+        Write-Host "`n❌ ERROR creando ventana: $($_.Exception.Message)" -ForegroundColor Red
         Write-DzDebug "`t[DEBUG][Show-NSPrinters] ERROR creando ventana: $($_.Exception.Message)" Red
     }
 }
+
 function Show-InstallPrinterDialog {
     [CmdletBinding()]
     param()

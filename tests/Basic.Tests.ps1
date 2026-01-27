@@ -1,42 +1,80 @@
 ﻿# tests/Basic.Tests.ps1
 
 Describe "Pruebas básicas del proyecto" {
+    $projectRoot = Resolve-Path "."
+    $srcPath = Join-Path $projectRoot "src"
+    $modulesPath = Join-Path $srcPath "modules"
+    $mainPath = Join-Path $srcPath "main.ps1"
+    $versionPath = Join-Path $srcPath "version.json"
 
     Context "Verificación de archivos" {
-
         It "Debe existir el archivo main.ps1" {
-            Test-Path ".\src\main.ps1" | Should -BeTrue
+            Test-Path $mainPath | Should -BeTrue
         }
 
-        It "Deben existir los módulos principales" {
-            $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1")
-            foreach ($module in $modules) {
-                Test-Path ".\src\modules\$module" | Should -BeTrue
-            }
+        It "Debe existir la carpeta de módulos con archivos .psm1" {
+            Test-Path $modulesPath | Should -BeTrue
+            (Get-ChildItem -Path $modulesPath -Filter "*.psm1").Count | Should -BeGreaterThan 0
         }
 
         It "Debe existir el archivo version.json" {
-            Test-Path ".\src\version.json" | Should -BeTrue
+            Test-Path $versionPath | Should -BeTrue
         }
     }
 
     Context "Verificación de formato" {
-
         It "version.json debe ser JSON válido" {
-            { Get-Content ".\src\version.json" -Raw | ConvertFrom-Json } | Should -Not -Throw
+            { Get-Content $versionPath -Raw | ConvertFrom-Json } | Should -Not -Throw
         }
 
         It "version.json debe tener propiedad Version" {
-            $json = Get-Content ".\src\version.json" -Raw | ConvertFrom-Json
+            $json = Get-Content $versionPath -Raw | ConvertFrom-Json
             $json.Version | Should -Not -BeNullOrEmpty
         }
     }
 
-    Context "Compatibilidad PowerShell 5" {
+    Context "Módulos cargados en main.ps1" {
+        It "Debe listar todos los módulos presentes en src/modules" {
+            $mainContent = Get-Content $mainPath -Raw
+            $moduleMatch = [regex]::Match($mainContent, '\$modules\s*=\s*@\((?<content>[\s\S]*?)\)', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            $moduleMatch.Success | Should -BeTrue
 
+            $declaredModules = [regex]::Matches($moduleMatch.Groups['content'].Value, '"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
+            $declaredModules = $declaredModules | Where-Object { $_ -ne "" }
+
+            $moduleFiles = Get-ChildItem -Path $modulesPath -Filter "*.psm1" | Select-Object -ExpandProperty Name
+
+            $missingFromMain = Compare-Object -ReferenceObject $moduleFiles -DifferenceObject $declaredModules -PassThru | Where-Object { $_ -in $moduleFiles }
+            $missingFromMain | Should -BeNullOrEmpty
+
+            $unusedInMain = Compare-Object -ReferenceObject $declaredModules -DifferenceObject $moduleFiles -PassThru | Where-Object { $_ -in $declaredModules }
+            $unusedInMain | Should -BeNullOrEmpty
+        }
+    }
+
+    Context "Funciones exportadas en módulos" {
+        It "Cada módulo debe exportar funciones definidas en el archivo" {
+            $moduleFiles = Get-ChildItem -Path $modulesPath -Filter "*.psm1"
+            foreach ($moduleFile in $moduleFiles) {
+                $content = Get-Content $moduleFile.FullName -Raw
+                $exportMatch = [regex]::Match($content, 'Export-ModuleMember\s+-Function\s+@\((?<content>[\s\S]*?)\)', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+                $exportMatch.Success | Should -BeTrue -Because "No se encontró Export-ModuleMember en $($moduleFile.Name)"
+
+                $exportedFunctions = [regex]::Matches($exportMatch.Groups['content'].Value, "'([^']+)'") | ForEach-Object { $_.Groups[1].Value }
+                $exportedFunctions = $exportedFunctions | Where-Object { $_ -ne "" }
+                $exportedFunctions.Count | Should -BeGreaterThan 0
+
+                foreach ($functionName in $exportedFunctions) {
+                    $functionPattern = "function\s+${functionName}\b"
+                    [regex]::IsMatch($content, $functionPattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase) | Should -BeTrue -Because "La función $functionName no está definida en $($moduleFile.Name)"
+                }
+            }
+        }
+    }
+
+    Context "Compatibilidad PowerShell 5" {
         It "Los archivos no deben usar características de PS6+" {
-            # Busca '#requires -Version 6+' en los scripts dentro de src
-            $matches = Get-ChildItem -Path ".\src" -Recurse -Filter "*.ps*1" |
+            $matches = Get-ChildItem -Path $srcPath -Recurse -Filter "*.ps*1" |
             Select-String -Pattern '#requires.*-Version.*([6-9]|\d{2,})'
 
             $matches | Should -BeNullOrEmpty

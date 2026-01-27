@@ -1053,6 +1053,215 @@ function Invoke-PortableTool {
         return $false
     }
 }
+function Invoke-LectorDP {
+    [CmdletBinding()]
+    param(
+        [System.Windows.Controls.TextBlock]$InfoTextBlock,
+        [System.Windows.Window]$OwnerWindow
+    )
+    $pwPs = $null
+    $pwDrv = $null
+    try {
+        $rMain = Show-WpfMessageBox `
+            -Message "Este proceso ejecutará cambios de permisos con PsExec (SYSTEM) y puede descargar/instalar un driver.`n`n¿Deseas continuar?" `
+            -Title "Confirmar operación" `
+            -Buttons "YesNo" `
+            -Icon "Warning" `
+            -Owner $OwnerWindow
+        Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Confirmación principal (rMain) = $rMain" ([System.ConsoleColor]::Cyan)
+        if ($rMain -ne [System.Windows.MessageBoxResult]::Yes) {
+            Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Operación cancelada por el usuario." ([System.ConsoleColor]::Cyan)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Operación cancelada." }
+            return $false
+        }
+        Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Iniciando proceso..." ([System.ConsoleColor]::DarkGray)
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Iniciando..." }
+        $psexecPath = "C:\Temp\PsExec\PsExec.exe"
+        $psexecZip = "C:\Temp\PSTools.zip"
+        $psexecUrl = "https://download.sysinternals.com/files/PSTools.zip"
+        $psexecExtractPath = "C:\Temp\PsExec"
+        if (-not (Test-Path $psexecPath)) {
+            Write-DzDebug "`t[DEBUG][Invoke-LectorDP] PsExec no encontrado. Descargando PSTools.zip" ([System.ConsoleColor]::Yellow)
+            if (-not (Test-Path "C:\Temp")) { New-Item -Path "C:\Temp" -ItemType Directory | Out-Null }
+            $pwPs = Show-WpfProgressBar -Title "Descargando PsExec" -Message "Preparando descarga..."
+            if ($null -eq $pwPs -or $null -eq $pwPs.ProgressBar) {
+                Write-DzDebug "`t[DEBUG][Invoke-LectorDP] ERROR: No se pudo crear progress bar para PsExec." ([System.ConsoleColor]::Red)
+                return $false
+            }
+            if (Test-Path $psexecZip) { Remove-Item $psexecZip -Force -ErrorAction SilentlyContinue }
+            try {
+                Update-WpfProgressBar -Window $pwPs -Percent 0 -Message "Preparando descarga..."
+                if ($InfoTextBlock) { $InfoTextBlock.Text = "Descargando PsExec..." }
+                $okPs = Download-FileWithProgressWpfStream `
+                    -Url $psexecUrl `
+                    -OutFile $psexecZip `
+                    -Window $pwPs `
+                    -OnStatus {
+                    param($p, $m)
+                    Write-DzDebug "`t[DEBUG][Invoke-LectorDP] PsExec: $p% - $m" ([System.ConsoleColor]::DarkGray)
+                    if ($InfoTextBlock) { $InfoTextBlock.Text = "PsExec: $m" }
+                }
+                if (-not $okPs) { throw "Descarga de PSTools.zip fallida." }
+                Update-WpfProgressBar -Window $pwPs -Percent 100 -Message "Extrayendo..."
+                if ($InfoTextBlock) { $InfoTextBlock.Text = "Extrayendo PsExec..." }
+                if (Test-Path $psexecExtractPath) { Remove-Item $psexecExtractPath -Recurse -Force -ErrorAction SilentlyContinue }
+                Expand-Archive -Path $psexecZip -DestinationPath $psexecExtractPath -Force
+                if (-not (Test-Path $psexecPath)) { throw "No se pudo extraer PsExec.exe." }
+                Write-DzDebug "`t[DEBUG][Invoke-LectorDP] PsExec descargado correctamente." ([System.ConsoleColor]::Cyan)
+            } catch {
+                Write-DzDebug "`t[DEBUG][Invoke-LectorDP] ERROR PsExec: $($_.Exception.Message)" ([System.ConsoleColor]::Red)
+                if ($InfoTextBlock) { $InfoTextBlock.Text = "Error PsExec: $($_.Exception.Message)" }
+                return $false
+            } finally {
+                if ($pwPs) {
+                    try { Close-WpfProgressBar -Window $pwPs } catch {}
+                    $pwPs = $null
+                }
+            }
+        } else {
+            Write-DzDebug "`t[DEBUG][Invoke-LectorDP] PsExec ya instalado en: $psexecPath" ([System.ConsoleColor]::Cyan)
+        }
+        $grupoAdmin = ""
+        $gruposLocales = net localgroup | Where-Object { $_ -match "Administrators|Administradores" }
+        if ($gruposLocales -match "Administrators") {
+            $grupoAdmin = "Administrators"
+        } elseif ($gruposLocales -match "Administradores") {
+            $grupoAdmin = "Administradores"
+        } else {
+            Write-DzDebug "`t[DEBUG][Invoke-LectorDP] ERROR: No se encontró grupo de administradores." ([System.ConsoleColor]::Red)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: No se encontró grupo Administradores." }
+            return $false
+        }
+        Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Grupo admin detectado: $grupoAdmin" ([System.ConsoleColor]::Cyan)
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Grupo admin: $grupoAdmin" }
+        $comando1 = "icacls C:\Windows\System32\en-us /grant `"$grupoAdmin`":F"
+        $comando2 = "icacls C:\Windows\System32\en-us /grant `"NT AUTHORITY\SYSTEM`":F"
+        $psexecCmd1 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando1`""
+        $psexecCmd2 = "`"$psexecPath`" /accepteula /s cmd /c `"$comando2`""
+        Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Ejecutando: $comando1" ([System.ConsoleColor]::Yellow)
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Ejecutando icacls (1)..." }
+        $output1 = & cmd /c $psexecCmd1
+        Write-DzDebug ([string]$output1) ([System.ConsoleColor]::Gray)
+        Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Ejecutando: $comando2" ([System.ConsoleColor]::Yellow)
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Ejecutando icacls (2)..." }
+        $output2 = & cmd /c $psexecCmd2
+        Write-DzDebug ([string]$output2) ([System.ConsoleColor]::Gray)
+        Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Permisos actualizados." ([System.ConsoleColor]::Cyan)
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Permisos actualizados." }
+        $ResponderDriver = Show-WpfMessageBox `
+            -Message "¿Desea descargar e instalar el driver del lector?" `
+            -Title "Descargar Driver" `
+            -Buttons "YesNo" `
+            -Icon "Question" `
+            -Owner $OwnerWindow
+        Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Respuesta driver = $ResponderDriver" ([System.ConsoleColor]::Cyan)
+        if ($ResponderDriver -ne [System.Windows.MessageBoxResult]::Yes) {
+            Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Driver omitido por el usuario." ([System.ConsoleColor]::Cyan)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Proceso completado. Driver omitido." }
+            return $true
+        }
+        $driverUrl = "https://softrestaurant.com/drivers?download=120:dp"
+        $zipPath = "C:\Temp\Driver_DP.zip"
+        $extractPath = "C:\Temp\Driver_DP"
+        $msiPath = "C:\Temp\Driver_DP\x64\Setup.msi"
+        Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Driver URL=$driverUrl" ([System.ConsoleColor]::DarkGray)
+        Write-DzDebug "`t[DEBUG][Invoke-LectorDP] msiPath=$msiPath" ([System.ConsoleColor]::DarkGray)
+        if (Test-Path $msiPath) {
+            $rExistDrv = Show-WpfMessageBox `
+                -Message "El driver ya existe en:`n$msiPath`n`nSí = Instalar local`nNo = Volver a descargar`nCancelar = Cancelar operación" `
+                -Title "Driver ya existe" `
+                -Buttons "YesNoCancel" `
+                -Icon "Question" `
+                -Owner $OwnerWindow
+            Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Resultado existe driver = $rExistDrv" ([System.ConsoleColor]::Cyan)
+            if ($rExistDrv -eq [System.Windows.MessageBoxResult]::Yes) {
+                if ($InfoTextBlock) { $InfoTextBlock.Text = "Instalando driver existente..." }
+                Start-Process "msiexec.exe" -ArgumentList "/i `"$msiPath`" /passive" -Wait
+                Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Driver instalado correctamente." ([System.ConsoleColor]::Cyan)
+                if ($InfoTextBlock) { $InfoTextBlock.Text = "Driver instalado correctamente." }
+                return $true
+            }
+            if ($rExistDrv -eq [System.Windows.MessageBoxResult]::Cancel) {
+                Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Instalación de driver cancelada." ([System.ConsoleColor]::Cyan)
+                if ($InfoTextBlock) { $InfoTextBlock.Text = "Instalación cancelada." }
+                return $true
+            }
+        } else {
+            $rDrv = Show-WpfMessageBox `
+                -Message "¿Deseas descargar el driver del lector ahora?" `
+                -Title "Confirmar descarga" `
+                -Buttons "YesNo" `
+                -Icon "Question" `
+                -Owner $OwnerWindow
+            Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Confirmación descarga = $rDrv" ([System.ConsoleColor]::Cyan)
+            if ($rDrv -ne [System.Windows.MessageBoxResult]::Yes) {
+                Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Descarga cancelada." ([System.ConsoleColor]::Cyan)
+                if ($InfoTextBlock) { $InfoTextBlock.Text = "Descarga cancelada." }
+                return $true
+            }
+        }
+        $pwDrv = Show-WpfProgressBar -Title "Descargando Driver DP" -Message "Preparando descarga..."
+        if ($null -eq $pwDrv -or $null -eq $pwDrv.ProgressBar) {
+            Write-DzDebug "`t[DEBUG][Invoke-LectorDP] ERROR: No se pudo crear progress bar para Driver." ([System.ConsoleColor]::Red)
+            return $false
+        }
+        if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
+        try {
+            Update-WpfProgressBar -Window $pwDrv -Percent 0 -Message "Preparando descarga..."
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Descargando driver..." }
+            $okDrv = Download-FileWithProgressWpfStream `
+                -Url $driverUrl `
+                -OutFile $zipPath `
+                -Window $pwDrv `
+                -OnStatus {
+                param($p, $m)
+                Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Driver: $p% - $m" ([System.ConsoleColor]::DarkGray)
+                if ($InfoTextBlock) { $InfoTextBlock.Text = "Driver: $m" }
+            }
+            if (-not $okDrv) { throw "Descarga del driver fallida." }
+            Update-WpfProgressBar -Window $pwDrv -Percent 100 -Message "Extrayendo..."
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Extrayendo driver..." }
+            if (Test-Path $extractPath) { Remove-Item $extractPath -Recurse -Force -ErrorAction SilentlyContinue }
+            Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+            if (-not (Test-Path $msiPath)) { throw "No se encontró $msiPath" }
+            Update-WpfProgressBar -Window $pwDrv -Percent 100 -Message "Instalando..."
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Instalando driver..." }
+            try { $pwDrv.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, [action] {}) | Out-Null } catch {}
+            try {
+                $pwDrv.Dispatcher.Invoke([action] {
+                        $pwDrv.Topmost = $false
+                        $pwDrv.WindowState = [System.Windows.WindowState]::Minimized
+                    }) | Out-Null
+            } catch {}
+            Start-Process "msiexec.exe" -ArgumentList "/i `"$msiPath`" /passive" -Wait
+            try {
+                $pwDrv.Dispatcher.Invoke([action] {
+                        $pwDrv.WindowState = [System.Windows.WindowState]::Normal
+                    }) | Out-Null
+            } catch {}
+            Write-DzDebug "`t[DEBUG][Invoke-LectorDP] Driver instalado correctamente." ([System.ConsoleColor]::Cyan)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Driver instalado correctamente." }
+            return $true
+        } catch {
+            Write-DzDebug "`t[DEBUG][Invoke-LectorDP] ERROR Driver: $($_.Exception.Message)" ([System.ConsoleColor]::Red)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error Driver: $($_.Exception.Message)" }
+            return $false
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG][Invoke-LectorDP] FATAL: $($_.Exception.Message)`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: $($_.Exception.Message)" }
+        return $false
+    } finally {
+        if ($pwDrv) {
+            try { Close-WpfProgressBar -Window $pwDrv } catch {}
+            $pwDrv = $null
+        }
+        if ($pwPs) {
+            try { Close-WpfProgressBar -Window $pwPs } catch {}
+            $pwPs = $null
+        }
+    }
+}
 Export-ModuleMember -Function @(
     'Check-Chocolatey',
     'Test-ChocolateyInstalled',
@@ -1067,5 +1276,6 @@ Export-ModuleMember -Function @(
     'Install-ChocoPackage',
     'Uninstall-ChocoPackage',
     'Show-ChocolateyInstallerMenu',
-    'Invoke-PortableTool'
+    'Invoke-PortableTool',
+    'Invoke-LectorDP'
 )

@@ -35,6 +35,13 @@ function Get-DzUiTheme {
             AccentDisconnectBlueHover = "#2563EB"
             AccentRed = "#EF4444"
             AccentRedHover = "#DC2626"
+            DbOnline = "#22C55E"           # Verde para ONLINE
+            DbOffline = "#EF4444"          # Rojo para OFFLINE
+            DbRestoring = "#F59E0B"        # Naranja para RESTORING/RECOVERING
+            DbSuspect = "#A855F7"          # Púrpura para SUSPECT/EMERGENCY
+            DbReadOnly = "#3B82F6"         # Azul para READ_ONLY
+            DbSingleUser = "#F97316"       # Naranja claro para SINGLE_USER
+            DbRestricted = "#EC4899"       # Rosa para RESTRICTED_USER
 
         }
         Dark  = @{
@@ -65,7 +72,13 @@ function Get-DzUiTheme {
             AccentDisconnectBlueHover = "#2563EB"
             AccentRed = "#EF4444"
             AccentRedHover = "#DC2626"
-
+            DbOnline = "#22C55E"           # Verde para ONLINE
+            DbOffline = "#EF4444"          # Rojo para OFFLINE
+            DbRestoring = "#F59E0B"        # Naranja para RESTORING/RECOVERING
+            DbSuspect = "#A855F7"          # Púrpura para SUSPECT/EMERGENCY
+            DbReadOnly = "#3B82F6"         # Azul para READ_ONLY
+            DbSingleUser = "#F97316"       # Naranja claro para SINGLE_USER
+            DbRestricted = "#EC4899"       # Rosa para RESTRICTED_USER
         }
     }
     $selectedMode = if ($iniMode -match '^(dark|light)$') { ($iniMode.Substring(0, 1).ToUpper() + $iniMode.Substring(1).ToLower()) } else { "Dark" }
@@ -147,6 +160,13 @@ function Set-DzWpfThemeResources {
     Set-BrushResource -Resources $Window.Resources -Key "AccentDisconnectBlueHover" -Hex $Theme.AccentDisconnectBlueHover
     Set-BrushResource -Resources $Window.Resources -Key "AccentRed" -Hex $Theme.AccentRed
     Set-BrushResource -Resources $Window.Resources -Key "AccentRedHover" -Hex $Theme.AccentRedHover
+    Set-BrushResource -Resources $Window.Resources -Key "DbOnline" -Hex $Theme.DbOnline
+    Set-BrushResource -Resources $Window.Resources -Key "DbOffline" -Hex $Theme.DbOffline
+    Set-BrushResource -Resources $Window.Resources -Key "DbRestoring" -Hex $Theme.DbRestoring
+    Set-BrushResource -Resources $Window.Resources -Key "DbSuspect" -Hex $Theme.DbSuspect
+    Set-BrushResource -Resources $Window.Resources -Key "DbReadOnly" -Hex $Theme.DbReadOnly
+    Set-BrushResource -Resources $Window.Resources -Key "DbSingleUser" -Hex $Theme.DbSingleUser
+    Set-BrushResource -Resources $Window.Resources -Key "DbRestricted" -Hex $Theme.DbRestricted
     $onAccent = "#000000"
     if ($Theme -and $Theme.PSObject -and ($Theme.PSObject.Properties.Match('OnAccentForeground').Count -gt 0)) {
         if (-not [string]::IsNullOrWhiteSpace([string]$Theme.OnAccentForeground)) { $onAccent = [string]$Theme.OnAccentForeground }
@@ -546,9 +566,552 @@ function Ui-Info { param([string]$Message, [string]$Title = "Información", [Sys
 function Ui-Warn { param([string]$Message, [string]$Title = "Atención", [System.Windows.Window]$Owner) Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Warning" -Owner $Owner | Out-Null }
 function Ui-Error { param([string]$Message, [string]$Title = "Error", [System.Windows.Window]$Owner) Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Error" -Owner $Owner | Out-Null }
 function Ui-Confirm { param([string]$Message, [string]$Title = "Confirmar", [System.Windows.Window]$Owner) (Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "YesNo" -Icon "Question" -Owner $Owner) -eq [System.Windows.MessageBoxResult]::Yes }
+function Get-MainWindowXaml {
+    param([hashtable]$Theme)
+    @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Gerardo Zermeño Tools"
+        Height="650" Width="900" MinHeight="600" MinWidth="1000"
+        WindowStartupLocation="CenterScreen" WindowState="Normal"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
+    <Window.Resources>
+        <Style TargetType="{x:Type Control}">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
+        </Style>
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Style>
+        <Style TargetType="{x:Type Label}">
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Style>
+        <Style TargetType="{x:Type TabControl}">
+            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="{x:Type TabItem}">
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabItem}">
+                        <Border Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6,6,0,0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PanelBg}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+        <Style TargetType="{x:Type PasswordBox}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+        <Style TargetType="{x:Type ComboBox}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Style>
+        <Style TargetType="{x:Type RichTextBox}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+        <Style TargetType="{x:Type Paragraph}">
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+        <Style TargetType="{x:Type DataGrid}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="RowBackground" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource PanelBg}"/>
+        </Style>
+        <Style TargetType="{x:Type DataGridRow}">
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        </Style>
+        <Style TargetType="{x:Type DataGridCell}">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        </Style>
+        <Style x:Key="InfoHeaderTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTabStop" Value="False"/>
+        </Style>
+        <Style x:Key="ConsoleTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="FontFamily" Value="{DynamicResource CodeFontFamily}"/>
+            <Setter Property="FontSize" Value="{DynamicResource CodeFontSize}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+        </Style>
+        <Style x:Key="GeneralButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                RecognizesAccessKey="True"
+                                TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Column1ButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="SystemButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentBlueHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="DatabaseButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentDatabase}"/>
+            <Setter Property="Foreground" Value="#111111"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentDatabaseHover}"/>
+                    <Setter Property="Foreground" Value="#111111"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="DbConnectButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentGreen}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentGreenHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="DbDisconnectButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentRed}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentRedHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="NationalSoftButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource GeneralButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentOrange}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentOrangeHover}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="TogglePillStyle" TargetType="{x:Type ToggleButton}">
+            <Setter Property="Width" Value="84"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Grid Width="{TemplateBinding Width}" Height="{TemplateBinding Height}">
+                            <Border x:Name="SwitchBorder"
+                                    Background="{DynamicResource BorderBrushColor}"
+                                    BorderBrush="{DynamicResource BorderBrushColor}"
+                                    BorderThickness="1"
+                                    CornerRadius="15"/>
+                            <Border x:Name="SwitchThumb"
+                                    Width="22" Height="22"
+                                    Background="{DynamicResource FormBg}"
+                                    CornerRadius="11"
+                                    HorizontalAlignment="Left"
+                                    Margin="4,4,0,4"/>
+                            <TextBlock x:Name="SwitchLabel"
+                                       Text="OFF"
+                                       Foreground="{DynamicResource FormFg}"
+                                       FontWeight="Bold"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="SwitchBorder" Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                                <Setter TargetName="SwitchBorder" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                                <Setter TargetName="SwitchThumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="SwitchThumb" Property="Margin" Value="0,4,4,4"/>
+                                <Setter TargetName="SwitchLabel" Property="Text" Value="ON"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SwitchBorder" Property="BorderBrush" Value="{DynamicResource AccentSecondary}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid Background="{DynamicResource FormBg}">
+        <TabControl Name="tabControl" Margin="5">
+            <TabItem Name="tabAplicaciones">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🧩" Margin="0,0,6,0"/>
+                        <TextBlock Text="Aplicaciones"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid Background="{DynamicResource PanelBg}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <UniformGrid Grid.Row="0" Rows="1" Columns="4" Margin="10">
+                        <TextBox Name="lblHostname" Style="{StaticResource InfoHeaderTextBoxStyle}" Text="HOSTNAME"/>
+                        <TextBox Name="lblPort" Style="{StaticResource InfoHeaderTextBoxStyle}" Text="Puerto: No disponible"/>
+                        <TextBox Name="txt_IpAdress" Style="{StaticResource InfoHeaderTextBoxStyle}"/>
+                        <TextBox Name="txt_AdapterStatus" Style="{StaticResource InfoHeaderTextBoxStyle}"/>
+                    </UniformGrid>
+                    <Grid Grid.Row="1" Margin="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="220"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0" VerticalAlignment="Top">
+                            <Button Content="Instalar Herramientas" Name="btnInstalarHerramientas" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Ejecutar ExpressProfiler" Name="btnProfiler" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Ejecutar Database4" Name="btnDatabase" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Ejecutar Manager" Name="btnSQLManager" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Ejecutar Management" Name="btnSQLManagement" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Printer Tools" Name="btnPrinterTool" Margin="0,0,0,10" Style="{StaticResource Column1ButtonStyle}"/>
+                            <Button Content="Clear AnyDesk" Name="btnClearAnyDesk" Style="{StaticResource Column1ButtonStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="0,0,10,0" VerticalAlignment="Top">
+                            <Button Content="Lector DP - Permisos" Name="btnLectorDPicacls" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Buscar Instalador LZMA" Name="LZMAbtnBuscarCarpeta" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Agregar IPs" Name="btnConfigurarIPs" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Agregar usuario de Windows" Name="btnAddUser" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Configuraciones de Firewall" Name="btnFirewallConfig" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Actualizar datos del sistema" Name="btnForzarActualizacion" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Mostrar Impresoras" Name="btnShowPrinters" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Instalar impresora" Name="btnInstallPrinter" Margin="0,0,0,10" Style="{StaticResource SystemButtonStyle}"/>
+                            <Button Content="Limpia y Reinicia Cola de Impresión" Name="btnClearPrintJobs" Style="{StaticResource SystemButtonStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" Margin="0,0,10,0" VerticalAlignment="Top">
+                            <Button Content="Aplicaciones National Soft" Name="btnAplicacionesNS" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Cambiar OTM a SQL/DBF" Name="btnCambiarOTM" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Permisos C:\NationalSoft" Name="btnCheckPermissions" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Creación de SRM APK" Name="btnCreateAPK" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Extractor de Instalador" Name="btnExtractInstaller" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Instaladores NS" Name="btnInstaladoresNS" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Registro de dlls" Name="btnRegisterDlls" Margin="0,0,0,10" Style="{StaticResource NationalSoftButtonStyle}"/>
+                            <Button Content="Log Monitor Servicios" Name="btnMonitorServiciosLog" Style="{StaticResource NationalSoftButtonStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="3" VerticalAlignment="Top">
+                            <TextBox Name="txt_InfoInstrucciones" Height="300" Margin="0,0,0,20" Style="{StaticResource ConsoleTextBoxStyle}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                            <Border Name="cardQuickSettings"
+                                    Height="150"
+                                    Background="{DynamicResource ControlBg}"
+                                    BorderBrush="{DynamicResource BorderBrushColor}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="10">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
+                                </Border.Effect>
+                                <StackPanel>
+                                    <TextBlock Text="Ajustes rápidos" FontWeight="Bold" Foreground="{DynamicResource AccentPrimary}" Margin="0,0,0,8"/>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ToggleButton Name="tglDarkMode" Grid.Column="0" Style="{StaticResource TogglePillStyle}"/>
+                                        <TextBlock Grid.Column="2" Text="🌙 Dark Mode" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ToggleButton Name="tglDebugMode" Grid.Column="0" Style="{StaticResource TogglePillStyle}"/>
+                                        <TextBlock Grid.Column="2" Text="🐞 DEBUG" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Name="tabProSql">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🗄️" Margin="0,0,6,0"/>
+                        <TextBlock Text="SSMS portable"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid Background="{DynamicResource PanelBg}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Margin="10" Padding="10" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                                <Button Name="btnConnectDb" Width="60" Height="30" Margin="0,0,8,0" Style="{StaticResource DbConnectButtonStyle}" ToolTip="Conectar">
+                                    <TextBlock Text="🔌✅" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+                                </Button>
+                                <Button Name="btnDisconnectDb" Width="60" Height="30" Style="{StaticResource DbDisconnectButtonStyle}" ToolTip="Desconectar" IsEnabled="False">
+                                    <TextBlock Text="🔌✖" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+                                </Button>
+                            </StackPanel>
+                            <WrapPanel Grid.Column="1">
+                                <StackPanel Margin="0,0,16,0">
+                                    <TextBlock Text="Instancia SQL:"/>
+                                    <ComboBox Name="txtServer" Width="180" IsEditable="True" Text=".\NationalSoft"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,16,0">
+                                    <TextBlock Text="Usuario:"/>
+                                    <TextBox Name="txtUser" Width="160" Text="sa"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,16,0">
+                                    <TextBlock Text="Contraseña:"/>
+                                    <PasswordBox Name="txtPassword" Width="160"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,16,0">
+                                    <TextBlock Text="Base de datos:"/>
+                                    <ComboBox Name="cmbDatabases" Width="180" IsEnabled="False"/>
+                                </StackPanel>
+                            </WrapPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" Margin="10,0,10,10" Padding="10" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Ejecutar (F5)" Name="btnExecute" Width="110" Height="30" Margin="0,0,8,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                            <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0" IsEnabled="False" ToolTip="Consultas predefinidas"/>
+                            <Button Content="Limpiar" Name="btnClearQuery" Width="90" Height="30" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                            <Button Content="Exportar" Name="btnExport" Width="100" Height="30" Margin="8,0,0,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Row="2" Margin="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="250" MinWidth="200"/>
+                            <ColumnDefinition Width="5"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Explorador de Objetos" Padding="8" FontWeight="Bold" Background="{DynamicResource AccentPrimary}" Foreground="{DynamicResource OnAccentFg}"/>
+                                <TreeView Grid.Row="1" Name="tvDatabases" Padding="4"/>
+                            </Grid>
+                        </Border>
+
+                        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrushColor}"/>
+
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" MinHeight="150"/>
+                                <RowDefinition Height="5"/>
+                                <RowDefinition Height="2*" MinHeight="200"/>
+                            </Grid.RowDefinitions>
+
+                            <TabControl Name="tcQueries" Grid.Row="0" Background="{DynamicResource ControlBg}">
+                                <TabItem Header="Consulta 1">
+                                    <Border BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Margin="5" CornerRadius="4">
+                                        <RichTextBox Name="rtbQueryEditor1" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" AcceptsTab="True" FontFamily="Consolas" FontSize="12"/>
+                                    </Border>
+                                </TabItem>
+                                <TabItem Header="+" Name="tabAddQuery" IsEnabled="True"/>
+                            </TabControl>
+
+                            <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrushColor}"/>
+
+                            <TabControl Name="tcResults" Grid.Row="2" Background="{DynamicResource ControlBg}">
+                                <TabItem Header="Resultados">
+                                    <DataGrid Name="dgResults" IsReadOnly="True" AutoGenerateColumns="True" CanUserAddRows="False" CanUserDeleteRows="False"/>
+                                </TabItem>
+                                <TabItem Header="Mensajes">
+                                    <TextBox Name="txtMessages" IsReadOnly="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" Background="Transparent" BorderThickness="0"/>
+                                </TabItem>
+                            </TabControl>
+                        </Grid>
+                    </Grid>
+
+                    <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
+                        <StatusBarItem>
+                            <TextBlock Name="lblConnectionStatus" Text="Desconectado"/>
+                        </StatusBarItem>
+                        <Separator/>
+                        <StatusBarItem>
+                            <TextBlock Name="lblExecutionTimer" Text="Tiempo: --"/>
+                        </StatusBarItem>
+                        <Separator/>
+                        <StatusBarItem>
+                            <TextBlock Name="lblRowCount" Text="Filas: --"/>
+                        </StatusBarItem>
+                    </StatusBar>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
+"@
+}
+
+function New-MainWindow {
+    [CmdletBinding()]
+    param()
+    try {
+        Write-Host "`nCreando formulario principal WPF..." -ForegroundColor Yellow
+        $theme = Get-DzUiTheme
+        $xaml = Get-MainWindowXaml -Theme $theme
+        $result = New-WpfWindow -Xaml $xaml -PassThru
+        $window = $result.Window
+        Set-DzWpfThemeResources -Window $window -Theme $theme
+        return @{
+            Window   = $window
+            Controls = $result.Controls
+        }
+    } catch {
+        Write-Host "`n[ERROR] No se pudo crear la ventana principal: $_" -ForegroundColor Red
+        throw
+    }
+}
+
 Export-ModuleMember -Function @(
     'Get-DzUiTheme', 'New-WpfWindow', 'Show-WpfMessageBox', 'Show-WpfMessageBoxSafe', 'ConvertTo-MessageBoxResult',
     'New-WpfInputDialog', 'Show-WpfProgressBar', 'Update-WpfProgressBar', 'Close-WpfProgressBar', 'Show-ProgressBar',
     'Set-WpfControlEnabled', 'Get-WpfPasswordBoxText', 'Show-WpfFolderDialog', 'Set-WpfDialogOwner', 'Set-DzWpfThemeResources',
-    'Ui-Info', 'Ui-Warn', 'Ui-Error', 'Ui-Confirm'
+    'Ui-Info', 'Ui-Warn', 'Ui-Error', 'Ui-Confirm', 'Get-MainWindowXaml', 'New-MainWindow'
 )

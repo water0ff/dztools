@@ -405,9 +405,11 @@ function Load-DatabasesIntoTree {
         if (-not $databases -or $databases.Count -eq 0) {
             Write-DzDebug "`t[DEBUG][TreeView] No hay Databases precargadas, consultando a SQL..."
             try {
-                $databases = Get-SqlDatabases -Server $server -Credential $credential
+                $databases = Get-SqlDatabasesInfo -Server $server -Credential $credential
                 $ServerNode.Tag.Databases = $databases
+                Write-DzDebug "`t[DEBUG][TreeView] Obtenidas $($databases.Count) bases de datos"
             } catch {
+                Write-DzDebug "`t[DEBUG][TreeView] Error obteniendo bases: $($_.Exception.Message)" -Color Red
                 $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{ Type = "Error" } -HasPlaceholder $false
                 [void]$ServerNode.Items.Add($errorNode)
                 return
@@ -416,11 +418,31 @@ function Load-DatabasesIntoTree {
             Write-DzDebug "`t[DEBUG][TreeView] Usando Databases precargadas: $($databases.Count)"
         }
     } catch {
+        Write-DzDebug "`t[DEBUG][TreeView] Excepción general: $($_.Exception.Message)" -Color Red
         $errorNode = New-SqlTreeNode -Header "Error cargando bases" -Tag @{ Type = "Error" } -HasPlaceholder $false
         [void]$ServerNode.Items.Add($errorNode)
         return
     }
-    foreach ($db in $databases) {
+    foreach ($dbInfo in $databases) {
+        $db = $dbInfo.Name
+        $stateDesc = $dbInfo.StateDesc
+        $userAccessDesc = $dbInfo.UserAccessDesc
+        $isReadOnly = $dbInfo.IsReadOnly
+        Write-DzDebug "`t[DEBUG][TreeView] Procesando DB: $db | State=$stateDesc | Access=$userAccessDesc | ReadOnly=$isReadOnly"
+        $statusInfo = Get-DbStatusInfo -StateDesc $stateDesc -UserAccessDesc $userAccessDesc -IsReadOnly $isReadOnly
+        $showBadge = $false
+        if ($stateDesc -ne "ONLINE") {
+            $showBadge = $true
+        } elseif ($userAccessDesc -ne "MULTI_USER") {
+            $showBadge = $true
+        } elseif ($isReadOnly) {
+            $showBadge = $true
+        }
+        if ($showBadge) {
+            $header = "🗄️ $db  —  $($statusInfo.Badge)"
+        } else {
+            $header = "🗄️ $db"
+        }
         $dbTag = @{
             Type               = "Database"
             Database           = $db
@@ -430,15 +452,56 @@ function Load-DatabasesIntoTree {
             Password           = $ServerNode.Tag.Password
             InsertTextHandler  = $ServerNode.Tag.InsertTextHandler
             OnDatabaseSelected = $ServerNode.Tag.OnDatabaseSelected
+            DbStateDesc        = $stateDesc
+            DbUserAccessDesc   = $userAccessDesc
+            DbIsReadOnly       = $isReadOnly
+            DbStatusColor      = $statusInfo.Color
         }
-        $dbNode = New-SqlTreeNode -Header "🗄️ $db" -Tag $dbTag -HasPlaceholder $false
+        $dbNode = New-SqlTreeNode -Header $header -Tag $dbTag -HasPlaceholder $false
+        if ($statusInfo.Color -ne "PanelFg") {
+            try {
+                if ($global:MainWindow -and $global:MainWindow.Resources.Contains($statusInfo.Color)) {
+                    $dbNode.Foreground = $global:MainWindow.Resources[$statusInfo.Color]
+                } else {
+                    Write-DzDebug "`t[DEBUG][TreeView] No se encontró recurso de color: $($statusInfo.Color)"
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][TreeView] Error aplicando color $($statusInfo.Color): $($_.Exception.Message)" -Color Red
+            }
+        }
+        Add-DatabaseContextMenu -DatabaseNode $dbNode
+        if ($stateDesc -ne "ONLINE") {
+            Write-DzDebug "`t[DEBUG][TreeView] DB '$db' no está ONLINE, agregando nodo informativo"
+            $infoNode = New-SqlTreeNode -Header "⚠️ Base de datos no disponible ($stateDesc)" -Tag @{ Type = "Info" } -HasPlaceholder $false
+            [void]$dbNode.Items.Add($infoNode)
+            [void]$ServerNode.Items.Add($dbNode)
+            continue
+        }
+        Write-DzDebug "`t[DEBUG][TreeView] DB '$db' está ONLINE, agregando nodos de tablas/vistas/procs"
         $dbNode.Add_MouseDoubleClick({
                 param($s, $e)
-                Write-DzDebug "`t[DEBUG][TreeView] Doble clic DB: $($s.Tag.Database) | HasHandler=$([bool]$s.Tag.OnDatabaseSelected)"
-                if ($s.Tag.OnDatabaseSelected) { & $s.Tag.OnDatabaseSelected $s.Tag.Database }
+                $db = [string]$s.Tag.Database
+                $state = [string]$s.Tag.DbStateDesc
+                $hasHandler = ($null -ne $s.Tag.OnDatabaseSelected)
+                Write-DzDebug "`t[DEBUG][TreeView] Doble clic DB: $db | State=$state | HasOnDatabaseSelected=$hasHandler"
+                if ($state -ne "ONLINE") {
+                    Ui-Warn "La base de datos '$db' está en estado '$state'.`nDebes ponerla ONLINE primero." "Base de datos no disponible" $global:MainWindow
+                    $e.Handled = $true
+                    return
+                }
+                if ($hasHandler) {
+                    try {
+                        & $s.Tag.OnDatabaseSelected $db
+                        Write-DzDebug "`t[DEBUG][TreeView] OnDatabaseSelected ejecutado OK para DB='$db'"
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][TreeView] ERROR OnDatabaseSelected: $($_.Exception.Message)" -Color Red
+                        Write-DzDebug "`t[DEBUG][TreeView] Stack: $($_.ScriptStackTrace)" -Color Red
+                    }
+                } else {
+                    Write-DzDebug "`t[DEBUG][TreeView] OnDatabaseSelected es NULL (no hay handler)" -Color Red
+                }
                 $e.Handled = $true
             })
-        Add-DatabaseContextMenu -DatabaseNode $dbNode
         $tablesTag = @{
             Type               = "TablesRoot"
             Database           = $db
@@ -469,14 +532,27 @@ function Load-DatabasesIntoTree {
         $tablesNode = New-SqlTreeNode -Header "📋 Tablas" -Tag $tablesTag -HasPlaceholder $true
         $viewsNode = New-SqlTreeNode -Header "👁️ Vistas" -Tag $viewsTag -HasPlaceholder $true
         $procsNode = New-SqlTreeNode -Header "⚙️ Procedimientos" -Tag $procsTag -HasPlaceholder $true
-        $tablesNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand TablasRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
-        $viewsNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand VistasRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
-        $procsNode.Add_Expanded({ param($s, $e) Write-DzDebug "`t[DEBUG][TreeView] Expand ProcsRoot DB: $($s.Tag.Database)"; Load-TablesIntoNode -RootNode $s })
+        $tablesNode.Add_Expanded({
+                param($s, $e)
+                Write-DzDebug "`t[DEBUG][TreeView] Expand TablasRoot DB: $($s.Tag.Database)"
+                Load-TablesIntoNode -RootNode $s
+            })
+        $viewsNode.Add_Expanded({
+                param($s, $e)
+                Write-DzDebug "`t[DEBUG][TreeView] Expand VistasRoot DB: $($s.Tag.Database)"
+                Load-TablesIntoNode -RootNode $s
+            })
+        $procsNode.Add_Expanded({
+                param($s, $e)
+                Write-DzDebug "`t[DEBUG][TreeView] Expand ProcsRoot DB: $($s.Tag.Database)"
+                Load-TablesIntoNode -RootNode $s
+            })
         [void]$dbNode.Items.Add($tablesNode)
         [void]$dbNode.Items.Add($viewsNode)
         [void]$dbNode.Items.Add($procsNode)
         [void]$ServerNode.Items.Add($dbNode)
     }
+    Write-DzDebug "`t[DEBUG][TreeView] Load DBs completado. Total nodos: $($ServerNode.Items.Count)"
 }
 function Load-TablesIntoNode {
     [CmdletBinding()]
@@ -720,9 +796,7 @@ ORDER BY c.ORDINAL_POSITION
 function Add-TreeNodeContextMenu {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$TableNode)
-
     $menu = New-Object System.Windows.Controls.ContextMenu
-
     $menuSelectTop = New-Object System.Windows.Controls.MenuItem
     $menuSelectTop.Header = "SELECT TOP 100 *"
     $menuSelectTop.Add_Click({
@@ -734,9 +808,7 @@ function Add-TreeNodeContextMenu {
             $schema = [string]$node.Tag.Schema
             $table = [string]$node.Tag.Table
             Write-DzDebug "`t[DEBUG][TreeView] Context SELECT TOP: DB=$db [$schema].[$table]"
-
             if ($node.Tag.OnDatabaseSelected) { & $node.Tag.OnDatabaseSelected $db }
-
             if ($global:tcQueries) {
                 $tab = New-QueryTab -TabControl $global:tcQueries
                 $queryText = "SELECT TOP 100 * FROM [$schema].[$table]"
@@ -746,7 +818,6 @@ function Add-TreeNodeContextMenu {
                 if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $queryText }
             }
         })
-
     $menuSelectAll = New-Object System.Windows.Controls.MenuItem
     $menuSelectAll.Header = "SELECT *"
     $menuSelectAll.Add_Click({
@@ -759,7 +830,6 @@ function Add-TreeNodeContextMenu {
             $table = [string]$node.Tag.Table
             Write-DzDebug "`t[DEBUG][TreeView] Context SELECT *: DB=$db [$schema].[$table]"
             if ($node.Tag.OnDatabaseSelected) { & $node.Tag.OnDatabaseSelected $db }
-
             if ($global:tcQueries) {
                 $tab = New-QueryTab -TabControl $global:tcQueries
                 $queryText = "SELECT * FROM [$schema].[$table]"
@@ -769,7 +839,6 @@ function Add-TreeNodeContextMenu {
                 if ($node.Tag.InsertTextHandler) { & $node.Tag.InsertTextHandler $queryText }
             }
         })
-
     $menuScript = New-Object System.Windows.Controls.MenuItem
     $menuScript.Header = "Script CREATE TABLE"
     $menuScript.Add_Click({
@@ -782,7 +851,6 @@ function Add-TreeNodeContextMenu {
             $schema = [string]$node.Tag.Schema
             $table = [string]$node.Tag.Table
             Write-DzDebug "`t[DEBUG][TreeView] Context CREATE: Server='$srv' DB='$db' [$schema].[$table]"
-
             if ([string]::IsNullOrWhiteSpace($srv)) {
                 Ui-Error "TreeView: Server vacío en el Tag. Reconecta a la BD para recargar el explorador." $global:MainWindow
                 return
@@ -791,9 +859,7 @@ function Add-TreeNodeContextMenu {
                 Ui-Error "TreeView: Database vacía en el Tag." $global:MainWindow
                 return
             }
-
             if ($node.Tag.OnDatabaseSelected) { & $node.Tag.OnDatabaseSelected $db }
-
             $scriptText = Get-CreateTableScript -Server $srv -Database $db -Schema $schema -Table $table -Credential $node.Tag.Credential
             if ($scriptText) {
                 if ($global:tcQueries) {
@@ -804,7 +870,6 @@ function Add-TreeNodeContextMenu {
                 }
             }
         })
-
     $menuCopy = New-Object System.Windows.Controls.MenuItem
     $menuCopy.Header = "Copiar nombre"
     $menuCopy.Add_Click({
@@ -818,15 +883,12 @@ function Add-TreeNodeContextMenu {
             $name = "[$schema].[$table]"
             [System.Windows.Clipboard]::SetText($name)
         })
-
     [void]$menu.Items.Add($menuSelectTop)
     [void]$menu.Items.Add($menuSelectAll)
     [void]$menu.Items.Add($menuScript)
     [void]$menu.Items.Add($menuCopy)
-
     $TableNode.ContextMenu = $menu
 }
-
 function Add-DatabaseContextMenu {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)]$DatabaseNode)
@@ -855,16 +917,12 @@ function Add-DatabaseContextMenu {
             $node = $null
             if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
             if ($null -eq $node -or $null -eq $node.Tag) { return }
-
             $dbName = [string]$node.Tag.Database
             $server = [string]$node.Tag.Server
             $credential = $node.Tag.Credential
-
             Write-DzDebug "`t[DEBUG][TreeView] Context REPAIR DB: Server='$server' DB='$dbName'"
-
             Show-DatabaseRepairDialog -Server $server -Database $dbName -Credential $credential
         })
-
     $separator0 = New-Object System.Windows.Controls.Separator
     $menuBackup = New-Object System.Windows.Controls.MenuItem
     $menuBackup.Header = "💾 Respaldar..."
@@ -941,6 +999,136 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
             Set-QueryTextInActiveTab -TabControl $global:tcQueries -Text "USE [$safeDb]`n`n"
         })
     $separator1 = New-Object System.Windows.Controls.Separator
+    $menuState = New-Object System.Windows.Controls.MenuItem
+    $menuState.Header = "🧭 Cambiar estado"
+    $menuOnline = New-Object System.Windows.Controls.MenuItem
+    $menuOnline.Header = "🟢 ONLINE"
+    $menuOnline.Add_Click({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG][TreeView] Click Context SET ONLINE Menu"
+            $cm = $sender.Parent.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) {
+                Write-DzDebug "`t[DEBUG][TreeView] SET ONLINE: node null or tag null" -Color Red
+                return
+            }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $safeName = $dbName -replace ']', ']]'
+            Write-DzDebug "`t[DEBUG][TreeView] Context SET ONLINE: Server='$server' DB='$dbName'"
+            $confirm = Ui-Confirm "Se pondrá la base '$dbName' en modo ONLINE. ¿Deseas continuar?" "Cambiar estado" $global:MainWindow
+            if (-not $confirm) {
+                Write-DzDebug "`t[DEBUG][TreeView] SET ONLINE cancelado por usuario"
+                return
+            }
+            $query = "ALTER DATABASE [$safeName] SET ONLINE"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "No se pudo poner ONLINE la base:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Ui-Info "La base '$dbName' quedó ONLINE." "Estado actualizado" $global:MainWindow
+            Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $server
+        })
+    $menuOffline = New-Object System.Windows.Controls.MenuItem
+    $menuOffline.Header = "🔴 OFFLINE"
+    $menuOffline.Add_Click({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG][TreeView] Click Context SET OFFLINE Menu"
+            $cm = $sender.Parent.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) {
+                Write-DzDebug "`t[DEBUG][TreeView] SET OFFLINE: node null or tag null" -Color Red
+                return
+            }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $safeName = $dbName -replace ']', ']]'
+            Write-DzDebug "`t[DEBUG][TreeView] Context SET OFFLINE: Server='$server' DB='$dbName'"
+            $confirm = Ui-Confirm "Se pondrá la base '$dbName' en modo OFFLINE (con ROLLBACK IMMEDIATE). ¿Deseas continuar?" "Cambiar estado" $global:MainWindow
+            if (-not $confirm) {
+                Write-DzDebug "`t[DEBUG][TreeView] SET OFFLINE cancelado por usuario"
+                return
+            }
+            $query = "ALTER DATABASE [$safeName] SET OFFLINE WITH ROLLBACK IMMEDIATE"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "No se pudo poner OFFLINE la base:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Ui-Info "La base '$dbName' quedó OFFLINE." "Estado actualizado" $global:MainWindow
+            Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $server
+        })
+    $menuReadOnly = New-Object System.Windows.Controls.MenuItem
+    $menuReadOnly.Header = "🔒 READ_ONLY"
+    $menuReadOnly.Add_Click({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG][TreeView] Click Context SET READ_ONLY Menu"
+            $cm = $sender.Parent.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) {
+                Write-DzDebug "`t[DEBUG][TreeView] SET READ_ONLY: node null or tag null" -Color Red
+                return
+            }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $safeName = $dbName -replace ']', ']]'
+            Write-DzDebug "`t[DEBUG][TreeView] Context SET READ_ONLY: Server='$server' DB='$dbName'"
+            $confirm = Ui-Confirm "Se pondrá la base '$dbName' en modo READ_ONLY. ¿Deseas continuar?" "Cambiar estado" $global:MainWindow
+            if (-not $confirm) {
+                Write-DzDebug "`t[DEBUG][TreeView] SET READ_ONLY cancelado por usuario"
+                return
+            }
+            $query = "ALTER DATABASE [$safeName] SET READ_ONLY WITH NO_WAIT"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "No se pudo poner READ_ONLY la base:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Ui-Info "La base '$dbName' quedó READ_ONLY." "Estado actualizado" $global:MainWindow
+            Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $server
+        })
+    $menuReadWrite = New-Object System.Windows.Controls.MenuItem
+    $menuReadWrite.Header = "✍️ READ_WRITE"
+    $menuReadWrite.Add_Click({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG][TreeView] Click Context SET READ_WRITE Menu"
+            $cm = $sender.Parent.Parent
+            $node = $null
+            if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
+            if ($null -eq $node -or $null -eq $node.Tag) {
+                Write-DzDebug "`t[DEBUG][TreeView] SET READ_WRITE: node null or tag null" -Color Red
+                return
+            }
+            $dbName = [string]$node.Tag.Database
+            $server = [string]$node.Tag.Server
+            $credential = $node.Tag.Credential
+            $safeName = $dbName -replace ']', ']]'
+            Write-DzDebug "`t[DEBUG][TreeView] Context SET READ_WRITE: Server='$server' DB='$dbName'"
+            $confirm = Ui-Confirm "Se pondrá la base '$dbName' en modo READ_WRITE. ¿Deseas continuar?" "Cambiar estado" $global:MainWindow
+            if (-not $confirm) {
+                Write-DzDebug "`t[DEBUG][TreeView] SET READ_WRITE cancelado por usuario"
+                return
+            }
+            $query = "ALTER DATABASE [$safeName] SET READ_WRITE WITH NO_WAIT"
+            $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
+            if (-not $result.Success) {
+                Ui-Error "No se pudo poner READ_WRITE la base:`n`n$($result.ErrorMessage)" $global:MainWindow
+                return
+            }
+            Ui-Info "La base '$dbName' quedó READ_WRITE." "Estado actualizado" $global:MainWindow
+            Refresh-SqlTreeView -TreeView $global:tvDatabases -Server $server
+        })
+    [void]$menuState.Items.Add($menuOnline)
+    [void]$menuState.Items.Add($menuOffline)
+    [void]$menuState.Items.Add($menuReadOnly)
+    [void]$menuState.Items.Add($menuReadWrite)
     $menuDetach = New-Object System.Windows.Controls.MenuItem
     $menuDetach.Header = "📎 Separar (Detach)..."
     $menuDetach.Add_Click({
@@ -948,13 +1136,10 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
             $node = $null
             if ($cm -is [System.Windows.Controls.ContextMenu]) { $node = $cm.PlacementTarget }
             if ($null -eq $node -or $null -eq $node.Tag) { return }
-
             $dbName = [string]$node.Tag.Database
             $server = [string]$node.Tag.Server
             $credential = $node.Tag.Credential
-
             Write-DzDebug "`t[DEBUG][TreeView] Context DETACH DB: Server='$server' DB='$dbName'"
-
             Show-DetachDialog -Server $server -Database $dbName -Credential $credential -ParentNode $node
         })
     $menuDelete = New-Object System.Windows.Controls.MenuItem
@@ -1005,6 +1190,7 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
     [void]$menu.Items.Add($menuRename)
     [void]$menu.Items.Add($menuNewQuery)
     [void]$menu.Items.Add($separator1)
+    [void]$menu.Items.Add($menuState)
     [void]$menu.Items.Add($menuDetach)
     [void]$menu.Items.Add($menuDelete)
     [void]$menu.Items.Add($separator2)
@@ -1069,7 +1255,7 @@ function Add-ServerContextMenu {
             }
             $modulesPath = Join-Path $PSScriptRoot "modules"
             Show-AttachDialog -Server $server -User $user -Password $password -Database "master" `
-                -ModulesPath $modulesPath `
+                -ModulesPath $PSScriptRoot `
                 -OnAttachCompleted {
                 param($dbName)
                 Write-DzDebug "`t[DEBUG][TreeView] Attach completed. Refresh Server: $server"
@@ -1197,142 +1383,84 @@ function Show-DeleteDatabaseDialog {
                 </Trigger>
             </Style.Triggers>
         </Style>
-        <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
-                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-            <Setter Property="Width" Value="34"/>
-            <Setter Property="Height" Value="34"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Content" Value="×"/>
-        </Style>
-    </Window.Resources>
-    <Grid Background="{DynamicResource FormBg}" Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Border Grid.Row="0"
-                Name="brdTitleBar"
-                Background="{DynamicResource PanelBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12"
-                Margin="0,0,0,10">
-            <DockPanel LastChildFill="True">
-                <StackPanel DockPanel.Dock="Left">
-                    <TextBlock Text="⚠️ Advertencia: Eliminar Base de Datos"
-                               Foreground="{DynamicResource FormFg}"
-                               FontSize="16"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Text="Esta acción es irreversible. Verifica antes de continuar."
-                               Foreground="{DynamicResource PanelFg}"
-                               Margin="0,2,0,0"/>
-                </StackPanel>
-                <Button DockPanel.Dock="Right"
-                        Name="btnClose"
-                        Style="{StaticResource CloseButtonStyle}"/>
-            </DockPanel>
-        </Border>
-        <Border Grid.Row="1"
-                Background="{DynamicResource PanelBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0"
-                           Text="Estás a punto de eliminar permanentemente la base de datos:"
-                           TextWrapping="Wrap"
-                           Margin="0,0,0,10"/>
-                <Border Grid.Row="1"
-                        Background="{DynamicResource ControlBg}"
-                        BorderBrush="{DynamicResource BorderBrushColor}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="10"
-                        Margin="0,0,0,12">
-                    <TextBlock Text="🗄️ $safeDb"
-                               FontSize="14"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource AccentPrimary}"/>
-                </Border>
-                <StackPanel Grid.Row="2" Margin="0,0,0,10">
-                    <CheckBox x:Name="chkDeleteBackupHistory" IsChecked="True" Margin="0,0,0,8">
-                        <TextBlock Text="Eliminar historial de backup y restore" TextWrapping="Wrap"/>
-                    </CheckBox>
-                    <CheckBox x:Name="chkCloseConnections" IsChecked="True">
-                        <TextBlock Text="Cerrar conexiones existentes (SINGLE_USER + ROLLBACK IMMEDIATE)" TextWrapping="Wrap"/>
-                    </CheckBox>
-                </StackPanel>
-                <Border Grid.Row="3"
-                        Background="{DynamicResource FormBg}"
-                        BorderBrush="{DynamicResource BorderBrushColor}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="10">
-                    <TextBlock FontSize="11"
-                               Foreground="{DynamicResource AccentMuted}"
-                               TextWrapping="Wrap">
-                        Recomendación: realiza un respaldo antes de continuar. Si la base de datos está en uso,
-                        se forzará el cierre de sesiones para poder eliminarla.
-                    </TextBlock>
-                </Border>
-            </Grid>
-        </Border>
-        <Border Grid.Row="2"
-                Background="{DynamicResource PanelBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="10"
-                Margin="0,10,0,0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0"
-                           Text="Enter: Eliminar   |   Esc: Cerrar"
-                           VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button x:Name="btnCancelar"
-                            Content="Cancelar"
-                            Width="120"
-                            Height="34"
-                            Margin="0,0,10,0"
-                            IsCancel="True"
-                            Style="{StaticResource OutlineButtonStyle}"/>
-                    <Button x:Name="btnEliminar"
-                            Content="Eliminar"
-                            Width="140"
-                            Height="34"
-                            IsDefault="True"
-                            Style="{StaticResource ActionButtonStyle}"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-    </Grid>
+<Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+    <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+    <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+            <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Trigger>
+    </Style.Triggers>
+</Style>
+<Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+    <Setter Property="Width" Value="34"/>
+    <Setter Property="Height" Value="34"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Content" Value="×"/>
+</Style>
+</Window.Resources>
+<Grid Background="{DynamicResource FormBg}" Margin="12">
+    <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <Border Grid.Row="0" Name="brdTitleBar" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,10">
+        <DockPanel LastChildFill="True">
+            <StackPanel DockPanel.Dock="Left">
+                <TextBlock Text="⚠️ Advertencia: Eliminar Base de Datos" Foreground="{DynamicResource FormFg}" FontSize="16" FontWeight="SemiBold"/>
+                <TextBlock Text="Esta acción es irreversible. Verifica antes de continuar." Foreground="{DynamicResource PanelFg}" Margin="0,2,0,0"/>
+            </StackPanel>
+            <Button DockPanel.Dock="Right" Name="btnClose" Style="{StaticResource CloseButtonStyle}"/>
+        </DockPanel>
+    </Border>
+    <Border Grid.Row="1" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="10" Padding="12">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Estás a punto de eliminar permanentemente la base de datos:" TextWrapping="Wrap" Margin="0,0,0,10"/>
+            <Border Grid.Row="1" Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                <TextBlock Text="🗄️ $safeDb" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentPrimary}"/>
+            </Border>
+            <StackPanel Grid.Row="2" Margin="0,0,0,10">
+                <CheckBox x:Name="chkDeleteBackupHistory" IsChecked="True" Margin="0,0,0,8">
+                    <TextBlock Text="Eliminar historial de backup y restore" TextWrapping="Wrap"/>
+                </CheckBox>
+                <CheckBox x:Name="chkCloseConnections" IsChecked="True">
+                    <TextBlock Text="Cerrar conexiones existentes (SINGLE_USER + ROLLBACK IMMEDIATE)" TextWrapping="Wrap"/>
+                </CheckBox>
+            </StackPanel>
+            <Border Grid.Row="3" Background="{DynamicResource FormBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="8" Padding="10">
+                <TextBlock FontSize="11" Foreground="{DynamicResource AccentMuted}" TextWrapping="Wrap">
+                    Recomendación: realiza un respaldo antes de continuar. Si la base de datos está en uso, se forzará el cierre de sesiones para poder eliminarla.
+                </TextBlock>
+            </Border>
+        </Grid>
+    </Border>
+    <Border Grid.Row="2" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,10,0,0">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Enter: Eliminar   |   Esc: Cerrar" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="btnCancelar" Content="Cancelar" Width="120" Height="34" Margin="0,0,10,0" IsCancel="True" Style="{StaticResource OutlineButtonStyle}"/>
+                <Button x:Name="btnEliminar" Content="Eliminar" Width="140" Height="34" IsDefault="True" Style="{StaticResource ActionButtonStyle}"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Grid>
 </Window>
 "@
     try {
@@ -1414,7 +1542,6 @@ function Show-DeleteDatabaseDialog {
                     }
                 }
                 Ui-Info "La base de datos '$Database' ha sido eliminada exitosamente." "✓ Éxito" $window
-
                 $serverNode = $ParentNode.Parent
                 if ($serverNode -and $serverNode.Tag.Type -eq "Server") {
                     if ($serverNode.Tag.OnDatabasesRefreshed) {
@@ -1427,7 +1554,6 @@ function Show-DeleteDatabaseDialog {
                     }
                     Refresh-SqlTreeServerNode -ServerNode $serverNode
                 }
-
                 if ($ParentNode.Parent -is [System.Windows.Controls.ItemsControl]) {
                     $window.Dispatcher.Invoke([action] {
                             try {
@@ -1438,7 +1564,6 @@ function Show-DeleteDatabaseDialog {
                             }
                         })
                 }
-
                 $window.DialogResult = $true
                 $window.Close()
             } catch {
@@ -1446,9 +1571,84 @@ function Show-DeleteDatabaseDialog {
                 Ui-Error "Error inesperado al eliminar la base de datos:`n`n$($_.Exception.Message)" "Error" $window
             }
         })
-
     Write-DzDebug "`t[DEBUG][DeleteDB] Mostrando ventana"
     $null = $window.ShowDialog()
+}
+function Get-DbStatusInfo {
+    param(
+        [Parameter(Mandatory = $true)][string]$StateDesc,
+        [Parameter(Mandatory = $true)][string]$UserAccessDesc,
+        [Parameter(Mandatory = $true)][bool]$IsReadOnly
+    )
+    $color = "PanelFg"
+    $stateIcon = ""
+    switch ($StateDesc) {
+        "ONLINE" {
+            $stateIcon = "🟢"
+            if ($UserAccessDesc -ne "MULTI_USER" -or $IsReadOnly) {
+                $color = "DbOnline"
+            }
+        }
+        "OFFLINE" {
+            $stateIcon = "🔴"
+            $color = "DbOffline"
+        }
+        "RESTORING" {
+            $stateIcon = "🟠"
+            $color = "DbRestoring"
+        }
+        "RECOVERING" {
+            $stateIcon = "🟠"
+            $color = "DbRestoring"
+        }
+        "RECOVERY_PENDING" {
+            $stateIcon = "🟠"
+            $color = "DbRestoring"
+        }
+        "SUSPECT" {
+            $stateIcon = "🟣"
+            $color = "DbSuspect"
+        }
+        "EMERGENCY" {
+            $stateIcon = "🟣"
+            $color = "DbSuspect"
+        }
+        default {
+            $stateIcon = "⚪"
+            $color = "DbSuspect"
+        }
+    }
+    if ($StateDesc -eq "ONLINE") {
+        switch ($UserAccessDesc) {
+            "SINGLE_USER" { $color = "DbSingleUser" }
+            "RESTRICTED_USER" { $color = "DbRestricted" }
+        }
+        if ($IsReadOnly) {
+            $color = "DbReadOnly"
+        }
+    }
+    $accessIcon = switch ($UserAccessDesc) {
+        "MULTI_USER" { "👥" }
+        "SINGLE_USER" { "👤" }
+        "RESTRICTED_USER" { "🔒" }
+        default { "❔" }
+    }
+    $roText = if ($IsReadOnly) { " | RO" } else { "" }
+    $badge = "$stateIcon $StateDesc | $accessIcon $UserAccessDesc$roText"
+    return @{
+        Badge     = $badge
+        Color     = $color
+        StateIcon = $stateIcon
+    }
+}
+function Get-DbStatusBadgeText {
+    param(
+        [Parameter(Mandatory = $true)][string]$StateDesc,
+        [Parameter(Mandatory = $true)][string]$UserAccessDesc,
+        [Parameter(Mandatory = $true)][bool]$IsReadOnly
+    )
+    $info = Get-DbStatusInfo -StateDesc $StateDesc -UserAccessDesc $UserAccessDesc -IsReadOnly $IsReadOnly
+    return $info.Badge
 }
 Export-ModuleMember -Function @(
     "bdd_RenameFromTree",
@@ -1461,4 +1661,8 @@ Export-ModuleMember -Function @(
     "Add-TreeNodeContextMenu",
     "Add-DatabaseContextMenu",
     "Add-ServerContextMenu",
-    "Show-DeleteDatabaseDialog")
+    "Show-DeleteDatabaseDialog",
+    "Get-DbStatusBadgeText",
+    "Get-DbStatusInfo",
+    "Select-SqlTreeDatabase"
+)

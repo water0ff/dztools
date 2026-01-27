@@ -190,10 +190,9 @@ function Save-OpenQueryTabs {
         foreach ($item in $TabControl.Items) {
             if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
             if (-not $item.Tag -or $item.Tag.Type -ne 'QueryTab') { continue }
-            $rtb = $item.Tag.RichTextBox
-            if (-not $rtb) { continue }
-            $textRange = New-Object System.Windows.Documents.TextRange($rtb.Document.ContentStart, $rtb.Document.ContentEnd)
-            $queryText = $textRange.Text
+            $editor = $item.Tag.Editor
+            if (-not $editor) { continue }
+            $queryText = Get-SqlEditorText -Editor $editor
             if ([string]::IsNullOrWhiteSpace($queryText)) { continue }
             $title = if ($item.Tag.Title) { $item.Tag.Title } else { "Consulta $($tabIndex + 1)" }
             $isDirty = if ($item.Tag.IsDirty) { "1" } else { "0" }
@@ -256,14 +255,9 @@ function Restore-OpenQueryTabs {
                         $queryBytes = [Convert]::FromBase64String($parts[3])
                         $queryText = [System.Text.Encoding]::UTF8.GetString($queryBytes)
                         $newTab = New-QueryTab -TabControl $TabControl
-                        if ($newTab -and $newTab.Tag -and $newTab.Tag.RichTextBox) {
-                            $rtb = $newTab.Tag.RichTextBox
-                            $rtb.Document.Blocks.Clear()
-                            $paragraph = New-Object System.Windows.Documents.Paragraph
-                            $run = New-Object System.Windows.Documents.Run($queryText)
-                            $paragraph.Inlines.Add($run)
-                            $rtb.Document.Blocks.Add($paragraph)
-                            if (-not [string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $global:DzSqlKeywords }
+                        if ($newTab -and $newTab.Tag -and $newTab.Tag.Editor) {
+                            $editor = $newTab.Tag.Editor
+                            Set-SqlEditorText -Editor $editor -Text $queryText
                             $savedTitle = $parts[1]
                             if (-not [string]::IsNullOrWhiteSpace($savedTitle) -and $savedTitle -ne $newTab.Tag.Title) {
                                 $newTab.Tag.Title = $savedTitle
@@ -431,14 +425,9 @@ function Add-QueryHistoryTab {
                     }
                     $activeTab = Get-ActiveQueryTab -TabControl $tcRef
                     if (-not $activeTab) { $activeTab = New-QueryTab -TabControl $tcRef }
-                    if ($activeTab -and $activeTab.Tag -and $activeTab.Tag.RichTextBox) {
-                        $rtb = $activeTab.Tag.RichTextBox
-                        $rtb.Document.Blocks.Clear()
-                        $paragraph = New-Object System.Windows.Documents.Paragraph
-                        $run = New-Object System.Windows.Documents.Run($selected.FullQuery)
-                        $paragraph.Inlines.Add($run)
-                        $rtb.Document.Blocks.Add($paragraph)
-                        if (-not [string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $global:DzSqlKeywords }
+                    if ($activeTab -and $activeTab.Tag -and $activeTab.Tag.Editor) {
+                        $editor = $activeTab.Tag.Editor
+                        Set-SqlEditorText -Editor $editor -Text $selected.FullQuery
                         $tcRef.SelectedItem = $activeTab
                         Write-Host "`n✓ Query cargado en el editor" -ForegroundColor Green
                     }
@@ -499,21 +488,13 @@ function Execute-QueryCore {
 
     $Ctx.QueryRunning = $true
 
-    $activeRtb = Get-ActiveQueryRichTextBox -TabControl $Ctx.tcQueries
-    if (-not $activeRtb) { throw "No hay una pestaña de consulta activa." }
+    $activeEditor = Get-ActiveQueryRichTextBox -TabControl $Ctx.tcQueries
+    if (-not $activeEditor) { throw "No hay una pestaña de consulta activa." }
 
     $rawQuery = $null
-    $selection = $activeRtb.Selection
-    if ($selection -and -not $selection.IsEmpty) {
-        $selectedRange = New-Object System.Windows.Documents.TextRange($selection.Start, $selection.End)
-        $rawQuery = $selectedRange.Text
-    }
+    $rawQuery = Get-SqlEditorSelectedText -Editor $activeEditor
     if ([string]::IsNullOrWhiteSpace($rawQuery)) {
-        $textRange = New-Object System.Windows.Documents.TextRange(
-            $activeRtb.Document.ContentStart,
-            $activeRtb.Document.ContentEnd
-        )
-        $rawQuery = $textRange.Text
+        $rawQuery = Get-SqlEditorText -Editor $activeEditor
     }
     if ([string]::IsNullOrWhiteSpace($rawQuery)) { throw "La consulta está vacía." }
 
@@ -879,7 +860,7 @@ function Get-DbUiContext {
         cmbQueries             = $global:cmbQueries
         tcQueries              = $global:tcQueries
         tcResults              = $global:tcResults
-        rtbQueryEditor1        = $global:rtbQueryEditor1
+        sqlEditor1            = $global:sqlEditor1
         dgResults              = $global:dgResults
         txtMessages            = $global:txtMessages
         lblRowCount            = $global:lblRowCount
@@ -973,25 +954,18 @@ function New-QueryTab {
     [void]$headerPanel.Children.Add($headerText)
     [void]$headerPanel.Children.Add($closeButton)
     $tabItem.Header = $headerPanel
-    $grid = New-Object System.Windows.Controls.Grid
-    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition))
-    $rtb = New-Object System.Windows.Controls.RichTextBox
-    $rtb.Margin = "0"
-    $rtb.VerticalScrollBarVisibility = "Auto"
-    $rtb.AcceptsReturn = $true
-    $rtb.AcceptsTab = $true
-    [void]$grid.Children.Add($rtb)
-    $tabItem.Content = $grid
-    $tabItem.Tag = [pscustomobject]@{ Type = "QueryTab"; RichTextBox = $rtb; Title = $tabTitle; HeaderTextBlock = $headerText; IsDirty = $false }
-    $rtb.Add_TextChanged({
-            if ($global:isHighlightingQuery) { return }
-            $global:isHighlightingQuery = $true
-            try {
-                if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { return }
-                Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $global:DzSqlKeywords
-                $tabItem.Tag.IsDirty = $true
-                Update-QueryTabHeader -TabItem $tabItem
-            } finally { $global:isHighlightingQuery = $false }
+    $border = New-Object System.Windows.Controls.Border
+    $border.BorderThickness = "1"
+    $border.CornerRadius = "4"
+    $border.Margin = "5"
+    $border.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "BorderBrushColor")
+    $border.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "ControlBg")
+    $editor = New-SqlEditor -Container $border -FontFamily "Consolas" -FontSize 12
+    $tabItem.Content = $border
+    $tabItem.Tag = [pscustomobject]@{ Type = "QueryTab"; Editor = $editor; Title = $tabTitle; HeaderTextBlock = $headerText; IsDirty = $false }
+    $editor.Add_TextChanged({
+            $tabItem.Tag.IsDirty = $true
+            Update-QueryTabHeader -TabItem $tabItem
         }.GetNewClosure())
     $tcRef = $TabControl
     $closeButton.Add_Click({ Close-QueryTab -TabControl $tcRef -TabItem $tabItem }.GetNewClosure())
@@ -1028,7 +1002,7 @@ function Get-ActiveQueryTab {
 function Get-ActiveQueryRichTextBox {
     param([Parameter(Mandatory = $true)]$TabControl)
     $tab = Get-ActiveQueryTab -TabControl $TabControl
-    if ($tab -and $tab.Tag -and $tab.Tag.RichTextBox) { return $tab.Tag.RichTextBox }
+    if ($tab -and $tab.Tag -and $tab.Tag.Editor) { return $tab.Tag.Editor }
     $null
 }
 function Set-QueryTextInActiveTab {
@@ -1036,32 +1010,25 @@ function Set-QueryTextInActiveTab {
         [Parameter(Mandatory = $true)]$TabControl,
         [Parameter(Mandatory = $true)][string]$Text
     )
-    $rtb = Get-ActiveQueryRichTextBox -TabControl $TabControl
-    if (-not $rtb) { return }
-    $rtb.Document.Blocks.Clear()
-    $paragraph = New-Object System.Windows.Documents.Paragraph
-    $run = New-Object System.Windows.Documents.Run($Text)
-    $paragraph.Inlines.Add($run)
-    $rtb.Document.Blocks.Add($paragraph)
+    $editor = Get-ActiveQueryRichTextBox -TabControl $TabControl
+    if (-not $editor) { return }
+    Set-SqlEditorText -Editor $editor -Text $Text
 }
 function Insert-TextIntoActiveQuery {
     param(
         [Parameter(Mandatory = $true)]$TabControl,
         [Parameter(Mandatory = $true)][string]$Text
     )
-    $rtb = Get-ActiveQueryRichTextBox -TabControl $TabControl
-    if (-not $rtb) { return }
-    $caret = $rtb.CaretPosition
-    if ($caret) {
-        try { $caret.InsertTextInRun($Text) } catch { $rtb.CaretPosition = $rtb.Document.ContentEnd; $rtb.CaretPosition.InsertTextInRun($Text) }
-    }
-    $rtb.Focus()
+    $editor = Get-ActiveQueryRichTextBox -TabControl $TabControl
+    if (-not $editor) { return }
+    Insert-SqlEditorText -Editor $editor -Text $Text
+    $editor.Focus()
 }
 function Clear-ActiveQueryTab {
     param([Parameter(Mandatory = $true)]$TabControl)
-    $rtb = Get-ActiveQueryRichTextBox -TabControl $TabControl
-    if ($rtb) {
-        $rtb.Document.Blocks.Clear()
+    $editor = Get-ActiveQueryRichTextBox -TabControl $TabControl
+    if ($editor) {
+        Clear-SqlEditorText -Editor $editor
         $tab = Get-ActiveQueryTab -TabControl $TabControl
         if ($tab -and $tab.Tag) {
             $tab.Tag.IsDirty = $false
@@ -1119,10 +1086,10 @@ function Execute-QueryInTab {
         [Parameter(Mandatory = $true)][string]$Database,
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
     )
-    $rtb = Get-ActiveQueryRichTextBox -TabControl $TabControl
-    if (-not $rtb) { throw "No hay una pestaña de consulta activa." }
-    $rawQuery = New-Object System.Windows.Documents.TextRange($rtb.Document.ContentStart, $rtb.Document.ContentEnd)
-    $cleanQuery = Remove-SqlComments -Query $rawQuery.Text
+    $editor = Get-ActiveQueryRichTextBox -TabControl $TabControl
+    if (-not $editor) { throw "No hay una pestaña de consulta activa." }
+    $rawQuery = Get-SqlEditorText -Editor $editor
+    $cleanQuery = Remove-SqlComments -Query $rawQuery
     if ([string]::IsNullOrWhiteSpace($cleanQuery)) { throw "La consulta está vacía." }
     Write-DzDebug "`t[DEBUG][Execute-QueryInTab] Ejecutando consulta en '$Database'"
     $result = Invoke-SqlQueryMultiResultSet -Server $Server -Database $Database -Query $cleanQuery -Credential $Credential

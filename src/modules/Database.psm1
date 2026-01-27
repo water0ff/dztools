@@ -1251,17 +1251,11 @@ function Initialize-PredefinedQueries {
                 if (-not $selectedQuery -or $selectedQuery -eq "Selecciona una consulta predefinida") { return }
                 $ctx = $sender.Tag
                 if (-not $ctx -or -not $ctx.Queries.ContainsKey($selectedQuery)) { return }
-                $rtb = Get-ActiveQueryRichTextBox -TabControl $ctx.TabControl
-                if (-not $rtb) { return }
+                $editor = Get-ActiveQueryRichTextBox -TabControl $ctx.TabControl
+                if (-not $editor) { return }
                 $queryText = $ctx.Queries[$selectedQuery]
-                $rtb.Document.Blocks.Clear()
-                $p = New-Object System.Windows.Documents.Paragraph
-                [void]$p.Inlines.Add((New-Object System.Windows.Documents.Run($queryText)))
-                [void]$rtb.Document.Blocks.Add($p)
-                if (-not [string]::IsNullOrWhiteSpace($ctx.SqlKeywords)) {
-                    Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $ctx.SqlKeywords
-                }
-                $rtb.Focus()
+                Set-SqlEditorText -Editor $editor -Text $queryText
+                $editor.Focus()
             } catch {
                 Write-DzDebug "`t[DEBUG] Error en SelectionChanged (queries): $($_.Exception.Message)" -Color Red
             }
@@ -1545,7 +1539,7 @@ function Disconnect-DbCore {
     if ($Ctx.cmbQueries) { $Ctx.cmbQueries.IsEnabled = $false }
     if ($Ctx.tcQueries) { $Ctx.tcQueries.IsEnabled = $false }
     if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $false }
-    if ($Ctx.rtbQueryEditor1) { $Ctx.rtbQueryEditor1.IsEnabled = $false }
+    if ($Ctx.sqlEditor1) { $Ctx.sqlEditor1.IsEnabled = $false }
     if ($Ctx.dgResults) { $Ctx.dgResults.IsEnabled = $false }
     if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $false }
 
@@ -1632,11 +1626,11 @@ function Connect-DbCore {
     if ($Ctx.btnExport) { $Ctx.btnExport.IsEnabled = $true }
     if ($Ctx.tcQueries) { $Ctx.tcQueries.IsEnabled = $true }
     if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $true }
-    if ($Ctx.rtbQueryEditor1) { $Ctx.rtbQueryEditor1.IsEnabled = $true }
+    if ($Ctx.sqlEditor1) { $Ctx.sqlEditor1.IsEnabled = $true }
     if ($Ctx.dgResults) { $Ctx.dgResults.IsEnabled = $true }
     if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $true }
 
-    if ($Ctx.rtbQueryEditor1) { try { $Ctx.rtbQueryEditor1.Focus() | Out-Null } catch {} }
+    if ($Ctx.sqlEditor1) { try { $Ctx.sqlEditor1.Focus() | Out-Null } catch {} }
     if ($Ctx.tvDatabases) {
         Write-DzDebug "`t[DEBUG] Inicializando TreeView..."
 

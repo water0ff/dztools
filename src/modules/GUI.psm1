@@ -1061,7 +1061,7 @@ function Get-MainWindowXaml {
                             <TabControl Name="tcQueries" Grid.Row="0" Background="{DynamicResource ControlBg}">
                                 <TabItem Header="Consulta 1">
                                     <Border BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Margin="5" CornerRadius="4">
-                                        <RichTextBox Name="rtbQueryEditor1" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" AcceptsTab="True" FontFamily="Consolas" FontSize="12"/>
+                                        <Border Name="editorContainer1"/>
                                     </Border>
                                 </TabItem>
                                 <TabItem Header="+" Name="tabAddQuery" IsEnabled="True"/>

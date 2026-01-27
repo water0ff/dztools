@@ -51,7 +51,7 @@ function Write-Log {
 }
 Write-Host "`nImportando módulos..." -ForegroundColor Yellow
 $modulesPath = Join-Path $PSScriptRoot "modules"
-$modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1", "QueriesPad.psm1")
+$modules = @("GUI.psm1", "SqlEditor.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1", "QueriesPad.psm1")
 foreach ($module in $modules) {
     $modulePath = Join-Path $modulesPath $module
     if (Test-Path $modulePath) {
@@ -209,19 +209,12 @@ function New-MainForm {
                 $selectedQuery = $cmbQueries.SelectedItem
                 if (-not $selectedQuery -or $selectedQuery -eq "Selecciona una consulta predefinida") { return }
                 if (-not $script:predefinedQueries.ContainsKey($selectedQuery)) { return }
-                $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
-                Write-DzDebug "`t[DEBUG]Insertando consulta predefinida '$selectedQuery' en la pestaña consulta: $($rtb.Name)"
-                if (-not $rtb) { return }
+                $editor = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
+                Write-DzDebug "`t[DEBUG]Insertando consulta predefinida '$selectedQuery' en la pestaña consulta"
+                if (-not $editor) { return }
                 $queryText = $script:predefinedQueries[$selectedQuery]
-                $rtb.Document.Blocks.Clear()
-                $paragraph = New-Object System.Windows.Documents.Paragraph
-                $run = New-Object System.Windows.Documents.Run($queryText)
-                $paragraph.Inlines.Add($run)
-                $rtb.Document.Blocks.Add($paragraph)
-                if ($script:sqlKeywords) {
-                    Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $script:sqlKeywords
-                }
-                $rtb.Focus() | Out-Null
+                Set-SqlEditorText -Editor $editor -Text $queryText
+                $editor.Focus() | Out-Null
             })
     }
     if ($tabAddQuery) {
@@ -239,12 +232,9 @@ function New-MainForm {
                     $_ -is [System.Windows.Controls.TabItem] -and
                     $_.Tag -and
                     $_.Tag.Type -eq 'QueryTab' -and
-                    $_.Tag.RichTextBox -and
+                    $_.Tag.Editor -and
                     [string]::IsNullOrWhiteSpace(
-                        (New-Object System.Windows.Documents.TextRange(
-                            $_.Tag.RichTextBox.Document.ContentStart,
-                            $_.Tag.RichTextBox.Document.ContentEnd
-                        )).Text
+                        (Get-SqlEditorText -Editor $_.Tag.Editor)
                     )
                 })
             if ($restoredCount -gt 0 -and $emptyTabs.Count -gt 0) {
@@ -328,7 +318,8 @@ function New-MainForm {
     $global:tcResults = $tcResults
     $global:tvDatabases = $tvDatabases
     $global:tabAddQuery = $tabAddQuery
-    $global:rtbQueryEditor1 = $window.FindName("rtbQueryEditor1")
+    $global:editorContainer1 = $window.FindName("editorContainer1")
+    $global:sqlEditor1 = if ($global:editorContainer1) { New-SqlEditor -Container $global:editorContainer1 -FontFamily "Consolas" -FontSize 12 } else { $null }
     $global:dgResults = $window.FindName("dgResults")
     $global:txtMessages = $window.FindName("txtMessages")
     $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")
@@ -364,7 +355,7 @@ function New-MainForm {
             Write-Host "✗ Error aplicando estilo al TreeView: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
-    if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:rtbQueryEditor1) {
+    if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:sqlEditor1) {
         $firstTab = $global:tcQueries.Items[0]
         if ($firstTab -is [System.Windows.Controls.TabItem]) {
 
@@ -385,31 +376,22 @@ function New-MainForm {
 
             $firstTab.Tag = [pscustomobject]@{
                 Type            = "QueryTab"
-                RichTextBox     = $global:rtbQueryEditor1
+                Editor          = $global:sqlEditor1
                 Title           = $title
                 HeaderTextBlock = $headerTb   # 👈 importante para Update-QueryTabHeader
                 IsDirty         = $false
             }
 
             # 2) Conecta el TextChanged (como New-QueryTab)
-            $rtb1 = $global:rtbQueryEditor1
+            $editor1 = $global:sqlEditor1
 
             # evita doble-suscripción si New-MainForm se llama más de una vez
-            if (-not $rtb1.Tag -or $rtb1.Tag -ne "DzTools_TextChangedHooked") {
-                $rtb1.Tag = "DzTools_TextChangedHooked"
+            if (-not $editor1.Tag -or $editor1.Tag -ne "DzTools_TextChangedHooked") {
+                $editor1.Tag = "DzTools_TextChangedHooked"
 
-                $rtb1.Add_TextChanged({
-                        if ($global:isHighlightingQuery) { return }
-                        $global:isHighlightingQuery = $true
-                        try {
-                            if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { return }
-                            Set-WpfSqlHighlighting -RichTextBox $rtb1 -Keywords $global:DzSqlKeywords
-
-                            $firstTab.Tag.IsDirty = $true
-                            Update-QueryTabHeader -TabItem $firstTab
-                        } finally {
-                            $global:isHighlightingQuery = $false
-                        }
+                $editor1.Add_TextChanged({
+                        $firstTab.Tag.IsDirty = $true
+                        Update-QueryTabHeader -TabItem $firstTab
                     }.GetNewClosure())
             }
 
@@ -762,11 +744,11 @@ Base de datos: $($global:database)
     $btnClearQuery.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
-                $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
-                if (-not $rtb) {
+                $editor = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
+                if (-not $editor) {
                     throw "No hay una pestaña de consulta activa."
                 }
-                $rtb.Document.Blocks.Clear()
+                Clear-SqlEditorText -Editor $editor
                 if ($global:dgResults) { $global:dgResults.ItemsSource = $null }
                 if ($global:txtMessages) { $global:txtMessages.Text = "" }
                 if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }

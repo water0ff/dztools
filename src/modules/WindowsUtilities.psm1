@@ -224,17 +224,10 @@ function Show-NSPrinters {
     <Grid Background="{DynamicResource FormBg}" Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
-            <Button Name="btnCopyName" Content="Copiar Nombre" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-            <Button Name="btnCopyPort" Content="Copiar Puerto" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-            <Button Name="btnCopyDriver" Content="Copiar Driver" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-            <Button Name="btnCopyShared" Content="Copiar Compartida" Width="150" Height="30" Style="{StaticResource GeneralButtonStyle}"/>
-        </StackPanel>
-        <TextBlock Grid.Row="1" Text="Más detalles en consola." Margin="2,0,0,6" Foreground="{DynamicResource AccentMuted}"/>
-        <DataGrid Grid.Row="2" Name="dgPrinters" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+        <TextBlock Grid.Row="0" Text="Más detalles en consola." Margin="2,0,0,6" Foreground="{DynamicResource AccentMuted}"/>
+        <DataGrid Grid.Row="1" Name="dgPrinters" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Nombre" Binding="{Binding Name}" Width="220"/>
                 <DataGridTextColumn Header="Puerto" Binding="{Binding PortName}" Width="160"/>
@@ -252,15 +245,35 @@ function Show-NSPrinters {
         Set-DzWpfThemeResources -Window $w -Theme $theme
         try { Set-WpfDialogOwner -Dialog $w } catch {}
         $c['dgPrinters'].ItemsSource = $uiItems
-        $copyColumn = {
-            param($name)
-            $values = $uiItems | ForEach-Object { [string]$_.($name) }
-            Set-ClipboardTextSafe -Text ($values -join "`r`n") -Owner $w | Out-Null
-        }.GetNewClosure()
-        $c['btnCopyName'].Add_Click({ & $copyColumn 'Name' })
-        $c['btnCopyPort'].Add_Click({ & $copyColumn 'PortName' })
-        $c['btnCopyDriver'].Add_Click({ & $copyColumn 'DriverName' })
-        $c['btnCopyShared'].Add_Click({ & $copyColumn 'IsShared' })
+        $grid = $c['dgPrinters']
+        if ($grid) {
+            $menu = New-Object System.Windows.Controls.ContextMenu
+            $menuItem = New-Object System.Windows.Controls.MenuItem
+            $menuItem.Header = "Copiar"
+            $menuItem.Add_Click({
+                    try {
+                        $cell = $grid.SelectedCells | Select-Object -First 1
+                        if (-not $cell) { return }
+                        $column = $cell.Column
+                        $path = $null
+                        if ($column -is [System.Windows.Controls.DataGridBoundColumn]) {
+                            try { $path = $column.Binding.Path.Path } catch { $path = $null }
+                        }
+                        $item = $cell.Item
+                        $value = ""
+                        if ($path) {
+                            try { $value = [string]$item.$path } catch { $value = "" }
+                        } else {
+                            $value = [string]$item
+                        }
+                        Set-ClipboardTextSafe -Text $value -Owner $w | Out-Null
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][Show-NSPrinters] Error copiando celda: $($_.Exception.Message)"
+                    }
+                }.GetNewClosure())
+            [void]$menu.Items.Add($menuItem)
+            $grid.ContextMenu = $menu
+        }
         $w.Show() | Out-Null
     } catch {
         Write-DzDebug "`t[DEBUG][Show-NSPrinters] ERROR creando ventana: $($_.Exception.Message)" Red
@@ -368,7 +381,7 @@ function Show-InstallPrinterDialog {
                 $args = "printui.dll,PrintUIEntry /ia /m `"$DriverName`" /f `"$inf`" /h `"$arch`" /v `"Type 3 - User Mode`""
 
                 Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] Instalando driver via rundll32: $DriverName ($arch)"
-                $p = Start-Process -FilePath "rundll32.exe" -ArgumentList $args -Wait -NoNewWindow -PassThru -WindowStyle Hidden
+                $p = Start-Process -FilePath "rundll32.exe" -ArgumentList $args -Wait -PassThru -WindowStyle Hidden
 
                 # 3) Re-verificar
                 if (Get-PrinterDriver -Name $DriverName -ErrorAction SilentlyContinue) {

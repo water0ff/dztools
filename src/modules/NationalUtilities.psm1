@@ -1103,7 +1103,6 @@ function Show-NSApplicationsIniReport {
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
-        <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
       <Border Grid.Row="0"
@@ -1139,14 +1138,7 @@ function Show-NSApplicationsIniReport {
                   Cursor="Hand"/>
         </Grid>
       </Border>
-      <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
-        <Button Name="btnCopyApp" Content="Copiar Aplicación" Width="140" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-        <Button Name="btnCopyIni" Content="Copiar INI" Width="110" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-        <Button Name="btnCopyDataSource" Content="Copiar DataSource" Width="150" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-        <Button Name="btnCopyCatalog" Content="Copiar Catalog" Width="130" Height="30" Margin="0,0,8,0" Style="{StaticResource GeneralButtonStyle}"/>
-        <Button Name="btnCopyUsuario" Content="Copiar Usuario" Width="130" Height="30" Style="{StaticResource GeneralButtonStyle}"/>
-      </StackPanel>
-      <DataGrid Grid.Row="2"
+      <DataGrid Grid.Row="1"
                 Name="dgApps"
                 AutoGenerateColumns="False"
                 IsReadOnly="True"
@@ -1221,16 +1213,35 @@ function Show-NSApplicationsIniReport {
                 $col.Width = New-Object System.Windows.Controls.DataGridLength($target)
             }
         } catch {}
-        $copyColumn = {
-            param($name)
-            $values = $found | ForEach-Object { [string]$_.($name) }
-            Set-ClipboardTextSafe -Text ($values -join "`r`n") -Owner $w | Out-Null
-        }.GetNewClosure()
-        $c['btnCopyApp'].Add_Click({ & $copyColumn 'Aplicacion' })
-        $c['btnCopyIni'].Add_Click({ & $copyColumn 'INI' })
-        $c['btnCopyDataSource'].Add_Click({ & $copyColumn 'DataSource' })
-        $c['btnCopyCatalog'].Add_Click({ & $copyColumn 'Catalog' })
-        $c['btnCopyUsuario'].Add_Click({ & $copyColumn 'Usuario' })
+        $grid = $c['dgApps']
+        if ($grid) {
+            $menu = New-Object System.Windows.Controls.ContextMenu
+            $menuItem = New-Object System.Windows.Controls.MenuItem
+            $menuItem.Header = "Copiar"
+            $menuItem.Add_Click({
+                    try {
+                        $cell = $grid.SelectedCells | Select-Object -First 1
+                        if (-not $cell) { return }
+                        $column = $cell.Column
+                        $path = $null
+                        if ($column -is [System.Windows.Controls.DataGridBoundColumn]) {
+                            try { $path = $column.Binding.Path.Path } catch { $path = $null }
+                        }
+                        $item = $cell.Item
+                        $value = ""
+                        if ($path) {
+                            try { $value = [string]$item.$path } catch { $value = "" }
+                        } else {
+                            $value = [string]$item
+                        }
+                        Set-ClipboardTextSafe -Text $value -Owner $w | Out-Null
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][Show-NSApplicationsIniReport] Error copiando celda: $($_.Exception.Message)"
+                    }
+                }.GetNewClosure())
+            [void]$menu.Items.Add($menuItem)
+            $grid.ContextMenu = $menu
+        }
         $w.Show() | Out-Null
     } catch {
         Write-DzDebug "`t[DEBUG][Show-NSApplicationsIniReport] ERROR creando ventana: $($_.Exception.Message)" Red

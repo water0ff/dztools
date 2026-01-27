@@ -1,96 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<SyntaxDefinition name="SQL" extensions=".sql">
-  <Color name="Comment" foreground="#57A64A" />
-  <Color name="String" foreground="#D69D85" />
-  <Color name="Keyword" foreground="#569CD6" fontWeight="bold" />
-  <RuleSet>
+<SyntaxDefinition name="SQL" extensions=".sql"
+  xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+
+  <Color name="Comment" foreground="Green" />
+  <Color name="String" foreground="Maroon" />
+  <Color name="Keyword" foreground="Blue" fontWeight="bold" />
+
+  <RuleSet name="Main">
+
+    <!-- Comentarios -->
     <Span color="Comment" begin="--" end="\n" />
-    <Span color="Comment" begin="/\*" end="\*/" multiline="true" />
+    <Span color="Comment" begin="/*" end="*/" multiline="true" />
+
+    <!-- Strings -->
     <Span color="String" begin="'" end="'" />
+
     <Keywords color="Keyword" ignoreCase="true">
-      <Word>ADD</Word>
-      <Word>ALL</Word>
-      <Word>ALTER</Word>
-      <Word>AND</Word>
-      <Word>ANY</Word>
-      <Word>AS</Word>
-      <Word>ASC</Word>
-      <Word>AUTHORIZATION</Word>
-      <Word>BACKUP</Word>
-      <Word>BEGIN</Word>
-      <Word>BETWEEN</Word>
-      <Word>BIGINT</Word>
-      <Word>BINARY</Word>
-      <Word>BIT</Word>
-      <Word>BY</Word>
-      <Word>CASE</Word>
-      <Word>CHECK</Word>
-      <Word>COLUMN</Word>
-      <Word>COMMIT</Word>
-      <Word>CONSTRAINT</Word>
-      <Word>CREATE</Word>
-      <Word>CROSS</Word>
-      <Word>CURRENT_DATE</Word>
-      <Word>CURRENT_TIME</Word>
-      <Word>CURRENT_TIMESTAMP</Word>
-      <Word>DATABASE</Word>
-      <Word>DEFAULT</Word>
+      <Word>SELECT</Word>
+      <Word>FROM</Word>
+      <Word>WHERE</Word>
+      <Word>INSERT</Word>
+      <Word>UPDATE</Word>
       <Word>DELETE</Word>
-      <Word>DESC</Word>
-      <Word>DISTINCT</Word>
+      <Word>CREATE</Word>
+      <Word>ALTER</Word>
       <Word>DROP</Word>
-      <Word>ELSE</Word>
+      <Word>JOIN</Word>
+      <Word>LEFT</Word>
+      <Word>RIGHT</Word>
+      <Word>INNER</Word>
+      <Word>GROUP</Word>
+      <Word>ORDER</Word>
+      <Word>BY</Word>
+      <Word>TOP</Word>
+      <Word>AND</Word>
+      <Word>OR</Word>
+      <Word>NOT</Word>
+      <Word>NULL</Word>
+      <Word>IN</Word>
+      <Word>LIKE</Word>
+      <Word>BEGIN</Word>
       <Word>END</Word>
       <Word>EXEC</Word>
       <Word>EXECUTE</Word>
-      <Word>EXISTS</Word>
-      <Word>FOREIGN</Word>
-      <Word>FROM</Word>
-      <Word>FULL</Word>
-      <Word>FUNCTION</Word>
-      <Word>GROUP</Word>
-      <Word>HAVING</Word>
-      <Word>IN</Word>
-      <Word>INDEX</Word>
-      <Word>INNER</Word>
-      <Word>INSERT</Word>
-      <Word>INT</Word>
-      <Word>INTO</Word>
-      <Word>IS</Word>
-      <Word>JOIN</Word>
-      <Word>KEY</Word>
-      <Word>LEFT</Word>
-      <Word>LIKE</Word>
-      <Word>LIMIT</Word>
-      <Word>NOT</Word>
-      <Word>NULL</Word>
-      <Word>ON</Word>
-      <Word>OR</Word>
-      <Word>ORDER</Word>
-      <Word>OUTER</Word>
-      <Word>PRIMARY</Word>
-      <Word>PROCEDURE</Word>
-      <Word>REFERENCES</Word>
-      <Word>RETURN</Word>
-      <Word>RIGHT</Word>
-      <Word>ROLLBACK</Word>
-      <Word>ROWNUM</Word>
-      <Word>SELECT</Word>
-      <Word>SET</Word>
-      <Word>SMALLINT</Word>
-      <Word>TABLE</Word>
-      <Word>TOP</Word>
-      <Word>TRAN</Word>
-      <Word>TRANSACTION</Word>
-      <Word>TRUNCATE</Word>
-      <Word>UNION</Word>
-      <Word>UNIQUE</Word>
-      <Word>UPDATE</Word>
-      <Word>VALUES</Word>
-      <Word>VIEW</Word>
-      <Word>WHERE</Word>
-      <Word>WITH</Word>
+      <Word>BACKUP</Word>
       <Word>RESTORE</Word>
+      <Word>TRANSACTION</Word>
+      <Word>COMMIT</Word>
+      <Word>ROLLBACK</Word>
     </Keywords>
+
   </RuleSet>
 </SyntaxDefinition>

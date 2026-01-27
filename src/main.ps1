@@ -319,7 +319,29 @@ function New-MainForm {
     $global:tvDatabases = $tvDatabases
     $global:tabAddQuery = $tabAddQuery
     $global:editorContainer1 = $window.FindName("editorContainer1")
-    $global:sqlEditor1 = if ($global:editorContainer1) { New-SqlEditor -Container $global:editorContainer1 -FontFamily "Consolas" -FontSize 12 } else { $null }
+    $global:sqlEditor1 = $null
+    if ($global:editorContainer1) {
+        try {
+            Write-Host "editorContainer1 type: $($global:editorContainer1.GetType().FullName)" -ForegroundColor Cyan
+
+            $global:sqlEditor1 = New-SqlEditor -Container $global:editorContainer1 -FontFamily "Consolas" -FontSize 12 -ErrorAction Stop
+
+            if ($global:sqlEditor1) {
+                Write-Host "✓ New-SqlEditor creó editor: $($global:sqlEditor1.GetType().FullName)" -ForegroundColor Green
+            } else {
+                Write-Host "⚠ New-SqlEditor devolvió null" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "`n✗ ERROR en New-SqlEditor:" -ForegroundColor Red
+            Write-Host "Mensaje: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "Tipo   : $($_.Exception.GetType().FullName)" -ForegroundColor Yellow
+            Write-Host "ScriptStackTrace:" -ForegroundColor Magenta
+            Write-Host $_.ScriptStackTrace -ForegroundColor Magenta
+            throw
+        }
+    } else {
+        Write-Host "⚠ editorContainer1 es NULL (no encontrado)" -ForegroundColor Yellow
+    }
     $global:dgResults = $window.FindName("dgResults")
     $global:txtMessages = $window.FindName("txtMessages")
     $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")

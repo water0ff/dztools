@@ -51,7 +51,7 @@ Describe "Pruebas iniciales" {
     }
 
     It "Deben existir los módulos" {
-        $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1", "QueriesPad.psm1")
+        $modules = @("GUI.psm1", "SqlEditor.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1", "QueriesPad.psm1")
         foreach ($module in $modules) {
             Test-Path ".\src\modules\$module" | Should -Be $true
         }
@@ -111,6 +111,14 @@ if ($Release) {
     }
     New-Item -ItemType Directory -Path $ReleasePath -Force | Out-Null
     Write-Host "Copiando archivos..." -ForegroundColor Yellow
+    $mustHave = @(
+        (Join-Path $SrcPath "lib\AvalonEdit.dll"),
+        (Join-Path $SrcPath "resources\SQL.xshd")
+    )
+
+    foreach ($f in $mustHave) {
+        if (-not (Test-Path $f)) { throw "Falta archivo requerido: $f" }
+    }
     Copy-Item -Path "$SrcPath\*" -Destination $ReleasePath -Recurse -Force
     $mainFile = Join-Path $ReleasePath "main.ps1"
     if (Test-Path $mainFile) {
@@ -140,14 +148,23 @@ if %errorlevel% neq 0 (
     Write-Host "✓ Release creado en: $ReleasePath" -ForegroundColor Green
     $zipPath = Join-Path $ProjectRoot "dztools-release.zip"
     Write-Host "Creando zip: $zipPath" -ForegroundColor Yellow
+
+    $tempZipRoot = Join-Path $env:TEMP ("dztools_zip_" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $tempZipRoot -Force | Out-Null
+
     try {
-        if (Test-Path $zipPath) {
-            Remove-Item $zipPath -Force
-        }
-        Compress-Archive -Path (Join-Path $ReleasePath '*') -DestinationPath $zipPath -Force
+        # Copiamos el release a temporal para evitar locks
+        Copy-Item -Path (Join-Path $ReleasePath '*') -Destination $tempZipRoot -Recurse -Force
+
+        if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+
+        Compress-Archive -Path (Join-Path $tempZipRoot '*') -DestinationPath $zipPath -Force
         Write-Host "✓ ZIP generado correctamente: $zipPath" -ForegroundColor Green
     } catch {
-        Write-Host "❌ Error creando el ZIP: $_" -ForegroundColor Red
+        Write-Host "❌ Error creando el ZIP: $($_.Exception.Message)" -ForegroundColor Red
+    } finally {
+        # Limpieza
+        Remove-Item $tempZipRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 Write-Host "`n✅ Proceso completado" -ForegroundColor Green

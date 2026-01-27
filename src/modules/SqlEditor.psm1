@@ -1,14 +1,17 @@
-$script:SqlEditorAssemblyLoaded = $false
+﻿$script:SqlEditorAssemblyLoaded = $false
 $script:SqlEditorHighlighting = $null
 function Get-SqlEditorPaths {
     $moduleRoot = Split-Path -Parent $PSScriptRoot
-    $assemblyPath = Join-Path $moduleRoot "lib" "AvalonEdit.dll"
-    $highlightingPath = Join-Path $moduleRoot "resources" "SQL.xshd"
+
+    $assemblyPath = Join-Path (Join-Path $moduleRoot "lib") "AvalonEdit.dll"
+    $highlightingPath = Join-Path (Join-Path $moduleRoot "resources") "SQL.xshd"
+
     return [pscustomobject]@{
         AssemblyPath     = $assemblyPath
         HighlightingPath = $highlightingPath
     }
 }
+
 function Import-AvalonEditAssembly {
     [CmdletBinding()]
     param(
@@ -26,19 +29,27 @@ function Get-SqlEditorHighlighting {
     param(
         [Parameter(Mandatory)][string]$HighlightingPath
     )
+
     if ($script:SqlEditorHighlighting) { return $script:SqlEditorHighlighting }
     if (-not (Test-Path -LiteralPath $HighlightingPath)) { return $null }
-    $reader = [System.Xml.XmlReader]::Create($HighlightingPath)
+
     try {
-        $script:SqlEditorHighlighting = [ICSharpCode.AvalonEdit.Highlighting.Xshd.HighlightingLoader]::Load(
-            $reader,
-            [ICSharpCode.AvalonEdit.Highlighting.HighlightingManager]::Instance
-        )
-    } finally {
-        $reader.Close()
+        $reader = [System.Xml.XmlReader]::Create($HighlightingPath)
+        try {
+            $script:SqlEditorHighlighting = [ICSharpCode.AvalonEdit.Highlighting.Xshd.HighlightingLoader]::Load(
+                $reader,
+                [ICSharpCode.AvalonEdit.Highlighting.HighlightingManager]::Instance
+            )
+        } finally {
+            $reader.Close()
+        }
+        return $script:SqlEditorHighlighting
+    } catch {
+        Write-Host "⚠ Highlighting inválido ($HighlightingPath). Se iniciará sin resaltado. Detalle: $($_.Exception.Message)" -ForegroundColor Yellow
+        return $null
     }
-    return $script:SqlEditorHighlighting
 }
+
 function New-SqlEditor {
     [CmdletBinding()]
     param(

@@ -1650,6 +1650,36 @@ function Get-DbStatusBadgeText {
     $info = Get-DbStatusInfo -StateDesc $StateDesc -UserAccessDesc $UserAccessDesc -IsReadOnly $IsReadOnly
     return $info.Badge
 }
+function Select-SqlTreeDatabase {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]$TreeView,
+        [Parameter(Mandatory = $true)][string]$DatabaseName,
+        [Parameter(Mandatory = $false)][switch]$SelectItem
+    )
+    if (-not $TreeView) { return }
+    if ([string]::IsNullOrWhiteSpace($DatabaseName)) { return }
+    $target = $DatabaseName.Trim()
+    $foundNode = $null
+    foreach ($serverNode in $TreeView.Items) {
+        if (-not ($serverNode -is [System.Windows.Controls.TreeViewItem])) { continue }
+        foreach ($dbNode in $serverNode.Items) {
+            if (-not ($dbNode -is [System.Windows.Controls.TreeViewItem])) { continue }
+            if (-not $dbNode.Tag -or $dbNode.Tag.Type -ne "Database") { continue }
+            $dbName = [string]$dbNode.Tag.Database
+            if ($dbName -eq $target) {
+                $dbNode.FontWeight = "Bold"
+                $foundNode = $dbNode
+            } else {
+                $dbNode.FontWeight = "Normal"
+            }
+        }
+    }
+    if ($foundNode -and $SelectItem) {
+        $foundNode.IsSelected = $true
+        try { $foundNode.BringIntoView() | Out-Null } catch {}
+    }
+}
 Export-ModuleMember -Function @(
     "bdd_RenameFromTree",
     "Initialize-SqlTreeView",

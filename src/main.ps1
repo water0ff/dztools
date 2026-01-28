@@ -341,7 +341,7 @@ function New-MainForm {
             $style.Triggers.Add($triggerSelected)
             $style.Triggers.Add($triggerFocused)
             $tvDatabases.ItemContainerStyle = $style
-            Write-Host "`t✓ Estilo de TreeView aplicado correctamente" -ForegroundColor Green
+            Write-Host "  ✓ Estilo de TreeView aplicado correctamente" -ForegroundColor Green
         } catch {
             Write-Host "✗ Error aplicando estilo al TreeView: $($_.Exception.Message)" -ForegroundColor Red
         }
@@ -848,7 +848,7 @@ Base de datos: $($global:database)
             Write-Host "  ¡Hasta pronto!" -ForegroundColor Green
             Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`n" -ForegroundColor Cyan
         })
-    Write-Host "`t✓ Formulario WPF creado exitosamente" -ForegroundColor Green
+    Write-Host "  ✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     return $window
 }
 function Start-Application {

@@ -969,6 +969,7 @@ function New-SqlEditor {
     $paths = Get-SqlEditorPaths
     Import-AvalonEditAssembly -AssemblyPath $paths.AssemblyPath
     $editor = New-Object ICSharpCode.AvalonEdit.TextEditor
+    # Configuración básica
     $editor.ShowLineNumbers = $true
     $editor.FontFamily = $FontFamily
     $editor.FontSize = $FontSize
@@ -976,9 +977,116 @@ function New-SqlEditor {
     $editor.VerticalScrollBarVisibility = [System.Windows.Controls.ScrollBarVisibility]::Auto
     $editor.Options.ConvertTabsToSpaces = $false
     $editor.SyntaxHighlighting = Get-SqlEditorHighlighting -HighlightingPath $paths.HighlightingPath
+    # ===== FONDO GRIS UNIVERSAL =====
+    $grayBackground = "#F5F5F5"  # Gris oscuro (estilo VS Code)#2D2D30
+    $editor.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($grayBackground)
+    $editor.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#000000")  # Texto claro
+    # Color de selección
+    $editor.TextArea.SelectionBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#264F78")
+    $editor.TextArea.SelectionForeground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FFFFFF")
+    $editor.Options.IndentationSize = 4
+    $editor.Options.ConvertTabsToSpaces = $true  # Espacios en lugar de tabs
+    $editor.Options.EnableRectangularSelection = $true  # Selección rectangular (Alt+Drag)
+    $editor.Options.EnableTextDragDrop = $true  # Arrastrar y soltar texto
+    $editor.Options.ShowSpaces = $false  # Cambia a $true para ver espacios
+    $editor.Options.ShowTabs = $true    # Cambia a $true para ver tabs
+    $editor.Options.ShowEndOfLine = $false  # Cambia a $true para ver saltos de línea
+    $editor.WordWrap = $true  # Cambia a $true si quieres que las líneas se ajusten
+    $editor.Options.ColumnRulerPosition = 80
+    $editor.Options.ShowColumnRuler = $false  # Cambia a $true para activar
+    # FALTA IMPLEMENTAR
+    # Esto requiere configuración adicional con BracketHighlightRenderer
+    #$renderer = New-Object BracketHighlightRenderer
+    #$editor.TextArea.TextView.BackgroundRenderers.Add($renderer)
+    $editor.Options.HighlightCurrentLine = $true
+    $editor.TextArea.TextView.CurrentLineBackground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#edecec")
+    $editor.TextArea.TextView.CurrentLineBorder = $null
+    $editor.Padding = [System.Windows.Thickness]::new(5, 2, 5, 2)
+    $editor.Options.EnableHyperlinks = $false
+    $editor.Options.EnableEmailHyperlinks = $false
+    $editor.TextArea.Caret.CaretBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#AEAFAD")
+    # FALTA IMPLEMENTAR
+    # Requiere FoldingManager - lo configuramos después
+    #$foldingManager = [ICSharpCode.AvalonEdit.Folding.FoldingManager]::Install($editor.TextArea)
+    #$foldingStrategy = New-Object ICSharpCode.AvalonEdit.Folding.XmlFoldingStrategy
+    #$foldingStrategy.UpdateFoldings($foldingManager, $editor.Document)
+
     if ($Container) {
         $Container.Child = $editor
     }
+    # FALTA IMPLEMENTAR EL AUTOCOMPLETE
+    #$completionWindow = $null
+    #$editor.TextArea.Add_TextEntering({
+    #        param($s, $e)
+    #        if ($completionWindow -and $e.Text -eq " ") {
+    #            $completionWindow.CompletionList.RequestInsertion($e)
+    #        }
+    #    })
+    try {
+        $searchPanel = [ICSharpCode.AvalonEdit.Search.SearchPanel]::Install($editor)
+        # Personalizar colores del panel
+        $searchPanel.MarkerBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FFD700")  # Amarillo
+        $searchPanel.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($grayBackground)
+        $searchPanel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#000000")
+        Write-DzDebug "`t[DEBUG] Panel de búsqueda instalado correctamente" -Color Green
+    } catch {
+        Write-DzDebug "`t[DEBUG] Error instalando panel de búsqueda: $_" -Color Yellow
+    }
+
+    $editor.Add_KeyDown({
+            param($sender, $e)
+
+            if ($e.Key -eq [System.Windows.Input.Key]::F -and [System.Windows.Input.Keyboard]::Modifiers -eq [System.Windows.Input.ModifierKeys]::Control) {
+                try {
+                    if ($searchPanel) {
+                        $searchPanel.IsReplaceMode = $false
+                        $searchPanel.Open()
+                        if (-not [string]::IsNullOrWhiteSpace($sender.SelectedText)) {
+                            $searchPanel.SearchPattern = $sender.SelectedText
+                        }
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG] Error abriendo panel de búsqueda: $_" -Color Red
+                }
+                $e.Handled = $true
+            }
+
+            if ($e.Key -eq [System.Windows.Input.Key]::H -and [System.Windows.Input.Keyboard]::Modifiers -eq [System.Windows.Input.ModifierKeys]::Control) {
+                try {
+                    if ($searchPanel) {
+                        $searchPanel.IsReplaceMode = $true
+                        $searchPanel.Open()
+                        if (-not [string]::IsNullOrWhiteSpace($sender.SelectedText)) {
+                            $searchPanel.SearchPattern = $sender.SelectedText
+                        }
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG] Error abriendo panel de reemplazo: $_" -Color Red
+                }
+                $e.Handled = $true
+            }
+
+            if ($e.Key -eq [System.Windows.Input.Key]::F3 -and [System.Windows.Input.Keyboard]::Modifiers -eq [System.Windows.Input.ModifierKeys]::Shift) {
+                try {
+                    if ($searchPanel) { $searchPanel.FindPrevious() }
+                } catch {}
+                $e.Handled = $true
+            } elseif ($e.Key -eq [System.Windows.Input.Key]::F3) {
+                try {
+                    if ($searchPanel) { $searchPanel.FindNext() }
+                } catch {}
+                $e.Handled = $true
+            }
+
+            if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                try {
+                    if ($searchPanel -and $searchPanel.IsClosed -eq $false) {
+                        $searchPanel.Close()
+                        $e.Handled = $true
+                    }
+                } catch {}
+            }
+        }.GetNewClosure())
     return $editor
 }
 function Set-SqlEditorText {

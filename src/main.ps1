@@ -346,20 +346,52 @@ function New-MainForm {
             Write-Host "✗ Error aplicando estilo al TreeView: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
-    if ($btnSsmsPanelToggle -and $panelSsmsContent) {
-        $setSsmsPanelState = {
-            param([bool]$isExpanded)
-            if ($isExpanded) {
-                $panelSsmsContent.Visibility = "Visible"
-                $btnSsmsPanelToggle.Content = "▼"
-            } else {
-                $panelSsmsContent.Visibility = "Collapsed"
-                $btnSsmsPanelToggle.Content = "▲"
-            }
-        }.GetNewClosure()
-        $btnSsmsPanelToggle.Add_Checked({ $setSsmsPanelState.Invoke($true) })
-        $btnSsmsPanelToggle.Add_Unchecked({ $setSsmsPanelState.Invoke($false) })
-        $setSsmsPanelState.Invoke([bool]$btnSsmsPanelToggle.IsChecked)
+    if ($btnSsmsPanelToggle) {
+        Write-DzDebug "`t[DEBUG] Configurando toggle del panel SSMS..."
+
+        # Obtener el panel correctamente
+        $panelContent = $window.FindName("panelSsmsContent")
+
+        if (-not $panelContent) {
+            Write-DzDebug "`t[DEBUG] ERROR: No se encontró panelSsmsContent" -Color Red
+            return
+        }
+
+        # Estado inicial: panel visible
+        $panelContent.Visibility = "Visible"
+        $btnSsmsPanelToggle.Content = "▼"
+        $btnSsmsPanelToggle.IsChecked = $true
+
+        # Evento principal: cada vez que cambia el estado
+        $btnSsmsPanelToggle.Add_Click({
+                try {
+                    $panel = $window.FindName("panelSsmsContent")
+
+                    if (-not $panel) {
+                        Write-DzDebug "`t[DEBUG] ERROR: Panel no encontrado en el evento" -Color Red
+                        return
+                    }
+
+                    $isExpanded = $btnSsmsPanelToggle.IsChecked -eq $true
+
+                    Write-DzDebug "`t[DEBUG] Toggle Click - IsChecked: $isExpanded"
+
+                    if ($isExpanded) {
+                        $panel.Visibility = "Visible"
+                        $btnSsmsPanelToggle.Content = "▼"
+                        Write-DzDebug "`t[DEBUG] Panel expandido" -Color Green
+                    } else {
+                        $panel.Visibility = "Collapsed"
+                        $btnSsmsPanelToggle.Content = "▲"
+                        Write-DzDebug "`t[DEBUG] Panel colapsado" -Color Yellow
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG] Error en toggle: $($_.Exception.Message)" -Color Red
+                    Write-Host "Error detallado: $($_ | Format-List * -Force | Out-String)" -ForegroundColor Red
+                }
+            }.GetNewClosure())
+
+        Write-DzDebug "`t[DEBUG] Toggle configurado exitosamente"
     }
     $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions

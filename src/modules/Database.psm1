@@ -1536,6 +1536,7 @@ function Disconnect-DbCore {
     if ($Ctx.btnExecute) { $Ctx.btnExecute.IsEnabled = $false }
     if ($Ctx.btnClearQuery) { $Ctx.btnClearQuery.IsEnabled = $false }
     if ($Ctx.btnExport) { $Ctx.btnExport.IsEnabled = $false }
+    if ($Ctx.btnHistorial) { $Ctx.btnHistorial.IsEnabled = $false }
     if ($Ctx.cmbQueries) { $Ctx.cmbQueries.IsEnabled = $false }
     if ($Ctx.tcQueries) { $Ctx.tcQueries.IsEnabled = $false }
     if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $false }
@@ -1624,6 +1625,7 @@ function Connect-DbCore {
     if ($Ctx.btnClearQuery) { $Ctx.btnClearQuery.IsEnabled = $true }
     if ($Ctx.cmbQueries) { $Ctx.cmbQueries.IsEnabled = $true }
     if ($Ctx.btnExport) { $Ctx.btnExport.IsEnabled = $true }
+    if ($Ctx.btnHistorial) { $Ctx.btnHistorial.IsEnabled = $true }
     if ($Ctx.tcQueries) { $Ctx.tcQueries.IsEnabled = $true }
     if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $true }
     if ($Ctx.sqlEditor1) { $Ctx.sqlEditor1.IsEnabled = $true }
@@ -1840,9 +1842,87 @@ function Get-DbNameFromComboSelection {
     if ([string]::IsNullOrWhiteSpace($db)) { return $null }
     return $db
 }
+function Get-DbUiContext {
+    [CmdletBinding()]
+    param()
 
+    @{
+        QueryRunning           = $script:QueryRunning
+        CurrentQueryPowerShell = $script:CurrentQueryPowerShell
+        CurrentQueryRunspace   = $script:CurrentQueryRunspace
+        CurrentQueryAsync      = $script:CurrentQueryAsync
+        execUiTimer            = $script:execUiTimer
+        QueryDoneTimer         = $script:QueryDoneTimer
+        execStopwatch          = $script:execStopwatch
+
+        Connection             = $global:connection
+        Server                 = $global:server
+        User                   = $global:user
+        Password               = $global:password
+        Database               = $global:database
+        DbCredential           = $global:dbCredential
+
+        tvDatabases            = $global:tvDatabases
+        cmbDatabases           = $global:cmbDatabases
+        lblConnectionStatus    = $global:lblConnectionStatus
+
+        txtServer              = $global:txtServer
+        txtUser                = $global:txtUser
+        txtPassword            = $global:txtPassword
+        btnConnectDb           = $global:btnConnectDb
+
+        btnDisconnectDb        = $global:btnDisconnectDb
+        btnExecute             = $global:btnExecute
+        btnClearQuery          = $global:btnClearQuery
+        btnExport              = $global:btnExport
+        btnHistorial           = $global:btnHistorial
+        cmbQueries             = $global:cmbQueries
+        tcQueries              = $global:tcQueries
+        tcResults              = $global:tcResults
+        sqlEditor1             = $global:sqlEditor1
+        dgResults              = $global:dgResults
+        txtMessages            = $global:txtMessages
+        lblRowCount            = $global:lblRowCount
+        lblExecutionTimer      = $global:lblExecutionTimer
+
+        MainWindow             = $global:MainWindow
+    }
+}
+function Disconnect-DbUiSafe {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $ctx = Get-DbUiContext
+        Disconnect-DbCore -Ctx $ctx
+        Save-DbUiContext -Ctx $ctx
+        Write-Host "✓ Desconectado exitosamente" -ForegroundColor Green
+    } catch {
+        Write-DzDebug "`t[DEBUG][Disconnect] ERROR: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Disconnect] Stack: $($_.ScriptStackTrace)"
+        Write-Host "Error al desconectar: $($_.Exception.Message)" -ForegroundColor Red
+        Ui-Error "Error al desconectar:`n`n$($_.Exception.Message)" $global:MainWindow
+    }
+}
+function Connect-DbUiSafe {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $ctx = Get-DbUiContext
+        Connect-DbCore -Ctx $ctx
+        Save-DbUiContext -Ctx $ctx
+        Write-Host "✓ Conectado exitosamente a: $($ctx.Server)" -ForegroundColor Green
+    } catch {
+        Write-DzDebug "`t[DEBUG][Connect] CATCH: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Connect] Tipo: $($_.Exception.GetType().FullName)"
+        Write-DzDebug "`t[DEBUG][Connect] Stack: $($_.ScriptStackTrace)"
+        Ui-Error "Error de conexión: $($_.Exception.Message)" $global:MainWindow
+        Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
 Export-ModuleMember -Function @(
-    'Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Get-SqlDatabasesInfo', 'Backup-Database',
+    'Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Get-SqlDatabasesInfo', 'Backup-Database', 'Connect-DbUiSafe', 'Disconnect-DbUiSafe', 'get-DbUiContext',
     'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable',
     'Show-MultipleResultSets', 'Export-ResultSetToCsv', 'Export-ResultSetToDelimitedText',
     'Get-TextPointerAtOffset',

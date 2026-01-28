@@ -189,6 +189,7 @@ function New-MainForm {
     $btnExecute = $window.FindName("btnExecute")
     $btnClearQuery = $window.FindName("btnClearQuery")
     $btnExport = $window.FindName("btnExport")
+    $btnHistorial = $window.FindName("btnHistorial")
     $cmbQueries = $window.FindName("cmbQueries")
     $tcQueries = $window.FindName("tcQueries")
     $tcResults = $window.FindName("tcResults")
@@ -269,17 +270,6 @@ function New-MainForm {
             New-QueryTab -TabControl $tcQueries | Out-Null
         }
     }
-    Write-Host "`nAgregando pestaña de historial..." -ForegroundColor Yellow
-    try {
-        $historyTab = Add-QueryHistoryTab -TabControl $tcQueries
-        if ($historyTab) {
-            Write-Host "`t✓ Pestaña de historial agregada" -ForegroundColor Green
-        } else {
-            Write-Host "`t⚠ No se pudo agregar pestaña de historial" -ForegroundColor Yellow
-        }
-    } catch {
-        Write-Host "`tAdvertencia: Error agregando pestaña de historial: $_" -ForegroundColor Yellow
-    }
     if ($btnExecute -and -not $btnExecute.IsEnabled) {
         if ($tcQueries) { $tcQueries.IsEnabled = $false }
         if ($tcResults) { $tcResults.IsEnabled = $false }
@@ -313,6 +303,7 @@ function New-MainForm {
     $global:btnExecute = $btnExecute
     $global:btnClearQuery = $btnClearQuery
     $global:btnExport = $btnExport
+    $global:btnHistorial = $btnHistorial
     $global:cmbQueries = $cmbQueries
     $global:tcQueries = $tcQueries
     $global:tcResults = $tcResults
@@ -720,6 +711,11 @@ Base de datos: $($global:database)
     $btnExport.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Exportar resultados' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Export-ResultsUiSafe
+        })
+    $btnHistorial.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Historial' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Abriendo historial de queries - - -" -ForegroundColor Magenta
+            Show-QueryHistoryWindow -Owner $window
         })
     $window.Add_KeyDown({
             param($s, $e)

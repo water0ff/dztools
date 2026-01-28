@@ -288,179 +288,6 @@ function Restore-OpenQueryTabs {
         return 0
     }
 }
-function Add-QueryHistoryTab {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [System.Windows.Controls.TabControl]$TabControl
-    )
-    try {
-        Write-DzDebug "`t[DEBUG][Queries] Creando pestaña de historial en TabControl"
-        foreach ($item in $TabControl.Items) {
-            if ($item -is [System.Windows.Controls.TabItem] -and $item.Tag -and $item.Tag.Type -eq 'HistoryTab') {
-                Write-DzDebug "`t[DEBUG][Queries] Pestaña de historial ya existe"
-                return $item
-            }
-        }
-        $tabItem = New-Object System.Windows.Controls.TabItem
-        $headerPanel = New-Object System.Windows.Controls.StackPanel
-        $headerPanel.Orientation = "Horizontal"
-        $iconText = New-Object System.Windows.Controls.TextBlock
-        $iconText.Text = "📋"
-        $iconText.Margin = "0,0,6,0"
-        $iconText.VerticalAlignment = "Center"
-        $headerText = New-Object System.Windows.Controls.TextBlock
-        $headerText.Text = "Historial"
-        $headerText.VerticalAlignment = "Center"
-        [void]$headerPanel.Children.Add($iconText)
-        [void]$headerPanel.Children.Add($headerText)
-        $tabItem.Header = $headerPanel
-        $grid = New-Object System.Windows.Controls.Grid
-        $row1 = New-Object System.Windows.Controls.RowDefinition
-        $row1.Height = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-        $row2 = New-Object System.Windows.Controls.RowDefinition
-        $row2.Height = [System.Windows.GridLength]::new(0, [System.Windows.GridUnitType]::Auto)
-        $grid.RowDefinitions.Add($row1)
-        $grid.RowDefinitions.Add($row2)
-        $dataGrid = New-Object System.Windows.Controls.DataGrid
-        $dataGrid.IsReadOnly = $true
-        $dataGrid.AutoGenerateColumns = $false
-        $dataGrid.CanUserAddRows = $false
-        $dataGrid.CanUserDeleteRows = $false
-        $dataGrid.SelectionMode = "Single"
-        $dataGrid.HeadersVisibility = "Column"
-        $dataGrid.Margin = "5"
-        $col1 = New-Object System.Windows.Controls.DataGridTextColumn
-        $col1.Header = "Fecha/Hora"
-        $col1.Binding = New-Object System.Windows.Data.Binding("Timestamp")
-        $col1.Width = 140
-        $col2 = New-Object System.Windows.Controls.DataGridTextColumn
-        $col2.Header = "Base de Datos"
-        $col2.Binding = New-Object System.Windows.Data.Binding("Database")
-        $col2.Width = 150
-        $col3 = New-Object System.Windows.Controls.DataGridTextColumn
-        $col3.Header = "Query"
-        $col3.Binding = New-Object System.Windows.Data.Binding("Preview")
-        $col3.Width = [System.Windows.Controls.DataGridLength]::new(1, [System.Windows.Controls.DataGridLengthUnitType]::Star)
-        $col4 = New-Object System.Windows.Controls.DataGridTextColumn
-        $col4.Header = "Resultado"
-        $col4.Binding = New-Object System.Windows.Data.Binding("Result")
-        $col4.Width = 180
-        [void]$dataGrid.Columns.Add($col1)
-        [void]$dataGrid.Columns.Add($col2)
-        [void]$dataGrid.Columns.Add($col3)
-        [void]$dataGrid.Columns.Add($col4)
-        [System.Windows.Controls.Grid]::SetRow($dataGrid, 0)
-        [void]$grid.Children.Add($dataGrid)
-        $buttonPanel = New-Object System.Windows.Controls.StackPanel
-        $buttonPanel.Orientation = "Horizontal"
-        $buttonPanel.HorizontalAlignment = "Right"
-        $buttonPanel.Margin = "5"
-        [System.Windows.Controls.Grid]::SetRow($buttonPanel, 1)
-        $btnRefresh = New-Object System.Windows.Controls.Button
-        $btnRefresh.Content = "🔄 Actualizar"
-        $btnRefresh.Width = 100
-        $btnRefresh.Height = 28
-        $btnRefresh.Margin = "0,0,5,0"
-        $btnCopy = New-Object System.Windows.Controls.Button
-        $btnCopy.Content = "📋 Copiar"
-        $btnCopy.Width = 90
-        $btnCopy.Height = 28
-        $btnCopy.Margin = "0,0,5,0"
-        $btnLoad = New-Object System.Windows.Controls.Button
-        $btnLoad.Content = "📥 Cargar"
-        $btnLoad.Width = 90
-        $btnLoad.Height = 28
-        $btnLoad.Margin = "0,0,5,0"
-        $btnClear = New-Object System.Windows.Controls.Button
-        $btnClear.Content = "🗑️ Limpiar"
-        $btnClear.Width = 100
-        $btnClear.Height = 28
-        [void]$buttonPanel.Children.Add($btnRefresh)
-        [void]$buttonPanel.Children.Add($btnCopy)
-        [void]$buttonPanel.Children.Add($btnLoad)
-        [void]$buttonPanel.Children.Add($btnClear)
-        [void]$grid.Children.Add($buttonPanel)
-        $tabItem.Content = $grid
-        $tabItem.Tag = [pscustomobject]@{
-            Type     = "HistoryTab"
-            DataGrid = $dataGrid
-        }
-        $loadHistory = {
-            try {
-                $history = @(Get-QueryHistory -MaxItems 100)
-                $dataGrid.ItemsSource = $history
-                Write-DzDebug "`t[DEBUG][Queries] Historial cargado: $($history.Count) items"
-            } catch {
-                Write-DzDebug "`t[DEBUG][Queries] Error cargando historial: $_" Red
-            }
-        }.GetNewClosure()
-        $btnRefresh.Add_Click({
-                & $loadHistory
-            }.GetNewClosure())
-        $btnCopy.Add_Click({
-                try {
-                    $selected = $dataGrid.SelectedItem
-                    if (-not $selected) {
-                        Ui-Warn "Selecciona un query del historial" "Atención"
-                        return
-                    }
-                    if (Get-Command Set-ClipboardTextSafe -ErrorAction SilentlyContinue) {
-                        Set-ClipboardTextSafe -Text $selected.FullQuery | Out-Null
-                    } else {
-                        [System.Windows.Clipboard]::SetText($selected.FullQuery)
-                    }
-                    Write-Host "`n✓ Query copiado al portapapeles" -ForegroundColor Green
-                } catch {
-                    Write-Host "`n✗ Error copiando query: $_" -ForegroundColor Red
-                }
-            }.GetNewClosure())
-        $tcRef = $TabControl
-        $btnLoad.Add_Click({
-                try {
-                    $selected = $dataGrid.SelectedItem
-                    if (-not $selected) {
-                        Ui-Warn "Selecciona un query del historial" "Atención"
-                        return
-                    }
-                    $activeTab = Get-ActiveQueryTab -TabControl $tcRef
-                    if (-not $activeTab) { $activeTab = New-QueryTab -TabControl $tcRef }
-                    if ($activeTab -and $activeTab.Tag -and $activeTab.Tag.Editor) {
-                        $editor = $activeTab.Tag.Editor
-                        Set-SqlEditorText -Editor $editor -Text $selected.FullQuery
-                        $tcRef.SelectedItem = $activeTab
-                        Write-Host "`n✓ Query cargado en el editor" -ForegroundColor Green
-                    }
-                } catch {
-                    Write-Host "`n✗ Error cargando query: $_" -ForegroundColor Red
-                    Ui-Error "Error cargando query: $($_.Exception.Message)"
-                }
-            }.GetNewClosure())
-        $btnClear.Add_Click({
-                $confirm = Ui-Confirm "¿Estás seguro de limpiar todo el historial de queries?" "Confirmar"
-                if ($confirm) {
-                    if (Clear-QueryHistory) {
-                        Write-Host "`n✓ Historial limpiado" -ForegroundColor Green
-                        & $loadHistory
-                    } else {
-                        Ui-Error "Error limpiando historial"
-                    }
-                }
-            }.GetNewClosure())
-        & $loadHistory
-        $insertIndex = $TabControl.Items.Count
-        for ($i = $TabControl.Items.Count - 1; $i -ge 0; $i--) {
-            $it = $TabControl.Items[$i]
-            if ($it -is [System.Windows.Controls.TabItem] -and $it.Name -eq "tabAddQuery") { $insertIndex = $i; break }
-        }
-        [void]$TabControl.Items.Insert($insertIndex, $tabItem)
-        Write-DzDebug "`t[DEBUG][Queries] Pestaña de historial creada exitosamente en posición $insertIndex"
-        return $tabItem
-    } catch {
-        Write-DzDebug "`t[DEBUG][Queries] Error creando pestaña de historial: $_" Red
-        return $null
-    }
-}
 function Get-StringHash {
     [CmdletBinding()]
     param(
@@ -822,84 +649,6 @@ function Execute-QueryUiSafe {
             if ($script:execStopwatch) { $script:execStopwatch.Stop() }
             if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) { $script:execUiTimer.Stop() }
         } catch {}
-    }
-}
-function Get-DbUiContext {
-    [CmdletBinding()]
-    param()
-
-    @{
-        QueryRunning           = $script:QueryRunning
-        CurrentQueryPowerShell = $script:CurrentQueryPowerShell
-        CurrentQueryRunspace   = $script:CurrentQueryRunspace
-        CurrentQueryAsync      = $script:CurrentQueryAsync
-        execUiTimer            = $script:execUiTimer
-        QueryDoneTimer         = $script:QueryDoneTimer
-        execStopwatch          = $script:execStopwatch
-
-        Connection             = $global:connection
-        Server                 = $global:server
-        User                   = $global:user
-        Password               = $global:password
-        Database               = $global:database
-        DbCredential           = $global:dbCredential
-
-        tvDatabases            = $global:tvDatabases
-        cmbDatabases           = $global:cmbDatabases
-        lblConnectionStatus    = $global:lblConnectionStatus
-
-        txtServer              = $global:txtServer
-        txtUser                = $global:txtUser
-        txtPassword            = $global:txtPassword
-        btnConnectDb           = $global:btnConnectDb
-
-        btnDisconnectDb        = $global:btnDisconnectDb
-        btnExecute             = $global:btnExecute
-        btnClearQuery          = $global:btnClearQuery
-        btnExport              = $global:btnExport
-        cmbQueries             = $global:cmbQueries
-        tcQueries              = $global:tcQueries
-        tcResults              = $global:tcResults
-        sqlEditor1             = $global:sqlEditor1
-        dgResults              = $global:dgResults
-        txtMessages            = $global:txtMessages
-        lblRowCount            = $global:lblRowCount
-        lblExecutionTimer      = $global:lblExecutionTimer
-
-        MainWindow             = $global:MainWindow
-    }
-}
-function Disconnect-DbUiSafe {
-    [CmdletBinding()]
-    param()
-
-    try {
-        $ctx = Get-DbUiContext
-        Disconnect-DbCore -Ctx $ctx
-        Save-DbUiContext -Ctx $ctx
-        Write-Host "✓ Desconectado exitosamente" -ForegroundColor Green
-    } catch {
-        Write-DzDebug "`t[DEBUG][Disconnect] ERROR: $($_.Exception.Message)"
-        Write-DzDebug "`t[DEBUG][Disconnect] Stack: $($_.ScriptStackTrace)"
-        Write-Host "Error al desconectar: $($_.Exception.Message)" -ForegroundColor Red
-        Ui-Error "Error al desconectar:`n`n$($_.Exception.Message)" $global:MainWindow
-    }
-}
-function Connect-DbUiSafe {
-    [CmdletBinding()]
-    param()
-
-    try {
-        $ctx = Get-DbUiContext
-        Connect-DbCore -Ctx $ctx
-        Save-DbUiContext -Ctx $ctx
-        Write-Host "✓ Conectado exitosamente a: $($ctx.Server)" -ForegroundColor Green
-    } catch {
-        Write-DzDebug "`t[DEBUG][Connect] CATCH: $($_.Exception.Message)"
-        Write-DzDebug "`t[DEBUG][Connect] Tipo: $($_.Exception.GetType().FullName)"
-        Write-DzDebug "`t[DEBUG][Connect] Stack: $($_.ScriptStackTrace)"
-        Ui-Error "Error de conexión: $($_.Exception.Message)" $global:MainWindow
-        Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
 function Export-ResultsUiSafe {
@@ -1270,16 +1019,207 @@ function Get-SqlEditorSelectedText {
     if (-not $Editor) { return "" }
     return [string]$Editor.SelectedText
 }
+function Show-QueryHistoryWindow {
+    [CmdletBinding()]
+    param(
+        [System.Windows.Window]$Owner
+    )
+
+    try {
+        $theme = Get-DzUiTheme
+
+        $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Historial de Consultas"
+        Height="600" Width="1000"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        ShowInTaskbar="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
+    <Grid Background="{DynamicResource FormBg}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DataGrid Name="dgHistory"
+                  Grid.Row="0"
+                  Margin="10"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  SelectionMode="Single"
+                  HeadersVisibility="Column">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Fecha/Hora" Binding="{Binding Timestamp}" Width="140"/>
+                <DataGridTextColumn Header="Base de Datos" Binding="{Binding Database}" Width="150"/>
+                <DataGridTextColumn Header="Query" Binding="{Binding Preview}" Width="*"/>
+                <DataGridTextColumn Header="Resultado" Binding="{Binding Result}" Width="180"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="10">
+            <Button Name="btnRefresh" Content="🔄 Actualizar" Width="100" Height="30" Margin="0,0,5,0"/>
+            <Button Name="btnCopy" Content="📋 Copiar" Width="90" Height="30" Margin="0,0,5,0"/>
+            <Button Name="btnLoad" Content="📥 Cargar" Width="90" Height="30" Margin="0,0,5,0"/>
+            <Button Name="btnClear" Content="🗑️ Limpiar" Width="100" Height="30" Margin="0,0,5,0"/>
+            <Button Name="btnClose" Content="Cerrar" Width="90" Height="30" Margin="5,0,0,0"/>
+        </StackPanel>
+    </Grid>
+</Window>
+"@
+
+        $result = New-WpfWindow -Xaml $xaml -PassThru
+        $window = $result.Window
+        $controls = $result.Controls
+
+        Set-DzWpfThemeResources -Window $window -Theme $theme
+
+        if ($Owner) {
+            try {
+                $window.Owner = $Owner
+            } catch {
+                Write-DzDebug "`t[DEBUG] No se pudo establecer Owner: $_" Yellow
+            }
+        }
+
+        $dataGrid = $controls['dgHistory']
+        $btnRefresh = $controls['btnRefresh']
+        $btnCopy = $controls['btnCopy']
+        $btnLoad = $controls['btnLoad']
+        $btnClear = $controls['btnClear']
+        $btnClose = $controls['btnClose']
+
+        # Aplicar estilos a los botones
+        foreach ($btn in @($btnRefresh, $btnCopy, $btnLoad, $btnClear, $btnClose)) {
+            if ($btn) {
+                try {
+                    $btn.Background = $window.FindResource("ControlBg")
+                    $btn.Foreground = $window.FindResource("ControlFg")
+                    $btn.BorderBrush = $window.FindResource("BorderBrushColor")
+                    $btn.BorderThickness = [System.Windows.Thickness]::new(1)
+                    $btn.Cursor = "Hand"
+                } catch {}
+            }
+        }
+
+        # Función para cargar historial
+        $loadHistory = {
+            try {
+                $history = @(Get-QueryHistory -MaxItems 100)
+                $dataGrid.ItemsSource = $history
+                Write-DzDebug "`t[DEBUG][Historial] Cargado: $($history.Count) items"
+            } catch {
+                Write-DzDebug "`t[DEBUG][Historial] Error cargando: $_" Red
+            }
+        }.GetNewClosure()
+
+        # Cargar historial inicial
+        & $loadHistory
+
+        # Evento: Actualizar
+        $btnRefresh.Add_Click({
+                & $loadHistory
+            }.GetNewClosure())
+
+        # Evento: Copiar
+        $btnCopy.Add_Click({
+                try {
+                    $selected = $dataGrid.SelectedItem
+                    if (-not $selected) {
+                        Ui-Warn "Selecciona un query del historial" "Atención" $window
+                        return
+                    }
+
+                    if (Get-Command Set-ClipboardTextSafe -ErrorAction SilentlyContinue) {
+                        Set-ClipboardTextSafe -Text $selected.FullQuery -Owner $window | Out-Null
+                    } else {
+                        [System.Windows.Clipboard]::SetText($selected.FullQuery)
+                    }
+
+                    Write-Host "`n✓ Query copiado al portapapeles" -ForegroundColor Green
+                } catch {
+                    Write-Host "`n✗ Error copiando query: $_" -ForegroundColor Red
+                    Ui-Error "Error copiando query: $($_.Exception.Message)" "Error" $window
+                }
+            }.GetNewClosure())
+
+        # Evento: Cargar
+        $btnLoad.Add_Click({
+                try {
+                    $selected = $dataGrid.SelectedItem
+                    if (-not $selected) {
+                        Ui-Warn "Selecciona un query del historial" "Atención" $window
+                        return
+                    }
+
+                    if (-not $global:tcQueries) {
+                        Ui-Error "TabControl de queries no disponible" "Error" $window
+                        return
+                    }
+
+                    $activeTab = Get-ActiveQueryTab -TabControl $global:tcQueries
+                    if (-not $activeTab) {
+                        $activeTab = New-QueryTab -TabControl $global:tcQueries
+                    }
+
+                    if ($activeTab -and $activeTab.Tag -and $activeTab.Tag.Editor) {
+                        $editor = $activeTab.Tag.Editor
+                        Set-SqlEditorText -Editor $editor -Text $selected.FullQuery
+                        $global:tcQueries.SelectedItem = $activeTab
+
+                        Write-Host "`n✓ Query cargado en el editor" -ForegroundColor Green
+                        $window.Close()
+                    }
+                } catch {
+                    Write-Host "`n✗ Error cargando query: $_" -ForegroundColor Red
+                    Ui-Error "Error cargando query: $($_.Exception.Message)" "Error" $window
+                }
+            }.GetNewClosure())
+
+        # Evento: Limpiar
+        $btnClear.Add_Click({
+                $confirm = Ui-Confirm "¿Estás seguro de limpiar todo el historial de queries?" "Confirmar" $window
+                if ($confirm) {
+                    if (Clear-QueryHistory) {
+                        Write-Host "`n✓ Historial limpiado" -ForegroundColor Green
+                        & $loadHistory
+                    } else {
+                        Ui-Error "Error limpiando historial" "Error" $window
+                    }
+                }
+            }.GetNewClosure())
+
+        # Evento: Cerrar
+        $btnClose.Add_Click({
+                $window.Close()
+            })
+
+        $null = $window.ShowDialog()
+
+    } catch {
+        Write-Host "`n✗ Error mostrando ventana de historial: $_" -ForegroundColor Red
+        Write-DzDebug "`t[DEBUG][Historial] Error: $($_.Exception.Message)" Red
+    }
+}
 Export-ModuleMember -Function @(
     'Initialize-QueriesConfig',
     'Add-QueryToHistory',
+    'Save-DbUiContext',
     'Get-QueryHistory',
     'Clear-QueryHistory',
     'Save-OpenQueryTabs',
     'Restore-OpenQueryTabs',
     'Show-QueryHistoryWindow',
     'Execute-QueryUiSafe',
-    'Export-ResultsUiSafe', 'Connect-DbUiSafe', 'Disconnect-DbUiSafe', 'Add-QueryHistoryTab', 'New-QueryTab',
+    'Export-ResultsUiSafe',
+    'New-QueryTab',
     'Get-ActiveQueryTab', 'Get-ActiveQueryRichTextBox', 'Set-QueryTextInActiveTab', 'Insert-TextIntoActiveQuery',
     'Clear-ActiveQueryTab', 'Update-QueryTabHeader', 'Close-QueryTab', 'Execute-QueryInTab',
     'Get-SqlEditorPaths',
@@ -1290,5 +1230,6 @@ Export-ModuleMember -Function @(
     'Get-SqlEditorText',
     'Clear-SqlEditorText',
     'Insert-SqlEditorText',
-    'Get-SqlEditorSelectedText'
+    'Get-SqlEditorSelectedText',
+    'Show-QueryHistoryWindow'
 )

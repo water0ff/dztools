@@ -1028,7 +1028,8 @@ function Get-MainWindowXaml {
                             <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0" IsEnabled="False" ToolTip="Consultas predefinidas"/>
                             <Button Content="Limpiar" Name="btnClearQuery" Width="90" Height="30" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
                             <Button Content="Exportar" Name="btnExport" Width="100" Height="30" Margin="8,0,0,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-                        </StackPanel>
+                            <Button Content="📋 Historial" Name="btnHistorial" Width="110" Height="30" Margin="8,0,0,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                            </StackPanel>
                     </Border>
 
                     <Grid Grid.Row="2" Margin="10">

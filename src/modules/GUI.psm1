@@ -1057,16 +1057,9 @@ function Get-MainWindowXaml {
                                 <RowDefinition Height="5"/>
                                 <RowDefinition Height="2*" MinHeight="200"/>
                             </Grid.RowDefinitions>
-
                             <TabControl Name="tcQueries" Grid.Row="0" Background="{DynamicResource ControlBg}">
-                                <TabItem Header="Consulta 1">
-                                    <Border BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Margin="5" CornerRadius="4">
-                                        <Border Name="editorContainer1"/>
-                                    </Border>
-                                </TabItem>
                                 <TabItem Header="+" Name="tabAddQuery" IsEnabled="True"/>
                             </TabControl>
-
                             <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrushColor}"/>
 
                             <TabControl Name="tcResults" Grid.Row="2" Background="{DynamicResource ControlBg}">

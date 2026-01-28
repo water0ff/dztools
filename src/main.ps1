@@ -318,30 +318,6 @@ function New-MainForm {
     $global:tcResults = $tcResults
     $global:tvDatabases = $tvDatabases
     $global:tabAddQuery = $tabAddQuery
-    $global:editorContainer1 = $window.FindName("editorContainer1")
-    $global:sqlEditor1 = $null
-    if ($global:editorContainer1) {
-        try {
-            Write-Host "editorContainer1 type: $($global:editorContainer1.GetType().FullName)" -ForegroundColor Cyan
-
-            $global:sqlEditor1 = New-SqlEditor -Container $global:editorContainer1 -FontFamily "Consolas" -FontSize 12 -ErrorAction Stop
-
-            if ($global:sqlEditor1) {
-                Write-Host "✓ New-SqlEditor creó editor: $($global:sqlEditor1.GetType().FullName)" -ForegroundColor Green
-            } else {
-                Write-Host "⚠ New-SqlEditor devolvió null" -ForegroundColor Yellow
-            }
-        } catch {
-            Write-Host "`n✗ ERROR en New-SqlEditor:" -ForegroundColor Red
-            Write-Host "Mensaje: $($_.Exception.Message)" -ForegroundColor Yellow
-            Write-Host "Tipo   : $($_.Exception.GetType().FullName)" -ForegroundColor Yellow
-            Write-Host "ScriptStackTrace:" -ForegroundColor Magenta
-            Write-Host $_.ScriptStackTrace -ForegroundColor Magenta
-            throw
-        }
-    } else {
-        Write-Host "⚠ editorContainer1 es NULL (no encontrado)" -ForegroundColor Yellow
-    }
     $global:dgResults = $window.FindName("dgResults")
     $global:txtMessages = $window.FindName("txtMessages")
     $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")
@@ -375,51 +351,6 @@ function New-MainForm {
             Write-Host "`t✓ Estilo de TreeView aplicado correctamente" -ForegroundColor Green
         } catch {
             Write-Host "✗ Error aplicando estilo al TreeView: $($_.Exception.Message)" -ForegroundColor Red
-        }
-    }
-    if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:sqlEditor1) {
-        $firstTab = $global:tcQueries.Items[0]
-        if ($firstTab -is [System.Windows.Controls.TabItem]) {
-
-            # 1) Asegura Tag igual que en New-QueryTab
-            $title = if ($firstTab.Header) { [string]$firstTab.Header } else { "Consulta 1" }
-
-            # Intenta obtener el TextBlock del header si tu header es un panel con TextBlock
-            $headerTb = $null
-            try {
-                if ($firstTab.Header -is [System.Windows.Controls.Panel]) {
-                    foreach ($c in $firstTab.Header.Children) {
-                        if ($c -is [System.Windows.Controls.TextBlock]) { $headerTb = $c; break }
-                    }
-                } elseif ($firstTab.Header -is [System.Windows.Controls.TextBlock]) {
-                    $headerTb = $firstTab.Header
-                }
-            } catch {}
-
-            $firstTab.Tag = [pscustomobject]@{
-                Type            = "QueryTab"
-                Editor          = $global:sqlEditor1
-                Title           = $title
-                HeaderTextBlock = $headerTb   # 👈 importante para Update-QueryTabHeader
-                IsDirty         = $false
-            }
-
-            # 2) Conecta el TextChanged (como New-QueryTab)
-            $editor1 = $global:sqlEditor1
-
-            # evita doble-suscripción si New-MainForm se llama más de una vez
-            if (-not $editor1.Tag -or $editor1.Tag -ne "DzTools_TextChangedHooked") {
-                $editor1.Tag = "DzTools_TextChangedHooked"
-
-                $editor1.Add_TextChanged({
-                        $firstTab.Tag.IsDirty = $true
-                        Update-QueryTabHeader -TabItem $firstTab
-                    }.GetNewClosure())
-            }
-
-            if (-not $global:tcQueries.SelectedItem) {
-                $global:tcQueries.SelectedIndex = 0
-            }
         }
     }
     $lblHostname.text = [System.Net.Dns]::GetHostName()

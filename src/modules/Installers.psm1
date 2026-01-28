@@ -1276,6 +1276,5 @@ Export-ModuleMember -Function @(
     'Install-ChocoPackage',
     'Uninstall-ChocoPackage',
     'Show-ChocolateyInstallerMenu',
-    'Invoke-PortableTool',
-    'Invoke-LectorDP'
+    'Invoke-PortableTool', 'Invoke-LectorDP'
 )

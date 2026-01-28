@@ -1251,17 +1251,11 @@ function Initialize-PredefinedQueries {
                 if (-not $selectedQuery -or $selectedQuery -eq "Selecciona una consulta predefinida") { return }
                 $ctx = $sender.Tag
                 if (-not $ctx -or -not $ctx.Queries.ContainsKey($selectedQuery)) { return }
-                $rtb = Get-ActiveQueryRichTextBox -TabControl $ctx.TabControl
-                if (-not $rtb) { return }
+                $editor = Get-ActiveQueryRichTextBox -TabControl $ctx.TabControl
+                if (-not $editor) { return }
                 $queryText = $ctx.Queries[$selectedQuery]
-                $rtb.Document.Blocks.Clear()
-                $p = New-Object System.Windows.Documents.Paragraph
-                [void]$p.Inlines.Add((New-Object System.Windows.Documents.Run($queryText)))
-                [void]$rtb.Document.Blocks.Add($p)
-                if (-not [string]::IsNullOrWhiteSpace($ctx.SqlKeywords)) {
-                    Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $ctx.SqlKeywords
-                }
-                $rtb.Focus()
+                Set-SqlEditorText -Editor $editor -Text $queryText
+                $editor.Focus()
             } catch {
                 Write-DzDebug "`t[DEBUG] Error en SelectionChanged (queries): $($_.Exception.Message)" -Color Red
             }
@@ -1542,10 +1536,11 @@ function Disconnect-DbCore {
     if ($Ctx.btnExecute) { $Ctx.btnExecute.IsEnabled = $false }
     if ($Ctx.btnClearQuery) { $Ctx.btnClearQuery.IsEnabled = $false }
     if ($Ctx.btnExport) { $Ctx.btnExport.IsEnabled = $false }
+    if ($Ctx.btnHistorial) { $Ctx.btnHistorial.IsEnabled = $false }
     if ($Ctx.cmbQueries) { $Ctx.cmbQueries.IsEnabled = $false }
     if ($Ctx.tcQueries) { $Ctx.tcQueries.IsEnabled = $false }
     if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $false }
-    if ($Ctx.rtbQueryEditor1) { $Ctx.rtbQueryEditor1.IsEnabled = $false }
+    if ($Ctx.sqlEditor1) { $Ctx.sqlEditor1.IsEnabled = $false }
     if ($Ctx.dgResults) { $Ctx.dgResults.IsEnabled = $false }
     if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $false }
 
@@ -1630,13 +1625,14 @@ function Connect-DbCore {
     if ($Ctx.btnClearQuery) { $Ctx.btnClearQuery.IsEnabled = $true }
     if ($Ctx.cmbQueries) { $Ctx.cmbQueries.IsEnabled = $true }
     if ($Ctx.btnExport) { $Ctx.btnExport.IsEnabled = $true }
+    if ($Ctx.btnHistorial) { $Ctx.btnHistorial.IsEnabled = $true }
     if ($Ctx.tcQueries) { $Ctx.tcQueries.IsEnabled = $true }
     if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $true }
-    if ($Ctx.rtbQueryEditor1) { $Ctx.rtbQueryEditor1.IsEnabled = $true }
+    if ($Ctx.sqlEditor1) { $Ctx.sqlEditor1.IsEnabled = $true }
     if ($Ctx.dgResults) { $Ctx.dgResults.IsEnabled = $true }
     if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $true }
 
-    if ($Ctx.rtbQueryEditor1) { try { $Ctx.rtbQueryEditor1.Focus() | Out-Null } catch {} }
+    if ($Ctx.sqlEditor1) { try { $Ctx.sqlEditor1.Focus() | Out-Null } catch {} }
     if ($Ctx.tvDatabases) {
         Write-DzDebug "`t[DEBUG] Inicializando TreeView..."
 
@@ -1690,6 +1686,10 @@ function Connect-DbCore {
 
                     if ($Ctx.lblConnectionStatus) {
                         $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
+                    }
+
+                    if ($Ctx.tvDatabases) {
+                        Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
                     }
 
                     Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($Ctx.Database) (dbName='$dbName')"
@@ -1748,6 +1748,10 @@ function Connect-DbCore {
                         $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
                     }
 
+                    if ($Ctx.tvDatabases -and $Ctx.Database) {
+                        Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
+                    }
+
                     Write-DzDebug "`t[DEBUG][TreeView] ComboBox actualizado con $($dbs.Count) bases de datos"
                 } catch {
                     Write-DzDebug "`t[DEBUG][OnDatabasesRefreshed] Error: $_"
@@ -1762,6 +1766,9 @@ function Connect-DbCore {
     }
 
     Write-DzDebug "`t[DEBUG] Conexión establecida exitosamente"
+    if ($Ctx.tvDatabases -and $Ctx.Database) {
+        Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
+    }
 }
 
 
@@ -1846,9 +1853,87 @@ function Get-DbNameFromComboSelection {
     if ([string]::IsNullOrWhiteSpace($db)) { return $null }
     return $db
 }
+function Get-DbUiContext {
+    [CmdletBinding()]
+    param()
 
+    @{
+        QueryRunning           = $script:QueryRunning
+        CurrentQueryPowerShell = $script:CurrentQueryPowerShell
+        CurrentQueryRunspace   = $script:CurrentQueryRunspace
+        CurrentQueryAsync      = $script:CurrentQueryAsync
+        execUiTimer            = $script:execUiTimer
+        QueryDoneTimer         = $script:QueryDoneTimer
+        execStopwatch          = $script:execStopwatch
+
+        Connection             = $global:connection
+        Server                 = $global:server
+        User                   = $global:user
+        Password               = $global:password
+        Database               = $global:database
+        DbCredential           = $global:dbCredential
+
+        tvDatabases            = $global:tvDatabases
+        cmbDatabases           = $global:cmbDatabases
+        lblConnectionStatus    = $global:lblConnectionStatus
+
+        txtServer              = $global:txtServer
+        txtUser                = $global:txtUser
+        txtPassword            = $global:txtPassword
+        btnConnectDb           = $global:btnConnectDb
+
+        btnDisconnectDb        = $global:btnDisconnectDb
+        btnExecute             = $global:btnExecute
+        btnClearQuery          = $global:btnClearQuery
+        btnExport              = $global:btnExport
+        btnHistorial           = $global:btnHistorial
+        cmbQueries             = $global:cmbQueries
+        tcQueries              = $global:tcQueries
+        tcResults              = $global:tcResults
+        sqlEditor1             = $global:sqlEditor1
+        dgResults              = $global:dgResults
+        txtMessages            = $global:txtMessages
+        lblRowCount            = $global:lblRowCount
+        lblExecutionTimer      = $global:lblExecutionTimer
+
+        MainWindow             = $global:MainWindow
+    }
+}
+function Disconnect-DbUiSafe {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $ctx = Get-DbUiContext
+        Disconnect-DbCore -Ctx $ctx
+        Save-DbUiContext -Ctx $ctx
+        Write-Host "✓ Desconectado exitosamente" -ForegroundColor Green
+    } catch {
+        Write-DzDebug "`t[DEBUG][Disconnect] ERROR: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Disconnect] Stack: $($_.ScriptStackTrace)"
+        Write-Host "Error al desconectar: $($_.Exception.Message)" -ForegroundColor Red
+        Ui-Error "Error al desconectar:`n`n$($_.Exception.Message)" $global:MainWindow
+    }
+}
+function Connect-DbUiSafe {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $ctx = Get-DbUiContext
+        Connect-DbCore -Ctx $ctx
+        Save-DbUiContext -Ctx $ctx
+        Write-Host "✓ Conectado exitosamente a: $($ctx.Server)" -ForegroundColor Green
+    } catch {
+        Write-DzDebug "`t[DEBUG][Connect] CATCH: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Connect] Tipo: $($_.Exception.GetType().FullName)"
+        Write-DzDebug "`t[DEBUG][Connect] Stack: $($_.ScriptStackTrace)"
+        Ui-Error "Error de conexión: $($_.Exception.Message)" $global:MainWindow
+        Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
 Export-ModuleMember -Function @(
-    'Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Get-SqlDatabasesInfo', 'Backup-Database',
+    'Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Get-SqlDatabasesInfo', 'Backup-Database', 'Connect-DbUiSafe', 'Disconnect-DbUiSafe', 'get-DbUiContext',
     'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable',
     'Show-MultipleResultSets', 'Export-ResultSetToCsv', 'Export-ResultSetToDelimitedText',
     'Get-TextPointerAtOffset',

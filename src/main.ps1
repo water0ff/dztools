@@ -185,15 +185,18 @@ function New-MainForm {
     $cmbDatabases = $window.FindName("cmbDatabases")
     $btnConnectDb = $window.FindName("btnConnectDb")
     $btnDisconnectDb = $window.FindName("btnDisconnectDb")
+    $btnSsmsPanelToggle = $window.FindName("btnSsmsPanelToggle")
     $lblConnectionStatus = $window.FindName("lblConnectionStatus")
     $btnExecute = $window.FindName("btnExecute")
     $btnClearQuery = $window.FindName("btnClearQuery")
     $btnExport = $window.FindName("btnExport")
+    $btnHistorial = $window.FindName("btnHistorial")
     $cmbQueries = $window.FindName("cmbQueries")
     $tcQueries = $window.FindName("tcQueries")
     $tcResults = $window.FindName("tcResults")
     $tvDatabases = $window.FindName("tvDatabases")
     $tabAddQuery = $window.FindName("tabAddQuery")
+    $panelSsmsContent = $window.FindName("panelSsmsContent")
     $tglDarkMode = $window.FindName("tglDarkMode")
     $tglDebugMode = $window.FindName("tglDebugMode")
     $script:predefinedQueries = Get-PredefinedQueries
@@ -209,19 +212,12 @@ function New-MainForm {
                 $selectedQuery = $cmbQueries.SelectedItem
                 if (-not $selectedQuery -or $selectedQuery -eq "Selecciona una consulta predefinida") { return }
                 if (-not $script:predefinedQueries.ContainsKey($selectedQuery)) { return }
-                $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
-                Write-DzDebug "`t[DEBUG]Insertando consulta predefinida '$selectedQuery' en la pestaña consulta: $($rtb.Name)"
-                if (-not $rtb) { return }
+                $editor = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
+                Write-DzDebug "`t[DEBUG]Insertando consulta predefinida '$selectedQuery' en la pestaña consulta"
+                if (-not $editor) { return }
                 $queryText = $script:predefinedQueries[$selectedQuery]
-                $rtb.Document.Blocks.Clear()
-                $paragraph = New-Object System.Windows.Documents.Paragraph
-                $run = New-Object System.Windows.Documents.Run($queryText)
-                $paragraph.Inlines.Add($run)
-                $rtb.Document.Blocks.Add($paragraph)
-                if ($script:sqlKeywords) {
-                    Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $script:sqlKeywords
-                }
-                $rtb.Focus() | Out-Null
+                Set-SqlEditorText -Editor $editor -Text $queryText
+                $editor.Focus() | Out-Null
             })
     }
     if ($tabAddQuery) {
@@ -239,12 +235,9 @@ function New-MainForm {
                     $_ -is [System.Windows.Controls.TabItem] -and
                     $_.Tag -and
                     $_.Tag.Type -eq 'QueryTab' -and
-                    $_.Tag.RichTextBox -and
+                    $_.Tag.Editor -and
                     [string]::IsNullOrWhiteSpace(
-                        (New-Object System.Windows.Documents.TextRange(
-                            $_.Tag.RichTextBox.Document.ContentStart,
-                            $_.Tag.RichTextBox.Document.ContentEnd
-                        )).Text
+                        (Get-SqlEditorText -Editor $_.Tag.Editor)
                     )
                 })
             if ($restoredCount -gt 0 -and $emptyTabs.Count -gt 0) {
@@ -279,17 +272,6 @@ function New-MainForm {
             New-QueryTab -TabControl $tcQueries | Out-Null
         }
     }
-    Write-Host "`nAgregando pestaña de historial..." -ForegroundColor Yellow
-    try {
-        $historyTab = Add-QueryHistoryTab -TabControl $tcQueries
-        if ($historyTab) {
-            Write-Host "`t✓ Pestaña de historial agregada" -ForegroundColor Green
-        } else {
-            Write-Host "`t⚠ No se pudo agregar pestaña de historial" -ForegroundColor Yellow
-        }
-    } catch {
-        Write-Host "`tAdvertencia: Error agregando pestaña de historial: $_" -ForegroundColor Yellow
-    }
     if ($btnExecute -and -not $btnExecute.IsEnabled) {
         if ($tcQueries) { $tcQueries.IsEnabled = $false }
         if ($tcResults) { $tcResults.IsEnabled = $false }
@@ -323,12 +305,12 @@ function New-MainForm {
     $global:btnExecute = $btnExecute
     $global:btnClearQuery = $btnClearQuery
     $global:btnExport = $btnExport
+    $global:btnHistorial = $btnHistorial
     $global:cmbQueries = $cmbQueries
     $global:tcQueries = $tcQueries
     $global:tcResults = $tcResults
     $global:tvDatabases = $tvDatabases
     $global:tabAddQuery = $tabAddQuery
-    $global:rtbQueryEditor1 = $window.FindName("rtbQueryEditor1")
     $global:dgResults = $window.FindName("dgResults")
     $global:txtMessages = $window.FindName("txtMessages")
     $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")
@@ -359,64 +341,57 @@ function New-MainForm {
             $style.Triggers.Add($triggerSelected)
             $style.Triggers.Add($triggerFocused)
             $tvDatabases.ItemContainerStyle = $style
-            Write-Host "`t✓ Estilo de TreeView aplicado correctamente" -ForegroundColor Green
+            Write-Host "  ✓ Estilo de TreeView aplicado correctamente" -ForegroundColor Green
         } catch {
             Write-Host "✗ Error aplicando estilo al TreeView: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
-    if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:rtbQueryEditor1) {
-        $firstTab = $global:tcQueries.Items[0]
-        if ($firstTab -is [System.Windows.Controls.TabItem]) {
+    if ($btnSsmsPanelToggle) {
+        Write-DzDebug "`t[DEBUG] Configurando toggle del panel SSMS..."
 
-            # 1) Asegura Tag igual que en New-QueryTab
-            $title = if ($firstTab.Header) { [string]$firstTab.Header } else { "Consulta 1" }
+        # Obtener el panel correctamente
+        $panelContent = $window.FindName("panelSsmsContent")
 
-            # Intenta obtener el TextBlock del header si tu header es un panel con TextBlock
-            $headerTb = $null
-            try {
-                if ($firstTab.Header -is [System.Windows.Controls.Panel]) {
-                    foreach ($c in $firstTab.Header.Children) {
-                        if ($c -is [System.Windows.Controls.TextBlock]) { $headerTb = $c; break }
-                    }
-                } elseif ($firstTab.Header -is [System.Windows.Controls.TextBlock]) {
-                    $headerTb = $firstTab.Header
-                }
-            } catch {}
-
-            $firstTab.Tag = [pscustomobject]@{
-                Type            = "QueryTab"
-                RichTextBox     = $global:rtbQueryEditor1
-                Title           = $title
-                HeaderTextBlock = $headerTb   # 👈 importante para Update-QueryTabHeader
-                IsDirty         = $false
-            }
-
-            # 2) Conecta el TextChanged (como New-QueryTab)
-            $rtb1 = $global:rtbQueryEditor1
-
-            # evita doble-suscripción si New-MainForm se llama más de una vez
-            if (-not $rtb1.Tag -or $rtb1.Tag -ne "DzTools_TextChangedHooked") {
-                $rtb1.Tag = "DzTools_TextChangedHooked"
-
-                $rtb1.Add_TextChanged({
-                        if ($global:isHighlightingQuery) { return }
-                        $global:isHighlightingQuery = $true
-                        try {
-                            if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { return }
-                            Set-WpfSqlHighlighting -RichTextBox $rtb1 -Keywords $global:DzSqlKeywords
-
-                            $firstTab.Tag.IsDirty = $true
-                            Update-QueryTabHeader -TabItem $firstTab
-                        } finally {
-                            $global:isHighlightingQuery = $false
-                        }
-                    }.GetNewClosure())
-            }
-
-            if (-not $global:tcQueries.SelectedItem) {
-                $global:tcQueries.SelectedIndex = 0
-            }
+        if (-not $panelContent) {
+            Write-DzDebug "`t[DEBUG] ERROR: No se encontró panelSsmsContent" -Color Red
+            return
         }
+
+        # Estado inicial: panel visible
+        $panelContent.Visibility = "Visible"
+        $btnSsmsPanelToggle.Content = "▼"
+        $btnSsmsPanelToggle.IsChecked = $true
+
+        # Evento principal: cada vez que cambia el estado
+        $btnSsmsPanelToggle.Add_Click({
+                try {
+                    $panel = $window.FindName("panelSsmsContent")
+
+                    if (-not $panel) {
+                        Write-DzDebug "`t[DEBUG] ERROR: Panel no encontrado en el evento" -Color Red
+                        return
+                    }
+
+                    $isExpanded = $btnSsmsPanelToggle.IsChecked -eq $true
+
+                    Write-DzDebug "`t[DEBUG] Toggle Click - IsChecked: $isExpanded"
+
+                    if ($isExpanded) {
+                        $panel.Visibility = "Visible"
+                        $btnSsmsPanelToggle.Content = "▼"
+                        Write-DzDebug "`t[DEBUG] Panel expandido" -Color Green
+                    } else {
+                        $panel.Visibility = "Collapsed"
+                        $btnSsmsPanelToggle.Content = "▲"
+                        Write-DzDebug "`t[DEBUG] Panel colapsado" -Color Yellow
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG] Error en toggle: $($_.Exception.Message)" -Color Red
+                    Write-Host "Error detallado: $($_ | Format-List * -Force | Out-String)" -ForegroundColor Red
+                }
+            }.GetNewClosure())
+
+        Write-DzDebug "`t[DEBUG] Toggle configurado exitosamente"
     }
     $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
@@ -757,16 +732,20 @@ Servidor: $($global:server)
 Base de datos: $($global:database)
 "@.Trim()
                 }
+                $dbName = Get-DbNameFromComboSelection -ComboBox $global:cmbDatabases
+                if ($dbName -and $global:tvDatabases) {
+                    Select-SqlTreeDatabase -TreeView $global:tvDatabases -DatabaseName $dbName
+                }
             }
         })
     $btnClearQuery.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
-                $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
-                if (-not $rtb) {
+                $editor = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
+                if (-not $editor) {
                     throw "No hay una pestaña de consulta activa."
                 }
-                $rtb.Document.Blocks.Clear()
+                Clear-SqlEditorText -Editor $editor
                 if ($global:dgResults) { $global:dgResults.ItemsSource = $null }
                 if ($global:txtMessages) { $global:txtMessages.Text = "" }
                 if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
@@ -785,6 +764,11 @@ Base de datos: $($global:database)
     $btnExport.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Exportar resultados' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Export-ResultsUiSafe
+        })
+    $btnHistorial.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Historial' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Abriendo historial de queries - - -" -ForegroundColor Magenta
+            Show-QueryHistoryWindow -Owner $window
         })
     $window.Add_KeyDown({
             param($s, $e)
@@ -864,7 +848,7 @@ Base de datos: $($global:database)
             Write-Host "  ¡Hasta pronto!" -ForegroundColor Green
             Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`n" -ForegroundColor Cyan
         })
-    Write-Host "`t✓ Formulario WPF creado exitosamente" -ForegroundColor Green
+    Write-Host "  ✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     return $window
 }
 function Start-Application {

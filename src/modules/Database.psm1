@@ -493,9 +493,30 @@ function Get-IniConnections {
 function Load-IniConnectionsToComboBox {
     param([Parameter(Mandatory = $true)]$Combo)
     $connections = Get-IniConnections
+    $savedConnections = @()
+    if (Get-Command Get-DzSavedSqlConnections -ErrorAction SilentlyContinue) {
+        $savedConnections = Get-DzSavedSqlConnections
+    }
+    foreach ($saved in $savedConnections) {
+        if ($saved.Server -and $saved.Server -notin $connections) {
+            $connections += $saved.Server
+        }
+    }
     $Combo.Items.Clear()
-    if ($connections.Count -gt 0) { foreach ($c in $connections) { [void]$Combo.Items.Add($c) } } else { Write-Host "`tNo se encontraron conexiones en archivos INI" -ForegroundColor Yellow }
-    $Combo.Text = ".\NationalSoft"
+    if ($connections.Count -gt 0) {
+        foreach ($c in ($connections | Sort-Object)) { [void]$Combo.Items.Add($c) }
+    } else {
+        Write-Host "`tNo se encontraron conexiones en archivos INI" -ForegroundColor Yellow
+    }
+    if ($connections.Count -gt 0) {
+        if ($connections -contains ".\\NationalSoft") {
+            $Combo.Text = ".\NationalSoft"
+        } else {
+            $Combo.Text = [string]($connections | Select-Object -First 1)
+        }
+    } else {
+        $Combo.Text = ".\NationalSoft"
+    }
 }
 function ConvertTo-DataTable {
     param($InputObject)
@@ -1806,14 +1827,13 @@ function Export-ResultsCore {
     $rowCount = [int]$target.RowCount
     $headerText = [string]$target.DisplayShort
 
-    if (-not (Ui-Confirm "Se exportarán $rowCount filas de '$headerText'. ¿Deseas continuar?" "Confirmar exportación" $Ctx.MainWindow)) { return }
-
     $safeName = ($headerText -replace '[\\/:*?"<>|]', '-')
     if ([string]::IsNullOrWhiteSpace($safeName)) { $safeName = "resultado" }
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 
     $saveDialog = New-Object Microsoft.Win32.SaveFileDialog
     $saveDialog.Filter = "CSV (*.csv)|*.csv|Texto delimitado (*.txt)|*.txt"
-    $saveDialog.FileName = "$safeName.csv"
+    $saveDialog.FileName = "${timestamp}_${safeName}.csv"
     $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
     if ($saveDialog.ShowDialog() -ne $true) { return }
 
@@ -1923,6 +1943,9 @@ function Connect-DbUiSafe {
         $ctx = Get-DbUiContext
         Connect-DbCore -Ctx $ctx
         Save-DbUiContext -Ctx $ctx
+        if (Get-Command Save-DzSqlConnection -ErrorAction SilentlyContinue) {
+            Save-DzSqlConnection -Server $ctx.Server -User $ctx.User -Password $ctx.Password
+        }
         Write-Host "✓ Conectado exitosamente a: $($ctx.Server)" -ForegroundColor Green
     } catch {
         Write-DzDebug "`t[DEBUG][Connect] CATCH: $($_.Exception.Message)"

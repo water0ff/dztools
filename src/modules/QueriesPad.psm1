@@ -626,10 +626,17 @@ function Save-DbUiContext {
 function Get-QueryTabTitle {
     param(
         [Parameter(Mandatory = $true)][int]$Number,
-        [Parameter()][string]$Database
+        [Parameter()][string]$Database,
+        [Parameter()][switch]$Short
     )
     if ([string]::IsNullOrWhiteSpace($Database)) {
         return "Query$Number"
+    }
+    if ($Short) {
+        if ($Database.Length -gt 7) {
+            $shortDb = "..." + $Database.Substring($Database.Length - 7)
+            return "Query$Number ($shortDb)"
+        }
     }
     return "Query$Number ($Database)"
 }
@@ -647,16 +654,28 @@ function Set-QueryTabsDatabase {
         [Parameter(Mandatory = $true)][System.Windows.Controls.TabControl]$TabControl,
         [Parameter()][string]$Database
     )
+    Write-DzDebug "`t[DEBUG] Actualizando todas las pestañas con DB: '$Database'"
     foreach ($item in $TabControl.Items) {
         if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
         if (-not $item.Tag -or $item.Tag.Type -ne 'QueryTab') { continue }
         if (-not $item.Tag.Number) {
             $parsedNumber = Get-QueryTabNumberFromTitle -Title ([string]$item.Tag.Title)
-            if ($parsedNumber) { $item.Tag.Number = $parsedNumber }
+            if ($parsedNumber) {
+                $item.Tag.Number = $parsedNumber
+            }
         }
         $item.Tag.Database = $Database
         if ($item.Tag.Number) {
-            $item.Tag.Title = Get-QueryTabTitle -Number $item.Tag.Number -Database $Database
+            $fullTitle = Get-QueryTabTitle -Number $item.Tag.Number -Database $Database
+            $shortTitle = Get-QueryTabTitle -Number $item.Tag.Number -Database $Database -Short
+            $item.Tag.Title = $fullTitle
+            $item.Tag.TitleShort = $shortTitle
+            if (-not [string]::IsNullOrWhiteSpace($Database)) {
+                $item.ToolTip = $fullTitle
+            } else {
+                $item.ToolTip = $null
+            }
+            Write-DzDebug "`t[DEBUG]   Query$($item.Tag.Number): '$shortTitle' (tooltip: '$fullTitle')"
         }
         Update-QueryTabHeader -TabItem $item
     }
@@ -687,12 +706,13 @@ function New-QueryTab {
     if ($global:cmbDatabases -and (Get-Command Get-DbNameFromComboSelection -ErrorAction SilentlyContinue)) {
         $dbName = Get-DbNameFromComboSelection -ComboBox $global:cmbDatabases
     }
-    $tabTitle = Get-QueryTabTitle -Number $tabNumber -Database $dbName
+    $tabTitleShort = Get-QueryTabTitle -Number $tabNumber -Database $dbName -Short
+    $tabTitleFull = Get-QueryTabTitle -Number $tabNumber -Database $dbName
     $tabItem = New-Object System.Windows.Controls.TabItem
     $headerPanel = New-Object System.Windows.Controls.StackPanel
     $headerPanel.Orientation = "Horizontal"
     $headerText = New-Object System.Windows.Controls.TextBlock
-    $headerText.Text = $tabTitle
+    $headerText.Text = $tabTitleShort
     $headerText.VerticalAlignment = "Center"
     $headerText.FontSize = 10
     $closeButton = New-Object System.Windows.Controls.Button
@@ -705,6 +725,9 @@ function New-QueryTab {
     [void]$headerPanel.Children.Add($headerText)
     [void]$headerPanel.Children.Add($closeButton)
     $tabItem.Header = $headerPanel
+    if (-not [string]::IsNullOrWhiteSpace($dbName)) {
+        $tabItem.ToolTip = $tabTitleFull
+    }
     $border = New-Object System.Windows.Controls.Border
     $border.BorderThickness = "1"
     $border.CornerRadius = "4"
@@ -713,7 +736,16 @@ function New-QueryTab {
     $border.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "ControlBg")
     $editor = New-SqlEditor -Container $border -FontFamily "Consolas" -FontSize 11
     $tabItem.Content = $border
-    $tabItem.Tag = [pscustomobject]@{ Type = "QueryTab"; Editor = $editor; Title = $tabTitle; HeaderTextBlock = $headerText; IsDirty = $false; Number = $tabNumber; Database = $dbName }
+    $tabItem.Tag = [pscustomobject]@{
+        Type            = "QueryTab"
+        Editor          = $editor
+        Title           = $tabTitleFull
+        TitleShort      = $tabTitleShort
+        HeaderTextBlock = $headerText
+        IsDirty         = $false
+        Number          = $tabNumber
+        Database        = $dbName
+    }
     $editor.Add_TextChanged({
             $tabItem.Tag.IsDirty = $true
             Update-QueryTabHeader -TabItem $tabItem
@@ -733,7 +765,10 @@ function New-QueryTab {
     $insertIndex = $TabControl.Items.Count
     for ($i = 0; $i -lt $TabControl.Items.Count; $i++) {
         $it = $TabControl.Items[$i]
-        if ($it -is [System.Windows.Controls.TabItem] -and $it.Name -eq "tabAddQuery") { $insertIndex = $i; break }
+        if ($it -is [System.Windows.Controls.TabItem] -and $it.Name -eq "tabAddQuery") {
+            $insertIndex = $i
+            break
+        }
     }
     [void]$TabControl.Items.Insert($insertIndex, $tabItem)
     $TabControl.SelectedItem = $tabItem
@@ -804,9 +839,17 @@ function Clear-ActiveQueryTab {
 function Update-QueryTabHeader {
     param([Parameter(Mandatory = $true)]$TabItem)
     if (-not $TabItem.Tag) { return }
-    $title = $TabItem.Tag.Title
-    if ($TabItem.Tag.IsDirty) { $title = "*$title" }
-    if ($TabItem.Tag.HeaderTextBlock) { $TabItem.Tag.HeaderTextBlock.Text = $title }
+    $displayTitle = if ($TabItem.Tag.TitleShort) {
+        $TabItem.Tag.TitleShort
+    } else {
+        $TabItem.Tag.Title
+    }
+    if ($TabItem.Tag.IsDirty) {
+        $displayTitle = "*$displayTitle"
+    }
+    if ($TabItem.Tag.HeaderTextBlock) {
+        $TabItem.Tag.HeaderTextBlock.Text = $displayTitle
+    }
 }
 function Close-QueryTab {
     [CmdletBinding()]

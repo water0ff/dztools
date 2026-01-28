@@ -218,7 +218,7 @@ function Initialize-DzToolsConfig {
         New-Item -ItemType Directory -Path $configDir -Force | Out-Null
     }
     if (-not (Test-Path -LiteralPath $configPath)) {
-        "[desarrollo]`ndebug=false`n`n[UI]`nmode=light`n`n[sql]`n; server=user|password_base64" | Out-File -FilePath $configPath -Encoding UTF8 -Force
+        "[desarrollo]`ndebug=false`n`n[UI]`nmode=light`n`n[sql]`n; server=user|password" | Out-File -FilePath $configPath -Encoding UTF8 -Force
     }
     Ensure-DzUiConfig -ConfigPath $configPath
     $script:DzDebugEnabled = Get-DzDebugPreference
@@ -1693,6 +1693,59 @@ function Get-NetworkAdapterStatus {
     }
     return $adapterStatus
 }
+function Apply-SavedSqlCredentials {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ServerText
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ServerText)) {
+        Write-DzDebug "`t[DEBUG] ServerText está vacío"
+        return
+    }
+
+    Write-DzDebug "`t[DEBUG] Aplicando credenciales guardadas para: '$ServerText'"
+
+    $saved = Get-DzSavedSqlConnection -Server $ServerText
+
+    if (-not $saved) {
+        Write-DzDebug "`t[DEBUG] No hay credenciales guardadas para: '$ServerText'"
+
+        # LIMPIAR los campos cuando no hay credenciales
+        try {
+            if ($global:txtUser) {
+                $global:txtUser.Text = ""
+                Write-DzDebug "`t[DEBUG] ✓ Campo de usuario limpiado"
+            }
+
+            if ($global:txtPassword) {
+                $global:txtPassword.Password = ""
+                Write-DzDebug "`t[DEBUG] ✓ Campo de contraseña limpiado"
+            }
+        } catch {
+            Write-DzDebug "`t[DEBUG] ✗ Error limpiando campos: $_" -Color Red
+        }
+
+        return
+    }
+
+    Write-DzDebug "`t[DEBUG] ✓ Credenciales encontradas para: '$ServerText' (User: $($saved.User))"
+
+    try {
+        if ($global:txtUser) {
+            $global:txtUser.Text = $saved.User
+            Write-DzDebug "`t[DEBUG] ✓ Usuario aplicado: '$($saved.User)'"
+        }
+
+        if ($global:txtPassword) {
+            $global:txtPassword.Password = $saved.Password
+            Write-DzDebug "`t[DEBUG] ✓ Contraseña aplicada"
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG] ✗ Error aplicando credenciales: $_" -Color Red
+    }
+}
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
@@ -1729,4 +1782,5 @@ Export-ModuleMember -Function @(
     'Set-ClipboardTextSafe',
     'Initialize-SystemInfo',
     'Update-PortsUI',
-    'Update-NetworkUI')
+    'Update-NetworkUI',
+    'Apply-SavedSqlCredentials')

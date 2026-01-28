@@ -1712,7 +1712,10 @@ function Connect-DbCore {
                     if ($Ctx.tvDatabases) {
                         Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
                     }
-
+                    if ($Ctx.tcQueries -and (Get-Command Set-QueryTabsDatabase -ErrorAction SilentlyContinue)) {
+                        Set-QueryTabsDatabase -TabControl $Ctx.tcQueries -Database $Ctx.Database
+                        Write-DzDebug "`t[DEBUG][TreeView] Pestañas actualizadas con BD: $($Ctx.Database)"
+                    }
                     Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($Ctx.Database) (dbName='$dbName')"
                 } catch {
                     Write-DzDebug "`t[DEBUG][OnDatabaseSelected] ERROR: $($_.Exception.Message)" -Color Red
@@ -1791,8 +1794,6 @@ function Connect-DbCore {
         Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
     }
 }
-
-
 function Export-ResultsCore {
     [CmdletBinding()]
     param([Parameter(Mandatory)][hashtable]$Ctx)

@@ -717,27 +717,43 @@ function New-MainForm {
             Write-Host "`n- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Magenta
             Connect-DbUiSafe
         })
-    function Apply-SavedSqlCredentials {
-        param([string]$ServerText)
-        if (-not (Get-Command Get-DzSavedSqlConnection -ErrorAction SilentlyContinue)) { return }
-        $saved = Get-DzSavedSqlConnection -Server $ServerText
-        if (-not $saved) { return }
-        if ($global:txtUser) { $global:txtUser.Text = $saved.User }
-        if ($global:txtPassword) { $global:txtPassword.Password = $saved.Password }
-    }
     if ($txtServer) {
+        # Función helper para obtener el texto correcto del ComboBox
+        $getServerText = {
+            $text = $null
+
+            # Prioridad 1: SelectedItem
+            if ($global:txtServer.SelectedItem -is [string]) {
+                $text = $global:txtServer.SelectedItem
+            }
+            # Prioridad 2: Text
+            elseif (-not [string]::IsNullOrWhiteSpace($global:txtServer.Text)) {
+                $text = $global:txtServer.Text
+            }
+
+            # Return correcto
+            if ($text) {
+                return $text.Trim()
+            } else {
+                return ""
+            }
+        }
+
+        # Aplicar credenciales cuando cambia la selección
         $txtServer.Add_SelectionChanged({
-                $serverText = ([string]$global:txtServer.Text).Trim()
-                if (-not [string]::IsNullOrWhiteSpace($serverText)) {
-                    Apply-SavedSqlCredentials -ServerText $serverText
+                try {
+                    $serverText = & $getServerText
+                    Write-DzDebug "`t[DEBUG] Servidor seleccionado: '$serverText'"
+
+                    if (-not [string]::IsNullOrWhiteSpace($serverText)) {
+                        # Pequeño delay para asegurar que el ComboBox actualizó su valor
+                        Start-Sleep -Milliseconds 100
+                        Apply-SavedSqlCredentials -ServerText $serverText
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG] Error aplicando credenciales: $_" -Color Red
                 }
-            })
-        $txtServer.Add_LostFocus({
-                $serverText = ([string]$global:txtServer.Text).Trim()
-                if (-not [string]::IsNullOrWhiteSpace($serverText)) {
-                    Apply-SavedSqlCredentials -ServerText $serverText
-                }
-            })
+            }.GetNewClosure())
     }
     $btnExecute.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Ejecutar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow

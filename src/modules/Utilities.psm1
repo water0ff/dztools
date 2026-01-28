@@ -1,6 +1,6 @@
 ﻿#requires -Version 5.0
 
-$script:DzToolsConfigPath = "C:\Temp\dztools.ini"
+$script:DzToolsConfigPath = "C:\Temp\dztools\dztools.ini"
 $script:DzDebugEnabled = $null
 
 function Get-DzToolsConfigPath {
@@ -13,6 +13,7 @@ function Get-DzDebugPreference {
     }
     $content = Get-Content -LiteralPath $configPath -ErrorAction SilentlyContinue
     $inDevSection = $false
+
     foreach ($line in $content) {
         $trimmed = $line.Trim()
         if ($trimmed -match '^\s*;') { continue }
@@ -62,7 +63,7 @@ function Ensure-DzUiConfig {
         }
         if ($inUiSection -and $trimmed -match '^\[') {
             if (-not $modeFound) {
-                $lines.Add("mode=dark")
+                $lines.Add("mode=light")
                 $modeFound = $true
             }
             $inUiSection = $false
@@ -74,14 +75,14 @@ function Ensure-DzUiConfig {
     }
 
     if ($uiFound -and -not $modeFound) {
-        $lines.Add("mode=dark")
+        $lines.Add("mode=light")
     }
     if (-not $uiFound) {
         if ($lines.Count -gt 0 -and $lines[$lines.Count - 1] -ne "") {
             $lines.Add("")
         }
         $lines.Add("[UI]")
-        $lines.Add("mode=dark")
+        $lines.Add("mode=light")
     }
 
     Set-Content -LiteralPath $ConfigPath -Value $lines -Encoding UTF8
@@ -112,6 +113,7 @@ function Update-DzIniSetting {
     $sectionFound = $false
     $keyUpdated = $false
     $inTargetSection = $false
+    $escapedKey = [regex]::Escape($Key)
 
     foreach ($line in $content) {
         $trimmed = $line.Trim()
@@ -135,7 +137,7 @@ function Update-DzIniSetting {
             continue
         }
 
-        if ($inTargetSection -and $trimmed -match "^\s*${Key}\s*=") {
+        if ($inTargetSection -and $trimmed -match "^\s*${escapedKey}\s*=") {
             $lines.Add("$Key=$Value")
             $keyUpdated = $true
             continue
@@ -162,7 +164,7 @@ function Update-DzIniSetting {
 function Get-DzUiMode {
     $configPath = Get-DzToolsConfigPath
     if (-not (Test-Path -LiteralPath $configPath)) {
-        return "dark"
+        return "light"
     }
     $content = Get-Content -LiteralPath $configPath -ErrorAction SilentlyContinue
     $inUiSection = $false
@@ -182,7 +184,7 @@ function Get-DzUiMode {
             return $matches[1].ToLower()
         }
     }
-    return "dark"
+    return "light"
 }
 
 function Set-DzUiMode {
@@ -216,11 +218,114 @@ function Initialize-DzToolsConfig {
         New-Item -ItemType Directory -Path $configDir -Force | Out-Null
     }
     if (-not (Test-Path -LiteralPath $configPath)) {
-        "[desarrollo]`ndebug=false`n`n[UI]`nmode=dark" | Out-File -FilePath $configPath -Encoding UTF8 -Force
+        "[desarrollo]`ndebug=false`n`n[UI]`nmode=light`n`n[sql]`n; server=user|password_base64" | Out-File -FilePath $configPath -Encoding UTF8 -Force
     }
     Ensure-DzUiConfig -ConfigPath $configPath
     $script:DzDebugEnabled = Get-DzDebugPreference
     return $script:DzDebugEnabled
+}
+
+function Get-DzIniSectionMap {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Section
+    )
+
+    $configPath = Get-DzToolsConfigPath
+    if (-not (Test-Path -LiteralPath $configPath)) { return @{} }
+
+    $content = Get-Content -LiteralPath $configPath -ErrorAction SilentlyContinue
+    if ($null -eq $content) { return @{} }
+
+    $map = @{}
+    $inSection = $false
+    foreach ($line in $content) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^\s*;') { continue }
+        if ($trimmed -match '^\[(.+)\]\s*$') {
+            $current = $matches[1].Trim()
+            $inSection = ($current.ToLower() -eq $Section.ToLower())
+            continue
+        }
+        if (-not $inSection) { continue }
+        if ([string]::IsNullOrWhiteSpace($trimmed)) { continue }
+        $parts = $trimmed -split '=', 2
+        if ($parts.Count -lt 2) { continue }
+        $key = $parts[0].Trim()
+        $value = $parts[1].Trim()
+        if (-not [string]::IsNullOrWhiteSpace($key)) {
+            $map[$key] = $value
+        }
+    }
+    return $map
+}
+
+function Get-DzSavedSqlConnections {
+    [CmdletBinding()]
+    param()
+
+    $entries = Get-DzIniSectionMap -Section "sql"
+    $connections = @()
+    foreach ($server in $entries.Keys) {
+        $value = [string]$entries[$server]
+        if ([string]::IsNullOrWhiteSpace($value)) { continue }
+        $parts = $value -split '\|', 2
+        if ($parts.Count -lt 2) { continue }
+        $user = $parts[0]
+        $password = ""
+        try {
+            $bytes = [Convert]::FromBase64String($parts[1])
+            $password = [System.Text.Encoding]::UTF8.GetString($bytes)
+        } catch {
+            $password = ""
+        }
+        $connections += [pscustomobject]@{
+            Server   = $server
+            User     = $user
+            Password = $password
+        }
+    }
+    return $connections
+}
+
+function Get-DzSavedSqlConnection {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Server
+    )
+
+    $serverText = $Server.Trim()
+    if ([string]::IsNullOrWhiteSpace($serverText)) { return $null }
+
+    $entries = Get-DzSavedSqlConnections
+    foreach ($entry in $entries) {
+        if ($entry.Server -and $entry.Server.Trim().ToLower() -eq $serverText.ToLower()) {
+            return $entry
+        }
+    }
+    return $null
+}
+
+function Save-DzSqlConnection {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Server,
+        [Parameter(Mandatory = $true)]
+        [string]$User,
+        [Parameter(Mandatory = $true)]
+        [string]$Password
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Server) -or [string]::IsNullOrWhiteSpace($User)) { return }
+    if ([string]::IsNullOrWhiteSpace($Password)) { return }
+
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
+    $encoded = [Convert]::ToBase64String($bytes)
+    $value = "$User|$encoded"
+    Update-DzIniSetting -Section "sql" -Key $Server -Value $value
 }
 
 function Write-DzDebug {
@@ -1595,6 +1700,10 @@ Export-ModuleMember -Function @(
     'Set-DzUiMode',
     'Set-DzDebugPreference',
     'Initialize-DzToolsConfig',
+    'Get-DzIniSectionMap',
+    'Get-DzSavedSqlConnections',
+    'Get-DzSavedSqlConnection',
+    'Save-DzSqlConnection',
     'Write-DzDebug',
     'Test-Administrator',
     'Get-SystemInfo',

@@ -191,7 +191,7 @@ function Save-OpenQueryTabs {
             if (-not $editor) { continue }
             $queryText = Get-SqlEditorText -Editor $editor
             if ([string]::IsNullOrWhiteSpace($queryText)) { continue }
-            $title = if ($item.Tag.Title) { $item.Tag.Title } else { "Consulta $($tabIndex + 1)" }
+            $title = if ($item.Tag.Title) { $item.Tag.Title } else { "Query$($tabIndex + 1)" }
             $isDirty = if ($item.Tag.IsDirty) { "1" } else { "0" }
             $queryBase64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($queryText))
             $tabLine = "$tabIndex|$title|$isDirty|$queryBase64"
@@ -260,6 +260,8 @@ function Restore-OpenQueryTabs {
                                 $newTab.Tag.Title = $savedTitle
                                 if ($newTab.Tag.HeaderTextBlock) { $newTab.Tag.HeaderTextBlock.Text = $savedTitle }
                             }
+                            $parsedNumber = Get-QueryTabNumberFromTitle -Title ([string]$newTab.Tag.Title)
+                            if ($parsedNumber) { $newTab.Tag.Number = $parsedNumber }
                             $newTab.Tag.IsDirty = ($parts[2] -eq "1")
                             Update-QueryTabHeader -TabItem $newTab
                             $restoredCount++
@@ -620,24 +622,86 @@ function Save-DbUiContext {
     $global:database = $Ctx.Database
     $global:dbCredential = $Ctx.DbCredential
 }
+
+function Get-QueryTabTitle {
+    param(
+        [Parameter(Mandatory = $true)][int]$Number,
+        [Parameter()][string]$Database
+    )
+    if ([string]::IsNullOrWhiteSpace($Database)) {
+        return "Query$Number"
+    }
+    return "Query$Number ($Database)"
+}
+
+function Get-QueryTabNumberFromTitle {
+    param([Parameter(Mandatory = $true)][string]$Title)
+    if ($Title -match 'Query\s*(\d+)') { return [int]$Matches[1] }
+    if ($Title -match 'Consulta\s+(\d+)') { return [int]$Matches[1] }
+    return $null
+}
+
+function Set-QueryTabsDatabase {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][System.Windows.Controls.TabControl]$TabControl,
+        [Parameter()][string]$Database
+    )
+    foreach ($item in $TabControl.Items) {
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        if (-not $item.Tag -or $item.Tag.Type -ne 'QueryTab') { continue }
+        if (-not $item.Tag.Number) {
+            $parsedNumber = Get-QueryTabNumberFromTitle -Title ([string]$item.Tag.Title)
+            if ($parsedNumber) { $item.Tag.Number = $parsedNumber }
+        }
+        $item.Tag.Database = $Database
+        if ($item.Tag.Number) {
+            $item.Tag.Title = Get-QueryTabTitle -Number $item.Tag.Number -Database $Database
+        }
+        Update-QueryTabHeader -TabItem $item
+    }
+}
+
+function Close-OtherQueryTabs {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][System.Windows.Controls.TabControl]$TabControl,
+        [Parameter(Mandatory = $true)][System.Windows.Controls.TabItem]$TabItem
+    )
+    $toClose = @()
+    foreach ($item in $TabControl.Items) {
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        if (-not $item.Tag -or $item.Tag.Type -ne 'QueryTab') { continue }
+        if ($item -eq $TabItem) { continue }
+        $toClose += $item
+    }
+    foreach ($item in $toClose) {
+        Close-QueryTab -TabControl $TabControl -TabItem $item
+    }
+}
 function New-QueryTab {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][System.Windows.Controls.TabControl]$TabControl)
     $tabNumber = Get-NextQueryNumber -TabControl $TabControl
-    $tabTitle = "Consulta $tabNumber"
+    $dbName = $null
+    if ($global:cmbDatabases -and (Get-Command Get-DbNameFromComboSelection -ErrorAction SilentlyContinue)) {
+        $dbName = Get-DbNameFromComboSelection -ComboBox $global:cmbDatabases
+    }
+    $tabTitle = Get-QueryTabTitle -Number $tabNumber -Database $dbName
     $tabItem = New-Object System.Windows.Controls.TabItem
     $headerPanel = New-Object System.Windows.Controls.StackPanel
     $headerPanel.Orientation = "Horizontal"
     $headerText = New-Object System.Windows.Controls.TextBlock
     $headerText.Text = $tabTitle
     $headerText.VerticalAlignment = "Center"
+    $headerText.FontSize = 10
     $closeButton = New-Object System.Windows.Controls.Button
     $closeButton.Content = "×"
-    $closeButton.Width = 20
-    $closeButton.Height = 20
-    $closeButton.Margin = "6,0,0,0"
+    $closeButton.Width = 16
+    $closeButton.Height = 16
+    $closeButton.Margin = "4,0,0,0"
     $closeButton.Padding = "0"
-    $closeButton.FontSize = 14
+    $closeButton.FontSize = 10
     [void]$headerPanel.Children.Add($headerText)
     [void]$headerPanel.Children.Add($closeButton)
     $tabItem.Header = $headerPanel
@@ -647,15 +711,25 @@ function New-QueryTab {
     $border.Margin = "5"
     $border.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "BorderBrushColor")
     $border.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "ControlBg")
-    $editor = New-SqlEditor -Container $border -FontFamily "Consolas" -FontSize 12
+    $editor = New-SqlEditor -Container $border -FontFamily "Consolas" -FontSize 11
     $tabItem.Content = $border
-    $tabItem.Tag = [pscustomobject]@{ Type = "QueryTab"; Editor = $editor; Title = $tabTitle; HeaderTextBlock = $headerText; IsDirty = $false }
+    $tabItem.Tag = [pscustomobject]@{ Type = "QueryTab"; Editor = $editor; Title = $tabTitle; HeaderTextBlock = $headerText; IsDirty = $false; Number = $tabNumber; Database = $dbName }
     $editor.Add_TextChanged({
             $tabItem.Tag.IsDirty = $true
             Update-QueryTabHeader -TabItem $tabItem
         }.GetNewClosure())
     $tcRef = $TabControl
     $closeButton.Add_Click({ Close-QueryTab -TabControl $tcRef -TabItem $tabItem }.GetNewClosure())
+    $contextMenu = New-Object System.Windows.Controls.ContextMenu
+    $menuClose = New-Object System.Windows.Controls.MenuItem
+    $menuClose.Header = "Cerrar esta pestaña"
+    $menuClose.Add_Click({ Close-QueryTab -TabControl $tcRef -TabItem $tabItem }.GetNewClosure())
+    $menuCloseOthers = New-Object System.Windows.Controls.MenuItem
+    $menuCloseOthers.Header = "Cerrar otras pestañas"
+    $menuCloseOthers.Add_Click({ Close-OtherQueryTabs -TabControl $tcRef -TabItem $tabItem }.GetNewClosure())
+    [void]$contextMenu.Items.Add($menuClose)
+    [void]$contextMenu.Items.Add($menuCloseOthers)
+    $tabItem.ContextMenu = $contextMenu
     $insertIndex = $TabControl.Items.Count
     for ($i = 0; $i -lt $TabControl.Items.Count; $i++) {
         $it = $TabControl.Items[$i]
@@ -671,11 +745,14 @@ function Get-NextQueryNumber {
     foreach ($item in $TabControl.Items) {
         if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
         if (-not $item.Tag -or $item.Tag.Type -ne 'QueryTab') { continue }
-        $title = [string]$item.Tag.Title
-        if ($title -match 'Consulta\s+(\d+)') {
-            $n = [int]$Matches[1]
+        if ($item.Tag.Number) {
+            $n = [int]$item.Tag.Number
             if ($n -gt $max) { $max = $n }
+            continue
         }
+        $title = [string]$item.Tag.Title
+        $parsed = Get-QueryTabNumberFromTitle -Title $title
+        if ($parsed -and $parsed -gt $max) { $max = $parsed }
     }
     return ($max + 1)
 }
@@ -1227,6 +1304,8 @@ Export-ModuleMember -Function @(
     'Execute-QueryUiSafe',
     'Export-ResultsUiSafe',
     'New-QueryTab',
+    'Set-QueryTabsDatabase',
+    'Close-OtherQueryTabs',
     'Get-ActiveQueryTab', 'Get-ActiveQueryRichTextBox', 'Set-QueryTextInActiveTab', 'Insert-TextIntoActiveQuery',
     'Clear-ActiveQueryTab', 'Update-QueryTabHeader', 'Close-QueryTab', 'Execute-QueryInTab',
     'Get-SqlEditorPaths',

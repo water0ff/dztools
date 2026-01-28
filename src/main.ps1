@@ -717,6 +717,28 @@ function New-MainForm {
             Write-Host "`n- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Magenta
             Connect-DbUiSafe
         })
+    function Apply-SavedSqlCredentials {
+        param([string]$ServerText)
+        if (-not (Get-Command Get-DzSavedSqlConnection -ErrorAction SilentlyContinue)) { return }
+        $saved = Get-DzSavedSqlConnection -Server $ServerText
+        if (-not $saved) { return }
+        if ($global:txtUser) { $global:txtUser.Text = $saved.User }
+        if ($global:txtPassword) { $global:txtPassword.Password = $saved.Password }
+    }
+    if ($txtServer) {
+        $txtServer.Add_SelectionChanged({
+                $serverText = ([string]$global:txtServer.Text).Trim()
+                if (-not [string]::IsNullOrWhiteSpace($serverText)) {
+                    Apply-SavedSqlCredentials -ServerText $serverText
+                }
+            })
+        $txtServer.Add_LostFocus({
+                $serverText = ([string]$global:txtServer.Text).Trim()
+                if (-not [string]::IsNullOrWhiteSpace($serverText)) {
+                    Apply-SavedSqlCredentials -ServerText $serverText
+                }
+            })
+    }
     $btnExecute.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Ejecutar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n`t- - - Ejecutando consulta - - -" -ForegroundColor Gray
@@ -724,15 +746,16 @@ function New-MainForm {
         })
     $cmbDatabases.Add_SelectionChanged({
             if ($global:cmbDatabases.SelectedItem) {
-                $global:database = $global:cmbDatabases.SelectedItem
-                if ($global:lblConnectionStatus.Content -like "Conectado a:*") {
-                    $global:lblConnectionStatus.Content = @"
-Conectado a:
-Servidor: $($global:server)
-Base de datos: $($global:database)
-"@.Trim()
-                }
                 $dbName = Get-DbNameFromComboSelection -ComboBox $global:cmbDatabases
+                if ($dbName) {
+                    $global:database = $dbName
+                    if ($global:lblConnectionStatus) {
+                        $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $dbName"
+                    }
+                    if (Get-Command Set-QueryTabsDatabase -ErrorAction SilentlyContinue) {
+                        Set-QueryTabsDatabase -TabControl $global:tcQueries -Database $dbName
+                    }
+                }
                 if ($dbName -and $global:tvDatabases) {
                     Select-SqlTreeDatabase -TreeView $global:tvDatabases -DatabaseName $dbName
                 }

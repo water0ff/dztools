@@ -983,56 +983,65 @@ function Get-MainWindowXaml {
                 <Grid Background="{DynamicResource PanelBg}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Border Grid.Row="0" Margin="10" Padding="10" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                                <Button Name="btnConnectDb" Width="60" Height="30" Margin="0,0,8,0" Style="{StaticResource DbConnectButtonStyle}" ToolTip="Conectar">
-                                    <TextBlock Text="🔌✅" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
-                                </Button>
-                                <Button Name="btnDisconnectDb" Width="60" Height="30" Style="{StaticResource DbDisconnectButtonStyle}" ToolTip="Desconectar" IsEnabled="False">
-                                    <TextBlock Text="🔌✖" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
-                                </Button>
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Conexión y acciones" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <ToggleButton Name="btnSsmsPanelToggle" Grid.Column="1" Width="26" Height="26" Content="▼" ToolTip="Contraer o expandir" IsChecked="True"/>
+                            </Grid>
+                            <StackPanel Name="panelSsmsContent">
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                                        <Button Name="btnConnectDb" Width="60" Height="30" Margin="0,0,8,0" Style="{StaticResource DbConnectButtonStyle}" ToolTip="Conectar">
+                                            <TextBlock Text="🔌✅" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+                                        </Button>
+                                        <Button Name="btnDisconnectDb" Width="60" Height="30" Style="{StaticResource DbDisconnectButtonStyle}" ToolTip="Desconectar" IsEnabled="False">
+                                            <TextBlock Text="🔌✖" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
+                                        </Button>
+                                    </StackPanel>
+                                    <WrapPanel Grid.Column="1">
+                                        <StackPanel Margin="0,0,16,0">
+                                            <TextBlock Text="Instancia SQL:"/>
+                                            <ComboBox Name="txtServer" Width="180" IsEditable="True" Text=".\NationalSoft"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,16,0">
+                                            <TextBlock Text="Usuario:"/>
+                                            <TextBox Name="txtUser" Width="160" Text="sa"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,16,0">
+                                            <TextBlock Text="Contraseña:"/>
+                                            <PasswordBox Name="txtPassword" Width="160"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,16,0">
+                                            <TextBlock Text="Base de datos:"/>
+                                            <ComboBox Name="cmbDatabases" Width="180" IsEnabled="False"/>
+                                        </StackPanel>
+                                    </WrapPanel>
+                                </Grid>
+                                <Separator Margin="0,0,0,8"/>
+                                <WrapPanel>
+                                    <Button Content="Ejecutar (F5)" Name="btnExecute" Width="110" Height="30" Margin="0,0,8,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                                    <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0" IsEnabled="False" ToolTip="Consultas predefinidas"/>
+                                    <Button Content="Limpiar" Name="btnClearQuery" Width="90" Height="30" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                                    <Button Content="Exportar" Name="btnExport" Width="100" Height="30" Margin="8,0,0,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                                    <Button Content="📋 Historial" Name="btnHistorial" Width="110" Height="30" Margin="8,0,0,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
+                                </WrapPanel>
                             </StackPanel>
-                            <WrapPanel Grid.Column="1">
-                                <StackPanel Margin="0,0,16,0">
-                                    <TextBlock Text="Instancia SQL:"/>
-                                    <ComboBox Name="txtServer" Width="180" IsEditable="True" Text=".\NationalSoft"/>
-                                </StackPanel>
-                                <StackPanel Margin="0,0,16,0">
-                                    <TextBlock Text="Usuario:"/>
-                                    <TextBox Name="txtUser" Width="160" Text="sa"/>
-                                </StackPanel>
-                                <StackPanel Margin="0,0,16,0">
-                                    <TextBlock Text="Contraseña:"/>
-                                    <PasswordBox Name="txtPassword" Width="160"/>
-                                </StackPanel>
-                                <StackPanel Margin="0,0,16,0">
-                                    <TextBlock Text="Base de datos:"/>
-                                    <ComboBox Name="cmbDatabases" Width="180" IsEnabled="False"/>
-                                </StackPanel>
-                            </WrapPanel>
-                        </Grid>
+                        </StackPanel>
                     </Border>
 
-                    <Border Grid.Row="1" Margin="10,0,10,10" Padding="10" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="Ejecutar (F5)" Name="btnExecute" Width="110" Height="30" Margin="0,0,8,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-                            <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0" IsEnabled="False" ToolTip="Consultas predefinidas"/>
-                            <Button Content="Limpiar" Name="btnClearQuery" Width="90" Height="30" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-                            <Button Content="Exportar" Name="btnExport" Width="100" Height="30" Margin="8,0,0,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-                            <Button Content="📋 Historial" Name="btnHistorial" Width="110" Height="30" Margin="8,0,0,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-                            </StackPanel>
-                    </Border>
-
-                    <Grid Grid.Row="2" Margin="10">
+                    <Grid Grid.Row="1" Margin="10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="250" MinWidth="200"/>
                             <ColumnDefinition Width="5"/>
@@ -1074,7 +1083,7 @@ function Get-MainWindowXaml {
                         </Grid>
                     </Grid>
 
-                    <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
+                    <StatusBar Grid.Row="2" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
                         <StatusBarItem>
                             <TextBlock Name="lblConnectionStatus" Text="Desconectado"/>
                         </StatusBarItem>

@@ -1688,6 +1688,10 @@ function Connect-DbCore {
                         $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
                     }
 
+                    if ($Ctx.tvDatabases) {
+                        Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
+                    }
+
                     Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($Ctx.Database) (dbName='$dbName')"
                 } catch {
                     Write-DzDebug "`t[DEBUG][OnDatabaseSelected] ERROR: $($_.Exception.Message)" -Color Red
@@ -1744,6 +1748,10 @@ function Connect-DbCore {
                         $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
                     }
 
+                    if ($Ctx.tvDatabases -and $Ctx.Database) {
+                        Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
+                    }
+
                     Write-DzDebug "`t[DEBUG][TreeView] ComboBox actualizado con $($dbs.Count) bases de datos"
                 } catch {
                     Write-DzDebug "`t[DEBUG][OnDatabasesRefreshed] Error: $_"
@@ -1758,6 +1766,9 @@ function Connect-DbCore {
     }
 
     Write-DzDebug "`t[DEBUG] Conexión establecida exitosamente"
+    if ($Ctx.tvDatabases -and $Ctx.Database) {
+        Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
+    }
 }
 
 

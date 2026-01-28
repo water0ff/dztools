@@ -185,6 +185,7 @@ function New-MainForm {
     $cmbDatabases = $window.FindName("cmbDatabases")
     $btnConnectDb = $window.FindName("btnConnectDb")
     $btnDisconnectDb = $window.FindName("btnDisconnectDb")
+    $btnSsmsPanelToggle = $window.FindName("btnSsmsPanelToggle")
     $lblConnectionStatus = $window.FindName("lblConnectionStatus")
     $btnExecute = $window.FindName("btnExecute")
     $btnClearQuery = $window.FindName("btnClearQuery")
@@ -195,6 +196,7 @@ function New-MainForm {
     $tcResults = $window.FindName("tcResults")
     $tvDatabases = $window.FindName("tvDatabases")
     $tabAddQuery = $window.FindName("tabAddQuery")
+    $panelSsmsContent = $window.FindName("panelSsmsContent")
     $tglDarkMode = $window.FindName("tglDarkMode")
     $tglDebugMode = $window.FindName("tglDebugMode")
     $script:predefinedQueries = Get-PredefinedQueries
@@ -343,6 +345,21 @@ function New-MainForm {
         } catch {
             Write-Host "✗ Error aplicando estilo al TreeView: $($_.Exception.Message)" -ForegroundColor Red
         }
+    }
+    if ($btnSsmsPanelToggle -and $panelSsmsContent) {
+        $setSsmsPanelState = {
+            param([bool]$isExpanded)
+            if ($isExpanded) {
+                $panelSsmsContent.Visibility = "Visible"
+                $btnSsmsPanelToggle.Content = "▼"
+            } else {
+                $panelSsmsContent.Visibility = "Collapsed"
+                $btnSsmsPanelToggle.Content = "▲"
+            }
+        }.GetNewClosure()
+        $btnSsmsPanelToggle.Add_Checked({ $setSsmsPanelState.Invoke($true) })
+        $btnSsmsPanelToggle.Add_Unchecked({ $setSsmsPanelState.Invoke($false) })
+        $setSsmsPanelState.Invoke([bool]$btnSsmsPanelToggle.IsChecked)
     }
     $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
@@ -682,6 +699,10 @@ Conectado a:
 Servidor: $($global:server)
 Base de datos: $($global:database)
 "@.Trim()
+                }
+                $dbName = Get-DbNameFromComboSelection -ComboBox $global:cmbDatabases
+                if ($dbName -and $global:tvDatabases) {
+                    Select-SqlTreeDatabase -TreeView $global:tvDatabases -DatabaseName $dbName
                 }
             }
         })

@@ -428,7 +428,7 @@ function Load-DatabasesIntoTree {
         $stateDesc = $dbInfo.StateDesc
         $userAccessDesc = $dbInfo.UserAccessDesc
         $isReadOnly = $dbInfo.IsReadOnly
-        Write-DzDebug "`t[DEBUG][TreeView] Procesando DB: $db | State=$stateDesc | Access=$userAccessDesc | ReadOnly=$isReadOnly"
+        # Write-DzDebug "`t[DEBUG][TreeView] Procesando DB: $db | State=$stateDesc | Access=$userAccessDesc | ReadOnly=$isReadOnly"
         $statusInfo = Get-DbStatusInfo -StateDesc $stateDesc -UserAccessDesc $userAccessDesc -IsReadOnly $isReadOnly
         $showBadge = $false
         if ($stateDesc -ne "ONLINE") {
@@ -471,13 +471,11 @@ function Load-DatabasesIntoTree {
         }
         Add-DatabaseContextMenu -DatabaseNode $dbNode
         if ($stateDesc -ne "ONLINE") {
-            Write-DzDebug "`t[DEBUG][TreeView] DB '$db' no está ONLINE, agregando nodo informativo"
             $infoNode = New-SqlTreeNode -Header "⚠️ Base de datos no disponible ($stateDesc)" -Tag @{ Type = "Info" } -HasPlaceholder $false
             [void]$dbNode.Items.Add($infoNode)
             [void]$ServerNode.Items.Add($dbNode)
             continue
         }
-        Write-DzDebug "`t[DEBUG][TreeView] DB '$db' está ONLINE, agregando nodos de tablas/vistas/procs"
         $dbNode.Add_MouseDoubleClick({
                 param($s, $e)
                 $db = [string]$s.Tag.Database

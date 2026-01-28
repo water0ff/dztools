@@ -51,7 +51,7 @@ Describe "Pruebas iniciales" {
     }
 
     It "Deben existir los módulos" {
-        $modules = @("GUI.psm1", "SqlEditor.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1", "QueriesPad.psm1")
+        $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1", "QueriesPad.psm1")
         foreach ($module in $modules) {
             Test-Path ".\src\modules\$module" | Should -Be $true
         }

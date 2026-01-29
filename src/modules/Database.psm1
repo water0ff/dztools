@@ -755,11 +755,10 @@ function Show-MultipleResultSets {
         [Parameter(Mandatory)][System.Windows.Controls.TabControl]$TabControl,
         [Parameter()][AllowEmptyCollection()][array]$ResultSets = @()
     )
-
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] INICIO"
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] ResultSets Count: $($ResultSets.Count)"
-
     $messagesTab = $null
+    $messagesTabIndex = -1
     for ($ti = 0; $ti -lt $TabControl.Items.Count; $ti++) {
         $item = $TabControl.Items[$ti]
         if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
@@ -768,16 +767,19 @@ function Show-MultipleResultSets {
             $header = $item.Header
         } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
             foreach ($child in $item.Header.Children) {
-                if ($child -is [System.Windows.Controls.TextBlock]) { $header = $child.Text; break }
+                if ($child -is [System.Windows.Controls.TextBlock]) {
+                    $header = $child.Text
+                    break
+                }
             }
         }
         if ($header -and $header -match "Mensajes") {
             $messagesTab = $item
-            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña de Mensajes encontrada en índice $ti"
+            $messagesTabIndex = $ti
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] ✓ Pestaña de Mensajes encontrada en índice $ti"
             break
         }
     }
-
     $itemsToRemove = New-Object System.Collections.ArrayList
     foreach ($item in $TabControl.Items) {
         if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
@@ -786,38 +788,59 @@ function Show-MultipleResultSets {
             $header = $item.Header
         } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
             foreach ($child in $item.Header.Children) {
-                if ($child -is [System.Windows.Controls.TextBlock]) { $header = $child.Text; break }
+                if ($child -is [System.Windows.Controls.TextBlock]) {
+                    $header = $child.Text
+                    break
+                }
             }
         }
-        if (-not ($header -and $header -match "Mensajes")) { [void]$itemsToRemove.Add($item) }
+        if (-not ($header -and $header -match "Mensajes")) {
+            [void]$itemsToRemove.Add($item)
+        }
     }
-    foreach ($item in $itemsToRemove) { $TabControl.Items.Remove($item) }
+    foreach ($item in $itemsToRemove) {
+        $TabControl.Items.Remove($item)
+    }
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestañas removidas: $($itemsToRemove.Count)"
-
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestañas restantes: $($TabControl.Items.Count)"
     if (-not $ResultSets -or $ResultSets.Count -eq 0) {
         $tab = New-Object System.Windows.Controls.TabItem
+
         $headerPanel = New-Object System.Windows.Controls.StackPanel
         $headerPanel.Orientation = "Horizontal"
+
         $iconText = New-Object System.Windows.Controls.TextBlock
         $iconText.Text = "📊"
         $iconText.Margin = "0,0,6,0"
+
         $titleText = New-Object System.Windows.Controls.TextBlock
         $titleText.Text = "Resultado"
         $titleText.VerticalAlignment = "Center"
+
         [void]$headerPanel.Children.Add($iconText)
         [void]$headerPanel.Children.Add($titleText)
         $tab.Header = $headerPanel
+
         $text = New-Object System.Windows.Controls.TextBlock
         $text.Text = "La consulta no devolvió resultados."
         $text.Margin = "10"
         $tab.Content = $text
-        if ($messagesTab) { $TabControl.Items.Insert(0, $tab) } else { [void]$TabControl.Items.Add($tab) }
-        $TabControl.SelectedIndex = 0
+
+        # CRÍTICO: Insertar ANTES de Mensajes (índice 0)
+        if ($messagesTab) {
+            $TabControl.Items.Insert(0, $tab)
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña vacía insertada en índice 0 (antes de Mensajes)"
+        } else {
+            [void]$TabControl.Items.Add($tab)
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña vacía agregada (no hay Mensajes)"
+        }
+
+        # NO seleccionar - dejar que el código de mensajes seleccione Mensajes
         if ($global:lblRowCount) { $global:lblRowCount.Text = "📊 0" }
+
         Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN (sin resultados)"
         return
     }
-
     $theme = $null
     try { $theme = Get-DzUiTheme } catch { $theme = $null }
 
@@ -896,12 +919,15 @@ function Show-MultipleResultSets {
 
         $headerPanel = New-Object System.Windows.Controls.StackPanel
         $headerPanel.Orientation = "Horizontal"
+
         $iconText = New-Object System.Windows.Controls.TextBlock
         $iconText.Text = "📊"
         $iconText.Margin = "0,0,6,0"
+
         $titleText = New-Object System.Windows.Controls.TextBlock
         $titleText.Text = "Resultado $i ($rowCount filas)"
         $titleText.VerticalAlignment = "Center"
+
         [void]$headerPanel.Children.Add($iconText)
         [void]$headerPanel.Children.Add($titleText)
         $tab.Header = $headerPanel
@@ -937,6 +963,7 @@ function Show-MultipleResultSets {
                 param($s, $e)
                 $prop = $e.PropertyName
                 $hdr = $e.Column.Header
+
                 if ($e.PropertyType -eq [datetime]) {
                     $col = New-Object System.Windows.Controls.DataGridTextColumn
                     $col.Header = $hdr
@@ -958,6 +985,7 @@ function Show-MultipleResultSets {
                     }
                     return
                 }
+
                 if ($e.PropertyType -in @([int], [long], [decimal], [double], [single])) {
                     if ($e.Column -is [System.Windows.Controls.DataGridTextColumn]) {
                         $b = $e.Column.Binding
@@ -981,7 +1009,6 @@ function Show-MultipleResultSets {
                     $e.Column.ElementStyle = $ts
                 }
             })
-
         $dg.Add_AutoGeneratedColumns({
                 param($s, $e)
                 try {
@@ -995,45 +1022,83 @@ function Show-MultipleResultSets {
                     $dpi = 96.0
                     try {
                         $src = [System.Windows.PresentationSource]::FromVisual($s)
-                        if ($src -and $src.CompositionTarget -and $src.CompositionTarget.TransformToDevice) { $dpi = 96.0 * $src.CompositionTarget.TransformToDevice.M11 }
+                        if ($src -and $src.CompositionTarget -and $src.CompositionTarget.TransformToDevice) {
+                            $dpi = 96.0 * $src.CompositionTarget.TransformToDevice.M11
+                        }
                     } catch { $dpi = 96.0 }
+
                     $typeface = New-Object System.Windows.Media.Typeface($s.FontFamily, $s.FontStyle, $s.FontWeight, $s.FontStretch)
                     $fontSize = [double]$s.FontSize
-                    foreach ($col in $s.Columns) { $col.MinWidth = $min; $col.MaxWidth = $max }
+
+                    foreach ($col in $s.Columns) {
+                        $col.MinWidth = $min
+                        $col.MaxWidth = $max
+                    }
+
                     $s.Dispatcher.BeginInvoke([action] {
                             try {
                                 $s.UpdateLayout()
                                 foreach ($col in $s.Columns) {
                                     $prop = $null
                                     try { $prop = $col.SortMemberPath } catch { $prop = $null }
-                                    if ([string]::IsNullOrWhiteSpace($prop)) { try { $prop = $col.Header.ToString() } catch { $prop = $null } }
+                                    if ([string]::IsNullOrWhiteSpace($prop)) {
+                                        try { $prop = $col.Header.ToString() } catch { $prop = $null }
+                                    }
+
                                     $best = 0.0
                                     $hText = ""
                                     try { $hText = [string]$col.Header } catch { $hText = "" }
+
                                     if (-not [string]::IsNullOrEmpty($hText)) {
-                                        $ftH = New-Object System.Windows.Media.FormattedText($hText, [System.Globalization.CultureInfo]::CurrentCulture, [System.Windows.FlowDirection]::LeftToRight, $typeface, $fontSize, [System.Windows.Media.Brushes]::Black, $dpi)
+                                        $ftH = New-Object System.Windows.Media.FormattedText(
+                                            $hText,
+                                            [System.Globalization.CultureInfo]::CurrentCulture,
+                                            [System.Windows.FlowDirection]::LeftToRight,
+                                            $typeface,
+                                            $fontSize,
+                                            [System.Windows.Media.Brushes]::Black,
+                                            $dpi
+                                        )
                                         $best = [Math]::Max($best, $ftH.WidthIncludingTrailingWhitespace)
                                     }
+
                                     $count = 0
                                     if ($dt -and $prop -and $dt.Columns.Contains($prop)) {
                                         foreach ($row in $dt.Rows) {
                                             if ($count -ge $sampleMax) { break }
                                             $val = $row[$prop]
                                             $txt = $null
+
                                             if ($null -eq $val -or $val -is [System.DBNull]) {
                                                 $txt = "NULL"
                                             } else {
-                                                if ($val -is [datetime]) { $txt = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff") } else { $txt = [string]$val }
+                                                if ($val -is [datetime]) {
+                                                    $txt = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff")
+                                                } else {
+                                                    $txt = [string]$val
+                                                }
                                             }
+
                                             if (-not [string]::IsNullOrEmpty($txt)) {
-                                                $ft = New-Object System.Windows.Media.FormattedText($txt, [System.Globalization.CultureInfo]::CurrentCulture, [System.Windows.FlowDirection]::LeftToRight, $typeface, $fontSize, [System.Windows.Media.Brushes]::Black, $dpi)
-                                                if ($ft.WidthIncludingTrailingWhitespace -gt $best) { $best = $ft.WidthIncludingTrailingWhitespace }
+                                                $ft = New-Object System.Windows.Media.FormattedText(
+                                                    $txt,
+                                                    [System.Globalization.CultureInfo]::CurrentCulture,
+                                                    [System.Windows.FlowDirection]::LeftToRight,
+                                                    $typeface,
+                                                    $fontSize,
+                                                    [System.Windows.Media.Brushes]::Black,
+                                                    $dpi
+                                                )
+                                                if ($ft.WidthIncludingTrailingWhitespace -gt $best) {
+                                                    $best = $ft.WidthIncludingTrailingWhitespace
+                                                }
                                             }
                                             $count++
                                         }
                                     } else {
                                         $best = [Math]::Max($best, 120.0)
                                     }
+
                                     $w = [Math]::Ceiling($best + $pad)
                                     if ($w -lt $col.MinWidth) { $w = $col.MinWidth }
                                     if ($w -gt $col.MaxWidth) { $w = $col.MaxWidth }
@@ -1043,12 +1108,19 @@ function Show-MultipleResultSets {
                         }, [System.Windows.Threading.DispatcherPriority]::Loaded) | Out-Null
                 } catch { }
             })
-
         $tab.Content = $dg
-        if ($messagesTab) { $TabControl.Items.Insert($i - 1, $tab) } else { [void]$TabControl.Items.Add($tab) }
+        if ($messagesTab) {
+            $TabControl.Items.Insert($i - 1, $tab)
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i insertada en índice $($i-1) (antes de Mensajes)"
+        } else {
+            [void]$TabControl.Items.Add($tab)
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i agregada (no hay Mensajes)"
+        }
+
         Write-Host "`tPestaña $i creada con $rowCount filas" -ForegroundColor Green
     }
 
+    # ========== PASO 6: Actualizar contador y seleccionar pestaña ==========
     if ($global:lblRowCount) {
         $totalRows = ($ResultSets | Measure-Object -Property RowCount -Sum).Sum
         if ($ResultSets.Count -eq 1) {
@@ -1058,7 +1130,11 @@ function Show-MultipleResultSets {
         }
     }
 
+    # Seleccionar primera pestaña de resultados (NO Mensajes)
     $TabControl.SelectedIndex = 0
+
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestañas totales: $($TabControl.Items.Count)"
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña seleccionada: índice $($TabControl.SelectedIndex)"
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN"
 }
 

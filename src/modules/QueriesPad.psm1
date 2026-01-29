@@ -1608,20 +1608,20 @@ function Show-QueryHistoryWindow {
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Horizontal">
                             <Button Name="btnDeleteSelected" Content="🗑️ Eliminar seleccionado"
-                                    Width="90" Height="26"
+                                    Height="26"
                                     Style="{StaticResource DangerButtonStyle}"
                                     Margin="0,0,4,0"/>
                             <Button Name="btnClearAll" Content="🗑️ ELiminar Todo"
-                                    Width="70" Height="26"
+                                    Height="26"
                                     Style="{StaticResource DangerButtonStyle}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
                             <Button Name="btnCopy" Content="📋 Copiar Query"
-                                    Width="80" Height="26"
+                                    Height="26"
                                     Style="{StaticResource DatabaseButtonStyle}"
                                     Margin="0,0,4,0"/>
                             <Button Name="btnLoadNew" Content="📥 Agregar a nuevo Query"
-                                    Width="100" Height="26"
+                                    Height="26"
                                     Style="{StaticResource DatabaseButtonStyle}"/>
                         </StackPanel>
                     </Grid>

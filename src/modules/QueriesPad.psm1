@@ -1526,6 +1526,13 @@ function Show-QueryHistoryWindow {
             }
             $view.Refresh()
         }.GetNewClosure()
+        $updateSelectionCount = {
+            try {
+                $count = @($dataGrid.SelectedItems).Count
+                $lblSelectedCount.Text = "$count seleccionada$(if ($count -ne 1) { 's' } else { '' })"
+            } catch {}
+        }.GetNewClosure()
+        $dataGrid.Add_SelectionChanged({ & $updateSelectionCount }.GetNewClosure())
         $txtSearch.Add_TextChanged({ & $filterHistory -searchText $txtSearch.Text }.GetNewClosure())
         $btnClearSearch.Add_Click({
                 Write-DzDebug "`t[DEBUG][Historial] Limpiar búsqueda"
@@ -1592,7 +1599,9 @@ function Show-QueryHistoryWindow {
                         Write-Host "`n✓ $($selectedItems.Count) consulta$(if ($selectedItems.Count -ne 1) { 's eliminadas' } else { ' eliminada' })" -ForegroundColor Green
                         & $filterHistory -searchText $txtSearch.Text
                         $dataGrid.UnselectAll()
-                        & $updateSelectionCount
+                        if ($updateSelectionCount -is [scriptblock]) {
+                            & $updateSelectionCount
+                        }
                     } else {
                         Ui-Error "Error eliminando queries del historial" "Error" $window
                     }

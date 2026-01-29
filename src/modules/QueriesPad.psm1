@@ -41,6 +41,8 @@ function Add-QueryToHistory {
         [Parameter(Mandatory)]
         [string]$Database,
         [Parameter()]
+        [string]$Server = "",
+        [Parameter()]
         [bool]$Success = $true,
         [Parameter()]
         [int]$RowsAffected = 0,
@@ -58,7 +60,7 @@ function Add-QueryToHistory {
         $hash = Get-StringHash -InputString $Query
         $resultInfo = if ($Success) { if ($RowsAffected -gt 0) { "OK ($RowsAffected filas)" } else { "OK" } } else { "ERROR: $($ErrorMessage.Substring(0, [Math]::Min(50, $ErrorMessage.Length)))" }
         $queryBase64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($Query))
-        $historyLine = "$timestamp|$Database|$hash|$preview|$resultInfo|$queryBase64"
+        $historyLine = "$timestamp|$Server|$Database|$hash|$preview|$resultInfo|$queryBase64"
         $content = Get-Content -LiteralPath $script:QueriesConfigPath -ErrorAction Stop
         $lines = New-Object System.Collections.Generic.List[string]
         $historyLines = New-Object System.Collections.Generic.List[string]
@@ -116,16 +118,23 @@ function Get-QueryHistory {
         $inHistorySection = $false
         foreach ($line in $content) {
             $trimmed = $line.Trim()
-            if ($trimmed -eq "[QueriesHistory]") { $inHistorySection = $true; continue }
-            if ($trimmed -match '^\[') { $inHistorySection = $false; continue }
+            if ($trimmed -eq "[QueriesHistory]") {
+                $inHistorySection = $true
+                continue
+            }
+            if ($trimmed -match '^\[') {
+                $inHistorySection = $false
+                continue
+            }
             if ($inHistorySection -and -not ($trimmed -match '^\s*;') -and -not [string]::IsNullOrWhiteSpace($trimmed)) {
-                $parts = $trimmed -split '\|', 6
-                if ($parts.Count -ge 6) {
+                $parts = $trimmed -split '\|', 7
+                if ($parts.Count -eq 6) {
                     try {
                         $queryBytes = [Convert]::FromBase64String($parts[5])
                         $fullQuery = [System.Text.Encoding]::UTF8.GetString($queryBytes)
                         $history.Add([PSCustomObject]@{
                                 Timestamp = $parts[0]
+                                Server    = ""
                                 Database  = $parts[1]
                                 Hash      = $parts[2]
                                 Preview   = $parts[3]
@@ -134,7 +143,24 @@ function Get-QueryHistory {
                                 Success   = $parts[4] -match '^OK'
                             })
                     } catch {
-                        Write-DzDebug "`t[DEBUG][Queries] Error parseando línea de historial: $_" Yellow
+                        Write-DzDebug "`t[DEBUG][Queries] Error parseando línea antigua: $_" Yellow
+                    }
+                } elseif ($parts.Count -ge 7) {
+                    try {
+                        $queryBytes = [Convert]::FromBase64String($parts[6])
+                        $fullQuery = [System.Text.Encoding]::UTF8.GetString($queryBytes)
+                        $history.Add([PSCustomObject]@{
+                                Timestamp = $parts[0]
+                                Server    = $parts[1]
+                                Database  = $parts[2]
+                                Hash      = $parts[3]
+                                Preview   = $parts[4]
+                                Result    = $parts[5]
+                                FullQuery = $fullQuery
+                                Success   = $parts[5] -match '^OK'
+                            })
+                    } catch {
+                        Write-DzDebug "`t[DEBUG][Queries] Error parseando línea nueva: $_" Yellow
                     }
                 }
             }
@@ -147,6 +173,7 @@ function Get-QueryHistory {
         return @()
     }
 }
+
 function Clear-QueryHistory {
     [CmdletBinding()]
     param()
@@ -169,6 +196,57 @@ function Clear-QueryHistory {
         return $false
     }
 }
+function Remove-QueriesFromHistory {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [Array]$Items
+    )
+    try {
+        if (-not (Test-Path -LiteralPath $script:QueriesConfigPath)) {
+            return $false
+        }
+        $content = Get-Content -LiteralPath $script:QueriesConfigPath -ErrorAction Stop
+        $lines = New-Object System.Collections.Generic.List[string]
+        $inHistorySection = $false
+        $hashesToRemove = @{}
+        foreach ($item in $Items) {
+            $key = "$($item.Timestamp)|$($item.Hash)"
+            $hashesToRemove[$key] = $true
+        }
+        foreach ($line in $content) {
+            $trimmed = $line.Trim()
+            if ($trimmed -eq "[QueriesHistory]") {
+                $inHistorySection = $true
+                $lines.Add($line)
+                continue
+            }
+            if ($trimmed -match '^\[') {
+                $inHistorySection = $false
+                $lines.Add($line)
+                continue
+            }
+            if ($inHistorySection -and -not ($trimmed -match '^\s*;') -and -not [string]::IsNullOrWhiteSpace($trimmed)) {
+                $parts = $trimmed -split '\|'
+                $timestamp = $parts[0]
+                $hash = if ($parts.Count -ge 7) { $parts[3] } else { $parts[2] }
+                $key = "$timestamp|$hash"
+                if (-not $hashesToRemove.ContainsKey($key)) {
+                    $lines.Add($line)
+                }
+            } elseif (-not $inHistorySection -or ($trimmed -match '^\s*;')) {
+                $lines.Add($line)
+            }
+        }
+        Set-Content -LiteralPath $script:QueriesConfigPath -Value $lines -Encoding UTF8
+        Write-DzDebug "`t[DEBUG][Queries] Eliminados $($Items.Count) items del historial"
+        return $true
+    } catch {
+        Write-DzDebug "`t[DEBUG][Queries] Error eliminando items: $_" Red
+        return $false
+    }
+}
+
 function Save-OpenQueryTabs {
     [CmdletBinding()]
     param(
@@ -417,6 +495,7 @@ function Execute-QueryCore {
     }
     $script:rawQueryToSave = $rawQuery
     $script:dbToSave = $db
+    $script:serverToSave = $server
     $Ctx.QueryDoneTimer = [System.Windows.Threading.DispatcherTimer]::new()
     $Ctx.QueryDoneTimer.Interval = [TimeSpan]::FromMilliseconds(150)
     $Ctx.QueryDoneTimer.Add_Tick({
@@ -451,7 +530,7 @@ function Execute-QueryCore {
                             try { $errMsg = [string]$result.ErrorMessage } catch {}
                             if ($result.InnerError) { $errMsg += " | Inner: $($result.InnerError)" }
                         }
-                        Add-QueryToHistory -Query $rawQueryToSave -Database $dbToSave -Success $ok -RowsAffected $rows -ErrorMessage $errMsg
+                        Add-QueryToHistory -Query $rawQueryToSave -Database $dbToSave -Server $serverToSave -Success $ok -RowsAffected $rows -ErrorMessage $errMsg
                         Write-DzDebug "`t[DEBUG][Queries] Historial guardado (DB='$db' Success=$ok Rows=$rows)"
                     } catch {
                         Write-DzDebug "`t[DEBUG][Queries] Error guardando historial: $($_.Exception.Message)" Yellow
@@ -1058,44 +1137,244 @@ function Show-QueryHistoryWindow {
         $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Historial de Consultas"
-        Height="600" Width="1000"
+        Title="📜 Historial de Consultas SQL"
+        Height="700" Width="1300"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize"
         ShowInTaskbar="False"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
+    <Window.Resources>
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="{DynamicResource AccentRed}"/>
+        </Style>
+        <Style x:Key="SearchBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+    </Window.Resources>
     <Grid Background="{DynamicResource FormBg}">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <DataGrid Name="dgHistory"
-                  Grid.Row="0"
-                  Margin="10"
-                  IsReadOnly="True"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  SelectionMode="Single"
-                  HeadersVisibility="Column">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Fecha/Hora" Binding="{Binding Timestamp}" Width="140"/>
-                <DataGridTextColumn Header="Base de Datos" Binding="{Binding Database}" Width="150"/>
-                <DataGridTextColumn Header="Query" Binding="{Binding Preview}" Width="*"/>
-                <DataGridTextColumn Header="Resultado" Binding="{Binding Result}" Width="180"/>
-            </DataGrid.Columns>
-        </DataGrid>
-        <StackPanel Grid.Row="1"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Margin="10">
-            <Button Name="btnRefresh" Content="🔄 Actualizar" Width="100" Height="30" Margin="0,0,5,0"/>
-            <Button Name="btnCopy" Content="📋 Copiar" Width="90" Height="30" Margin="0,0,5,0"/>
-            <Button Name="btnLoad" Content="📥 Cargar" Width="90" Height="30" Margin="0,0,5,0"/>
-            <Button Name="btnClear" Content="🗑️ Limpiar" Width="100" Height="30" Margin="0,0,5,0"/>
-            <Button Name="btnClose" Content="Cerrar" Width="90" Height="30" Margin="5,0,0,0"/>
-        </StackPanel>
+        <Border Grid.Row="0" Padding="20,15" Margin="0,0,0,10">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#1E3A8A" Offset="0"/>
+                    <GradientStop Color="#3B82F6" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="📜 Historial de Consultas SQL"
+                             FontSize="22"
+                             FontWeight="Bold"
+                             Foreground="White"/>
+                    <TextBlock Name="lblHistoryCount"
+                             Text="0 consultas guardadas"
+                             FontSize="12"
+                             Foreground="#E0E0E0"
+                             Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Name="lblSelectedCount"
+                             Text="0 seleccionadas"
+                             FontSize="12"
+                             FontWeight="SemiBold"
+                             Foreground="White"
+                             HorizontalAlignment="Right"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        <Border Grid.Row="1" Padding="15,10" Margin="10,0,10,10"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Name="txtSearch"
+                         Grid.Column="0"
+                         Style="{StaticResource SearchBox}"
+                         Margin="0,0,10,0"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Name="btnClearSearch"
+                            Content="✖ Limpiar búsqueda"
+                            Style="{StaticResource SecondaryButton}"
+                            Width="140"
+                            Height="36"
+                            Margin="0,0,5,0"/>
+                    <Button Name="btnRefresh"
+                            Content="🔄 Actualizar"
+                            Style="{StaticResource SecondaryButton}"
+                            Width="110"
+                            Height="36"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        <Border Grid.Row="2" Margin="10,0,10,10"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Background="{DynamicResource ControlBg}">
+            <DataGrid Name="dgHistory"
+                      IsReadOnly="True"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      SelectionMode="Extended"
+                      SelectionUnit="FullRow"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      AlternatingRowBackground="{DynamicResource PanelBg}"
+                      RowHeight="45"
+                      FontSize="12">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="📅 Fecha/Hora" Binding="{Binding Timestamp}" Width="150">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="8,0"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="🖥️ Servidor" Binding="{Binding Server}" Width="150">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="🗄️ Base de Datos" Binding="{Binding Database}" Width="180">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="8,0"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="📝 Query" Binding="{Binding Preview}" Width="*">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="8,0"/>
+                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                <Setter Property="FontFamily" Value="Consolas"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="✅ Resultado" Binding="{Binding Result}" Width="200">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="8,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+        <Border Grid.Row="3" Padding="15"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Button Name="btnDeleteSelected"
+                            Content="🗑️ Eliminar seleccionadas"
+                            Style="{StaticResource DangerButton}"
+                            Width="180"
+                            Height="38"
+                            Margin="0,0,8,0"/>
+                    <Button Name="btnClearAll"
+                            Content="🗑️ Limpiar todo"
+                            Style="{StaticResource DangerButton}"
+                            Width="120"
+                            Height="38"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Name="btnCopy"
+                            Content="📋 Copiar"
+                            Style="{StaticResource SecondaryButton}"
+                            Width="100"
+                            Height="38"
+                            Margin="0,0,8,0"/>
+                    <Button Name="btnLoadNew"
+                            Content="📥 Nueva pestaña"
+                            Style="{StaticResource ModernButton}"
+                            Width="130"
+                            Height="38"
+                            Margin="0,0,8,0"/>
+                    <Button Name="btnClose"
+                            Content="❌ Cerrar"
+                            Style="{StaticResource SecondaryButton}"
+                            Width="90"
+                            Height="38"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
 "@
@@ -1111,34 +1390,67 @@ function Show-QueryHistoryWindow {
             }
         }
         $dataGrid = $controls['dgHistory']
+        $txtSearch = $controls['txtSearch']
+        $lblHistoryCount = $controls['lblHistoryCount']
+        $lblSelectedCount = $controls['lblSelectedCount']
         $btnRefresh = $controls['btnRefresh']
+        $btnClearSearch = $controls['btnClearSearch']
         $btnCopy = $controls['btnCopy']
-        $btnLoad = $controls['btnLoad']
-        $btnClear = $controls['btnClear']
+        $btnLoadNew = $controls['btnLoadNew']
+        $btnDeleteSelected = $controls['btnDeleteSelected']
+        $btnClearAll = $controls['btnClearAll']
         $btnClose = $controls['btnClose']
-        foreach ($btn in @($btnRefresh, $btnCopy, $btnLoad, $btnClear, $btnClose)) {
-            if ($btn) {
-                try {
-                    $btn.Background = $window.FindResource("ControlBg")
-                    $btn.Foreground = $window.FindResource("ControlFg")
-                    $btn.BorderBrush = $window.FindResource("BorderBrushColor")
-                    $btn.BorderThickness = [System.Windows.Thickness]::new(1)
-                    $btn.Cursor = "Hand"
-                } catch {}
-            }
-        }
+        $fullHistory = New-Object System.Collections.ArrayList
         $loadHistory = {
             try {
-                $history = @(Get-QueryHistory -MaxItems 100)
-                $dataGrid.ItemsSource = $history
-                Write-DzDebug "`t[DEBUG][Historial] Cargado: $($history.Count) items"
+                $newHistory = @(Get-QueryHistory -MaxItems 100)
+                $fullHistory.Clear()
+                foreach ($item in $newHistory) {
+                    $fullHistory.Add($item) | Out-Null
+                }
+                $dataGrid.ItemsSource = $fullHistory
+                $lblHistoryCount.Text = "$($fullHistory.Count) consultas guardadas"
+                Write-DzDebug "`t[DEBUG][Historial] Cargado: $($fullHistory.Count) items"
             } catch {
                 Write-DzDebug "`t[DEBUG][Historial] Error cargando: $_" Red
             }
         }.GetNewClosure()
-        & $loadHistory
+        $filterHistory = {
+            param([string]$searchText)
+            if ([string]::IsNullOrWhiteSpace($searchText)) {
+                $dataGrid.ItemsSource = $fullHistory
+                return
+            }
+            $filtered = $fullHistory | Where-Object {
+                $query = $_.FullQuery.ToLower()
+                $preview = $_.Preview.ToLower()
+                $database = $_.Database.ToLower()
+                $server = if ($_.Server) { $_.Server.ToLower() } else { "" }
+                $search = $searchText.ToLower()
+                $query.Contains($search) -or
+                $preview.Contains($search) -or
+                $database.Contains($search) -or
+                $server.Contains($search)
+            }
+            $dataGrid.ItemsSource = @($filtered)
+        }.GetNewClosure()
+        $updateSelectionCount = {
+            $count = @($dataGrid.SelectedItems).Count
+            $lblSelectedCount.Text = "$count seleccionada$(if ($count -ne 1) {'s'} else {''})"
+        }.GetNewClosure()
+        $dataGrid.Add_SelectionChanged({
+                & $updateSelectionCount
+            }.GetNewClosure())
+        $txtSearch.Add_TextChanged({
+                & $filterHistory -searchText $txtSearch.Text
+            }.GetNewClosure())
+        $btnClearSearch.Add_Click({
+                Write-DzDebug "`t[DEBUG][Historial] Limpiar búsqueda"
+                $txtSearch.Text = ""
+            })
         $btnRefresh.Add_Click({
                 & $loadHistory
+                $txtSearch.Text = ""
             }.GetNewClosure())
         $btnCopy.Add_Click({
                 try {
@@ -1153,12 +1465,13 @@ function Show-QueryHistoryWindow {
                         [System.Windows.Clipboard]::SetText($selected.FullQuery)
                     }
                     Write-Host "`n✓ Query copiado al portapapeles" -ForegroundColor Green
+                    Write-Host "  Query: $($selected.FullQuery)" -ForegroundColor DarkGray
                 } catch {
                     Write-Host "`n✗ Error copiando query: $_" -ForegroundColor Red
                     Ui-Error "Error copiando query: $($_.Exception.Message)" "Error" $window
                 }
             }.GetNewClosure())
-        $btnLoad.Add_Click({
+        $btnLoadNew.Add_Click({
                 try {
                     $selected = $dataGrid.SelectedItem
                     if (-not $selected) {
@@ -1169,15 +1482,12 @@ function Show-QueryHistoryWindow {
                         Ui-Error "TabControl de queries no disponible" "Error" $window
                         return
                     }
-                    $activeTab = Get-ActiveQueryTab -TabControl $global:tcQueries
-                    if (-not $activeTab) {
-                        $activeTab = New-QueryTab -TabControl $global:tcQueries
-                    }
-                    if ($activeTab -and $activeTab.Tag -and $activeTab.Tag.Editor) {
-                        $editor = $activeTab.Tag.Editor
+                    $newTab = New-QueryTab -TabControl $global:tcQueries
+                    if ($newTab -and $newTab.Tag -and $newTab.Tag.Editor) {
+                        $editor = $newTab.Tag.Editor
                         Set-SqlEditorText -Editor $editor -Text $selected.FullQuery
-                        $global:tcQueries.SelectedItem = $activeTab
-                        Write-Host "`n✓ Query cargado en el editor" -ForegroundColor Green
+                        $global:tcQueries.SelectedItem = $newTab
+                        Write-Host "`n✓ Query cargado en nueva pestaña" -ForegroundColor Green
                         $window.Close()
                     }
                 } catch {
@@ -1185,11 +1495,34 @@ function Show-QueryHistoryWindow {
                     Ui-Error "Error cargando query: $($_.Exception.Message)" "Error" $window
                 }
             }.GetNewClosure())
-        $btnClear.Add_Click({
-                $confirm = Ui-Confirm "¿Estás seguro de limpiar todo el historial de queries?" "Confirmar" $window
+        $btnDeleteSelected.Add_Click({
+                try {
+                    $selectedItems = @($dataGrid.SelectedItems)
+                    if ($selectedItems.Count -eq 0) {
+                        Ui-Warn "Selecciona uno o más queries para eliminar" "Atención" $window
+                        return
+                    }
+                    $confirm = Ui-Confirm "¿Estás seguro de eliminar $($selectedItems.Count) consulta$(if ($selectedItems.Count -ne 1) {'s'} else {''}) del historial?" "Confirmar eliminación" $window
+                    if (-not $confirm) { return }
+                    if (Remove-QueriesFromHistory -Items $selectedItems) {
+                        & $loadHistory
+                        Write-Host "`n✓ $($selectedItems.Count) consulta$(if ($selectedItems.Count -ne 1) {'s eliminadas'} else {' eliminada'})" -ForegroundColor Green
+                        & $filterHistory -searchText $txtSearch.Text
+                        $dataGrid.UnselectAll()
+                        & $updateSelectionCount
+                    } else {
+                        Ui-Error "Error eliminando queries del historial" "Error" $window
+                    }
+                } catch {
+                    Write-Host "`n✗ Error eliminando queries: $_" -ForegroundColor Red
+                    Ui-Error "Error: $($_.Exception.Message)" "Error" $window
+                }
+            }.GetNewClosure())
+        $btnClearAll.Add_Click({
+                $confirm = Ui-Confirm "¿Estás seguro de limpiar TODO el historial de queries?" "Confirmar" $window
                 if ($confirm) {
                     if (Clear-QueryHistory) {
-                        Write-Host "`n✓ Historial limpiado" -ForegroundColor Green
+                        Write-Host "`n✓ Historial limpiado completamente" -ForegroundColor Green
                         & $loadHistory
                     } else {
                         Ui-Error "Error limpiando historial" "Error" $window
@@ -1199,6 +1532,12 @@ function Show-QueryHistoryWindow {
         $btnClose.Add_Click({
                 $window.Close()
             })
+        $dataGrid.Add_MouseDoubleClick({
+                if ($dataGrid.SelectedItem) {
+                    $btnLoadNew.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+                }
+            })
+        & $loadHistory
         $null = $window.ShowDialog()
     } catch {
         Write-Host "`n✗ Error mostrando ventana de historial: $_" -ForegroundColor Red
@@ -1341,6 +1680,7 @@ Export-ModuleMember -Function @(
     'Save-DbUiContext',
     'Get-QueryHistory',
     'Clear-QueryHistory',
+    'Remove-QueriesFromHistory',
     'Save-OpenQueryTabs',
     'Restore-OpenQueryTabs',
     'Show-QueryHistoryWindow',

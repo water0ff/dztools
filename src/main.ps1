@@ -236,9 +236,7 @@ function New-MainForm {
                     $_.Tag -and
                     $_.Tag.Type -eq 'QueryTab' -and
                     $_.Tag.Editor -and
-                    [string]::IsNullOrWhiteSpace(
-                        (Get-SqlEditorText -Editor $_.Tag.Editor)
-                    )
+                    [string]::IsNullOrWhiteSpace((Get-SqlEditorText -Editor $_.Tag.Editor))
                 })
             if ($restoredCount -gt 0 -and $emptyTabs.Count -gt 0) {
                 foreach ($emptyTab in $emptyTabs) {
@@ -255,10 +253,6 @@ function New-MainForm {
                     $_.Tag -and
                     $_.Tag.Type -eq 'QueryTab'
                 })
-
-            if ($existingQueryTabs.Count -eq 0) {
-                #New-QueryTab -TabControl $tcQueries | Out-Null
-            }
         }
     } catch {
         Write-Host "  Advertencia: No se pudieron restaurar las pestañas: $_" -ForegroundColor Yellow
@@ -267,7 +261,6 @@ function New-MainForm {
                 $_.Tag -and
                 $_.Tag.Type -eq 'QueryTab'
             })
-
         if ($existingQueryTabs.Count -eq 0) {
             New-QueryTab -TabControl $tcQueries | Out-Null
         }
@@ -288,7 +281,8 @@ function New-MainForm {
     function Start-ExecutionTimer {
         $script:execStopwatch.Restart()
         if (-not $script:execUiTimer.IsEnabled) { $script:execUiTimer.Start() }
-    }    function Stop-ExecutionTimer {
+    }
+    function Stop-ExecutionTimer {
         $script:execStopwatch.Stop()
         if ($script:execUiTimer.IsEnabled) { $script:execUiTimer.Stop() }
         if ($global:lblExecutionTime) {
@@ -323,21 +317,12 @@ function New-MainForm {
             $triggerSelected = New-Object System.Windows.Trigger
             $triggerSelected.Property = [System.Windows.Controls.TreeViewItem]::IsSelectedProperty
             $triggerSelected.Value = $true
-            $triggerSelected.Setters.Add((New-Object System.Windows.Setter(
-                        [System.Windows.Controls.TreeViewItem]::BackgroundProperty,
-                        $window.FindResource("AccentPrimary")
-                    )))
-            $triggerSelected.Setters.Add((New-Object System.Windows.Setter(
-                        [System.Windows.Controls.TreeViewItem]::ForegroundProperty,
-                        $window.FindResource("FormFg")
-                    )))
+            $triggerSelected.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TreeViewItem]::BackgroundProperty, $window.FindResource("AccentPrimary"))))
+            $triggerSelected.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TreeViewItem]::ForegroundProperty, $window.FindResource("FormFg"))))
             $triggerFocused = New-Object System.Windows.Trigger
             $triggerFocused.Property = [System.Windows.Controls.TreeViewItem]::IsFocusedProperty
             $triggerFocused.Value = $true
-            $triggerFocused.Setters.Add((New-Object System.Windows.Setter(
-                        [System.Windows.Controls.TreeViewItem]::BackgroundProperty,
-                        $window.FindResource("AccentPrimary")
-                    )))
+            $triggerFocused.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TreeViewItem]::BackgroundProperty, $window.FindResource("AccentPrimary"))))
             $style.Triggers.Add($triggerSelected)
             $style.Triggers.Add($triggerFocused)
             $tvDatabases.ItemContainerStyle = $style
@@ -348,34 +333,23 @@ function New-MainForm {
     }
     if ($btnSsmsPanelToggle) {
         Write-DzDebug "`t[DEBUG] Configurando toggle del panel SSMS..."
-
-        # Obtener el panel correctamente
         $panelContent = $window.FindName("panelSsmsContent")
-
         if (-not $panelContent) {
             Write-DzDebug "`t[DEBUG] ERROR: No se encontró panelSsmsContent" -Color Red
             return
         }
-
-        # Estado inicial: panel visible
         $panelContent.Visibility = "Visible"
         $btnSsmsPanelToggle.Content = "▼"
         $btnSsmsPanelToggle.IsChecked = $true
-
-        # Evento principal: cada vez que cambia el estado
         $btnSsmsPanelToggle.Add_Click({
                 try {
                     $panel = $window.FindName("panelSsmsContent")
-
                     if (-not $panel) {
                         Write-DzDebug "`t[DEBUG] ERROR: Panel no encontrado en el evento" -Color Red
                         return
                     }
-
                     $isExpanded = $btnSsmsPanelToggle.IsChecked -eq $true
-
                     Write-DzDebug "`t[DEBUG] Toggle Click - IsChecked: $isExpanded"
-
                     if ($isExpanded) {
                         $panel.Visibility = "Visible"
                         $btnSsmsPanelToggle.Content = "▼"
@@ -390,7 +364,6 @@ function New-MainForm {
                     Write-Host "Error detallado: $($_ | Format-List * -Force | Out-String)" -ForegroundColor Red
                 }
             }.GetNewClosure())
-
         Write-DzDebug "`t[DEBUG] Toggle configurado exitosamente"
     }
     $lblHostname.text = [System.Net.Dns]::GetHostName()
@@ -447,10 +420,7 @@ function New-MainForm {
     $global:txt_AdapterStatus = $txt_AdapterStatus
     Initialize-SystemInfo -LblPort $lblPort -LblIpAddress $txt_IpAdress -LblAdapterStatus $txt_AdapterStatus -ModulesPath $modulesPath
     Load-IniConnectionsToComboBox -Combo $txtServer
-    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler,
-        $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
-        $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnInstallPrinter, $btnClearPrintJobs, $btnAplicacionesNS,
-        $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS, $btnRegisterDlls, $btnMonitorServiciosLog)
+    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnInstallPrinter, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS, $btnRegisterDlls, $btnMonitorServiciosLog)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
@@ -496,7 +466,6 @@ function New-MainForm {
     $btnLectorDPicacls.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Lector DP + icacls' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n- - - Comenzando el proceso de 'Lector DP + icacls' - - -" -ForegroundColor Magenta
-
             Invoke-LectorDP -InfoTextBlock $txt_InfoInstrucciones -OwnerWindow $window
         })
     $btnSQLManager.Add_Click({
@@ -508,7 +477,7 @@ function New-MainForm {
                 @($managers) | Where-Object { $_ } | Select-Object -Unique
             }
             $managers = Get-SQLServerManagers
-            if (-not $managers -or $managers.Count -eq 0) { Ui-Error "No se encontró ninguna versión de SQL Server Configuration Manager." $global:MainWindow ; return }
+            if (-not $managers -or $managers.Count -eq 0) { Ui-Error "No se encontró ninguna versión de SQL Server Configuration Manager." $global:MainWindow; return }
             Show-SQLselector -Managers $managers
         })
     $btnSQLManagement.Add_Click({
@@ -595,7 +564,7 @@ function New-MainForm {
             Write-Host "`n- - - Comenzando el proceso de 'Forzar Actualización' - - -" -ForegroundColor Magenta
             Show-SystemComponents
             $ok = Ui-Confirm "¿Desea forzar la actualización de datos?" "Confirmación" $global:MainWindow
-            if ($ok) { Start-SystemUpdate ; Ui-Info "Actualización completada" "Éxito" $global:MainWindow } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
+            if ($ok) { Start-SystemUpdate; Ui-Info "Actualización completada" "Éxito" $global:MainWindow } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
         })
     $btnClearAnyDesk.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Clear AnyDesk' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
@@ -718,35 +687,20 @@ function New-MainForm {
             Connect-DbUiSafe
         })
     if ($txtServer) {
-        # Función helper para obtener el texto correcto del ComboBox
         $getServerText = {
             $text = $null
-
-            # Prioridad 1: SelectedItem
             if ($global:txtServer.SelectedItem -is [string]) {
                 $text = $global:txtServer.SelectedItem
-            }
-            # Prioridad 2: Text
-            elseif (-not [string]::IsNullOrWhiteSpace($global:txtServer.Text)) {
+            } elseif (-not [string]::IsNullOrWhiteSpace($global:txtServer.Text)) {
                 $text = $global:txtServer.Text
             }
-
-            # Return correcto
-            if ($text) {
-                return $text.Trim()
-            } else {
-                return ""
-            }
+            if ($text) { return $text.Trim() } else { return "" }
         }
-
-        # Aplicar credenciales cuando cambia la selección
         $txtServer.Add_SelectionChanged({
                 try {
                     $serverText = & $getServerText
                     Write-DzDebug "`t[DEBUG] Servidor seleccionado: '$serverText'"
-
                     if (-not [string]::IsNullOrWhiteSpace($serverText)) {
-                        # Pequeño delay para asegurar que el ComboBox actualizó su valor
                         Start-Sleep -Milliseconds 100
                         Apply-SavedSqlCredentials -ServerText $serverText
                     }
@@ -781,9 +735,7 @@ function New-MainForm {
             Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
                 $editor = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
-                if (-not $editor) {
-                    throw "No hay una pestaña de consulta activa."
-                }
+                if (-not $editor) { throw "No hay una pestaña de consulta activa." }
                 Clear-SqlEditorText -Editor $editor
                 if ($global:dgResults) { $global:dgResults.ItemsSource = $null }
                 if ($global:txtMessages) { $global:txtMessages.Text = "" }
@@ -862,20 +814,13 @@ function New-MainForm {
             Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
             try {
                 Write-Host "`n  📝 Guardando estado de pestañas..." -ForegroundColor Yellow
-
                 if ($global:tcQueries) {
                     $saved = Save-OpenQueryTabs -TabControl $global:tcQueries
-
-                    if ($saved) {
-                        Write-Host "  ✓ Estado guardado exitosamente" -ForegroundColor Green
-                    } else {
-                        Write-Host "  ⚠ No se pudo guardar el estado" -ForegroundColor Yellow
-                    }
+                    if ($saved) { Write-Host "  ✓ Estado guardado exitosamente" -ForegroundColor Green } else { Write-Host "  ⚠ No se pudo guardar el estado" -ForegroundColor Yellow }
                 }
             } catch {
                 Write-Host "  ✗ Error guardando pestañas: $_" -ForegroundColor Red
             }
-
             try {
                 if ($global:connection -and $global:connection.State -eq [System.Data.ConnectionState]::Open) {
                     Write-Host "`n  🔌 Cerrando conexión a base de datos..." -ForegroundColor Yellow
@@ -892,7 +837,7 @@ function New-MainForm {
 }
 function Start-Application {
     Show-GlobalProgress -Percent 0 -Status "Inicializando..."
-    if (-not (Initialize-Environment)) { Show-GlobalProgress -Percent 100 -Status "Error inicializando" ; return }
+    if (-not (Initialize-Environment)) { Show-GlobalProgress -Percent 100 -Status "Error inicializando"; return }
     Show-GlobalProgress -Percent 10 -Status "Entorno listo"
     Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
     $modulesPath = Join-Path $PSScriptRoot "modules"

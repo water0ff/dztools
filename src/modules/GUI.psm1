@@ -1159,6 +1159,11 @@ function Get-MainWindowXaml {
                             <!-- Pestañas de Resultados -->
                             <TabControl Name="tcResults" Grid.Row="2"
                                         Background="{DynamicResource ControlBg}">
+                                <TabControl.ItemContainerStyle>
+                                    <Style TargetType="{x:Type TabItem}" BasedOn="{StaticResource {x:Type TabItem}}">
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </TabControl.ItemContainerStyle>
                                 <TabItem Header="📊 Resultados">
                                     <DataGrid Name="dgResults"
                                             IsReadOnly="True"

@@ -70,6 +70,9 @@ foreach ($module in $modules) {
 }
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
+- Nuevo botón para Innstaladores NS
+- Monitor de servicios y logs
+- Historial de queries
 - SSMS Portable
     * TreeView nuevo!
     * Crear y eliminar bases de datos

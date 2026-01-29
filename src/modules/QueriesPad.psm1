@@ -1137,242 +1137,313 @@ function Show-QueryHistoryWindow {
         $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="📜 Historial de Consultas SQL"
-        Height="700" Width="1300"
+        Title="Historial de Consultas SQL"
+        SizeToContent="Manual"
+        Height="400" Width="800"
         WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
         ResizeMode="CanResize"
         ShowInTaskbar="False"
-        FontFamily="{DynamicResource UiFontFamily}"
-        FontSize="{DynamicResource UiFontSize}">
+        Background="#66000000"
+        AllowsTransparency="True"
+        Topmost="True"
+        MinHeight="400" MinWidth="800">
     <Window.Resources>
-        <Style x:Key="ModernButton" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,8"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style x:Key="BaseButtonStyle" TargetType="Button">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border"
-                                Background="{TemplateBinding Background}"
+                        <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
-                            <ContentPresenter Margin="{TemplateBinding Padding}"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Opacity" Value="0.7"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.6"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
-        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
+        <Style x:Key="DatabaseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentDatabase}"/>
+            <Setter Property="Foreground" Value="#111111"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentDatabaseHover}"/>
+                    <Setter Property="Foreground" Value="#111111"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
-        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource AccentRed}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentRedHover}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
-        <Style x:Key="SearchBox" TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="FontSize" Value="13"/>
+        <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Content" Value="×"/>
         </Style>
     </Window.Resources>
-    <Grid Background="{DynamicResource FormBg}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Border Grid.Row="0" Padding="20,15" Margin="0,0,0,10">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                    <GradientStop Color="#1E3A8A" Offset="0"/>
-                    <GradientStop Color="#3B82F6" Offset="1"/>
-                </LinearGradientBrush>
-            </Border.Background>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="📜 Historial de Consultas SQL"
-                             FontSize="22"
-                             FontWeight="Bold"
-                             Foreground="White"/>
-                    <TextBlock Name="lblHistoryCount"
-                             Text="0 consultas guardadas"
-                             FontSize="12"
-                             Foreground="#E0E0E0"
-                             Margin="0,4,0,0"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Name="lblSelectedCount"
-                             Text="0 seleccionadas"
-                             FontSize="12"
-                             FontWeight="SemiBold"
-                             Foreground="White"
-                             HorizontalAlignment="Right"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-        <Border Grid.Row="1" Padding="15,10" Margin="10,0,10,10"
-                Background="{DynamicResource ControlBg}"
+    <Grid Background="Transparent">
+        <Border Background="{DynamicResource FormBg}"
                 BorderBrush="{DynamicResource BorderBrushColor}"
                 BorderThickness="1"
-                CornerRadius="8">
+                CornerRadius="10"
+                Padding="10"
+                Margin="9"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="2"
+                                  ShadowDepth="0"
+                                  Opacity="0.45"/>
+            </Border.Effect>
+
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox Name="txtSearch"
-                         Grid.Column="0"
-                         Style="{StaticResource SearchBox}"
-                         Margin="0,0,10,0"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Name="btnClearSearch"
-                            Content="✖ Limpiar búsqueda"
-                            Style="{StaticResource SecondaryButton}"
-                            Width="140"
-                            Height="36"
-                            Margin="0,0,5,0"/>
-                    <Button Name="btnRefresh"
-                            Content="🔄 Actualizar"
-                            Style="{StaticResource SecondaryButton}"
-                            Width="110"
-                            Height="36"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-        <Border Grid.Row="2" Margin="10,0,10,10"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Background="{DynamicResource ControlBg}">
-            <DataGrid Name="dgHistory"
-                      IsReadOnly="True"
-                      AutoGenerateColumns="False"
-                      CanUserAddRows="False"
-                      CanUserDeleteRows="False"
-                      SelectionMode="Extended"
-                      SelectionUnit="FullRow"
-                      HeadersVisibility="Column"
-                      GridLinesVisibility="Horizontal"
-                      AlternatingRowBackground="{DynamicResource PanelBg}"
-                      RowHeight="45"
-                      FontSize="12">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="📅 Fecha/Hora" Binding="{Binding Timestamp}" Width="150">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="8,0"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="🖥️ Servidor" Binding="{Binding Server}" Width="150">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="8,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="🗄️ Base de Datos" Binding="{Binding Database}" Width="180">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="8,0"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="📝 Query" Binding="{Binding Preview}" Width="*">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="8,0"/>
-                                <Setter Property="TextWrapping" Value="NoWrap"/>
-                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                <Setter Property="FontFamily" Value="Consolas"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                    <DataGridTextColumn Header="✅ Resultado" Binding="{Binding Result}" Width="200">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="8,0"/>
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
-        <Border Grid.Row="3" Padding="15"
-                Background="{DynamicResource ControlBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="0,1,0,0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <Button Name="btnDeleteSelected"
-                            Content="🗑️ Eliminar seleccionadas"
-                            Style="{StaticResource DangerButton}"
-                            Width="180"
-                            Height="38"
-                            Margin="0,0,8,0"/>
-                    <Button Name="btnClearAll"
-                            Content="🗑️ Limpiar todo"
-                            Style="{StaticResource DangerButton}"
-                            Width="120"
-                            Height="38"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Name="btnCopy"
-                            Content="📋 Copiar"
-                            Style="{StaticResource SecondaryButton}"
-                            Width="100"
-                            Height="38"
-                            Margin="0,0,8,0"/>
-                    <Button Name="btnLoadNew"
-                            Content="📥 Nueva pestaña"
-                            Style="{StaticResource ModernButton}"
-                            Width="130"
-                            Height="38"
-                            Margin="0,0,8,0"/>
-                    <Button Name="btnClose"
-                            Content="❌ Cerrar"
-                            Style="{StaticResource SecondaryButton}"
-                            Width="90"
-                            Height="38"/>
-                </StackPanel>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Name="brdTitleBar"
+                            Background="{DynamicResource PanelBg}"
+                            Cursor="SizeAll"
+                            BorderBrush="{DynamicResource BorderBrushColor}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="8"
+                            Margin="0,0,0,6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="📜 Historial de Consultas SQL"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AccentPrimary}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                <TextBlock Name="lblHistoryCount" Text="0 consultas"
+                                           FontSize="10" Foreground="{DynamicResource AccentMuted}"/>
+                                <TextBlock Text=" • " Margin="4,0" FontSize="10"
+                                           Foreground="{DynamicResource AccentMuted}"/>
+                                <TextBlock Name="lblSelectedCount" Text="0 seleccionadas"
+                                           FontSize="10" Foreground="{DynamicResource AccentMuted}"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <Button Grid.Column="1" Name="btnClose"
+                                Content="Cerrar" Width="60" Height="26"
+                                Style="{StaticResource DatabaseButtonStyle}"
+                                Margin="8,0,0,0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Background="{DynamicResource PanelBg}"
+                        BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                        CornerRadius="8" Padding="6" Margin="0,0,0,6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="110"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Name="txtSearch" Grid.Column="0"
+                                 Height="24" Padding="6,2"
+                                 Margin="0,0,6,0"
+                                 MinWidth="120"/>
+                        <Button Name="btnClearSearch" Grid.Column="1"
+                                Content="✖ Limpiar"
+                                Height="24"
+                                Style="{StaticResource DatabaseButtonStyle}"
+                                Margin="0,0,4,0"/>
+                        <Button Name="btnRefresh" Grid.Column="2"
+                                Content="🔄 Actualizar"
+                                Height="24"
+                                ToolTip="Actualizar"
+                                Style="{StaticResource DatabaseButtonStyle}"/>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="2" Background="{DynamicResource PanelBg}"
+                        BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                        CornerRadius="8" Margin="0,0,0,6">
+                    <DataGrid Name="dgHistory"
+                              IsReadOnly="True"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              SelectionMode="Extended"
+                              SelectionUnit="FullRow"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal"
+                              AlternatingRowBackground="{DynamicResource ControlBg}"
+                              RowHeight="28"
+                            FontFamily="Consolas"
+                            FontSize="11"
+                            Padding="4"
+                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="📅 Fecha" Binding="{Binding Timestamp}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="🖥️ Servidor" Binding="{Binding Server}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="🗄️ DB" Binding="{Binding Database}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="📝 Query" Binding="{Binding Preview}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="TextWrapping" Value="NoWrap"/>
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                        <Setter Property="ToolTipService.ShowDuration" Value="60000"/>
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <ToolTip MaxWidth="900">
+                                                    <TextBox Text="{Binding FullQuery}"
+                                                            IsReadOnly="True"
+                                                            TextWrapping="Wrap"
+                                                            BorderThickness="0"
+                                                            Background="Transparent"
+                                                            FontFamily="Consolas"
+                                                            FontSize="11"/>
+                                                </ToolTip>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="✅ Estado" Binding="{Binding Result}" Width="140">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+
+                <Border Grid.Row="3" Background="{DynamicResource PanelBg}"
+                        BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                        CornerRadius="8" Padding="6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <Button Name="btnDeleteSelected" Content="🗑️ Eliminar"
+                                    Width="90" Height="26"
+                                    Style="{StaticResource DangerButtonStyle}"
+                                    Margin="0,0,4,0"/>
+                            <Button Name="btnClearAll" Content="🗑️ Todo"
+                                    Width="70" Height="26"
+                                    Style="{StaticResource DangerButtonStyle}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Name="btnCopy" Content="📋 Copiar"
+                                    Width="80" Height="26"
+                                    Style="{StaticResource DatabaseButtonStyle}"
+                                    Margin="0,0,4,0"/>
+                            <Button Name="btnLoadNew" Content="📥 Nueva Tab"
+                                    Width="100" Height="26"
+                                    Style="{StaticResource DatabaseButtonStyle}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
             </Grid>
         </Border>
     </Grid>
@@ -1382,12 +1453,33 @@ function Show-QueryHistoryWindow {
         $window = $result.Window
         $controls = $result.Controls
         Set-DzWpfThemeResources -Window $window -Theme $theme
-        if ($Owner) {
-            try {
-                $window.Owner = $Owner
-            } catch {
-                Write-DzDebug "`t[DEBUG] No se pudo establecer Owner: $_" Yellow
-            }
+        $titleBar = $window.FindName("brdTitleBar")
+        if ($titleBar) {
+            $titleBar.Add_PreviewMouseLeftButtonDown({
+                    param($sender, $e)
+                    try {
+                        $src = $e.OriginalSource
+                        $dep = [System.Windows.DependencyObject]$src
+                        while ($dep -ne $null) {
+                            if ($dep -is [System.Windows.Controls.Button] -or
+                                $dep -is [System.Windows.Controls.Primitives.ButtonBase] -or
+                                $dep -is [System.Windows.Controls.TextBox] -or
+                                $dep -is [System.Windows.Controls.Primitives.TextBoxBase] -or
+                                $dep -is [System.Windows.Controls.ComboBox] -or
+                                $dep -is [System.Windows.Controls.DataGrid]) {
+                                return   # deja que el control maneje su click normal
+                            }
+                            $dep = [System.Windows.Media.VisualTreeHelper]::GetParent($dep)
+                        }
+                        if ($e.ClickCount -eq 2) {
+                            $window.WindowState = if ($window.WindowState -eq 'Maximized') { 'Normal' } else { 'Maximized' }
+                            $e.Handled = $true
+                            return
+                        }
+                        $window.DragMove()
+                        $e.Handled = $true
+                    } catch {}
+                }.GetNewClosure())
         }
         $dataGrid = $controls['dgHistory']
         $txtSearch = $controls['txtSearch']
@@ -1401,6 +1493,8 @@ function Show-QueryHistoryWindow {
         $btnClearAll = $controls['btnClearAll']
         $btnClose = $controls['btnClose']
         $fullHistory = New-Object System.Collections.ArrayList
+        $view = [System.Windows.Data.CollectionViewSource]::GetDefaultView($fullHistory)
+        $dataGrid.ItemsSource = $view
         $loadHistory = {
             try {
                 $newHistory = @(Get-QueryHistory -MaxItems 100)
@@ -1408,8 +1502,8 @@ function Show-QueryHistoryWindow {
                 foreach ($item in $newHistory) {
                     $fullHistory.Add($item) | Out-Null
                 }
-                $dataGrid.ItemsSource = $fullHistory
                 $lblHistoryCount.Text = "$($fullHistory.Count) consultas guardadas"
+                $view.Refresh()
                 Write-DzDebug "`t[DEBUG][Historial] Cargado: $($fullHistory.Count) items"
             } catch {
                 Write-DzDebug "`t[DEBUG][Historial] Error cargando: $_" Red
@@ -1417,33 +1511,22 @@ function Show-QueryHistoryWindow {
         }.GetNewClosure()
         $filterHistory = {
             param([string]$searchText)
-            if ([string]::IsNullOrWhiteSpace($searchText)) {
-                $dataGrid.ItemsSource = $fullHistory
-                return
+            $search = if ([string]::IsNullOrWhiteSpace($searchText)) { $null } else { $searchText.ToLowerInvariant() }
+            $view.Filter = {
+                param($item)
+                if (-not $search) { return $true }
+                $query = ($item.FullQuery  | ForEach-Object { "$_" }).ToLowerInvariant()
+                $preview = ($item.Preview    | ForEach-Object { "$_" }).ToLowerInvariant()
+                $database = ($item.Database   | ForEach-Object { "$_" }).ToLowerInvariant()
+                $server = ($item.Server     | ForEach-Object { "$_" }).ToLowerInvariant()
+                return ($query.Contains($search) -or
+                    $preview.Contains($search) -or
+                    $database.Contains($search) -or
+                    $server.Contains($search))
             }
-            $filtered = $fullHistory | Where-Object {
-                $query = $_.FullQuery.ToLower()
-                $preview = $_.Preview.ToLower()
-                $database = $_.Database.ToLower()
-                $server = if ($_.Server) { $_.Server.ToLower() } else { "" }
-                $search = $searchText.ToLower()
-                $query.Contains($search) -or
-                $preview.Contains($search) -or
-                $database.Contains($search) -or
-                $server.Contains($search)
-            }
-            $dataGrid.ItemsSource = @($filtered)
+            $view.Refresh()
         }.GetNewClosure()
-        $updateSelectionCount = {
-            $count = @($dataGrid.SelectedItems).Count
-            $lblSelectedCount.Text = "$count seleccionada$(if ($count -ne 1) {'s'} else {''})"
-        }.GetNewClosure()
-        $dataGrid.Add_SelectionChanged({
-                & $updateSelectionCount
-            }.GetNewClosure())
-        $txtSearch.Add_TextChanged({
-                & $filterHistory -searchText $txtSearch.Text
-            }.GetNewClosure())
+        $txtSearch.Add_TextChanged({ & $filterHistory -searchText $txtSearch.Text }.GetNewClosure())
         $btnClearSearch.Add_Click({
                 Write-DzDebug "`t[DEBUG][Historial] Limpiar búsqueda"
                 $txtSearch.Text = ""
@@ -1502,11 +1585,11 @@ function Show-QueryHistoryWindow {
                         Ui-Warn "Selecciona uno o más queries para eliminar" "Atención" $window
                         return
                     }
-                    $confirm = Ui-Confirm "¿Estás seguro de eliminar $($selectedItems.Count) consulta$(if ($selectedItems.Count -ne 1) {'s'} else {''}) del historial?" "Confirmar eliminación" $window
+                    $confirm = Ui-Confirm "¿Estás seguro de eliminar $($selectedItems.Count) consulta$(if ($selectedItems.Count -ne 1) { 's' } else { '' }) del historial?" "Confirmar eliminación" $window
                     if (-not $confirm) { return }
                     if (Remove-QueriesFromHistory -Items $selectedItems) {
                         & $loadHistory
-                        Write-Host "`n✓ $($selectedItems.Count) consulta$(if ($selectedItems.Count -ne 1) {'s eliminadas'} else {' eliminada'})" -ForegroundColor Green
+                        Write-Host "`n✓ $($selectedItems.Count) consulta$(if ($selectedItems.Count -ne 1) { 's eliminadas' } else { ' eliminada' })" -ForegroundColor Green
                         & $filterHistory -searchText $txtSearch.Text
                         $dataGrid.UnselectAll()
                         & $updateSelectionCount
@@ -1529,9 +1612,7 @@ function Show-QueryHistoryWindow {
                     }
                 }
             }.GetNewClosure())
-        $btnClose.Add_Click({
-                $window.Close()
-            })
+        $btnClose.Add_Click({ $window.Close() })
         $dataGrid.Add_MouseDoubleClick({
                 if ($dataGrid.SelectedItem) {
                     $btnLoadNew.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))

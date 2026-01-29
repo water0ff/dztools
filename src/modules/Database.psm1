@@ -755,29 +755,72 @@ function Show-MultipleResultSets {
         [Parameter(Mandatory)][System.Windows.Controls.TabControl]$TabControl,
         [Parameter()][AllowEmptyCollection()][array]$ResultSets = @()
     )
+
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] INICIO"
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] ResultSets Count: $($ResultSets.Count)"
-    $TabControl.Items.Clear()
+
+    $messagesTab = $null
+    for ($ti = 0; $ti -lt $TabControl.Items.Count; $ti++) {
+        $item = $TabControl.Items[$ti]
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        $header = $null
+        if ($item.Header -is [string]) {
+            $header = $item.Header
+        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+            foreach ($child in $item.Header.Children) {
+                if ($child -is [System.Windows.Controls.TextBlock]) { $header = $child.Text; break }
+            }
+        }
+        if ($header -and $header -match "Mensajes") {
+            $messagesTab = $item
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña de Mensajes encontrada en índice $ti"
+            break
+        }
+    }
+
+    $itemsToRemove = New-Object System.Collections.ArrayList
+    foreach ($item in $TabControl.Items) {
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        $header = $null
+        if ($item.Header -is [string]) {
+            $header = $item.Header
+        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+            foreach ($child in $item.Header.Children) {
+                if ($child -is [System.Windows.Controls.TextBlock]) { $header = $child.Text; break }
+            }
+        }
+        if (-not ($header -and $header -match "Mensajes")) { [void]$itemsToRemove.Add($item) }
+    }
+    foreach ($item in $itemsToRemove) { $TabControl.Items.Remove($item) }
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestañas removidas: $($itemsToRemove.Count)"
+
     if (-not $ResultSets -or $ResultSets.Count -eq 0) {
         $tab = New-Object System.Windows.Controls.TabItem
-        $ht = New-Object System.Windows.Controls.TextBlock
-        $ht.Text = "Resultado"
-        $ht.VerticalAlignment = "Center"
-        $tab.Header = $ht
+        $headerPanel = New-Object System.Windows.Controls.StackPanel
+        $headerPanel.Orientation = "Horizontal"
+        $iconText = New-Object System.Windows.Controls.TextBlock
+        $iconText.Text = "📊"
+        $iconText.Margin = "0,0,6,0"
+        $titleText = New-Object System.Windows.Controls.TextBlock
+        $titleText.Text = "Resultado"
+        $titleText.VerticalAlignment = "Center"
+        [void]$headerPanel.Children.Add($iconText)
+        [void]$headerPanel.Children.Add($titleText)
+        $tab.Header = $headerPanel
         $text = New-Object System.Windows.Controls.TextBlock
         $text.Text = "La consulta no devolvió resultados."
         $text.Margin = "10"
         $tab.Content = $text
-        [void]$TabControl.Items.Add($tab)
+        if ($messagesTab) { $TabControl.Items.Insert(0, $tab) } else { [void]$TabControl.Items.Add($tab) }
         $TabControl.SelectedIndex = 0
-        if ($global:lblRowCount) {
-            $global:lblRowCount.Text = "Filas: 0"
-        }
+        if ($global:lblRowCount) { $global:lblRowCount.Text = "📊 0" }
         Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN (sin resultados)"
         return
     }
+
     $theme = $null
     try { $theme = Get-DzUiTheme } catch { $theme = $null }
+
     $isDark = $false
     try {
         if ($theme -and $theme.FormBackground) {
@@ -791,6 +834,7 @@ function Show-MultipleResultSets {
             }
         }
     } catch { $isDark = $false }
+
     $gridBg = $null
     $gridFg = $null
     $headerBg = $null
@@ -812,8 +856,10 @@ function Show-MultipleResultSets {
         $headerFg = [System.Windows.Media.Brushes]::Black
         $gridLine = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#D0D0D0")
     }
+
     $nullBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FDFBAC")
     $nullFg = [System.Windows.Media.Brushes]::Black
+
     $hdrStyle = New-Object System.Windows.Style([System.Windows.Controls.Primitives.DataGridColumnHeader])
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $headerBg)))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $headerFg)))
@@ -822,31 +868,44 @@ function Show-MultipleResultSets {
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 4, 8, 4)))))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $gridLine)))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
+
     $cellStyle = New-Object System.Windows.Style([System.Windows.Controls.DataGridCell])
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 2, 8, 2)))))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $gridLine)))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty, [System.Windows.HorizontalAlignment]::Stretch)))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::VerticalContentAlignmentProperty, [System.Windows.VerticalAlignment]::Center)))
+
     $textStyleBase = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
     [void]$textStyleBase.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::TextTrimmingProperty, [System.Windows.TextTrimming]::CharacterEllipsis)))
     [void]$textStyleBase.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::TextWrappingProperty, [System.Windows.TextWrapping]::NoWrap)))
     [void]$textStyleBase.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Center)))
+
     $tNull = New-Object System.Windows.Trigger
     $tNull.Property = [System.Windows.Controls.TextBlock]::TextProperty
     $tNull.Value = "NULL"
     [void]$tNull.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::BackgroundProperty, $nullBrush)))
     [void]$tNull.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::ForegroundProperty, $nullFg)))
     [void]$textStyleBase.Triggers.Add($tNull)
+
     $i = 0
     foreach ($rs in $ResultSets) {
         $i++
         $tab = New-Object System.Windows.Controls.TabItem
         $rowCount = if ($rs.RowCount -ne $null) { $rs.RowCount } else { $rs.DataTable.Rows.Count }
-        $ht = New-Object System.Windows.Controls.TextBlock
-        $ht.Text = "Resultado $i ($rowCount filas)"
-        $ht.VerticalAlignment = "Center"
-        $tab.Header = $ht
+
+        $headerPanel = New-Object System.Windows.Controls.StackPanel
+        $headerPanel.Orientation = "Horizontal"
+        $iconText = New-Object System.Windows.Controls.TextBlock
+        $iconText.Text = "📊"
+        $iconText.Margin = "0,0,6,0"
+        $titleText = New-Object System.Windows.Controls.TextBlock
+        $titleText.Text = "Resultado $i ($rowCount filas)"
+        $titleText.VerticalAlignment = "Center"
+        [void]$headerPanel.Children.Add($iconText)
+        [void]$headerPanel.Children.Add($titleText)
+        $tab.Header = $headerPanel
+
         $dg = New-Object System.Windows.Controls.DataGrid
         $dg.AutoGenerateColumns = $true
         $dg.ItemsSource = $rs.DataTable.DefaultView
@@ -873,6 +932,7 @@ function Show-MultipleResultSets {
         $dg.AlternationCount = 2
         $dg.ColumnHeaderStyle = $hdrStyle
         $dg.CellStyle = $cellStyle
+
         $dg.Add_AutoGeneratingColumn({
                 param($s, $e)
                 $prop = $e.PropertyName
@@ -921,6 +981,7 @@ function Show-MultipleResultSets {
                     $e.Column.ElementStyle = $ts
                 }
             })
+
         $dg.Add_AutoGeneratedColumns({
                 param($s, $e)
                 try {
@@ -959,14 +1020,20 @@ function Show-MultipleResultSets {
                                             if ($count -ge $sampleMax) { break }
                                             $val = $row[$prop]
                                             $txt = $null
-                                            if ($null -eq $val -or $val -is [System.DBNull]) { $txt = "NULL" } else { if ($val -is [datetime]) { $txt = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff") } else { $txt = [string]$val } }
+                                            if ($null -eq $val -or $val -is [System.DBNull]) {
+                                                $txt = "NULL"
+                                            } else {
+                                                if ($val -is [datetime]) { $txt = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff") } else { $txt = [string]$val }
+                                            }
                                             if (-not [string]::IsNullOrEmpty($txt)) {
                                                 $ft = New-Object System.Windows.Media.FormattedText($txt, [System.Globalization.CultureInfo]::CurrentCulture, [System.Windows.FlowDirection]::LeftToRight, $typeface, $fontSize, [System.Windows.Media.Brushes]::Black, $dpi)
                                                 if ($ft.WidthIncludingTrailingWhitespace -gt $best) { $best = $ft.WidthIncludingTrailingWhitespace }
                                             }
                                             $count++
                                         }
-                                    } else { $best = [Math]::Max($best, 120.0) }
+                                    } else {
+                                        $best = [Math]::Max($best, 120.0)
+                                    }
                                     $w = [Math]::Ceiling($best + $pad)
                                     if ($w -lt $col.MinWidth) { $w = $col.MinWidth }
                                     if ($w -gt $col.MaxWidth) { $w = $col.MaxWidth }
@@ -976,21 +1043,25 @@ function Show-MultipleResultSets {
                         }, [System.Windows.Threading.DispatcherPriority]::Loaded) | Out-Null
                 } catch { }
             })
+
         $tab.Content = $dg
-        [void]$TabControl.Items.Add($tab)
+        if ($messagesTab) { $TabControl.Items.Insert($i - 1, $tab) } else { [void]$TabControl.Items.Add($tab) }
         Write-Host "`tPestaña $i creada con $rowCount filas" -ForegroundColor Green
     }
+
     if ($global:lblRowCount) {
         $totalRows = ($ResultSets | Measure-Object -Property RowCount -Sum).Sum
         if ($ResultSets.Count -eq 1) {
-            $global:lblRowCount.Text = "Filas: $totalRows"
+            $global:lblRowCount.Text = "📊 $totalRows"
         } else {
-            $global:lblRowCount.Text = "Filas: $totalRows ($($ResultSets.Count) resultsets)"
+            $global:lblRowCount.Text = "📊 $totalRows ($($ResultSets.Count) resultsets)"
         }
     }
+
     $TabControl.SelectedIndex = 0
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN"
 }
+
 function Export-ResultSetToCsv {
     [CmdletBinding()]
     param(
@@ -1233,6 +1304,44 @@ LEFT JOIN
     sys.sql_logins l ON p.principal_id = l.principal_id
 WHERE
     p.type IN ('S', 'U')
+"@
+        "SR | Revisar Ultimo Folio de Producción"         = @"
+        DECLARE @serie varchar(50)
+        DECLARE @folio numeric(18, 0)
+        DECLARE @nuevo numeric(18, 0)
+
+        DECLARE cur CURSOR FOR
+        SELECT serie, ultimofolioproduccion
+        FROM folios
+
+        OPEN cur
+        FETCH NEXT FROM cur INTO @serie, @folio
+
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+        IF @folio > 30000
+        BEGIN
+        SET @nuevo = @folio / 2
+
+        UPDATE folios
+        SET ultimofolioproduccion = @nuevo
+        WHERE serie = @serie
+
+        PRINT 'Serie ' + @serie + ': Se corrigió el folio de '
+        + CAST(@folio AS varchar) + ' a '
+        + CAST(@nuevo AS varchar)
+        END
+        ELSE
+        BEGIN
+        PRINT 'Serie ' + @serie + ': El folio de producción parece estar bien con '
+        + CAST(@folio AS varchar)
+        END
+
+        FETCH NEXT FROM cur INTO @serie, @folio
+        END
+
+        CLOSE cur
+        DEALLOCATE cur
 "@
     }
 }

@@ -389,6 +389,59 @@ function Execute-QueryCore {
         return
     }
     $Ctx.QueryRunning = $true
+    try {
+        if ($Ctx.tcResults) {
+            $hasMessagesTab = $false
+            foreach ($item in $Ctx.tcResults.Items) {
+                if ($item -is [System.Windows.Controls.TabItem]) {
+                    $header = if ($item.Header -is [string]) { $item.Header } else { "" }
+                    if ($header -match "Mensajes") {
+                        $hasMessagesTab = $true
+                        break
+                    }
+                }
+            }
+
+            if (-not $hasMessagesTab) {
+                Write-Host "[INIT] Recreando pestaña de Mensajes..." -ForegroundColor Yellow
+
+                # Crear pestaña de mensajes
+                $tabMessages = New-Object System.Windows.Controls.TabItem
+                $tabMessages.Header = "💬 Mensajes"
+
+                $txtMessages = New-Object System.Windows.Controls.TextBox
+                $txtMessages.Name = "txtMessages"
+                $txtMessages.IsReadOnly = $true
+                $txtMessages.VerticalScrollBarVisibility = "Auto"
+                $txtMessages.FontFamily = "Consolas"
+                $txtMessages.FontSize = 11
+                $txtMessages.Background = "Transparent"
+                $txtMessages.BorderThickness = "0"
+
+                try {
+                    $txtMessages.SetResourceReference([System.Windows.Controls.Control]::BackgroundProperty, "ControlBg")
+                    $txtMessages.SetResourceReference([System.Windows.Controls.Control]::ForegroundProperty, "ControlFg")
+                } catch {}
+
+                $tabMessages.Content = $txtMessages
+
+                # Insertar como segunda pestaña (después de Resultados)
+                if ($Ctx.tcResults.Items.Count -gt 1) {
+                    $Ctx.tcResults.Items.Insert(1, $tabMessages)
+                } else {
+                    $Ctx.tcResults.Items.Add($tabMessages)
+                }
+
+                # Actualizar referencia global
+                $global:txtMessages = $txtMessages
+                $Ctx.txtMessages = $txtMessages
+
+                Write-Host "[INIT] ✓ Pestaña de Mensajes recreada" -ForegroundColor Green
+            }
+        }
+    } catch {
+        Write-Host "[INIT-ERROR] Error verificando pestaña de Mensajes: $_" -ForegroundColor Red
+    }
     $activeEditor = Get-ActiveQueryRichTextBox -TabControl $Ctx.tcQueries
     if (-not $activeEditor) { throw "No hay una pestaña de consulta activa." }
     $rawQuery = $null
@@ -453,29 +506,71 @@ function Execute-QueryCore {
         try {
             $utilPath = Join-Path $ModulesPath "Utilities.psm1"
             $dbPath = Join-Path $ModulesPath "Database.psm1"
+
             if (-not (Test-Path $utilPath)) {
                 throw "No se encuentra Utilities.psm1 en: $utilPath"
             }
             if (-not (Test-Path $dbPath)) {
                 throw "No se encuentra Database.psm1 en: $dbPath"
             }
+
             Import-Module $utilPath -Force -DisableNameChecking -ErrorAction Stop
             Import-Module $dbPath -Force -DisableNameChecking -ErrorAction Stop
+
             $secure = New-Object System.Security.SecureString
             foreach ($ch in $Password.ToCharArray()) { $secure.AppendChar($ch) }
             $secure.MakeReadOnly()
             $cred = New-Object System.Management.Automation.PSCredential($User, $secure)
-            $r = Invoke-SqlQueryMultiResultSet -Server $Server -Database $Database -Query $Query -Credential $cred
+
+            # Lista para capturar mensajes PRINT
+            $capturedMessages = New-Object System.Collections.Generic.List[string]
+
+            # Callback para capturar mensajes
+            $callback = {
+                param($msg)
+                try {
+                    $capturedMessages.Add($msg)
+                    Write-Host "[WORKER-SQL] $msg" -ForegroundColor Cyan
+                } catch {
+                    Write-Host "[WORKER-ERROR] Error capturando mensaje: $_" -ForegroundColor Red
+                }
+            }.GetNewClosure()
+
+            # Ejecutar query con callback
+            $r = Invoke-SqlQueryMultiResultSet `
+                -Server $Server `
+                -Database $Database `
+                -Query $Query `
+                -Credential $cred `
+                -InfoMessageCallback $callback
+
             if ($null -eq $r) {
                 return @{
                     Success      = $false
                     ErrorMessage = "La ejecución devolvió NULL."
                     ResultSets   = @()
-                    Messages     = @()
+                    Messages     = @($capturedMessages)
                     Type         = "Error"
                 }
             }
+
+            # IMPORTANTE: Asegurar que los mensajes se incluyan en el resultado
+            if (-not $r.Messages) {
+                $r.Messages = New-Object System.Collections.Generic.List[string]
+            }
+
+            # Agregar mensajes capturados
+            foreach ($m in $capturedMessages) {
+                if (-not [string]::IsNullOrWhiteSpace($m)) {
+                    $r.Messages.Add($m)
+                }
+            }
+
+            Write-Host "[WORKER] Mensajes capturados: $($capturedMessages.Count)" -ForegroundColor Yellow
+            Write-Host "[WORKER] Mensajes en resultado: $($r.Messages.Count)" -ForegroundColor Yellow
+
             return $r
+
         } catch {
             return @{
                 Success      = $false
@@ -503,17 +598,136 @@ function Execute-QueryCore {
                 Write-DzDebug "`t[DEBUG][TICK] Verificando query..."
                 if (-not $script:CurrentQueryAsync) { Write-DzDebug "`t[DEBUG][TICK] No hay async"; return }
                 if (-not $script:CurrentQueryAsync.IsCompleted) { Write-DzDebug "`t[DEBUG] Aún en ejecución..."; return }
+
                 $script:QueryDoneTimer.Stop()
                 Write-DzDebug "`t[DEBUG][TICK] Query completada, procesando..."
+
                 $result = $null
                 $rows = 0
+
                 try {
                     $result = $script:CurrentQueryPowerShell.EndInvoke($script:CurrentQueryAsync)
+
+                    # Normalizar resultado
                     if ($result -is [System.Management.Automation.PSDataCollection[psobject]]) {
                         if ($result.Count -gt 0) { $result = $result[0] } else { $result = $null }
                     } elseif ($result -is [System.Array]) {
                         if ($result.Count -gt 0) { $result = $result[0] } else { $result = $null }
                     }
+
+                    # ===== DEBUG: Ver qué hay en Messages =====
+                    Write-DzDebug "`t[DEBUG] Resultado recibido: Success=$($result.Success)"
+                    if ($result -and $result.Messages) {
+                        Write-DzDebug "`t[DEBUG] Messages.Count: $($result.Messages.Count)"
+                        foreach ($m in $result.Messages) {
+                            Write-DzDebug "`t[DEBUG]   - $m"
+                        }
+                    } else {
+                        Write-DzDebug "`t[DEBUG] No hay Messages en el resultado"
+                    }
+                    # ===== MOSTRAR MENSAJES SQL Y INFO =====
+                    try {
+                        # Preparar mensajes para mostrar
+                        $allMessagesToShow = New-Object System.Collections.Generic.List[string]
+
+                        # Agregar mensajes PRINT de SQL Server
+                        if ($result -and $result.Messages -and $result.Messages.Count -gt 0) {
+                            $allMessagesToShow.Add("=== MENSAJES SQL ===")
+                            foreach ($msg in $result.Messages) {
+                                $allMessagesToShow.Add($msg)
+                            }
+                            $allMessagesToShow.Add("=" * 50)
+                            $allMessagesToShow.Add("")
+
+                            Write-Host "`n=== MENSAJES SQL ===" -ForegroundColor Cyan
+                            foreach ($msg in $result.Messages) {
+                                Write-Host "  $msg" -ForegroundColor Gray
+                            }
+                            Write-Host "=" * 50 -ForegroundColor Cyan
+                        }
+
+                        # Agregar información de ejecución
+                        $allMessagesToShow.Add("=== INFORMACIÓN DE EJECUCIÓN ===")
+
+                        if ($result -and $result.Success) {
+                            $allMessagesToShow.Add("✓ Estado: Ejecutado correctamente")
+
+                            # Filas afectadas
+                            if ($result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
+                                $allMessagesToShow.Add("📊 Filas afectadas: $($result.RowsAffected)")
+                            } elseif ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
+                                $totalRows = ($result.ResultSets | Measure-Object -Property RowCount -Sum).Sum
+                                $allMessagesToShow.Add("📊 Filas retornadas: $totalRows")
+                                $allMessagesToShow.Add("📋 Conjuntos de resultados: $($result.ResultSets.Count)")
+                            }
+
+                            # Tiempo de ejecución
+                            if ($result.ContainsKey('DurationMs') -and $result.DurationMs -ne $null) {
+                                $allMessagesToShow.Add("⏱️ Tiempo de ejecución: $($result.DurationMs) ms")
+                            }
+                        } else {
+                            $allMessagesToShow.Add("✗ Estado: Error")
+                            if ($result.ErrorMessage) {
+                                $allMessagesToShow.Add("❌ Error: $($result.ErrorMessage)")
+                            }
+                        }
+
+                        $allMessagesToShow.Add("🗄️ Base de datos: $dbToSave")
+                        $allMessagesToShow.Add("🖥️ Servidor: $serverToSave")
+                        $allMessagesToShow.Add("🕐 Fecha/Hora: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
+                        $allMessagesToShow.Add("=" * 50)
+
+                        # Mostrar en txtMessages Y seleccionar la pestaña
+                        if ($global:txtMessages -and $global:tcResults) {
+                            $messagesToDisplay = ($allMessagesToShow -join "`n")
+
+                            $global:txtMessages.Dispatcher.Invoke([action] {
+                                    try {
+                                        # Actualizar contenido
+                                        $currentText = $global:txtMessages.Text
+                                        $separator = "`n`n" + ("=" * 80) + "`n`n"
+                                        $global:txtMessages.Text = $messagesToDisplay + $separator + $currentText
+
+                                        # Mover cursor al inicio
+                                        $global:txtMessages.SelectionStart = 0
+                                        $global:txtMessages.SelectionLength = 0
+
+                                        # FORZAR SELECCIÓN DE LA PESTAÑA DE MENSAJES
+                                        foreach ($item in $global:tcResults.Items) {
+                                            if ($item -is [System.Windows.Controls.TabItem]) {
+                                                $header = $null
+                                                if ($item.Header -is [string]) {
+                                                    $header = $item.Header
+                                                } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+                                                    # Si el header es un StackPanel (con ícono), buscar el TextBlock
+                                                    foreach ($child in $item.Header.Children) {
+                                                        if ($child -is [System.Windows.Controls.TextBlock] -and $child.Text -match "Mensajes") {
+                                                            $header = "Mensajes"
+                                                            break
+                                                        }
+                                                    }
+                                                }
+
+                                                if ($header -and $header -match "Mensajes") {
+                                                    $global:tcResults.SelectedItem = $item
+                                                    Write-Host "[UI] ✓ Pestaña de Mensajes seleccionada" -ForegroundColor Green
+                                                    break
+                                                }
+                                            }
+                                        }
+
+                                        Write-Host "[UI] ✓ Mensajes actualizados y visibles" -ForegroundColor Green
+                                    } catch {
+                                        Write-Host "[UI-ERROR] Error actualizando txtMessages: $_" -ForegroundColor Red
+                                    }
+                                }.GetNewClosure(), [System.Windows.Threading.DispatcherPriority]::Normal)
+                        }
+
+                    } catch {
+                        Write-Host "[UI-ERROR] Error mostrando mensajes: $_" -ForegroundColor Red
+                        Write-Host "[UI-ERROR] Stack: $($_.ScriptStackTrace)" -ForegroundColor Red
+                    }
+                    # Calcular filas
                     try {
                         if ($result -and $result.ResultSets -and $result.ResultSets.Count -gt 0) {
                             $rows = ($result.ResultSets | Measure-Object -Property RowCount -Sum).Sum
@@ -522,6 +736,8 @@ function Execute-QueryCore {
                             $rows = [int]$result.RowsAffected
                         }
                     } catch { $rows = 0 }
+
+                    # Historial
                     try {
                         $ok = $false
                         try { $ok = [bool]$result.Success } catch { $ok = $false }
@@ -531,10 +747,11 @@ function Execute-QueryCore {
                             if ($result.InnerError) { $errMsg += " | Inner: $($result.InnerError)" }
                         }
                         Add-QueryToHistory -Query $rawQueryToSave -Database $dbToSave -Server $serverToSave -Success $ok -RowsAffected $rows -ErrorMessage $errMsg
-                        Write-DzDebug "`t[DEBUG][Queries] Historial guardado (DB='$db' Success=$ok Rows=$rows)"
+                        Write-DzDebug "`t[DEBUG][Queries] Historial guardado (DB='$dbToSave' Success=$ok Rows=$rows)"
                     } catch {
                         Write-DzDebug "`t[DEBUG][Queries] Error guardando historial: $($_.Exception.Message)" Yellow
                     }
+
                 } catch {
                     $result = @{
                         Success      = $false
@@ -554,6 +771,8 @@ function Execute-QueryCore {
                 $script:CurrentQueryPowerShell = $null
                 $script:CurrentQueryRunspace = $null
                 $script:CurrentQueryAsync = $null
+
+                # Detener timers
                 try {
                     if ($script:execStopwatch) { $script:execStopwatch.Stop() }
                     if ($script:execUiTimer -and $script:execUiTimer.IsEnabled) { $script:execUiTimer.Stop() }
@@ -562,8 +781,11 @@ function Execute-QueryCore {
                         $global:lblExecutionTimer.Text = ("Tiempo: {0:mm\:ss\.fff}" -f $t)
                     }
                 } catch {}
+
                 try { if ($global:btnExecute) { $global:btnExecute.IsEnabled = $true } } catch {}
                 $script:QueryRunning = $false
+
+                # Mostrar resultados según el tipo
                 if (-not $result -or -not $result.Success) {
                     $msg = ""
                     try { $msg = [string]$result.ErrorMessage } catch {}
@@ -573,6 +795,7 @@ function Execute-QueryCore {
                         try { $msg = ($result.Messages -join "`n") } catch {}
                     }
                     if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "Error desconocido al ejecutar la consulta." }
+
                     if ($result -and $result.ResultSets -and $result.ResultSets.Count -gt 0) {
                         try {
                             Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
@@ -594,32 +817,26 @@ function Execute-QueryCore {
                         if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
                         if ($global:tcResults) { try { Show-ErrorResultTab -ResultsTabControl $global:tcResults -Message $msg } catch {} }
                     }
-                    try {
-                        $ok = $false
-                        try { $ok = [bool]$result.Success } catch { $ok = $false }
-                        $errMsg = ""
-                        if (-not $ok) {
-                            try { $errMsg = [string]$result.ErrorMessage } catch {}
-                            if ($result.InnerError) { $errMsg += " | Inner: $($result.InnerError)" }
-                        }
-                        Add-QueryToHistory -Query $rawQuery -Database $db -Success $ok -RowsAffected $rows -ErrorMessage $errMsg
-                    } catch {
-                        Write-DzDebug "`t[DEBUG][Queries] Error registrando historial desde Execute-QueryCore: $_" Yellow
-                    }
                     return
                 }
+
+                # Debug log
                 if ($result.DebugLog -and $global:txtMessages) {
                     try {
                         $dbg = ($result.DebugLog -join "`n")
                         if (-not [string]::IsNullOrWhiteSpace($dbg)) { $global:txtMessages.Text = $dbg + "`n`n" + $global:txtMessages.Text }
                     } catch {}
                 }
+
+                # ResultSets
                 if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
                     try { Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets } catch {
                         if ($global:txtMessages) { $global:txtMessages.Text = "Error mostrando resultados: $($_.Exception.Message)" }
                     }
                     return
                 }
+
+                # RowsAffected
                 if ($result -and ($result -is [hashtable]) -and $result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
                     if ($global:tcResults) {
                         $global:tcResults.Items.Clear()
@@ -638,8 +855,11 @@ function Execute-QueryCore {
                     if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas afectadas: $($result.RowsAffected)" }
                     return
                 }
+
+                # Sin resultados
                 Show-MultipleResultSets -TabControl $global:tcResults -ResultSets @()
                 if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: 0" }
+
             } catch {
                 $err = "[UI][QueryDoneTimer ERROR] $($_.Exception.Message)`n$($_.ScriptStackTrace)"
                 if ($global:txtMessages) { $global:txtMessages.Text = $err }
@@ -1424,20 +1644,20 @@ function Show-QueryHistoryWindow {
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Horizontal">
-                            <Button Name="btnDeleteSelected" Content="🗑️ Eliminar"
+                            <Button Name="btnDeleteSelected" Content="🗑️ Eliminar seleccionado"
                                     Width="90" Height="26"
                                     Style="{StaticResource DangerButtonStyle}"
                                     Margin="0,0,4,0"/>
-                            <Button Name="btnClearAll" Content="🗑️ Todo"
+                            <Button Name="btnClearAll" Content="🗑️ ELiminar Todo"
                                     Width="70" Height="26"
                                     Style="{StaticResource DangerButtonStyle}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <Button Name="btnCopy" Content="📋 Copiar"
+                            <Button Name="btnCopy" Content="📋 Copiar Query"
                                     Width="80" Height="26"
                                     Style="{StaticResource DatabaseButtonStyle}"
                                     Margin="0,0,4,0"/>
-                            <Button Name="btnLoadNew" Content="📥 Nueva Tab"
+                            <Button Name="btnLoadNew" Content="📥 Agregar a nuevo Query"
                                     Width="100" Height="26"
                                     Style="{StaticResource DatabaseButtonStyle}"/>
                         </StackPanel>

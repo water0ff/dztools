@@ -587,14 +587,14 @@ function Execute-QueryCore {
                 }
             }
 
-            # IMPORTANTE: Asegurar que los mensajes se incluyan en el resultado
+            # IMPORTANTE: Asegurar que los mensajes se incluyan en el resultado sin duplicados
             if (-not $r.Messages) {
                 $r.Messages = New-Object System.Collections.Generic.List[string]
             }
-
-            # Agregar mensajes capturados
+            $messageSet = New-Object System.Collections.Generic.HashSet[string]
+            foreach ($m in $r.Messages) { [void]$messageSet.Add([string]$m) }
             foreach ($m in $capturedMessages) {
-                if (-not [string]::IsNullOrWhiteSpace($m)) {
+                if (-not [string]::IsNullOrWhiteSpace($m) -and $messageSet.Add([string]$m)) {
                     $r.Messages.Add($m)
                 }
             }
@@ -832,7 +832,6 @@ function Execute-QueryCore {
                     if ($result -and $result.ResultSets -and $result.ResultSets.Count -gt 0) {
                         try {
                             Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets
-                            Show-ErrorResultTab -ResultsTabControl $global:tcResults -Message $msg -AddWithoutClear
                             if ($global:txtMessages) {
                                 $currentText = $global:txtMessages.Text
                                 $global:txtMessages.Text = "ERROR: $msg`n`n$currentText"
@@ -848,7 +847,7 @@ function Execute-QueryCore {
                     } else {
                         if ($global:txtMessages) { $global:txtMessages.Text = $msg }
                         if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
-                        if ($global:tcResults) { try { Show-ErrorResultTab -ResultsTabControl $global:tcResults -Message $msg } catch {} }
+                        if ($global:tcResults) { try { [void](Clear-ResultTabsKeepMessages -TabControl $global:tcResults) } catch {} }
                     }
                     return
                 }
@@ -886,9 +885,14 @@ function Execute-QueryCore {
                         } else {
                             [void]$global:tcResults.Items.Add($tab)
                         }
-                        $global:tcResults.SelectedItem = $tab
+                        $hasMessages = $result.Messages -and $result.Messages.Count -gt 0
+                        if (-not $hasMessages) {
+                            $global:tcResults.SelectedItem = $tab
+                        }
                     }
-                    if ($global:txtMessages) { $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)" }
+                    if ($global:txtMessages -and [string]::IsNullOrWhiteSpace($global:txtMessages.Text)) {
+                        $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)"
+                    }
                     if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas afectadas: $($result.RowsAffected)" }
                     return
                 }
@@ -1244,15 +1248,14 @@ function Execute-QueryInTab {
     Write-DzDebug "`t[DEBUG][Execute-QueryInTab] - RowsAffected valor: $($result.RowsAffected)"
     Write-DzDebug "`t[DEBUG][Execute-QueryInTab] Entrando a las condiciones de resultado..."
     if (-not $result.Success) {
-        $ResultsTabControl.Items.Clear()
-        $tab = New-Object System.Windows.Controls.TabItem
-        $tab.Header = "Error"
-        $text = New-Object System.Windows.Controls.TextBlock
-        $text.Text = $result.ErrorMessage
-        $text.Margin = "10"
-        $tab.Content = $text
-        [void]$ResultsTabControl.Items.Add($tab)
-        $ResultsTabControl.SelectedItem = $tab
+        try {
+            if ($ResultsTabControl) {
+                [void](Clear-ResultTabsKeepMessages -TabControl $ResultsTabControl)
+            }
+            if ($global:txtMessages) {
+                $global:txtMessages.Text = $result.ErrorMessage
+            }
+        } catch {}
         Write-DzSqlResultSummary -Result $result -Context "Consulta"
         return $result
     }

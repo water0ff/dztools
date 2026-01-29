@@ -1633,7 +1633,29 @@ function Show-ErrorResultTab {
         [Parameter()][switch]$AddWithoutClear
     )
     if (-not $AddWithoutClear) {
-        try { $ResultsTabControl.Items.Clear() } catch {}
+        try {
+            $itemsToRemove = New-Object System.Collections.ArrayList
+            foreach ($item in $ResultsTabControl.Items) {
+                if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+                $header = $null
+                if ($item.Header -is [string]) {
+                    $header = $item.Header
+                } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+                    foreach ($child in $item.Header.Children) {
+                        if ($child -is [System.Windows.Controls.TextBlock]) {
+                            $header = $child.Text
+                            break
+                        }
+                    }
+                }
+                if (-not ($header -and $header -match "Mensajes")) {
+                    [void]$itemsToRemove.Add($item)
+                }
+            }
+            foreach ($item in $itemsToRemove) {
+                $ResultsTabControl.Items.Remove($item)
+            }
+        } catch {}
     }
     $tab = New-Object System.Windows.Controls.TabItem
     $ht = New-Object System.Windows.Controls.TextBlock
@@ -1648,7 +1670,31 @@ function Show-ErrorResultTab {
     $text.VerticalScrollBarVisibility = "Auto"
     $text.HorizontalScrollBarVisibility = "Auto"
     $tab.Content = $text
-    [void]$ResultsTabControl.Items.Add($tab)
+    $messagesTabIndex = -1
+    for ($i = 0; $i -lt $ResultsTabControl.Items.Count; $i++) {
+        $item = $ResultsTabControl.Items[$i]
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        $header = $null
+        if ($item.Header -is [string]) {
+            $header = $item.Header
+        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+            foreach ($child in $item.Header.Children) {
+                if ($child -is [System.Windows.Controls.TextBlock]) {
+                    $header = $child.Text
+                    break
+                }
+            }
+        }
+        if ($header -and $header -match "Mensajes") {
+            $messagesTabIndex = $i
+            break
+        }
+    }
+    if ($messagesTabIndex -ge 0) {
+        $ResultsTabControl.Items.Insert($messagesTabIndex, $tab)
+    } else {
+        [void]$ResultsTabControl.Items.Add($tab)
+    }
     if (-not $AddWithoutClear) {
         $ResultsTabControl.SelectedIndex = 0
     }

@@ -381,6 +381,39 @@ function Get-StringHash {
         return [Guid]::NewGuid().ToString("N").Substring(0, 16)
     }
 }
+function Clear-ResultTabsKeepMessages {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][System.Windows.Controls.TabControl]$TabControl
+    )
+    $messagesTabIndex = -1
+    if (-not $TabControl) { return $messagesTabIndex }
+    $itemsToRemove = New-Object System.Collections.ArrayList
+    for ($i = 0; $i -lt $TabControl.Items.Count; $i++) {
+        $item = $TabControl.Items[$i]
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        $header = $null
+        if ($item.Header -is [string]) {
+            $header = $item.Header
+        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+            foreach ($child in $item.Header.Children) {
+                if ($child -is [System.Windows.Controls.TextBlock]) {
+                    $header = $child.Text
+                    break
+                }
+            }
+        }
+        if ($header -and $header -match "Mensajes") {
+            if ($messagesTabIndex -lt 0) { $messagesTabIndex = $i }
+            continue
+        }
+        [void]$itemsToRemove.Add($item)
+    }
+    foreach ($item in $itemsToRemove) {
+        $TabControl.Items.Remove($item)
+    }
+    return $messagesTabIndex
+}
 function Execute-QueryCore {
     [CmdletBinding()]
     param([Parameter(Mandatory)][hashtable]$Ctx)
@@ -461,7 +494,7 @@ function Execute-QueryCore {
     if ([string]::IsNullOrWhiteSpace($server) -or [string]::IsNullOrWhiteSpace($userText) -or [string]::IsNullOrWhiteSpace($passwordTxt)) {
         throw "Faltan datos de conexión."
     }
-    if ($Ctx.tcResults) { $Ctx.tcResults.Items.Clear() }
+    if ($Ctx.tcResults) { [void](Clear-ResultTabsKeepMessages -TabControl $Ctx.tcResults) }
     if ($Ctx.dgResults) { $Ctx.dgResults.ItemsSource = $null }
     if ($Ctx.txtMessages) { $Ctx.txtMessages.Text = "" }
     if ($Ctx.lblRowCount) { $Ctx.lblRowCount.Text = "Filas: --" }
@@ -839,7 +872,7 @@ function Execute-QueryCore {
                 # RowsAffected
                 if ($result -and ($result -is [hashtable]) -and $result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
                     if ($global:tcResults) {
-                        $global:tcResults.Items.Clear()
+                        $messagesTabIndex = Clear-ResultTabsKeepMessages -TabControl $global:tcResults
                         $tab = New-Object System.Windows.Controls.TabItem
                         $tab.Header = "Resultado"
                         $text = New-Object System.Windows.Controls.TextBlock
@@ -848,7 +881,11 @@ function Execute-QueryCore {
                         $text.FontSize = 14
                         $text.FontWeight = "Bold"
                         $tab.Content = $text
-                        [void]$global:tcResults.Items.Add($tab)
+                        if ($messagesTabIndex -ge 0) {
+                            $global:tcResults.Items.Insert($messagesTabIndex, $tab)
+                        } else {
+                            [void]$global:tcResults.Items.Add($tab)
+                        }
                         $global:tcResults.SelectedItem = $tab
                     }
                     if ($global:txtMessages) { $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)" }

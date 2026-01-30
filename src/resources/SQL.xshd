@@ -7,7 +7,7 @@
   <Color name="String" foreground="Maroon" />
   <Color name="Keyword" foreground="Blue" fontWeight="bold" />
   <Color name="Type" foreground="Teal" fontWeight="bold" />
-  <Color name="Function" foreground="Purple" />
+  <Color name="Function" foreground="Magenta" fontWeight="bold" />
   <Color name="Number" foreground="DarkCyan" />
   <Color name="Identifier" foreground="Gray" />
   <Color name="Operator" foreground="Black" fontWeight="bold" />
@@ -118,7 +118,7 @@
     <!-- Funciones comunes -->
     <Keywords color="Function">
       <Word>COUNT</Word><Word>SUM</Word><Word>MIN</Word><Word>MAX</Word><Word>AVG</Word>
-
+      <Word>ROW_NUMBER</Word><Word>FETCH</Word><Word>NEWID</Word>
       <Word>CAST</Word><Word>CONVERT</Word><Word>TRY_CAST</Word><Word>TRY_CONVERT</Word>
 
       <Word>ISNULL</Word><Word>COALESCE</Word><Word>NULLIF</Word><Word>IIF</Word>

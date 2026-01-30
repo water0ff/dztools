@@ -687,12 +687,12 @@ function Execute-QueryCore {
                                                 }
                                                 if ($header -and $header -match "Mensajes") {
                                                     $global:tcResults.SelectedItem = $item
-                                                    Write-Host "[UI] ✓ Pestaña de Mensajes seleccionada" -ForegroundColor Green
+                                                    #Write-Host "[UI] ✓ Pestaña de Mensajes seleccionada" -ForegroundColor Green
                                                     break
                                                 }
                                             }
                                         }
-                                        Write-Host "[UI] ✓ Mensajes actualizados y visibles" -ForegroundColor Green
+                                        #Write-Host "[UI] ✓ Mensajes actualizados y visibles" -ForegroundColor Green
                                     } catch {
                                         Write-Host "[UI-ERROR] Error actualizando txtMessages: $_" -ForegroundColor Red
                                     }

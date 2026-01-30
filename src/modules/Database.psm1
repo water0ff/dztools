@@ -202,7 +202,7 @@ function Invoke-DzSqlBatchInternal {
         Add-Debug ("Batches: {0}" -f $batches.Count)
         if ($batches.Count -gt 0) {
             $preview = $batches[0]
-            if ($preview.Length -gt 300) { $preview = $preview.Substring(0, 300) + "..." }
+            if ($preview.Length -gt 100) { $preview = $preview.Substring(0, 100) + "..." }
             Add-Debug ("Batch[0] Preview: {0}" -f $preview.Replace("`r", " ").Replace("`n", " "))
         }
         $resultSets = New-Object System.Collections.Generic.List[object]

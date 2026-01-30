@@ -1318,319 +1318,319 @@ function Show-QueryHistoryWindow {
     try {
         $theme = Get-DzUiTheme
         $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Historial de Consultas SQL"
-        SizeToContent="Manual"
-        Height="400" Width="800"
-        WindowStartupLocation="CenterOwner"
-        WindowStyle="None"
-        ResizeMode="CanResize"
-        ShowInTaskbar="False"
-        Background="#66000000"
-        AllowsTransparency="True"
-        Topmost="True"
-        MinHeight="400" MinWidth="800">
-    <Window.Resources>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-            <Setter Property="FontFamily" Value="Consolas"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontFamily" Value="Consolas"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
-        <Style x:Key="BaseButtonStyle" TargetType="Button">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="SnapsToDevicePixels" Value="True"/>
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.6"/>
-                    <Setter Property="Cursor" Value="Arrow"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="DatabaseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource AccentDatabase}"/>
-            <Setter Property="Foreground" Value="#111111"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AccentDatabaseHover}"/>
-                    <Setter Property="Foreground" Value="#111111"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource AccentRed}"/>
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AccentRedHover}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
-                    <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-            <Setter Property="Width" Value="28"/>
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Content" Value="×"/>
-        </Style>
-    </Window.Resources>
-    <Grid Background="Transparent">
-        <Border Background="{DynamicResource FormBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="10"
-                Margin="9"
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Stretch">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="2"
-                                  ShadowDepth="0"
-                                  Opacity="0.45"/>
-            </Border.Effect>
+    <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            Title="Historial de Consultas SQL"
+            SizeToContent="Manual"
+            Height="400" Width="800"
+            WindowStartupLocation="CenterOwner"
+            WindowStyle="None"
+            ResizeMode="CanResize"
+            ShowInTaskbar="False"
+            Background="#66000000"
+            AllowsTransparency="True"
+            Topmost="True"
+            MinHeight="400" MinWidth="800">
+        <Window.Resources>
+            <Style TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                <Setter Property="FontFamily" Value="Consolas"/>
+                <Setter Property="FontSize" Value="11"/>
+            </Style>
+            <Style TargetType="TextBox">
+                <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="FontFamily" Value="Consolas"/>
+                <Setter Property="FontSize" Value="11"/>
+            </Style>
+            <Style x:Key="BaseButtonStyle" TargetType="Button">
+                <Setter Property="OverridesDefaultStyle" Value="True"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Padding" Value="8,4"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsEnabled" Value="False">
+                        <Setter Property="Opacity" Value="0.6"/>
+                        <Setter Property="Cursor" Value="Arrow"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="DatabaseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+                <Setter Property="Background" Value="{DynamicResource AccentDatabase}"/>
+                <Setter Property="Foreground" Value="#111111"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource AccentDatabaseHover}"/>
+                        <Setter Property="Foreground" Value="#111111"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+                <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+                <Setter Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource AccentRedHover}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+                <Setter Property="Width" Value="28"/>
+                <Setter Property="Height" Value="28"/>
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Content" Value="×"/>
+            </Style>
+        </Window.Resources>
+        <Grid Background="Transparent">
+            <Border Background="{DynamicResource FormBg}"
+                    BorderBrush="{DynamicResource BorderBrushColor}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="10"
+                    Margin="9"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="2"
+                                    ShadowDepth="0"
+                                    Opacity="0.45"/>
+                </Border.Effect>
 
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Name="brdTitleBar"
-                            Background="{DynamicResource PanelBg}"
-                            Cursor="SizeAll"
-                            BorderBrush="{DynamicResource BorderBrushColor}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="8"
-                            Margin="0,0,0,6">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                            <TextBlock Text="📜 Historial de Consultas SQL"
-                                       FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource AccentPrimary}"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                <TextBlock Name="lblHistoryCount" Text="0 consultas"
-                                           FontSize="10" Foreground="{DynamicResource AccentMuted}"/>
-                                <TextBlock Text=" • " Margin="4,0" FontSize="10"
-                                           Foreground="{DynamicResource AccentMuted}"/>
-                                <TextBlock Name="lblSelectedCount" Text="0 seleccionadas"
-                                           FontSize="10" Foreground="{DynamicResource AccentMuted}"/>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Name="brdTitleBar"
+                                Background="{DynamicResource PanelBg}"
+                                Cursor="SizeAll"
+                                BorderBrush="{DynamicResource BorderBrushColor}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="8"
+                                Margin="0,0,0,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="📜 Historial de Consultas SQL"
+                                        FontSize="13" FontWeight="SemiBold"
+                                        Foreground="{DynamicResource AccentPrimary}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                    <TextBlock Name="lblHistoryCount" Text="0 consultas"
+                                            FontSize="10" Foreground="{DynamicResource AccentMuted}"/>
+                                    <TextBlock Text=" • " Margin="4,0" FontSize="10"
+                                            Foreground="{DynamicResource AccentMuted}"/>
+                                    <TextBlock Name="lblSelectedCount" Text="0 seleccionadas"
+                                            FontSize="10" Foreground="{DynamicResource AccentMuted}"/>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                        <Button Grid.Column="1" Name="btnClose"
-                                Content="Cerrar" Width="60" Height="26"
-                                Style="{StaticResource DatabaseButtonStyle}"
-                                Margin="8,0,0,0"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Center"/>
-                    </Grid>
-                </Border>
+                            <Button Grid.Column="1" Name="btnClose"
+                                    Content="Cerrar" Width="60" Height="26"
+                                    Style="{StaticResource DatabaseButtonStyle}"
+                                    Margin="8,0,0,0"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
 
-                <Border Grid.Row="1" Background="{DynamicResource PanelBg}"
-                        BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
-                        CornerRadius="8" Padding="6" Margin="0,0,0,6">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="80"/>
-                            <ColumnDefinition Width="110"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox Name="txtSearch" Grid.Column="0"
-                                 Height="24" Padding="6,2"
-                                 Margin="0,0,6,0"
-                                 MinWidth="120"/>
-                        <Button Name="btnClearSearch" Grid.Column="1"
-                                Content="✖ Limpiar"
-                                Height="24"
-                                Style="{StaticResource DatabaseButtonStyle}"
-                                Margin="0,0,4,0"/>
-                        <Button Name="btnRefresh" Grid.Column="2"
-                                Content="🔄 Actualizar"
-                                Height="24"
-                                ToolTip="Actualizar"
-                                Style="{StaticResource DatabaseButtonStyle}"/>
-                    </Grid>
-                </Border>
-
-                <Border Grid.Row="2" Background="{DynamicResource PanelBg}"
-                        BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
-                        CornerRadius="8" Margin="0,0,0,6">
-                    <DataGrid Name="dgHistory"
-                              IsReadOnly="True"
-                              AutoGenerateColumns="False"
-                              CanUserAddRows="False"
-                              CanUserDeleteRows="False"
-                              SelectionMode="Extended"
-                              SelectionUnit="FullRow"
-                              HeadersVisibility="Column"
-                              GridLinesVisibility="Horizontal"
-                              AlternatingRowBackground="{DynamicResource ControlBg}"
-                              RowHeight="28"
-                            FontFamily="Consolas"
-                            FontSize="11"
-                            Padding="4"
-                            ScrollViewer.VerticalScrollBarVisibility="Auto"
-                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="📅 Fecha" Binding="{Binding Timestamp}" Width="120">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="Padding" Value="4,0"/>
-                                        <Setter Property="FontFamily" Value="Consolas"/>
-                                        <Setter Property="FontSize" Value="10"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="🖥️ Servidor" Binding="{Binding Server}" Width="110">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="Padding" Value="4,0"/>
-                                        <Setter Property="FontFamily" Value="Consolas"/>
-                                        <Setter Property="FontSize" Value="10"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="🗄️ DB" Binding="{Binding Database}" Width="120">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="Padding" Value="4,0"/>
-                                        <Setter Property="FontFamily" Value="Consolas"/>
-                                        <Setter Property="FontSize" Value="10"/>
-                                        <Setter Property="FontWeight" Value="SemiBold"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="📝 Query" Binding="{Binding Preview}" Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="Padding" Value="4,0"/>
-                                        <Setter Property="TextWrapping" Value="NoWrap"/>
-                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                        <Setter Property="FontFamily" Value="Consolas"/>
-                                        <Setter Property="FontSize" Value="10"/>
-                                        <Setter Property="ToolTipService.ShowDuration" Value="60000"/>
-                                        <Setter Property="ToolTip">
-                                            <Setter.Value>
-                                                <ToolTip MaxWidth="900">
-                                                    <TextBox Text="{Binding FullQuery}"
-                                                            IsReadOnly="True"
-                                                            TextWrapping="Wrap"
-                                                            BorderThickness="0"
-                                                            Background="Transparent"
-                                                            FontFamily="Consolas"
-                                                            FontSize="11"/>
-                                                </ToolTip>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="✅ Estado" Binding="{Binding Result}" Width="140">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="Padding" Value="4,0"/>
-                                        <Setter Property="FontFamily" Value="Consolas"/>
-                                        <Setter Property="FontSize" Value="10"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Border>
-
-                <Border Grid.Row="3" Background="{DynamicResource PanelBg}"
-                        BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
-                        CornerRadius="8" Padding="6">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Orientation="Horizontal">
-                            <Button Name="btnDeleteSelected" Content="🗑️ Eliminar seleccionado"
-                                    Height="26"
-                                    Style="{StaticResource DangerButtonStyle}"
-                                    Margin="0,0,4,0"/>
-                            <Button Name="btnClearAll" Content="🗑️ ELiminar Todo"
-                                    Height="26"
-                                    Style="{StaticResource DangerButtonStyle}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <Button Name="btnCopy" Content="📋 Copiar Query"
-                                    Height="26"
+                    <Border Grid.Row="1" Background="{DynamicResource PanelBg}"
+                            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                            CornerRadius="8" Padding="6" Margin="0,0,0,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Name="txtSearch" Grid.Column="0"
+                                    Height="24" Padding="6,2"
+                                    Margin="0,0,6,0"
+                                    MinWidth="120"/>
+                            <Button Name="btnClearSearch" Grid.Column="1"
+                                    Content="✖ Limpiar"
+                                    Height="24"
                                     Style="{StaticResource DatabaseButtonStyle}"
                                     Margin="0,0,4,0"/>
-                            <Button Name="btnLoadNew" Content="📥 Agregar a nuevo Query"
-                                    Height="26"
+                            <Button Name="btnRefresh" Grid.Column="2"
+                                    Content="🔄 Actualizar"
+                                    Height="24"
+                                    ToolTip="Actualizar"
                                     Style="{StaticResource DatabaseButtonStyle}"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
+                        </Grid>
+                    </Border>
 
-            </Grid>
-        </Border>
-    </Grid>
-</Window>
+                    <Border Grid.Row="2" Background="{DynamicResource PanelBg}"
+                            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                            CornerRadius="8" Margin="0,0,0,6">
+                        <DataGrid Name="dgHistory"
+                                IsReadOnly="True"
+                                AutoGenerateColumns="False"
+                                CanUserAddRows="False"
+                                CanUserDeleteRows="False"
+                                SelectionMode="Extended"
+                                SelectionUnit="FullRow"
+                                HeadersVisibility="Column"
+                                GridLinesVisibility="Horizontal"
+                                AlternatingRowBackground="{DynamicResource ControlBg}"
+                                RowHeight="28"
+                                FontFamily="Consolas"
+                                FontSize="11"
+                                Padding="4"
+                                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="📅 Fecha" Binding="{Binding Timestamp}" Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="4,0"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="🖥️ Servidor" Binding="{Binding Server}" Width="110">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="4,0"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="🗄️ DB" Binding="{Binding Database}" Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="4,0"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="📝 Query" Binding="{Binding Preview}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="4,0"/>
+                                            <Setter Property="TextWrapping" Value="NoWrap"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                            <Setter Property="ToolTipService.ShowDuration" Value="60000"/>
+                                            <Setter Property="ToolTip">
+                                                <Setter.Value>
+                                                    <ToolTip MaxWidth="900">
+                                                        <TextBox Text="{Binding FullQuery}"
+                                                                IsReadOnly="True"
+                                                                TextWrapping="Wrap"
+                                                                BorderThickness="0"
+                                                                Background="Transparent"
+                                                                FontFamily="Consolas"
+                                                                FontSize="11"/>
+                                                    </ToolTip>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="✅ Estado" Binding="{Binding Result}" Width="140">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="4,0"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <Border Grid.Row="3" Background="{DynamicResource PanelBg}"
+                            BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
+                            CornerRadius="8" Padding="6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <Button Name="btnDeleteSelected" Content="🗑️ Eliminar seleccionado"
+                                        Height="26"
+                                        Style="{StaticResource DangerButtonStyle}"
+                                        Margin="0,0,4,0"/>
+                                <Button Name="btnClearAll" Content="🗑️ ELiminar Todo"
+                                        Height="26"
+                                        Style="{StaticResource DangerButtonStyle}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Name="btnCopy" Content="📋 Copiar Query"
+                                        Height="26"
+                                        Style="{StaticResource DatabaseButtonStyle}"
+                                        Margin="0,0,4,0"/>
+                                <Button Name="btnLoadNew" Content="📥 Agregar a nuevo Query"
+                                        Height="26"
+                                        Style="{StaticResource DatabaseButtonStyle}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                </Grid>
+            </Border>
+        </Grid>
+    </Window>
 "@
         $result = New-WpfWindow -Xaml $xaml -PassThru
         $window = $result.Window
@@ -1817,6 +1817,8 @@ function Show-QueryHistoryWindow {
         Write-DzDebug "`t[DEBUG][Historial] Error: $($_.Exception.Message)" Red
     }
 }
+
+
 function New-SqlEditor {
     [CmdletBinding()]
     param(

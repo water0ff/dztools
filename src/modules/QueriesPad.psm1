@@ -414,6 +414,7 @@ function Clear-ResultTabsKeepMessages {
     }
     return $messagesTabIndex
 }
+#EnQueriesPad.psm1
 function Execute-QueryCore {
     [CmdletBinding()]
     param([Parameter(Mandatory)][hashtable]$Ctx)

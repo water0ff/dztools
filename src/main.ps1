@@ -285,7 +285,6 @@ function New-MainForm {
     $global:tcResults = $tcResults
     $global:tvDatabases = $tvDatabases
     $global:tabAddQuery = $tabAddQuery
-    $global:dgResults = $window.FindName("dgResults")
     $global:txtMessages = $window.FindName("txtMessages")
     $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")
     $global:lblRowCount = $window.FindName("lblRowCount")
@@ -783,6 +782,8 @@ function New-MainForm {
                 }
             }
         })
+    #en main.ps1
+    $global:dgResults = $window.FindName("dgResults")
     $btnClearQuery.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {

@@ -1235,7 +1235,7 @@ function New-MainWindow {
     [CmdletBinding()]
     param()
     try {
-        Write-Host "`nCreando formulario principal WPF..." -ForegroundColor Yellow
+        Write-Host "  ✓ Creando formulario principal WPF..." -ForegroundColor Green
         $theme = Get-DzUiTheme
         $xaml = Get-MainWindowXaml -Theme $theme
         $result = New-WpfWindow -Xaml $xaml -PassThru

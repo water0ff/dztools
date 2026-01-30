@@ -1,7 +1,6 @@
 param(
     [string]$Branch = "release"
 )
-# ===================== ADVERTENCIA DE VERSIÓN BETA =====================
 Write-Host "`n==============================================" -ForegroundColor Red
 Write-Host "           ADVERTENCIA DE VERSIÓN BETA " -ForegroundColor Red
 Write-Host "==============================================" -ForegroundColor Red
@@ -21,74 +20,55 @@ if ($answer -ne 'Y') {
     Write-Host "`nEjecución cancelada por el usuario.`n" -ForegroundColor Red
     return
 }
-# ======================================================================
 Clear-Host
 $baseRuntimePath = "C:\temp\dztools"
 $releasePath = Join-Path $baseRuntimePath "release"
 $Owner = "water0ff"
 $Repo = "dztools"
-function Show-ProgressBar {
-    param(
-        [int]$Percent,
-        [string]$Message = ""
-    )
-    $width = 20
-    if ($Percent -lt 0) { $Percent = 0 }
-    if ($Percent -gt 100) { $Percent = 100 }
-    $filled = [math]::Round(($Percent / 100) * $width)
-    $bar = "[" + ("=" * $filled).PadRight($width) + "]"
-    $line = "{0} {1,3}%  {2}" -f $bar, $Percent, $Message
-    $consoleWidth = $Host.UI.RawUI.WindowSize.Width
-    $line = $line.PadRight($consoleWidth - 1)
-    Write-Host "`r$line" -NoNewline
-    if ($Percent -ge 100) { Write-Host "" }
-}
 if (-not (Test-Path $baseRuntimePath)) {
     New-Item -ItemType Directory -Path $baseRuntimePath | Out-Null
 }
-Show-ProgressBar -Percent 5  -Message "Preparando entorno..."
+Write-Host "Preparando entorno..." -ForegroundColor Yellow
+
 $zipPath = Join-Path $baseRuntimePath "dztools.zip"
-Show-ProgressBar -Percent 10 -Message "Limpiando versión anterior..."
+
+Write-Host "Limpiando versión anterior..." -ForegroundColor Yellow
 try {
     if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
     if (Test-Path $releasePath) { Remove-Item $releasePath -Recurse -Force -ErrorAction SilentlyContinue }
 } catch {}
-# Si 'Branch' en el futuro cambia URL, aquí es el punto
 $zipUrl = "https://github.com/$Owner/$Repo/releases/latest/download/dztools-release.zip"
 
-Show-ProgressBar -Percent 20 -Message "Descargando última versión..."
+Write-Host "Descargando última versión..." -ForegroundColor Yellow
 try {
     Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
+    Write-Host "  ✓ Descarga completada" -ForegroundColor Green
 } catch {
-    Show-ProgressBar -Percent 100 -Message "Error al descargar"
-    Write-Host ""
-    Write-Host "❌ No se pudo descargar el release: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  ✗ Error al descargar: $($_.Exception.Message)" -ForegroundColor Red
     return
 }
-Show-ProgressBar -Percent 50 -Message "Extrayendo archivos..."
+Write-Host "Extrayendo archivos..." -ForegroundColor Yellow
 try {
     if (-not (Test-Path $releasePath)) {
         New-Item -ItemType Directory -Path $releasePath | Out-Null
     }
     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $releasePath)
+    Write-Host "  ✓ Extracción completada" -ForegroundColor Green
 } catch {
-    Show-ProgressBar -Percent 100 -Message "Error al extraer"
-    Write-Host ""
-    Write-Host "❌ No se pudo extraer el ZIP: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  ✗ Error al extraer: $($_.Exception.Message)" -ForegroundColor Red
     return
 }
-Show-ProgressBar -Percent 70 -Message "Preparando aplicación..."
+
+Write-Host "Preparando aplicación..." -ForegroundColor Yellow
 $projectRoot = $releasePath
 $mainPath = Join-Path $projectRoot "main.ps1"
 if (-not (Test-Path $mainPath)) {
-    Show-ProgressBar -Percent 100 -Message "Error"
-    Write-Host ""
-    Write-Host "❌ No se encontró main.ps1 en la carpeta release." -ForegroundColor Red
-    Write-Host "Ruta esperada: $mainPath" -ForegroundColor DarkYellow
+    Write-Host "  ✗ No se encontró main.ps1 en la carpeta release." -ForegroundColor Red
+    Write-Host "  Ruta esperada: $mainPath" -ForegroundColor DarkYellow
     return
 }
-Show-ProgressBar -Percent 100 -Message "Listo"
+Write-Host "  ✓ Listo" -ForegroundColor Green
 Write-Host ""
 Write-Host "=================================================" -ForegroundColor Gray
 Write-Host "   Iniciando Gerardo Zermeño Tools desde GitHub" -ForegroundColor Green
@@ -96,6 +76,6 @@ Write-Host "   Canal: $Branch" -ForegroundColor DarkGray
 Write-Host "   Carpeta: $projectRoot" -ForegroundColor DarkGray
 Write-Host "=================================================" -ForegroundColor Gray
 Write-Host ""
-# Ejecutar con el MISMO host que está corriendo este bootstrapper
+
 $exe = if ($PSVersionTable.PSVersion.Major -ge 6) { "pwsh" } else { "powershell" }
 & $exe -NoProfile -ExecutionPolicy Bypass -File $mainPath

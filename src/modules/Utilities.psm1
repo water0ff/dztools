@@ -467,7 +467,6 @@ function Get-AdminGroupName {
         return "Administrators"
     }
 }
-
 function Invoke-DiskCleanup {
     [CmdletBinding()]
     param(
@@ -506,10 +505,39 @@ function Invoke-DiskCleanup {
 
             $timeoutSeconds = $TimeoutMinutes * 60
             $script:remainingSeconds = $timeoutSeconds
+            $script:cleanupCancelled = $false
             $script:cleanupCompleted = $false
             $timer = $null
 
+            # Configurar botón de cancelar
             if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
+                try {
+                    $ProgressWindow.Dispatcher.Invoke([action] {
+                            $cancelBtn = $ProgressWindow.FindName("btnCancel")
+                            if ($cancelBtn) {
+                                $cancelBtn.Visibility = "Visible"
+                                $cancelBtn.Content = "Finalizar ahora"
+                                $cancelBtn.ToolTip = "Saltar la limpieza de disco y continuar"
+
+                                # Remover handlers previos
+                                $cancelBtn.RemoveHandler(
+                                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+                                    [System.Windows.RoutedEventHandler] {}
+                                )
+
+                                # Agregar handler de cancelación
+                                $cancelBtn.Add_Click({
+                                        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Botón cancelar presionado"
+                                        $script:cleanupCancelled = $true
+                                    }.GetNewClosure())
+                            }
+                        }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Botón cancelar configurado"
+                } catch {
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Error configurando botón cancelar: $_" Yellow
+                }
+
+                # Configurar timer de actualización
                 $timer = New-Object System.Windows.Threading.DispatcherTimer
                 $timer.Interval = [TimeSpan]::FromSeconds(1)
 
@@ -532,7 +560,7 @@ function Invoke-DiskCleanup {
                             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Tick EXCEPCIÓN: $($_.Exception.Message)" Red
                             $sender.Stop()
                         }
-                    })
+                    }.GetNewClosure())
 
                 $timer.Start()
                 Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Timer iniciado"
@@ -541,7 +569,8 @@ function Invoke-DiskCleanup {
             $checkInterval = 500
             $elapsed = 0
 
-            while (-not $proc.HasExited -and $elapsed -lt ($timeoutSeconds * 1000)) {
+            # Loop principal con verificación de cancelación
+            while (-not $proc.HasExited -and $elapsed -lt ($timeoutSeconds * 1000) -and -not $script:cleanupCancelled) {
                 Start-Sleep -Milliseconds $checkInterval
                 $elapsed += $checkInterval
 
@@ -553,11 +582,44 @@ function Invoke-DiskCleanup {
                 }
             }
 
+            # Detener timer
             if ($timer) {
                 $timer.Stop()
             }
 
-            if ($proc.HasExited) {
+            # Ocultar botón de cancelar
+            if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
+                try {
+                    $ProgressWindow.Dispatcher.Invoke([action] {
+                            $cancelBtn = $ProgressWindow.FindName("btnCancel")
+                            if ($cancelBtn) {
+                                $cancelBtn.Visibility = "Collapsed"
+                            }
+                        }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                } catch {}
+            }
+
+            # Evaluar resultado
+            if ($script:cleanupCancelled) {
+                Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: CANCELADO por usuario" Yellow
+                Write-Host "`n`tLimpieza de disco cancelada por el usuario." -ForegroundColor Yellow
+
+                try {
+                    $proc.Kill()
+                    $proc.WaitForExit(3000)
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso terminado por cancelación"
+                } catch {
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Error al terminar proceso cancelado" Yellow
+                }
+
+                if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
+                    if ($ProgressWindow.PSObject.Properties.Name -contains 'MessageLabel') {
+                        $ProgressWindow.MessageLabel.Text = "Limpieza de disco cancelada"
+                    }
+                }
+
+                return "Cancelled"
+            } elseif ($proc.HasExited) {
                 Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso completado. ExitCode=$($proc.ExitCode)"
                 Write-Host "`n`tLiberador de espacio completado." -ForegroundColor Green
 
@@ -566,6 +628,8 @@ function Invoke-DiskCleanup {
                         $ProgressWindow.MessageLabel.Text = "Limpieza completada exitosamente"
                     }
                 }
+
+                return "Completed"
             } else {
                 Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: TIMEOUT alcanzado" Yellow
                 Write-Host "`n`tAdvertencia: El proceso excedió el tiempo límite." -ForegroundColor Yellow
@@ -573,10 +637,18 @@ function Invoke-DiskCleanup {
                 try {
                     $proc.Kill()
                     $proc.WaitForExit(5000)
-                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso terminado forzosamente"
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso terminado forzosamente por timeout"
                 } catch {
-                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Error al terminar proceso" Red
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Error al terminar proceso por timeout" Red
                 }
+
+                if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
+                    if ($ProgressWindow.PSObject.Properties.Name -contains 'MessageLabel') {
+                        $ProgressWindow.MessageLabel.Text = "Limpieza de disco: tiempo agotado"
+                    }
+                }
+
+                return "Timeout"
             }
         } else {
             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzando /sagerun:$profileId (NO bloqueante)"
@@ -586,15 +658,20 @@ function Invoke-DiskCleanup {
                 -PassThru
             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzado. PID=$($proc.Id)"
             Write-Host "`n`tLiberador de espacio iniciado." -ForegroundColor Green
+            return "Started"
         }
 
         Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: FIN OK"
     } catch {
         Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: EXCEPCIÓN: $($_.Exception.Message)" Red
         Write-Host "`n`tError en limpieza de disco: $($_.Exception.Message)" -ForegroundColor Red
+        return "Error"
+    } finally {
+        # Limpiar variables de script
+        $script:cleanupCancelled = $false
+        $script:cleanupCompleted = $false
     }
 }
-
 function Stop-CleanmgrProcesses {
     [CmdletBinding()]
     param()

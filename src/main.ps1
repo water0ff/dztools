@@ -20,30 +20,6 @@ try {
 if (Get-Command Set-ExecutionPolicy -ErrorAction SilentlyContinue) {
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 }
-$script:ProgressActive = $false
-$script:LastProgressLen = 0
-function Show-GlobalProgress {
-    param([int]$Percent, [string]$Status)
-    $Percent = [math]::Max(0, [math]::Min(100, $Percent))
-    $width = 40
-    $filled = [math]::Round(($Percent / 100) * $width)
-    $bar = "[" + ("#" * $filled).PadRight($width) + "]"
-    $text = "{0} {1,3}% - {2}" -f $bar, $Percent, $Status
-    $max = [System.Console]::WindowWidth - 1
-    if ($max -gt 10 -and $text.Length -gt $max) { $text = $text.Substring(0, $max) }
-    $pad = ""
-    if ($script:LastProgressLen -gt $text.Length) { $pad = " " * ($script:LastProgressLen - $text.Length) }
-    Write-Host ("`r" + $text + $pad) -NoNewline
-    $script:ProgressActive = $true
-    $script:LastProgressLen = ($text.Length + $pad.Length)
-}
-function Stop-GlobalProgress {
-    if ($script:ProgressActive) {
-        Write-Host ""
-        $script:ProgressActive = $false
-        $script:LastProgressLen = 0
-    }
-}
 function Write-Log {
     param([Parameter(Mandatory)][string]$Message, [ConsoleColor]$Color = [ConsoleColor]::Gray)
     Stop-GlobalProgress
@@ -141,7 +117,7 @@ function Initialize-Environment {
     }
     try {
         Initialize-QueriesConfig | Out-Null
-        Write-Host "`n  ✓ Sistema de queries inicializado" -ForegroundColor Green
+        Write-Host "  ✓ Sistema de queries inicializado" -ForegroundColor Green
     } catch {
         Write-Host "Advertencia: No se pudo inicializar el sistema de queries. $_" -ForegroundColor Yellow
     }
@@ -316,7 +292,7 @@ function New-MainForm {
     $global:lblConnectionStatus = $lblConnectionStatus
     if ($tvDatabases) {
         try {
-            Write-Host "Aplicando estilo al TreeView..." -ForegroundColor Yellow
+            Write-Host "`nAplicando estilo al TreeView..." -ForegroundColor Yellow
             $style = New-Object System.Windows.Style([System.Windows.Controls.TreeViewItem])
             $triggerSelected = New-Object System.Windows.Trigger
             $triggerSelected.Property = [System.Windows.Controls.TreeViewItem]::IsSelectedProperty
@@ -376,14 +352,6 @@ function New-MainForm {
     if ($tglDarkMode) { $tglDarkMode.IsChecked = ((Get-DzUiMode) -eq 'dark') }
     if ($tglDebugMode) { $tglDebugMode.IsChecked = (Get-DzDebugPreference) }
     $script:initializingToggles = $false
-    Write-Host "`n==================================================" -ForegroundColor DarkCyan
-    Write-Host "       Gerardo Zermeño Tools - Suite de Utilidades       " -ForegroundColor Green
-    Write-Host "              Versión: $($global:version)               " -ForegroundColor Green
-    Write-Host "==================================================" -ForegroundColor DarkCyan
-    Write-Host "`nTodos los derechos reservados para Gerardo Zermeño Tools." -ForegroundColor Cyan
-    Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
-    Write-Host "O crea un issue en GitHub en:" -ForegroundColor Cyan
-    Write-Host "https://github.com/water0ff/dztools/issues/new" -ForegroundColor Cyan
     $script:setInstructionText = {
         param([string]$Message)
         if ($null -ne $txt_InfoInstrucciones) {
@@ -424,6 +392,19 @@ function New-MainForm {
     $global:txt_AdapterStatus = $txt_AdapterStatus
     Initialize-SystemInfo -LblPort $lblPort -LblIpAddress $txt_IpAdress -LblAdapterStatus $txt_AdapterStatus -ModulesPath $modulesPath
     Load-IniConnectionsToComboBox -Combo $txtServer
+    if ($txtServer.Items.Count -eq 1) {
+        try {
+            $serverText = $txtServer.Items[0]
+            if (-not [string]::IsNullOrWhiteSpace($serverText)) {
+                $txtServer.SelectedIndex = 0
+                Start-Sleep -Milliseconds 200
+                Apply-SavedSqlCredentials -ServerText $serverText
+                Write-DzDebug "`t[DEBUG] Credenciales aplicadas para conexión única: $serverText" -Color Green
+            }
+        } catch {
+            Write-DzDebug "`t[DEBUG] Error aplicando credenciales iniciales: $_" -Color Yellow
+        }
+    }
     $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnInstallPrinter, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS, $btnRegisterDlls, $btnMonitorServiciosLog)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
@@ -840,24 +821,33 @@ function New-MainForm {
     return $window
 }
 function Start-Application {
-    Show-GlobalProgress -Percent 0 -Status "Inicializando..."
-    if (-not (Initialize-Environment)) { Show-GlobalProgress -Percent 100 -Status "Error inicializando"; return }
-    Show-GlobalProgress -Percent 10 -Status "Entorno listo"
-    Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
+    Write-Host "`nInicializando entorno..." -ForegroundColor Yellow
+    if (-not (Initialize-Environment)) {
+        Write-Host "  ✗ Error inicializando entorno" -ForegroundColor Red
+        return
+    }
+    Write-Host "  ✓ Entorno listo" -ForegroundColor Green
+    Write-Host "`nCargando módulos..." -ForegroundColor Yellow
     $modulesPath = Join-Path $PSScriptRoot "modules"
     $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1", "QueriesPad.psm1")
-    $i = 0
     foreach ($module in $modules) {
-        $i++
-        Show-GlobalProgress -Percent (20 + [math]::Round(($i / $modules.Count) * 20)) -Status "Importando $module"
         $modulePath = Join-Path $modulesPath $module
-        if (Test-Path $modulePath) { Import-Module $modulePath -Force -DisableNameChecking -ErrorAction Stop }
+        if (Test-Path $modulePath) {
+            Import-Module $modulePath -Force -DisableNameChecking -ErrorAction Stop
+        }
     }
-    Show-GlobalProgress -Percent 45 -Status "Módulos listos"
-    Show-GlobalProgress -Percent 80 -Status "Creando formulario..."
-    Show-GlobalProgress -Percent 95 -Status "Mostrando GUI..."
+    Write-Host "  ✓ Módulos cargados" -ForegroundColor Green
+    Write-Host "`nCreando interfaz gráfica..." -ForegroundColor Yellow
     $mainForm = New-MainForm
-    Show-GlobalProgress -Percent 100 -Status "¡Listo!`n"
+    Write-Host "  ✓ Interfaz lista`n" -ForegroundColor Green
+    Write-Host "`n==================================================" -ForegroundColor DarkCyan
+    Write-Host "       Gerardo Zermeño Tools - Suite de Utilidades       " -ForegroundColor Green
+    Write-Host "              Versión: $($global:version)               " -ForegroundColor Green
+    Write-Host "==================================================" -ForegroundColor DarkCyan
+    Write-Host "`nTodos los derechos reservados para Gerardo Zermeño Tools." -ForegroundColor Cyan
+    Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
+    Write-Host "O crea un issue en GitHub en:" -ForegroundColor Cyan
+    Write-Host "https://github.com/water0ff/dztools/issues/new" -ForegroundColor Cyan
     $null = $mainForm.ShowDialog()
 }
 try {

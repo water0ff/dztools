@@ -972,7 +972,6 @@ function Get-MainWindowXaml {
                     </Grid>
                 </Grid>
             </TabItem>
-
             <TabItem Name="tabProSql">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
@@ -982,115 +981,246 @@ function Get-MainWindowXaml {
                 </TabItem.Header>
                 <Grid Background="{DynamicResource PanelBg}">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Margin="10" Padding="10" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                                <Button Name="btnConnectDb" Width="60" Height="30" Margin="0,0,8,0" Style="{StaticResource DbConnectButtonStyle}" ToolTip="Conectar">
-                                    <TextBlock Text="🔌✅" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
-                                </Button>
-                                <Button Name="btnDisconnectDb" Width="60" Height="30" Style="{StaticResource DbDisconnectButtonStyle}" ToolTip="Desconectar" IsEnabled="False">
-                                    <TextBlock Text="🔌✖" FontFamily="Segoe UI Emoji" FontSize="16" HorizontalAlignment="Center"/>
-                                </Button>
-                            </StackPanel>
-                            <WrapPanel Grid.Column="1">
-                                <StackPanel Margin="0,0,16,0">
-                                    <TextBlock Text="Instancia SQL:"/>
-                                    <ComboBox Name="txtServer" Width="180" IsEditable="True" Text=".\NationalSoft"/>
-                                </StackPanel>
-                                <StackPanel Margin="0,0,16,0">
-                                    <TextBlock Text="Usuario:"/>
-                                    <TextBox Name="txtUser" Width="160" Text="sa"/>
-                                </StackPanel>
-                                <StackPanel Margin="0,0,16,0">
-                                    <TextBlock Text="Contraseña:"/>
-                                    <PasswordBox Name="txtPassword" Width="160"/>
-                                </StackPanel>
-                                <StackPanel Margin="0,0,16,0">
-                                    <TextBlock Text="Base de datos:"/>
-                                    <ComboBox Name="cmbDatabases" Width="180" IsEnabled="False"/>
-                                </StackPanel>
-                            </WrapPanel>
-                        </Grid>
-                    </Border>
 
-                    <Border Grid.Row="1" Margin="10,0,10,10" Padding="10" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="Ejecutar (F5)" Name="btnExecute" Width="110" Height="30" Margin="0,0,8,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-                            <ComboBox Name="cmbQueries" Width="280" Margin="0,0,8,0" IsEnabled="False" ToolTip="Consultas predefinidas"/>
-                            <Button Content="Limpiar" Name="btnClearQuery" Width="90" Height="30" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-                            <Button Content="Exportar" Name="btnExport" Width="100" Height="30" Margin="8,0,0,0" Style="{StaticResource DatabaseButtonStyle}" IsEnabled="False"/>
-                        </StackPanel>
-                    </Border>
-
-                    <Grid Grid.Row="2" Margin="10">
+                    <Grid Grid.Row="0" Margin="8">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="250" MinWidth="200"/>
-                            <ColumnDefinition Width="5"/>
+                            <ColumnDefinition Width="280" MinWidth="220"/>
+                            <ColumnDefinition Width="4"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Border Grid.Column="0" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6" Background="{DynamicResource ControlBg}">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Explorador de Objetos" Padding="8" FontWeight="Bold" Background="{DynamicResource AccentPrimary}" Foreground="{DynamicResource OnAccentFg}"/>
-                                <TreeView Grid.Row="1" Name="tvDatabases" Padding="4"/>
-                            </Grid>
-                        </Border>
-
-                        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrushColor}"/>
-
-                        <Grid Grid.Column="2">
+                        <!-- COLUMNA IZQUIERDA: Conexión + Ejecutar + TreeView -->
+                        <Grid Grid.Column="0">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="*" MinHeight="150"/>
-                                <RowDefinition Height="5"/>
-                                <RowDefinition Height="2*" MinHeight="200"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <TabControl Name="tcQueries" Grid.Row="0" Background="{DynamicResource ControlBg}">
-                                <TabItem Header="Consulta 1">
-                                    <Border BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Margin="5" CornerRadius="4">
-                                        <RichTextBox Name="rtbQueryEditor1" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" AcceptsTab="True" FontFamily="Consolas" FontSize="12"/>
-                                    </Border>
-                                </TabItem>
-                                <TabItem Header="+" Name="tabAddQuery" IsEnabled="True"/>
+                            <!-- PANEL DE CONEXIÓN (contraíble) -->
+                            <Border Grid.Row="0" Margin="0,0,0,8" Padding="8"
+                                    BorderBrush="{DynamicResource BorderBrushColor}"
+                                    BorderThickness="1" CornerRadius="6"
+                                    Background="{DynamicResource ControlBg}">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="🔌 Conexión"
+                                                FontWeight="SemiBold"
+                                                VerticalAlignment="Center"
+                                                FontSize="12"/>
+                                        <ToggleButton Name="btnSsmsPanelToggle"
+                                                    Grid.Column="1"
+                                                    Width="20" Height="20"
+                                                    Content="▼"
+                                                    ToolTip="Contraer/Expandir"
+                                                    FontSize="9"
+                                                    IsChecked="True"/>
+                                    </Grid>
+
+                                    <StackPanel Name="panelSsmsContent">
+                                        <!-- Botones Conectar/Desconectar -->
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Button Name="btnConnectDb" Grid.Column="0"
+                                                    Height="32" Margin="0,0,4,0"
+                                                    Style="{StaticResource DbConnectButtonStyle}"
+                                                    ToolTip="Conectar">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="🔌✅" FontSize="12" Margin="0,0,4,0"/>
+                                                    <TextBlock Text="Conectar" FontSize="10"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Name="btnDisconnectDb" Grid.Column="1"
+                                                    Height="32" Margin="4,0,0,0"
+                                                    Style="{StaticResource DbDisconnectButtonStyle}"
+                                                    ToolTip="Desconectar" IsEnabled="False">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="🔌✖" FontSize="12" Margin="0,0,4,0"/>
+                                                    <TextBlock Text="Desconectar" FontSize="10"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+
+                                        <!-- Servidor -->
+                                        <StackPanel Margin="0,0,0,6">
+                                            <TextBlock Text="Servidor:" FontSize="10" Margin="0,0,0,2"/>
+                                            <ComboBox Name="txtServer"
+                                                    IsEditable="True"
+                                                    Text=".\NationalSoft"
+                                                    FontSize="11"
+                                                    Height="24"/>
+                                        </StackPanel>
+
+                                        <!-- Usuario -->
+                                        <StackPanel Margin="0,0,0,6">
+                                            <TextBlock Text="Usuario:" FontSize="10" Margin="0,0,0,2"/>
+                                            <TextBox Name="txtUser"
+                                                    Text="sa"
+                                                    FontSize="11"
+                                                    Height="24"/>
+                                        </StackPanel>
+
+                                        <!-- Contraseña -->
+                                        <StackPanel Margin="0,0,0,6">
+                                            <TextBlock Text="Contraseña:" FontSize="10" Margin="0,0,0,2"/>
+                                            <PasswordBox Name="txtPassword" Height="24"/>
+                                        </StackPanel>
+
+                                        <!-- Base de datos -->
+                                        <StackPanel>
+                                            <TextBlock Text="Base de datos:" FontSize="10" Margin="0,0,0,2"/>
+                                            <ComboBox Name="cmbDatabases"
+                                                    IsEnabled="False"
+                                                    FontSize="11"
+                                                    Height="24"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- PANEL DE EJECUCIÓN Y QUERIES -->
+                            <Border Grid.Row="1" Margin="0,0,0,8" Padding="8"
+                                    BorderBrush="{DynamicResource BorderBrushColor}"
+                                    BorderThickness="1" CornerRadius="6"
+                                    Background="{DynamicResource ControlBg}">
+                                <StackPanel>
+                                    <TextBlock Text="▶ Ejecución"
+                                            FontWeight="SemiBold"
+                                            FontSize="12"
+                                            Margin="0,0,0,8"/>
+
+                                    <!-- Botón Ejecutar -->
+                                    <Button Content="▶ Ejecutar (F5)" Name="btnExecute"
+                                            Height="32" Margin="0,0,0,8"
+                                            Style="{StaticResource DatabaseButtonStyle}"
+                                            IsEnabled="False" FontSize="11"/>
+
+                                    <!-- Queries Predefinidas -->
+                                    <TextBlock Text="Queries:" FontSize="10" Margin="0,0,0,2"/>
+                                    <ComboBox Name="cmbQueries"
+                                            Height="24"
+                                            IsEnabled="False"
+                                            ToolTip="Consultas predefinidas"
+                                            FontSize="11"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- EXPLORADOR (TreeView) -->
+                            <Border Grid.Row="2"
+                                    BorderBrush="{DynamicResource BorderBrushColor}"
+                                    BorderThickness="1" CornerRadius="6"
+                                    Background="{DynamicResource ControlBg}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="📁 Explorador"
+                                            Padding="8,6" FontWeight="SemiBold"
+                                            Background="{DynamicResource AccentPrimary}"
+                                            Foreground="{DynamicResource OnAccentFg}"
+                                            FontSize="12"/>
+                                    <TreeView Grid.Row="1" Name="tvDatabases"
+                                            Padding="4" FontSize="11"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <GridSplitter Grid.Column="1" Width="4"
+                                    HorizontalAlignment="Stretch"
+                                    Background="{DynamicResource BorderBrushColor}"/>
+
+                        <!-- COLUMNA DERECHA: Queries y Resultados -->
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="1.5*" MinHeight="120"/>
+                                <RowDefinition Height="4"/>
+                                <RowDefinition Height="*" MinHeight="150"/>
+                            </Grid.RowDefinitions>
+                            <!-- Pestañas de Queries -->
+                            <TabControl Name="tcQueries" Grid.Row="0"
+                                        Background="{DynamicResource ControlBg}">
+                                <TabItem Header="+" Name="tabAddQuery"
+                                        IsEnabled="True" ToolTip="Nueva consulta"/>
                             </TabControl>
-
-                            <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrushColor}"/>
-
-                            <TabControl Name="tcResults" Grid.Row="2" Background="{DynamicResource ControlBg}">
-                                <TabItem Header="Resultados">
-                                    <DataGrid Name="dgResults" IsReadOnly="True" AutoGenerateColumns="True" CanUserAddRows="False" CanUserDeleteRows="False"/>
+                            <GridSplitter Grid.Row="1" Height="4"
+                                        HorizontalAlignment="Stretch"
+                                        Background="{DynamicResource BorderBrushColor}"/>
+                            <!-- Pestañas de Resultados -->
+                            <TabControl Name="tcResults" Grid.Row="2"
+                                        Background="{DynamicResource ControlBg}">
+                                <TabControl.ItemContainerStyle>
+                                    <Style TargetType="{x:Type TabItem}" BasedOn="{StaticResource {x:Type TabItem}}">
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </TabControl.ItemContainerStyle>
+                                <TabItem Header="📊 Resultados">
+                                    <DataGrid Name="dgResults"
+                                            IsReadOnly="True"
+                                            AutoGenerateColumns="True"
+                                            CanUserAddRows="False"
+                                            CanUserDeleteRows="False"/>
                                 </TabItem>
-                                <TabItem Header="Mensajes">
-                                    <TextBox Name="txtMessages" IsReadOnly="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" Background="Transparent" BorderThickness="0"/>
+                                <TabItem Header="💬 Mensajes">
+                                    <TextBox Name="txtMessages"
+                                            IsReadOnly="True"
+                                            VerticalScrollBarVisibility="Auto"
+                                            FontFamily="Consolas"
+                                            FontSize="11"
+                                            Background="Transparent"
+                                            BorderThickness="0"/>
                                 </TabItem>
                             </TabControl>
                         </Grid>
                     </Grid>
-
-                    <StatusBar Grid.Row="3" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}">
+                    <!-- BARRA DE ESTADO -->
+                    <StatusBar Grid.Row="1"
+                            Background="{DynamicResource ControlBg}"
+                            Foreground="{DynamicResource ControlFg}"
+                            Height="26">
                         <StatusBarItem>
-                            <TextBlock Name="lblConnectionStatus" Text="Desconectado"/>
+                            <TextBlock Name="lblConnectionStatus"
+                                    Text="⚫ Desconectado" FontSize="11"/>
                         </StatusBarItem>
                         <Separator/>
                         <StatusBarItem>
-                            <TextBlock Name="lblExecutionTimer" Text="Tiempo: --"/>
+                            <TextBlock Name="lblExecutionTimer"
+                                    Text="⏱️ --" FontSize="11"/>
                         </StatusBarItem>
                         <Separator/>
                         <StatusBarItem>
-                            <TextBlock Name="lblRowCount" Text="Filas: --"/>
+                            <TextBlock Name="lblRowCount"
+                                    Text="📊 --" FontSize="11"/>
+                        </StatusBarItem>
+                        <Separator/>
+                        <!-- Botones en la barra de estado -->
+                        <StatusBarItem HorizontalAlignment="Right">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="🗑️ Limpiar" Name="btnClearQuery"
+                                        Height="20" Padding="6,2"
+                                        Style="{StaticResource DatabaseButtonStyle}"
+                                        IsEnabled="False" FontSize="10"
+                                        Margin="0,0,4,0"/>
+                                <Button Content="💾 Exportar" Name="btnExport"
+                                        Height="20" Padding="6,2"
+                                        Style="{StaticResource DatabaseButtonStyle}"
+                                        IsEnabled="False" FontSize="10"
+                                        Margin="0,0,4,0"/>
+                                <Button Content="📋 Historial" Name="btnHistorial"
+                                        Height="20" Padding="6,2"
+                                        Style="{StaticResource DatabaseButtonStyle}"
+                                        IsEnabled="False" FontSize="10"/>
+                            </StackPanel>
                         </StatusBarItem>
                     </StatusBar>
                 </Grid>
@@ -1105,7 +1235,7 @@ function New-MainWindow {
     [CmdletBinding()]
     param()
     try {
-        Write-Host "`nCreando formulario principal WPF..." -ForegroundColor Yellow
+        Write-Host "  ✓ Formulario creado listo para mostrar." -ForegroundColor Green
         $theme = Get-DzUiTheme
         $xaml = Get-MainWindowXaml -Theme $theme
         $result = New-WpfWindow -Xaml $xaml -PassThru

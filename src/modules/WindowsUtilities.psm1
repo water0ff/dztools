@@ -62,18 +62,47 @@ function Start-SystemUpdate {
         Write-DzDebug "`t[DEBUG]Paso 5: Ejecutando Liberador de espacio..."
         Write-Host "`n[Paso 5/$totalSteps] Ejecutando Liberador de espacio..." -ForegroundColor Cyan
         Update-WpfProgressBar -Window $progressWindow -Percent 90 -Message "Preparando limpieza de disco..."
-        Invoke-DiskCleanup -Wait -TimeoutMinutes $DiskCleanupTimeoutMinutes -ProgressWindow $progressWindow
-        Write-DzDebug "`t[DEBUG]Paso 5: Liberador completado"
-        $currentStep++
-        Update-WpfProgressBar -Window $progressWindow -Percent 100 -Message "Proceso completado exitosamente"
-        Start-Sleep -Seconds 1
-        if ($progressWindow -ne $null -and $progressWindow.IsVisible) {
-            Close-WpfProgressBar -Window $progressWindow
-            $progressWindow = $null
+        Write-DzDebug "`t[DEBUG]Paso 5: Ejecutando Liberador de espacio..."
+        Write-Host "`n[Paso 5/$totalSteps] Ejecutando Liberador de espacio..." -ForegroundColor Cyan
+        Update-WpfProgressBar -Window $progressWindow -Percent 90 -Message "Preparando limpieza de disco..."
+
+        # Agregar botón de cancelar a la ventana de progreso
+        if ($progressWindow) {
+            try {
+                $progressWindow.Dispatcher.Invoke([action] {
+                        # Buscar el botón de cancelar (si ya existe)
+                        $cancelBtn = $progressWindow.FindName("btnCancel")
+                        if ($cancelBtn) {
+                            $cancelBtn.Visibility = "Visible"
+                            $cancelBtn.Content = "Finalizar ahora"
+                            $cancelBtn.ToolTip = "Saltar la limpieza de disco y finalizar"
+                        }
+                    }, [System.Windows.Threading.DispatcherPriority]::Normal)
+            } catch {
+                Write-DzDebug "`t[DEBUG]No se pudo mostrar botón cancelar: $_" Yellow
+            }
         }
-        Write-Host "`n`n============================================" -ForegroundColor Green
-        Write-Host "   Proceso de actualización completado" -ForegroundColor Green
-        Write-Host "============================================" -ForegroundColor Green
+        $diskCleanupResult = Invoke-DiskCleanup -Wait -TimeoutMinutes $DiskCleanupTimeoutMinutes -ProgressWindow $progressWindow
+        if ($progressWindow) {
+            try {
+                $progressWindow.Dispatcher.Invoke([action] {
+                        $cancelBtn = $progressWindow.FindName("btnCancel")
+                        if ($cancelBtn) {
+                            $cancelBtn.Visibility = "Collapsed"
+                        }
+                    }, [System.Windows.Threading.DispatcherPriority]::Normal)
+            } catch {}
+        }
+
+        if ($diskCleanupResult -eq "Cancelled") {
+            Write-DzDebug "`t[DEBUG]Paso 5: Usuario canceló la limpieza de disco"
+            Write-Host "`n`tLimpieza de disco cancelada por el usuario." -ForegroundColor Yellow
+        } elseif ($diskCleanupResult -eq "Timeout") {
+            Write-DzDebug "`t[DEBUG]Paso 5: Timeout en limpieza de disco"
+            Write-Host "`n`tLimpieza de disco finalizó por timeout." -ForegroundColor Yellow
+        } else {
+            Write-DzDebug "`t[DEBUG]Paso 5: Liberador completado"
+        }
         Write-Host "`nSe recomienda REINICIAR el equipo" -ForegroundColor Yellow
         Write-DzDebug "`t[DEBUG]Start-SystemUpdate: Mostrando diálogo de reinicio"
         $result = [System.Windows.MessageBox]::Show("El proceso de actualización se completó exitosamente.`n`n" + "Se recomienda REINICIAR el equipo para completar la actualización del sistema WMI.`n`n" + "¿Desea reiniciar ahora?", "Actualización completada", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)

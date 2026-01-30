@@ -20,30 +20,6 @@ try {
 if (Get-Command Set-ExecutionPolicy -ErrorAction SilentlyContinue) {
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 }
-$script:ProgressActive = $false
-$script:LastProgressLen = 0
-function Show-GlobalProgress {
-    param([int]$Percent, [string]$Status)
-    $Percent = [math]::Max(0, [math]::Min(100, $Percent))
-    $width = 40
-    $filled = [math]::Round(($Percent / 100) * $width)
-    $bar = "[" + ("#" * $filled).PadRight($width) + "]"
-    $text = "{0} {1,3}% - {2}" -f $bar, $Percent, $Status
-    $max = [System.Console]::WindowWidth - 1
-    if ($max -gt 10 -and $text.Length -gt $max) { $text = $text.Substring(0, $max) }
-    $pad = ""
-    if ($script:LastProgressLen -gt $text.Length) { $pad = " " * ($script:LastProgressLen - $text.Length) }
-    Write-Host ("`r" + $text + $pad) -NoNewline
-    $script:ProgressActive = $true
-    $script:LastProgressLen = ($text.Length + $pad.Length)
-}
-function Stop-GlobalProgress {
-    if ($script:ProgressActive) {
-        Write-Host ""
-        $script:ProgressActive = $false
-        $script:LastProgressLen = 0
-    }
-}
 function Write-Log {
     param([Parameter(Mandatory)][string]$Message, [ConsoleColor]$Color = [ConsoleColor]::Gray)
     Stop-GlobalProgress
@@ -70,6 +46,9 @@ foreach ($module in $modules) {
 }
 $global:defaultInstructions = @"
 ----- CAMBIOS -----
+- Nuevo botón para Innstaladores NS
+- Monitor de servicios y logs
+- Historial de queries
 - SSMS Portable
     * TreeView nuevo!
     * Crear y eliminar bases de datos
@@ -138,7 +117,7 @@ function Initialize-Environment {
     }
     try {
         Initialize-QueriesConfig | Out-Null
-        Write-Host "`n  ✓ Sistema de queries inicializado" -ForegroundColor Green
+        Write-Host "  ✓ Sistema de queries inicializado" -ForegroundColor Green
     } catch {
         Write-Host "Advertencia: No se pudo inicializar el sistema de queries. $_" -ForegroundColor Yellow
     }
@@ -185,18 +164,22 @@ function New-MainForm {
     $cmbDatabases = $window.FindName("cmbDatabases")
     $btnConnectDb = $window.FindName("btnConnectDb")
     $btnDisconnectDb = $window.FindName("btnDisconnectDb")
+    $btnSsmsPanelToggle = $window.FindName("btnSsmsPanelToggle")
     $lblConnectionStatus = $window.FindName("lblConnectionStatus")
     $btnExecute = $window.FindName("btnExecute")
     $btnClearQuery = $window.FindName("btnClearQuery")
     $btnExport = $window.FindName("btnExport")
+    $btnHistorial = $window.FindName("btnHistorial")
     $cmbQueries = $window.FindName("cmbQueries")
     $tcQueries = $window.FindName("tcQueries")
     $tcResults = $window.FindName("tcResults")
     $tvDatabases = $window.FindName("tvDatabases")
     $tabAddQuery = $window.FindName("tabAddQuery")
+    $panelSsmsContent = $window.FindName("panelSsmsContent")
     $tglDarkMode = $window.FindName("tglDarkMode")
     $tglDebugMode = $window.FindName("tglDebugMode")
     $script:predefinedQueries = Get-PredefinedQueries
+    #Sirveaun?
     $script:sqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE'
     if ($cmbQueries) {
         $cmbQueries.Items.Clear()
@@ -209,19 +192,12 @@ function New-MainForm {
                 $selectedQuery = $cmbQueries.SelectedItem
                 if (-not $selectedQuery -or $selectedQuery -eq "Selecciona una consulta predefinida") { return }
                 if (-not $script:predefinedQueries.ContainsKey($selectedQuery)) { return }
-                $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
-                Write-DzDebug "`t[DEBUG]Insertando consulta predefinida '$selectedQuery' en la pestaña consulta: $($rtb.Name)"
-                if (-not $rtb) { return }
+                $editor = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
+                Write-DzDebug "`t[DEBUG]Insertando consulta predefinida '$selectedQuery' en la pestaña consulta"
+                if (-not $editor) { return }
                 $queryText = $script:predefinedQueries[$selectedQuery]
-                $rtb.Document.Blocks.Clear()
-                $paragraph = New-Object System.Windows.Documents.Paragraph
-                $run = New-Object System.Windows.Documents.Run($queryText)
-                $paragraph.Inlines.Add($run)
-                $rtb.Document.Blocks.Add($paragraph)
-                if ($script:sqlKeywords) {
-                    Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $script:sqlKeywords
-                }
-                $rtb.Focus() | Out-Null
+                Set-SqlEditorText -Editor $editor -Text $queryText
+                $editor.Focus() | Out-Null
             })
     }
     if ($tabAddQuery) {
@@ -239,13 +215,8 @@ function New-MainForm {
                     $_ -is [System.Windows.Controls.TabItem] -and
                     $_.Tag -and
                     $_.Tag.Type -eq 'QueryTab' -and
-                    $_.Tag.RichTextBox -and
-                    [string]::IsNullOrWhiteSpace(
-                        (New-Object System.Windows.Documents.TextRange(
-                            $_.Tag.RichTextBox.Document.ContentStart,
-                            $_.Tag.RichTextBox.Document.ContentEnd
-                        )).Text
-                    )
+                    $_.Tag.Editor -and
+                    [string]::IsNullOrWhiteSpace((Get-SqlEditorText -Editor $_.Tag.Editor))
                 })
             if ($restoredCount -gt 0 -and $emptyTabs.Count -gt 0) {
                 foreach ($emptyTab in $emptyTabs) {
@@ -262,10 +233,6 @@ function New-MainForm {
                     $_.Tag -and
                     $_.Tag.Type -eq 'QueryTab'
                 })
-
-            if ($existingQueryTabs.Count -eq 0) {
-                #New-QueryTab -TabControl $tcQueries | Out-Null
-            }
         }
     } catch {
         Write-Host "  Advertencia: No se pudieron restaurar las pestañas: $_" -ForegroundColor Yellow
@@ -274,21 +241,9 @@ function New-MainForm {
                 $_.Tag -and
                 $_.Tag.Type -eq 'QueryTab'
             })
-
         if ($existingQueryTabs.Count -eq 0) {
             New-QueryTab -TabControl $tcQueries | Out-Null
         }
-    }
-    Write-Host "`nAgregando pestaña de historial..." -ForegroundColor Yellow
-    try {
-        $historyTab = Add-QueryHistoryTab -TabControl $tcQueries
-        if ($historyTab) {
-            Write-Host "`t✓ Pestaña de historial agregada" -ForegroundColor Green
-        } else {
-            Write-Host "`t⚠ No se pudo agregar pestaña de historial" -ForegroundColor Yellow
-        }
-    } catch {
-        Write-Host "`tAdvertencia: Error agregando pestaña de historial: $_" -ForegroundColor Yellow
     }
     if ($btnExecute -and -not $btnExecute.IsEnabled) {
         if ($tcQueries) { $tcQueries.IsEnabled = $false }
@@ -306,7 +261,8 @@ function New-MainForm {
     function Start-ExecutionTimer {
         $script:execStopwatch.Restart()
         if (-not $script:execUiTimer.IsEnabled) { $script:execUiTimer.Start() }
-    }    function Stop-ExecutionTimer {
+    }
+    function Stop-ExecutionTimer {
         $script:execStopwatch.Stop()
         if ($script:execUiTimer.IsEnabled) { $script:execUiTimer.Stop() }
         if ($global:lblExecutionTime) {
@@ -323,12 +279,12 @@ function New-MainForm {
     $global:btnExecute = $btnExecute
     $global:btnClearQuery = $btnClearQuery
     $global:btnExport = $btnExport
+    $global:btnHistorial = $btnHistorial
     $global:cmbQueries = $cmbQueries
     $global:tcQueries = $tcQueries
     $global:tcResults = $tcResults
     $global:tvDatabases = $tvDatabases
     $global:tabAddQuery = $tabAddQuery
-    $global:rtbQueryEditor1 = $window.FindName("rtbQueryEditor1")
     $global:dgResults = $window.FindName("dgResults")
     $global:txtMessages = $window.FindName("txtMessages")
     $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")
@@ -336,87 +292,59 @@ function New-MainForm {
     $global:lblConnectionStatus = $lblConnectionStatus
     if ($tvDatabases) {
         try {
-            Write-Host "Aplicando estilo al TreeView..." -ForegroundColor Yellow
+            Write-Host "`nAplicando estilo al TreeView..." -ForegroundColor Yellow
             $style = New-Object System.Windows.Style([System.Windows.Controls.TreeViewItem])
             $triggerSelected = New-Object System.Windows.Trigger
             $triggerSelected.Property = [System.Windows.Controls.TreeViewItem]::IsSelectedProperty
             $triggerSelected.Value = $true
-            $triggerSelected.Setters.Add((New-Object System.Windows.Setter(
-                        [System.Windows.Controls.TreeViewItem]::BackgroundProperty,
-                        $window.FindResource("AccentPrimary")
-                    )))
-            $triggerSelected.Setters.Add((New-Object System.Windows.Setter(
-                        [System.Windows.Controls.TreeViewItem]::ForegroundProperty,
-                        $window.FindResource("FormFg")
-                    )))
+            $triggerSelected.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TreeViewItem]::BackgroundProperty, $window.FindResource("AccentPrimary"))))
+            $triggerSelected.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TreeViewItem]::ForegroundProperty, $window.FindResource("FormFg"))))
             $triggerFocused = New-Object System.Windows.Trigger
             $triggerFocused.Property = [System.Windows.Controls.TreeViewItem]::IsFocusedProperty
             $triggerFocused.Value = $true
-            $triggerFocused.Setters.Add((New-Object System.Windows.Setter(
-                        [System.Windows.Controls.TreeViewItem]::BackgroundProperty,
-                        $window.FindResource("AccentPrimary")
-                    )))
+            $triggerFocused.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TreeViewItem]::BackgroundProperty, $window.FindResource("AccentPrimary"))))
             $style.Triggers.Add($triggerSelected)
             $style.Triggers.Add($triggerFocused)
             $tvDatabases.ItemContainerStyle = $style
-            Write-Host "`t✓ Estilo de TreeView aplicado correctamente" -ForegroundColor Green
+            Write-Host "  ✓ Estilo de TreeView aplicado correctamente" -ForegroundColor Green
         } catch {
             Write-Host "✗ Error aplicando estilo al TreeView: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
-    if ($global:tcQueries -and $global:tcQueries.Items.Count -gt 0 -and $global:rtbQueryEditor1) {
-        $firstTab = $global:tcQueries.Items[0]
-        if ($firstTab -is [System.Windows.Controls.TabItem]) {
-
-            # 1) Asegura Tag igual que en New-QueryTab
-            $title = if ($firstTab.Header) { [string]$firstTab.Header } else { "Consulta 1" }
-
-            # Intenta obtener el TextBlock del header si tu header es un panel con TextBlock
-            $headerTb = $null
-            try {
-                if ($firstTab.Header -is [System.Windows.Controls.Panel]) {
-                    foreach ($c in $firstTab.Header.Children) {
-                        if ($c -is [System.Windows.Controls.TextBlock]) { $headerTb = $c; break }
-                    }
-                } elseif ($firstTab.Header -is [System.Windows.Controls.TextBlock]) {
-                    $headerTb = $firstTab.Header
-                }
-            } catch {}
-
-            $firstTab.Tag = [pscustomobject]@{
-                Type            = "QueryTab"
-                RichTextBox     = $global:rtbQueryEditor1
-                Title           = $title
-                HeaderTextBlock = $headerTb   # 👈 importante para Update-QueryTabHeader
-                IsDirty         = $false
-            }
-
-            # 2) Conecta el TextChanged (como New-QueryTab)
-            $rtb1 = $global:rtbQueryEditor1
-
-            # evita doble-suscripción si New-MainForm se llama más de una vez
-            if (-not $rtb1.Tag -or $rtb1.Tag -ne "DzTools_TextChangedHooked") {
-                $rtb1.Tag = "DzTools_TextChangedHooked"
-
-                $rtb1.Add_TextChanged({
-                        if ($global:isHighlightingQuery) { return }
-                        $global:isHighlightingQuery = $true
-                        try {
-                            if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { return }
-                            Set-WpfSqlHighlighting -RichTextBox $rtb1 -Keywords $global:DzSqlKeywords
-
-                            $firstTab.Tag.IsDirty = $true
-                            Update-QueryTabHeader -TabItem $firstTab
-                        } finally {
-                            $global:isHighlightingQuery = $false
-                        }
-                    }.GetNewClosure())
-            }
-
-            if (-not $global:tcQueries.SelectedItem) {
-                $global:tcQueries.SelectedIndex = 0
-            }
+    if ($btnSsmsPanelToggle) {
+        Write-DzDebug "`t[DEBUG] Configurando toggle del panel SSMS..."
+        $panelContent = $window.FindName("panelSsmsContent")
+        if (-not $panelContent) {
+            Write-DzDebug "`t[DEBUG] ERROR: No se encontró panelSsmsContent" -Color Red
+            return
         }
+        $panelContent.Visibility = "Visible"
+        $btnSsmsPanelToggle.Content = "▼"
+        $btnSsmsPanelToggle.IsChecked = $true
+        $btnSsmsPanelToggle.Add_Click({
+                try {
+                    $panel = $window.FindName("panelSsmsContent")
+                    if (-not $panel) {
+                        Write-DzDebug "`t[DEBUG] ERROR: Panel no encontrado en el evento" -Color Red
+                        return
+                    }
+                    $isExpanded = $btnSsmsPanelToggle.IsChecked -eq $true
+                    Write-DzDebug "`t[DEBUG] Toggle Click - IsChecked: $isExpanded"
+                    if ($isExpanded) {
+                        $panel.Visibility = "Visible"
+                        $btnSsmsPanelToggle.Content = "▼"
+                        Write-DzDebug "`t[DEBUG] Panel expandido" -Color Green
+                    } else {
+                        $panel.Visibility = "Collapsed"
+                        $btnSsmsPanelToggle.Content = "▲"
+                        Write-DzDebug "`t[DEBUG] Panel colapsado" -Color Yellow
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG] Error en toggle: $($_.Exception.Message)" -Color Red
+                    Write-Host "Error detallado: $($_ | Format-List * -Force | Out-String)" -ForegroundColor Red
+                }
+            }.GetNewClosure())
+        Write-DzDebug "`t[DEBUG] Toggle configurado exitosamente"
     }
     $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
@@ -424,14 +352,6 @@ function New-MainForm {
     if ($tglDarkMode) { $tglDarkMode.IsChecked = ((Get-DzUiMode) -eq 'dark') }
     if ($tglDebugMode) { $tglDebugMode.IsChecked = (Get-DzDebugPreference) }
     $script:initializingToggles = $false
-    Write-Host "`n==================================================" -ForegroundColor DarkCyan
-    Write-Host "       Gerardo Zermeño Tools - Suite de Utilidades       " -ForegroundColor Green
-    Write-Host "              Versión: $($global:version)               " -ForegroundColor Green
-    Write-Host "==================================================" -ForegroundColor DarkCyan
-    Write-Host "`nTodos los derechos reservados para Gerardo Zermeño Tools." -ForegroundColor Cyan
-    Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
-    Write-Host "O crea un issue en GitHub en:" -ForegroundColor Cyan
-    Write-Host "https://github.com/water0ff/dztools/issues/new" -ForegroundColor Cyan
     $script:setInstructionText = {
         param([string]$Message)
         if ($null -ne $txt_InfoInstrucciones) {
@@ -472,10 +392,20 @@ function New-MainForm {
     $global:txt_AdapterStatus = $txt_AdapterStatus
     Initialize-SystemInfo -LblPort $lblPort -LblIpAddress $txt_IpAdress -LblAdapterStatus $txt_AdapterStatus -ModulesPath $modulesPath
     Load-IniConnectionsToComboBox -Combo $txtServer
-    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler,
-        $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs,
-        $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnInstallPrinter, $btnClearPrintJobs, $btnAplicacionesNS,
-        $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS, $btnRegisterDlls, $btnMonitorServiciosLog)
+    if ($txtServer.Items.Count -eq 1) {
+        try {
+            $serverText = $txtServer.Items[0]
+            if (-not [string]::IsNullOrWhiteSpace($serverText)) {
+                $txtServer.SelectedIndex = 0
+                Start-Sleep -Milliseconds 200
+                Apply-SavedSqlCredentials -ServerText $serverText
+                Write-DzDebug "`t[DEBUG] Credenciales aplicadas para conexión única: $serverText" -Color Green
+            }
+        } catch {
+            Write-DzDebug "`t[DEBUG] Error aplicando credenciales iniciales: $_" -Color Yellow
+        }
+    }
+    $buttonsToUpdate = @($LZMAbtnBuscarCarpeta, $btnInstalarHerramientas, $btnFirewallConfig, $btnProfiler, $btnDatabase, $btnSQLManager, $btnSQLManagement, $btnPrinterTool, $btnLectorDPicacls, $btnConfigurarIPs, $btnAddUser, $btnForzarActualizacion, $btnClearAnyDesk, $btnShowPrinters, $btnInstallPrinter, $btnClearPrintJobs, $btnAplicacionesNS, $btnCheckPermissions, $btnCambiarOTM, $btnCreateAPK, $btnExtractInstaller, $btnInstaladoresNS, $btnRegisterDlls, $btnMonitorServiciosLog)
     foreach ($button in $buttonsToUpdate) {
         $button.Add_MouseLeave({ if ($script:setInstructionText) { $script:setInstructionText.Invoke($global:defaultInstructions) } })
     }
@@ -521,7 +451,6 @@ function New-MainForm {
     $btnLectorDPicacls.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Lector DP + icacls' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n- - - Comenzando el proceso de 'Lector DP + icacls' - - -" -ForegroundColor Magenta
-
             Invoke-LectorDP -InfoTextBlock $txt_InfoInstrucciones -OwnerWindow $window
         })
     $btnSQLManager.Add_Click({
@@ -533,7 +462,7 @@ function New-MainForm {
                 @($managers) | Where-Object { $_ } | Select-Object -Unique
             }
             $managers = Get-SQLServerManagers
-            if (-not $managers -or $managers.Count -eq 0) { Ui-Error "No se encontró ninguna versión de SQL Server Configuration Manager." $global:MainWindow ; return }
+            if (-not $managers -or $managers.Count -eq 0) { Ui-Error "No se encontró ninguna versión de SQL Server Configuration Manager." $global:MainWindow; return }
             Show-SQLselector -Managers $managers
         })
     $btnSQLManagement.Add_Click({
@@ -620,7 +549,7 @@ function New-MainForm {
             Write-Host "`n- - - Comenzando el proceso de 'Forzar Actualización' - - -" -ForegroundColor Magenta
             Show-SystemComponents
             $ok = Ui-Confirm "¿Desea forzar la actualización de datos?" "Confirmación" $global:MainWindow
-            if ($ok) { Start-SystemUpdate ; Ui-Info "Actualización completada" "Éxito" $global:MainWindow } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
+            if ($ok) { Start-SystemUpdate; Ui-Info "Actualización completada" "Éxito" $global:MainWindow } else { Write-Host "`tEl usuario canceló la operación." -ForegroundColor Red }
         })
     $btnClearAnyDesk.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Clear AnyDesk' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
@@ -742,6 +671,29 @@ function New-MainForm {
             Write-Host "`n- - - Comenzando el proceso de 'Conectar Base de Datos' - - -" -ForegroundColor Magenta
             Connect-DbUiSafe
         })
+    if ($txtServer) {
+        $getServerText = {
+            $text = $null
+            if ($global:txtServer.SelectedItem -is [string]) {
+                $text = $global:txtServer.SelectedItem
+            } elseif (-not [string]::IsNullOrWhiteSpace($global:txtServer.Text)) {
+                $text = $global:txtServer.Text
+            }
+            if ($text) { return $text.Trim() } else { return "" }
+        }
+        $txtServer.Add_SelectionChanged({
+                try {
+                    $serverText = & $getServerText
+                    Write-DzDebug "`t[DEBUG] Servidor seleccionado: '$serverText'"
+                    if (-not [string]::IsNullOrWhiteSpace($serverText)) {
+                        Start-Sleep -Milliseconds 100
+                        Apply-SavedSqlCredentials -ServerText $serverText
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG] Error aplicando credenciales: $_" -Color Red
+                }
+            }.GetNewClosure())
+    }
     $btnExecute.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Ejecutar Consulta' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Write-Host "`n`t- - - Ejecutando consulta - - -" -ForegroundColor Gray
@@ -749,24 +701,27 @@ function New-MainForm {
         })
     $cmbDatabases.Add_SelectionChanged({
             if ($global:cmbDatabases.SelectedItem) {
-                $global:database = $global:cmbDatabases.SelectedItem
-                if ($global:lblConnectionStatus.Content -like "Conectado a:*") {
-                    $global:lblConnectionStatus.Content = @"
-Conectado a:
-Servidor: $($global:server)
-Base de datos: $($global:database)
-"@.Trim()
+                $dbName = Get-DbNameFromComboSelection -ComboBox $global:cmbDatabases
+                if ($dbName) {
+                    $global:database = $dbName
+                    if ($global:lblConnectionStatus) {
+                        $global:lblConnectionStatus.Text = "✓ Conectado a: $($global:server) | DB: $dbName"
+                    }
+                    if (Get-Command Set-QueryTabsDatabase -ErrorAction SilentlyContinue) {
+                        Set-QueryTabsDatabase -TabControl $global:tcQueries -Database $dbName
+                    }
+                }
+                if ($dbName -and $global:tvDatabases) {
+                    Select-SqlTreeDatabase -TreeView $global:tvDatabases -DatabaseName $dbName
                 }
             }
         })
     $btnClearQuery.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
-                $rtb = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
-                if (-not $rtb) {
-                    throw "No hay una pestaña de consulta activa."
-                }
-                $rtb.Document.Blocks.Clear()
+                $editor = Get-ActiveQueryRichTextBox -TabControl $global:tcQueries
+                if (-not $editor) { throw "No hay una pestaña de consulta activa." }
+                Clear-SqlEditorText -Editor $editor
                 if ($global:dgResults) { $global:dgResults.ItemsSource = $null }
                 if ($global:txtMessages) { $global:txtMessages.Text = "" }
                 if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
@@ -785,6 +740,11 @@ Base de datos: $($global:database)
     $btnExport.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Exportar resultados' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             Export-ResultsUiSafe
+        })
+    $btnHistorial.Add_Click({
+            Write-DzDebug ("`t[DEBUG] Click en 'Historial' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
+            Write-Host "`n- - - Abriendo historial de queries - - -" -ForegroundColor Magenta
+            Show-QueryHistoryWindow -Owner $window
         })
     $window.Add_KeyDown({
             param($s, $e)
@@ -839,20 +799,13 @@ Base de datos: $($global:database)
             Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
             try {
                 Write-Host "`n  📝 Guardando estado de pestañas..." -ForegroundColor Yellow
-
                 if ($global:tcQueries) {
                     $saved = Save-OpenQueryTabs -TabControl $global:tcQueries
-
-                    if ($saved) {
-                        Write-Host "  ✓ Estado guardado exitosamente" -ForegroundColor Green
-                    } else {
-                        Write-Host "  ⚠ No se pudo guardar el estado" -ForegroundColor Yellow
-                    }
+                    if ($saved) { Write-Host "  ✓ Estado guardado exitosamente" -ForegroundColor Green } else { Write-Host "  ⚠ No se pudo guardar el estado" -ForegroundColor Yellow }
                 }
             } catch {
                 Write-Host "  ✗ Error guardando pestañas: $_" -ForegroundColor Red
             }
-
             try {
                 if ($global:connection -and $global:connection.State -eq [System.Data.ConnectionState]::Open) {
                     Write-Host "`n  🔌 Cerrando conexión a base de datos..." -ForegroundColor Yellow
@@ -864,28 +817,37 @@ Base de datos: $($global:database)
             Write-Host "  ¡Hasta pronto!" -ForegroundColor Green
             Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`n" -ForegroundColor Cyan
         })
-    Write-Host "`t✓ Formulario WPF creado exitosamente" -ForegroundColor Green
+    Write-Host "  ✓ Formulario WPF creado exitosamente" -ForegroundColor Green
     return $window
 }
 function Start-Application {
-    Show-GlobalProgress -Percent 0 -Status "Inicializando..."
-    if (-not (Initialize-Environment)) { Show-GlobalProgress -Percent 100 -Status "Error inicializando" ; return }
-    Show-GlobalProgress -Percent 10 -Status "Entorno listo"
-    Show-GlobalProgress -Percent 20 -Status "Cargando módulos..."
+    Write-Host "`nInicializando entorno..." -ForegroundColor Yellow
+    if (-not (Initialize-Environment)) {
+        Write-Host "  ✗ Error inicializando entorno" -ForegroundColor Red
+        return
+    }
+    Write-Host "  ✓ Entorno listo" -ForegroundColor Green
+    Write-Host "`nCargando módulos..." -ForegroundColor Yellow
     $modulesPath = Join-Path $PSScriptRoot "modules"
     $modules = @("GUI.psm1", "Database.psm1", "Utilities.psm1", "SqlTreeView.psm1", "Installers.psm1", "WindowsUtilities.psm1", "NationalUtilities.psm1", "SqlOps.psm1", "QueriesPad.psm1")
-    $i = 0
     foreach ($module in $modules) {
-        $i++
-        Show-GlobalProgress -Percent (20 + [math]::Round(($i / $modules.Count) * 20)) -Status "Importando $module"
         $modulePath = Join-Path $modulesPath $module
-        if (Test-Path $modulePath) { Import-Module $modulePath -Force -DisableNameChecking -ErrorAction Stop }
+        if (Test-Path $modulePath) {
+            Import-Module $modulePath -Force -DisableNameChecking -ErrorAction Stop
+        }
     }
-    Show-GlobalProgress -Percent 45 -Status "Módulos listos"
-    Show-GlobalProgress -Percent 80 -Status "Creando formulario..."
-    Show-GlobalProgress -Percent 95 -Status "Mostrando GUI..."
+    Write-Host "  ✓ Módulos cargados" -ForegroundColor Green
+    Write-Host "`nCreando interfaz gráfica..." -ForegroundColor Yellow
     $mainForm = New-MainForm
-    Show-GlobalProgress -Percent 100 -Status "¡Listo!`n"
+    Write-Host "  ✓ Interfaz lista`n" -ForegroundColor Green
+    Write-Host "`n==================================================" -ForegroundColor DarkCyan
+    Write-Host "       Gerardo Zermeño Tools - Suite de Utilidades       " -ForegroundColor Green
+    Write-Host "              Versión: $($global:version)               " -ForegroundColor Green
+    Write-Host "==================================================" -ForegroundColor DarkCyan
+    Write-Host "`nTodos los derechos reservados para Gerardo Zermeño Tools." -ForegroundColor Cyan
+    Write-Host "Para reportar errores o sugerencias, contacte vía Teams." -ForegroundColor Cyan
+    Write-Host "O crea un issue en GitHub en:" -ForegroundColor Cyan
+    Write-Host "https://github.com/water0ff/dztools/issues/new" -ForegroundColor Cyan
     $null = $mainForm.ShowDialog()
 }
 try {

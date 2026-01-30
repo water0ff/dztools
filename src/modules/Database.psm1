@@ -493,9 +493,30 @@ function Get-IniConnections {
 function Load-IniConnectionsToComboBox {
     param([Parameter(Mandatory = $true)]$Combo)
     $connections = Get-IniConnections
+    $savedConnections = @()
+    if (Get-Command Get-DzSavedSqlConnections -ErrorAction SilentlyContinue) {
+        $savedConnections = Get-DzSavedSqlConnections
+    }
+    foreach ($saved in $savedConnections) {
+        if ($saved.Server -and $saved.Server -notin $connections) {
+            $connections += $saved.Server
+        }
+    }
     $Combo.Items.Clear()
-    if ($connections.Count -gt 0) { foreach ($c in $connections) { [void]$Combo.Items.Add($c) } } else { Write-Host "`tNo se encontraron conexiones en archivos INI" -ForegroundColor Yellow }
-    $Combo.Text = ".\NationalSoft"
+    if ($connections.Count -gt 0) {
+        foreach ($c in ($connections | Sort-Object)) { [void]$Combo.Items.Add($c) }
+    } else {
+        Write-Host "`tNo se encontraron conexiones en archivos INI" -ForegroundColor Yellow
+    }
+    if ($connections.Count -gt 0) {
+        if ($connections -contains ".\\NationalSoft") {
+            $Combo.Text = ".\NationalSoft"
+        } else {
+            $Combo.Text = [string]($connections | Select-Object -First 1)
+        }
+    } else {
+        $Combo.Text = ".\NationalSoft"
+    }
 }
 function ConvertTo-DataTable {
     param($InputObject)
@@ -736,27 +757,93 @@ function Show-MultipleResultSets {
     )
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] INICIO"
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] ResultSets Count: $($ResultSets.Count)"
-    $TabControl.Items.Clear()
+    $messagesTab = $null
+    $messagesTabIndex = -1
+    for ($ti = 0; $ti -lt $TabControl.Items.Count; $ti++) {
+        $item = $TabControl.Items[$ti]
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        $header = $null
+        if ($item.Header -is [string]) {
+            $header = $item.Header
+        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+            foreach ($child in $item.Header.Children) {
+                if ($child -is [System.Windows.Controls.TextBlock]) {
+                    $header = $child.Text
+                    break
+                }
+            }
+        }
+        if ($header -and $header -match "Mensajes") {
+            $messagesTab = $item
+            $messagesTabIndex = $ti
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] ✓ Pestaña de Mensajes encontrada en índice $ti"
+            break
+        }
+    }
+    $itemsToRemove = New-Object System.Collections.ArrayList
+    foreach ($item in $TabControl.Items) {
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        $header = $null
+        if ($item.Header -is [string]) {
+            $header = $item.Header
+        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+            foreach ($child in $item.Header.Children) {
+                if ($child -is [System.Windows.Controls.TextBlock]) {
+                    $header = $child.Text
+                    break
+                }
+            }
+        }
+        if (-not ($header -and $header -match "Mensajes")) {
+            [void]$itemsToRemove.Add($item)
+        }
+    }
+    foreach ($item in $itemsToRemove) {
+        $TabControl.Items.Remove($item)
+    }
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestañas removidas: $($itemsToRemove.Count)"
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestañas restantes: $($TabControl.Items.Count)"
     if (-not $ResultSets -or $ResultSets.Count -eq 0) {
         $tab = New-Object System.Windows.Controls.TabItem
-        $ht = New-Object System.Windows.Controls.TextBlock
-        $ht.Text = "Resultado"
-        $ht.VerticalAlignment = "Center"
-        $tab.Header = $ht
+
+        $headerPanel = New-Object System.Windows.Controls.StackPanel
+        $headerPanel.Orientation = "Horizontal"
+
+        $iconText = New-Object System.Windows.Controls.TextBlock
+        $iconText.Text = "📊"
+        $iconText.Margin = "0,0,6,0"
+
+        $titleText = New-Object System.Windows.Controls.TextBlock
+        $titleText.Text = "Resultado"
+        $titleText.VerticalAlignment = "Center"
+
+        [void]$headerPanel.Children.Add($iconText)
+        [void]$headerPanel.Children.Add($titleText)
+        $tab.Header = $headerPanel
+
         $text = New-Object System.Windows.Controls.TextBlock
         $text.Text = "La consulta no devolvió resultados."
         $text.Margin = "10"
         $tab.Content = $text
-        [void]$TabControl.Items.Add($tab)
-        $TabControl.SelectedIndex = 0
-        if ($global:lblRowCount) {
-            $global:lblRowCount.Text = "Filas: 0"
+
+        # CRÍTICO: Insertar ANTES de Mensajes (índice 0)
+        if ($messagesTab) {
+            $TabControl.Items.Insert(0, $tab)
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña vacía insertada en índice 0 (antes de Mensajes)"
+        } else {
+            [void]$TabControl.Items.Add($tab)
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña vacía agregada (no hay Mensajes)"
         }
+
+        # NO seleccionar - dejar que el código de mensajes seleccione Mensajes
+        if ($global:lblRowCount) { $global:lblRowCount.Text = "📊 0" }
+
         Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN (sin resultados)"
         return
     }
     $theme = $null
     try { $theme = Get-DzUiTheme } catch { $theme = $null }
+
     $isDark = $false
     try {
         if ($theme -and $theme.FormBackground) {
@@ -770,6 +857,7 @@ function Show-MultipleResultSets {
             }
         }
     } catch { $isDark = $false }
+
     $gridBg = $null
     $gridFg = $null
     $headerBg = $null
@@ -791,8 +879,10 @@ function Show-MultipleResultSets {
         $headerFg = [System.Windows.Media.Brushes]::Black
         $gridLine = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#D0D0D0")
     }
+
     $nullBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FDFBAC")
     $nullFg = [System.Windows.Media.Brushes]::Black
+
     $hdrStyle = New-Object System.Windows.Style([System.Windows.Controls.Primitives.DataGridColumnHeader])
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $headerBg)))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $headerFg)))
@@ -801,31 +891,47 @@ function Show-MultipleResultSets {
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 4, 8, 4)))))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $gridLine)))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
+
     $cellStyle = New-Object System.Windows.Style([System.Windows.Controls.DataGridCell])
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 2, 8, 2)))))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $gridLine)))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty, [System.Windows.HorizontalAlignment]::Stretch)))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::VerticalContentAlignmentProperty, [System.Windows.VerticalAlignment]::Center)))
+
     $textStyleBase = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
     [void]$textStyleBase.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::TextTrimmingProperty, [System.Windows.TextTrimming]::CharacterEllipsis)))
     [void]$textStyleBase.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::TextWrappingProperty, [System.Windows.TextWrapping]::NoWrap)))
     [void]$textStyleBase.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::VerticalAlignmentProperty, [System.Windows.VerticalAlignment]::Center)))
+
     $tNull = New-Object System.Windows.Trigger
     $tNull.Property = [System.Windows.Controls.TextBlock]::TextProperty
     $tNull.Value = "NULL"
     [void]$tNull.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::BackgroundProperty, $nullBrush)))
     [void]$tNull.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::ForegroundProperty, $nullFg)))
     [void]$textStyleBase.Triggers.Add($tNull)
+
     $i = 0
     foreach ($rs in $ResultSets) {
         $i++
         $tab = New-Object System.Windows.Controls.TabItem
         $rowCount = if ($rs.RowCount -ne $null) { $rs.RowCount } else { $rs.DataTable.Rows.Count }
-        $ht = New-Object System.Windows.Controls.TextBlock
-        $ht.Text = "Resultado $i ($rowCount filas)"
-        $ht.VerticalAlignment = "Center"
-        $tab.Header = $ht
+
+        $headerPanel = New-Object System.Windows.Controls.StackPanel
+        $headerPanel.Orientation = "Horizontal"
+
+        $iconText = New-Object System.Windows.Controls.TextBlock
+        $iconText.Text = "📊"
+        $iconText.Margin = "0,0,6,0"
+
+        $titleText = New-Object System.Windows.Controls.TextBlock
+        $titleText.Text = "Resultado $i ($rowCount filas)"
+        $titleText.VerticalAlignment = "Center"
+
+        [void]$headerPanel.Children.Add($iconText)
+        [void]$headerPanel.Children.Add($titleText)
+        $tab.Header = $headerPanel
+
         $dg = New-Object System.Windows.Controls.DataGrid
         $dg.AutoGenerateColumns = $true
         $dg.ItemsSource = $rs.DataTable.DefaultView
@@ -852,10 +958,12 @@ function Show-MultipleResultSets {
         $dg.AlternationCount = 2
         $dg.ColumnHeaderStyle = $hdrStyle
         $dg.CellStyle = $cellStyle
+
         $dg.Add_AutoGeneratingColumn({
                 param($s, $e)
                 $prop = $e.PropertyName
                 $hdr = $e.Column.Header
+
                 if ($e.PropertyType -eq [datetime]) {
                     $col = New-Object System.Windows.Controls.DataGridTextColumn
                     $col.Header = $hdr
@@ -877,6 +985,7 @@ function Show-MultipleResultSets {
                     }
                     return
                 }
+
                 if ($e.PropertyType -in @([int], [long], [decimal], [double], [single])) {
                     if ($e.Column -is [System.Windows.Controls.DataGridTextColumn]) {
                         $b = $e.Column.Binding
@@ -913,39 +1022,83 @@ function Show-MultipleResultSets {
                     $dpi = 96.0
                     try {
                         $src = [System.Windows.PresentationSource]::FromVisual($s)
-                        if ($src -and $src.CompositionTarget -and $src.CompositionTarget.TransformToDevice) { $dpi = 96.0 * $src.CompositionTarget.TransformToDevice.M11 }
+                        if ($src -and $src.CompositionTarget -and $src.CompositionTarget.TransformToDevice) {
+                            $dpi = 96.0 * $src.CompositionTarget.TransformToDevice.M11
+                        }
                     } catch { $dpi = 96.0 }
+
                     $typeface = New-Object System.Windows.Media.Typeface($s.FontFamily, $s.FontStyle, $s.FontWeight, $s.FontStretch)
                     $fontSize = [double]$s.FontSize
-                    foreach ($col in $s.Columns) { $col.MinWidth = $min; $col.MaxWidth = $max }
+
+                    foreach ($col in $s.Columns) {
+                        $col.MinWidth = $min
+                        $col.MaxWidth = $max
+                    }
+
                     $s.Dispatcher.BeginInvoke([action] {
                             try {
                                 $s.UpdateLayout()
                                 foreach ($col in $s.Columns) {
                                     $prop = $null
                                     try { $prop = $col.SortMemberPath } catch { $prop = $null }
-                                    if ([string]::IsNullOrWhiteSpace($prop)) { try { $prop = $col.Header.ToString() } catch { $prop = $null } }
+                                    if ([string]::IsNullOrWhiteSpace($prop)) {
+                                        try { $prop = $col.Header.ToString() } catch { $prop = $null }
+                                    }
+
                                     $best = 0.0
                                     $hText = ""
                                     try { $hText = [string]$col.Header } catch { $hText = "" }
+
                                     if (-not [string]::IsNullOrEmpty($hText)) {
-                                        $ftH = New-Object System.Windows.Media.FormattedText($hText, [System.Globalization.CultureInfo]::CurrentCulture, [System.Windows.FlowDirection]::LeftToRight, $typeface, $fontSize, [System.Windows.Media.Brushes]::Black, $dpi)
+                                        $ftH = New-Object System.Windows.Media.FormattedText(
+                                            $hText,
+                                            [System.Globalization.CultureInfo]::CurrentCulture,
+                                            [System.Windows.FlowDirection]::LeftToRight,
+                                            $typeface,
+                                            $fontSize,
+                                            [System.Windows.Media.Brushes]::Black,
+                                            $dpi
+                                        )
                                         $best = [Math]::Max($best, $ftH.WidthIncludingTrailingWhitespace)
                                     }
+
                                     $count = 0
                                     if ($dt -and $prop -and $dt.Columns.Contains($prop)) {
                                         foreach ($row in $dt.Rows) {
                                             if ($count -ge $sampleMax) { break }
                                             $val = $row[$prop]
                                             $txt = $null
-                                            if ($null -eq $val -or $val -is [System.DBNull]) { $txt = "NULL" } else { if ($val -is [datetime]) { $txt = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff") } else { $txt = [string]$val } }
+
+                                            if ($null -eq $val -or $val -is [System.DBNull]) {
+                                                $txt = "NULL"
+                                            } else {
+                                                if ($val -is [datetime]) {
+                                                    $txt = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff")
+                                                } else {
+                                                    $txt = [string]$val
+                                                }
+                                            }
+
                                             if (-not [string]::IsNullOrEmpty($txt)) {
-                                                $ft = New-Object System.Windows.Media.FormattedText($txt, [System.Globalization.CultureInfo]::CurrentCulture, [System.Windows.FlowDirection]::LeftToRight, $typeface, $fontSize, [System.Windows.Media.Brushes]::Black, $dpi)
-                                                if ($ft.WidthIncludingTrailingWhitespace -gt $best) { $best = $ft.WidthIncludingTrailingWhitespace }
+                                                $ft = New-Object System.Windows.Media.FormattedText(
+                                                    $txt,
+                                                    [System.Globalization.CultureInfo]::CurrentCulture,
+                                                    [System.Windows.FlowDirection]::LeftToRight,
+                                                    $typeface,
+                                                    $fontSize,
+                                                    [System.Windows.Media.Brushes]::Black,
+                                                    $dpi
+                                                )
+                                                if ($ft.WidthIncludingTrailingWhitespace -gt $best) {
+                                                    $best = $ft.WidthIncludingTrailingWhitespace
+                                                }
                                             }
                                             $count++
                                         }
-                                    } else { $best = [Math]::Max($best, 120.0) }
+                                    } else {
+                                        $best = [Math]::Max($best, 120.0)
+                                    }
+
                                     $w = [Math]::Ceiling($best + $pad)
                                     if ($w -lt $col.MinWidth) { $w = $col.MinWidth }
                                     if ($w -gt $col.MaxWidth) { $w = $col.MaxWidth }
@@ -956,20 +1109,35 @@ function Show-MultipleResultSets {
                 } catch { }
             })
         $tab.Content = $dg
-        [void]$TabControl.Items.Add($tab)
+        if ($messagesTab) {
+            $TabControl.Items.Insert($i - 1, $tab)
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i insertada en índice $($i-1) (antes de Mensajes)"
+        } else {
+            [void]$TabControl.Items.Add($tab)
+            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i agregada (no hay Mensajes)"
+        }
+
         Write-Host "`tPestaña $i creada con $rowCount filas" -ForegroundColor Green
     }
+
+    # ========== PASO 6: Actualizar contador y seleccionar pestaña ==========
     if ($global:lblRowCount) {
         $totalRows = ($ResultSets | Measure-Object -Property RowCount -Sum).Sum
         if ($ResultSets.Count -eq 1) {
-            $global:lblRowCount.Text = "Filas: $totalRows"
+            $global:lblRowCount.Text = "📊 $totalRows"
         } else {
-            $global:lblRowCount.Text = "Filas: $totalRows ($($ResultSets.Count) resultsets)"
+            $global:lblRowCount.Text = "📊 $totalRows ($($ResultSets.Count) resultsets)"
         }
     }
+
+    # Seleccionar primera pestaña de resultados (NO Mensajes)
     $TabControl.SelectedIndex = 0
+
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestañas totales: $($TabControl.Items.Count)"
+    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña seleccionada: índice $($TabControl.SelectedIndex)"
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN"
 }
+
 function Export-ResultSetToCsv {
     [CmdletBinding()]
     param(
@@ -1213,6 +1381,44 @@ LEFT JOIN
 WHERE
     p.type IN ('S', 'U')
 "@
+        "SR | Revisar Ultimo Folio de Producción"         = @"
+        DECLARE @serie varchar(50)
+        DECLARE @folio numeric(18, 0)
+        DECLARE @nuevo numeric(18, 0)
+
+        DECLARE cur CURSOR FOR
+        SELECT serie, ultimofolioproduccion
+        FROM folios
+
+        OPEN cur
+        FETCH NEXT FROM cur INTO @serie, @folio
+
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+        IF @folio > 30000
+        BEGIN
+        SET @nuevo = @folio / 2
+
+        UPDATE folios
+        SET ultimofolioproduccion = @nuevo
+        WHERE serie = @serie
+
+        PRINT 'Serie ' + @serie + ': Se corrigió el folio de '
+        + CAST(@folio AS varchar) + ' a '
+        + CAST(@nuevo AS varchar)
+        END
+        ELSE
+        BEGIN
+        PRINT 'Serie ' + @serie + ': El folio de producción parece estar bien con '
+        + CAST(@folio AS varchar)
+        END
+
+        FETCH NEXT FROM cur INTO @serie, @folio
+        END
+
+        CLOSE cur
+        DEALLOCATE cur
+"@
     }
 }
 function Get-DzThemeBrush {
@@ -1251,17 +1457,11 @@ function Initialize-PredefinedQueries {
                 if (-not $selectedQuery -or $selectedQuery -eq "Selecciona una consulta predefinida") { return }
                 $ctx = $sender.Tag
                 if (-not $ctx -or -not $ctx.Queries.ContainsKey($selectedQuery)) { return }
-                $rtb = Get-ActiveQueryRichTextBox -TabControl $ctx.TabControl
-                if (-not $rtb) { return }
+                $editor = Get-ActiveQueryRichTextBox -TabControl $ctx.TabControl
+                if (-not $editor) { return }
                 $queryText = $ctx.Queries[$selectedQuery]
-                $rtb.Document.Blocks.Clear()
-                $p = New-Object System.Windows.Documents.Paragraph
-                [void]$p.Inlines.Add((New-Object System.Windows.Documents.Run($queryText)))
-                [void]$rtb.Document.Blocks.Add($p)
-                if (-not [string]::IsNullOrWhiteSpace($ctx.SqlKeywords)) {
-                    Set-WpfSqlHighlighting -RichTextBox $rtb -Keywords $ctx.SqlKeywords
-                }
-                $rtb.Focus()
+                Set-SqlEditorText -Editor $editor -Text $queryText
+                $editor.Focus()
             } catch {
                 Write-DzDebug "`t[DEBUG] Error en SelectionChanged (queries): $($_.Exception.Message)" -Color Red
             }
@@ -1433,7 +1633,29 @@ function Show-ErrorResultTab {
         [Parameter()][switch]$AddWithoutClear
     )
     if (-not $AddWithoutClear) {
-        try { $ResultsTabControl.Items.Clear() } catch {}
+        try {
+            $itemsToRemove = New-Object System.Collections.ArrayList
+            foreach ($item in $ResultsTabControl.Items) {
+                if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+                $header = $null
+                if ($item.Header -is [string]) {
+                    $header = $item.Header
+                } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+                    foreach ($child in $item.Header.Children) {
+                        if ($child -is [System.Windows.Controls.TextBlock]) {
+                            $header = $child.Text
+                            break
+                        }
+                    }
+                }
+                if (-not ($header -and $header -match "Mensajes")) {
+                    [void]$itemsToRemove.Add($item)
+                }
+            }
+            foreach ($item in $itemsToRemove) {
+                $ResultsTabControl.Items.Remove($item)
+            }
+        } catch {}
     }
     $tab = New-Object System.Windows.Controls.TabItem
     $ht = New-Object System.Windows.Controls.TextBlock
@@ -1448,7 +1670,31 @@ function Show-ErrorResultTab {
     $text.VerticalScrollBarVisibility = "Auto"
     $text.HorizontalScrollBarVisibility = "Auto"
     $tab.Content = $text
-    [void]$ResultsTabControl.Items.Add($tab)
+    $messagesTabIndex = -1
+    for ($i = 0; $i -lt $ResultsTabControl.Items.Count; $i++) {
+        $item = $ResultsTabControl.Items[$i]
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        $header = $null
+        if ($item.Header -is [string]) {
+            $header = $item.Header
+        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+            foreach ($child in $item.Header.Children) {
+                if ($child -is [System.Windows.Controls.TextBlock]) {
+                    $header = $child.Text
+                    break
+                }
+            }
+        }
+        if ($header -and $header -match "Mensajes") {
+            $messagesTabIndex = $i
+            break
+        }
+    }
+    if ($messagesTabIndex -ge 0) {
+        $ResultsTabControl.Items.Insert($messagesTabIndex, $tab)
+    } else {
+        [void]$ResultsTabControl.Items.Add($tab)
+    }
     if (-not $AddWithoutClear) {
         $ResultsTabControl.SelectedIndex = 0
     }
@@ -1542,10 +1788,11 @@ function Disconnect-DbCore {
     if ($Ctx.btnExecute) { $Ctx.btnExecute.IsEnabled = $false }
     if ($Ctx.btnClearQuery) { $Ctx.btnClearQuery.IsEnabled = $false }
     if ($Ctx.btnExport) { $Ctx.btnExport.IsEnabled = $false }
+    if ($Ctx.btnHistorial) { $Ctx.btnHistorial.IsEnabled = $false }
     if ($Ctx.cmbQueries) { $Ctx.cmbQueries.IsEnabled = $false }
     if ($Ctx.tcQueries) { $Ctx.tcQueries.IsEnabled = $false }
     if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $false }
-    if ($Ctx.rtbQueryEditor1) { $Ctx.rtbQueryEditor1.IsEnabled = $false }
+    if ($Ctx.sqlEditor1) { $Ctx.sqlEditor1.IsEnabled = $false }
     if ($Ctx.dgResults) { $Ctx.dgResults.IsEnabled = $false }
     if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $false }
 
@@ -1630,13 +1877,14 @@ function Connect-DbCore {
     if ($Ctx.btnClearQuery) { $Ctx.btnClearQuery.IsEnabled = $true }
     if ($Ctx.cmbQueries) { $Ctx.cmbQueries.IsEnabled = $true }
     if ($Ctx.btnExport) { $Ctx.btnExport.IsEnabled = $true }
+    if ($Ctx.btnHistorial) { $Ctx.btnHistorial.IsEnabled = $true }
     if ($Ctx.tcQueries) { $Ctx.tcQueries.IsEnabled = $true }
     if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $true }
-    if ($Ctx.rtbQueryEditor1) { $Ctx.rtbQueryEditor1.IsEnabled = $true }
+    if ($Ctx.sqlEditor1) { $Ctx.sqlEditor1.IsEnabled = $true }
     if ($Ctx.dgResults) { $Ctx.dgResults.IsEnabled = $true }
     if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $true }
 
-    if ($Ctx.rtbQueryEditor1) { try { $Ctx.rtbQueryEditor1.Focus() | Out-Null } catch {} }
+    if ($Ctx.sqlEditor1) { try { $Ctx.sqlEditor1.Focus() | Out-Null } catch {} }
     if ($Ctx.tvDatabases) {
         Write-DzDebug "`t[DEBUG] Inicializando TreeView..."
 
@@ -1692,6 +1940,13 @@ function Connect-DbCore {
                         $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
                     }
 
+                    if ($Ctx.tvDatabases) {
+                        Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
+                    }
+                    if ($Ctx.tcQueries -and (Get-Command Set-QueryTabsDatabase -ErrorAction SilentlyContinue)) {
+                        Set-QueryTabsDatabase -TabControl $Ctx.tcQueries -Database $Ctx.Database
+                        Write-DzDebug "`t[DEBUG][TreeView] Pestañas actualizadas con BD: $($Ctx.Database)"
+                    }
                     Write-DzDebug "`t[DEBUG][TreeView] BD seleccionada: $($Ctx.Database) (dbName='$dbName')"
                 } catch {
                     Write-DzDebug "`t[DEBUG][OnDatabaseSelected] ERROR: $($_.Exception.Message)" -Color Red
@@ -1748,6 +2003,10 @@ function Connect-DbCore {
                         $Ctx.lblConnectionStatus.Text = "✓ Conectado a: $($Ctx.Server) | DB: $($Ctx.Database)"
                     }
 
+                    if ($Ctx.tvDatabases -and $Ctx.Database) {
+                        Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
+                    }
+
                     Write-DzDebug "`t[DEBUG][TreeView] ComboBox actualizado con $($dbs.Count) bases de datos"
                 } catch {
                     Write-DzDebug "`t[DEBUG][OnDatabasesRefreshed] Error: $_"
@@ -1762,9 +2021,10 @@ function Connect-DbCore {
     }
 
     Write-DzDebug "`t[DEBUG] Conexión establecida exitosamente"
+    if ($Ctx.tvDatabases -and $Ctx.Database) {
+        Select-SqlTreeDatabase -TreeView $Ctx.tvDatabases -DatabaseName $Ctx.Database
+    }
 }
-
-
 function Export-ResultsCore {
     [CmdletBinding()]
     param([Parameter(Mandatory)][hashtable]$Ctx)
@@ -1799,14 +2059,13 @@ function Export-ResultsCore {
     $rowCount = [int]$target.RowCount
     $headerText = [string]$target.DisplayShort
 
-    if (-not (Ui-Confirm "Se exportarán $rowCount filas de '$headerText'. ¿Deseas continuar?" "Confirmar exportación" $Ctx.MainWindow)) { return }
-
     $safeName = ($headerText -replace '[\\/:*?"<>|]', '-')
     if ([string]::IsNullOrWhiteSpace($safeName)) { $safeName = "resultado" }
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 
     $saveDialog = New-Object Microsoft.Win32.SaveFileDialog
     $saveDialog.Filter = "CSV (*.csv)|*.csv|Texto delimitado (*.txt)|*.txt"
-    $saveDialog.FileName = "$safeName.csv"
+    $saveDialog.FileName = "${timestamp}_${safeName}.csv"
     $saveDialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')
     if ($saveDialog.ShowDialog() -ne $true) { return }
 
@@ -1846,9 +2105,90 @@ function Get-DbNameFromComboSelection {
     if ([string]::IsNullOrWhiteSpace($db)) { return $null }
     return $db
 }
+function Get-DbUiContext {
+    [CmdletBinding()]
+    param()
 
+    @{
+        QueryRunning           = $script:QueryRunning
+        CurrentQueryPowerShell = $script:CurrentQueryPowerShell
+        CurrentQueryRunspace   = $script:CurrentQueryRunspace
+        CurrentQueryAsync      = $script:CurrentQueryAsync
+        execUiTimer            = $script:execUiTimer
+        QueryDoneTimer         = $script:QueryDoneTimer
+        execStopwatch          = $script:execStopwatch
+
+        Connection             = $global:connection
+        Server                 = $global:server
+        User                   = $global:user
+        Password               = $global:password
+        Database               = $global:database
+        DbCredential           = $global:dbCredential
+
+        tvDatabases            = $global:tvDatabases
+        cmbDatabases           = $global:cmbDatabases
+        lblConnectionStatus    = $global:lblConnectionStatus
+
+        txtServer              = $global:txtServer
+        txtUser                = $global:txtUser
+        txtPassword            = $global:txtPassword
+        btnConnectDb           = $global:btnConnectDb
+
+        btnDisconnectDb        = $global:btnDisconnectDb
+        btnExecute             = $global:btnExecute
+        btnClearQuery          = $global:btnClearQuery
+        btnExport              = $global:btnExport
+        btnHistorial           = $global:btnHistorial
+        cmbQueries             = $global:cmbQueries
+        tcQueries              = $global:tcQueries
+        tcResults              = $global:tcResults
+        sqlEditor1             = $global:sqlEditor1
+        dgResults              = $global:dgResults
+        txtMessages            = $global:txtMessages
+        lblRowCount            = $global:lblRowCount
+        lblExecutionTimer      = $global:lblExecutionTimer
+
+        MainWindow             = $global:MainWindow
+    }
+}
+function Disconnect-DbUiSafe {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $ctx = Get-DbUiContext
+        Disconnect-DbCore -Ctx $ctx
+        Save-DbUiContext -Ctx $ctx
+        Write-Host "✓ Desconectado exitosamente" -ForegroundColor Green
+    } catch {
+        Write-DzDebug "`t[DEBUG][Disconnect] ERROR: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Disconnect] Stack: $($_.ScriptStackTrace)"
+        Write-Host "Error al desconectar: $($_.Exception.Message)" -ForegroundColor Red
+        Ui-Error "Error al desconectar:`n`n$($_.Exception.Message)" $global:MainWindow
+    }
+}
+function Connect-DbUiSafe {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $ctx = Get-DbUiContext
+        Connect-DbCore -Ctx $ctx
+        Save-DbUiContext -Ctx $ctx
+        if (Get-Command Save-DzSqlConnection -ErrorAction SilentlyContinue) {
+            Save-DzSqlConnection -Server $ctx.Server -User $ctx.User -Password $ctx.Password
+        }
+        Write-Host "✓ Conectado exitosamente a: $($ctx.Server)" -ForegroundColor Green
+    } catch {
+        Write-DzDebug "`t[DEBUG][Connect] CATCH: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Connect] Tipo: $($_.Exception.GetType().FullName)"
+        Write-DzDebug "`t[DEBUG][Connect] Stack: $($_.ScriptStackTrace)"
+        Ui-Error "Error de conexión: $($_.Exception.Message)" $global:MainWindow
+        Write-Host "Error | Error de conexión: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
 Export-ModuleMember -Function @(
-    'Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Get-SqlDatabasesInfo', 'Backup-Database',
+    'Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Get-SqlDatabasesInfo', 'Backup-Database', 'Connect-DbUiSafe', 'Disconnect-DbUiSafe', 'get-DbUiContext',
     'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable',
     'Show-MultipleResultSets', 'Export-ResultSetToCsv', 'Export-ResultSetToDelimitedText',
     'Get-TextPointerAtOffset',

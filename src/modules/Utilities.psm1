@@ -1,6 +1,6 @@
 ﻿#requires -Version 5.0
 
-$script:DzToolsConfigPath = "C:\Temp\dztools.ini"
+$script:DzToolsConfigPath = "C:\Temp\dztools\dztools.ini"
 $script:DzDebugEnabled = $null
 
 function Get-DzToolsConfigPath {
@@ -13,6 +13,7 @@ function Get-DzDebugPreference {
     }
     $content = Get-Content -LiteralPath $configPath -ErrorAction SilentlyContinue
     $inDevSection = $false
+
     foreach ($line in $content) {
         $trimmed = $line.Trim()
         if ($trimmed -match '^\s*;') { continue }
@@ -62,7 +63,7 @@ function Ensure-DzUiConfig {
         }
         if ($inUiSection -and $trimmed -match '^\[') {
             if (-not $modeFound) {
-                $lines.Add("mode=dark")
+                $lines.Add("mode=light")
                 $modeFound = $true
             }
             $inUiSection = $false
@@ -74,14 +75,14 @@ function Ensure-DzUiConfig {
     }
 
     if ($uiFound -and -not $modeFound) {
-        $lines.Add("mode=dark")
+        $lines.Add("mode=light")
     }
     if (-not $uiFound) {
         if ($lines.Count -gt 0 -and $lines[$lines.Count - 1] -ne "") {
             $lines.Add("")
         }
         $lines.Add("[UI]")
-        $lines.Add("mode=dark")
+        $lines.Add("mode=light")
     }
 
     Set-Content -LiteralPath $ConfigPath -Value $lines -Encoding UTF8
@@ -112,6 +113,7 @@ function Update-DzIniSetting {
     $sectionFound = $false
     $keyUpdated = $false
     $inTargetSection = $false
+    $escapedKey = [regex]::Escape($Key)
 
     foreach ($line in $content) {
         $trimmed = $line.Trim()
@@ -135,7 +137,7 @@ function Update-DzIniSetting {
             continue
         }
 
-        if ($inTargetSection -and $trimmed -match "^\s*${Key}\s*=") {
+        if ($inTargetSection -and $trimmed -match "^\s*${escapedKey}\s*=") {
             $lines.Add("$Key=$Value")
             $keyUpdated = $true
             continue
@@ -162,7 +164,7 @@ function Update-DzIniSetting {
 function Get-DzUiMode {
     $configPath = Get-DzToolsConfigPath
     if (-not (Test-Path -LiteralPath $configPath)) {
-        return "dark"
+        return "light"
     }
     $content = Get-Content -LiteralPath $configPath -ErrorAction SilentlyContinue
     $inUiSection = $false
@@ -182,7 +184,7 @@ function Get-DzUiMode {
             return $matches[1].ToLower()
         }
     }
-    return "dark"
+    return "light"
 }
 
 function Set-DzUiMode {
@@ -216,11 +218,114 @@ function Initialize-DzToolsConfig {
         New-Item -ItemType Directory -Path $configDir -Force | Out-Null
     }
     if (-not (Test-Path -LiteralPath $configPath)) {
-        "[desarrollo]`ndebug=false`n`n[UI]`nmode=dark" | Out-File -FilePath $configPath -Encoding UTF8 -Force
+        "[desarrollo]`ndebug=false`n`n[UI]`nmode=light`n`n[sql]`n; server=user|password" | Out-File -FilePath $configPath -Encoding UTF8 -Force
     }
     Ensure-DzUiConfig -ConfigPath $configPath
     $script:DzDebugEnabled = Get-DzDebugPreference
     return $script:DzDebugEnabled
+}
+
+function Get-DzIniSectionMap {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Section
+    )
+
+    $configPath = Get-DzToolsConfigPath
+    if (-not (Test-Path -LiteralPath $configPath)) { return @{} }
+
+    $content = Get-Content -LiteralPath $configPath -ErrorAction SilentlyContinue
+    if ($null -eq $content) { return @{} }
+
+    $map = @{}
+    $inSection = $false
+    foreach ($line in $content) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^\s*;') { continue }
+        if ($trimmed -match '^\[(.+)\]\s*$') {
+            $current = $matches[1].Trim()
+            $inSection = ($current.ToLower() -eq $Section.ToLower())
+            continue
+        }
+        if (-not $inSection) { continue }
+        if ([string]::IsNullOrWhiteSpace($trimmed)) { continue }
+        $parts = $trimmed -split '=', 2
+        if ($parts.Count -lt 2) { continue }
+        $key = $parts[0].Trim()
+        $value = $parts[1].Trim()
+        if (-not [string]::IsNullOrWhiteSpace($key)) {
+            $map[$key] = $value
+        }
+    }
+    return $map
+}
+
+function Get-DzSavedSqlConnections {
+    [CmdletBinding()]
+    param()
+
+    $entries = Get-DzIniSectionMap -Section "sql"
+    $connections = @()
+    foreach ($server in $entries.Keys) {
+        $value = [string]$entries[$server]
+        if ([string]::IsNullOrWhiteSpace($value)) { continue }
+        $parts = $value -split '\|', 2
+        if ($parts.Count -lt 2) { continue }
+        $user = $parts[0]
+        $password = ""
+        try {
+            $bytes = [Convert]::FromBase64String($parts[1])
+            $password = [System.Text.Encoding]::UTF8.GetString($bytes)
+        } catch {
+            $password = ""
+        }
+        $connections += [pscustomobject]@{
+            Server   = $server
+            User     = $user
+            Password = $password
+        }
+    }
+    return $connections
+}
+
+function Get-DzSavedSqlConnection {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Server
+    )
+
+    $serverText = $Server.Trim()
+    if ([string]::IsNullOrWhiteSpace($serverText)) { return $null }
+
+    $entries = Get-DzSavedSqlConnections
+    foreach ($entry in $entries) {
+        if ($entry.Server -and $entry.Server.Trim().ToLower() -eq $serverText.ToLower()) {
+            return $entry
+        }
+    }
+    return $null
+}
+
+function Save-DzSqlConnection {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Server,
+        [Parameter(Mandatory = $true)]
+        [string]$User,
+        [Parameter(Mandatory = $true)]
+        [string]$Password
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Server) -or [string]::IsNullOrWhiteSpace($User)) { return }
+    if ([string]::IsNullOrWhiteSpace($Password)) { return }
+
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
+    $encoded = [Convert]::ToBase64String($bytes)
+    $value = "$User|$encoded"
+    Update-DzIniSetting -Section "sql" -Key $Server -Value $value
 }
 
 function Write-DzDebug {
@@ -362,7 +467,6 @@ function Get-AdminGroupName {
         return "Administrators"
     }
 }
-
 function Invoke-DiskCleanup {
     [CmdletBinding()]
     param(
@@ -401,10 +505,39 @@ function Invoke-DiskCleanup {
 
             $timeoutSeconds = $TimeoutMinutes * 60
             $script:remainingSeconds = $timeoutSeconds
+            $script:cleanupCancelled = $false
             $script:cleanupCompleted = $false
             $timer = $null
 
+            # Configurar botón de cancelar
             if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
+                try {
+                    $ProgressWindow.Dispatcher.Invoke([action] {
+                            $cancelBtn = $ProgressWindow.FindName("btnCancel")
+                            if ($cancelBtn) {
+                                $cancelBtn.Visibility = "Visible"
+                                $cancelBtn.Content = "Finalizar ahora"
+                                $cancelBtn.ToolTip = "Saltar la limpieza de disco y continuar"
+
+                                # Remover handlers previos
+                                $cancelBtn.RemoveHandler(
+                                    [System.Windows.Controls.Primitives.ButtonBase]::ClickEvent,
+                                    [System.Windows.RoutedEventHandler] {}
+                                )
+
+                                # Agregar handler de cancelación
+                                $cancelBtn.Add_Click({
+                                        Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Botón cancelar presionado"
+                                        $script:cleanupCancelled = $true
+                                    }.GetNewClosure())
+                            }
+                        }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Botón cancelar configurado"
+                } catch {
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Error configurando botón cancelar: $_" Yellow
+                }
+
+                # Configurar timer de actualización
                 $timer = New-Object System.Windows.Threading.DispatcherTimer
                 $timer.Interval = [TimeSpan]::FromSeconds(1)
 
@@ -427,7 +560,7 @@ function Invoke-DiskCleanup {
                             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Tick EXCEPCIÓN: $($_.Exception.Message)" Red
                             $sender.Stop()
                         }
-                    })
+                    }.GetNewClosure())
 
                 $timer.Start()
                 Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Timer iniciado"
@@ -436,7 +569,8 @@ function Invoke-DiskCleanup {
             $checkInterval = 500
             $elapsed = 0
 
-            while (-not $proc.HasExited -and $elapsed -lt ($timeoutSeconds * 1000)) {
+            # Loop principal con verificación de cancelación
+            while (-not $proc.HasExited -and $elapsed -lt ($timeoutSeconds * 1000) -and -not $script:cleanupCancelled) {
                 Start-Sleep -Milliseconds $checkInterval
                 $elapsed += $checkInterval
 
@@ -448,11 +582,44 @@ function Invoke-DiskCleanup {
                 }
             }
 
+            # Detener timer
             if ($timer) {
                 $timer.Stop()
             }
 
-            if ($proc.HasExited) {
+            # Ocultar botón de cancelar
+            if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
+                try {
+                    $ProgressWindow.Dispatcher.Invoke([action] {
+                            $cancelBtn = $ProgressWindow.FindName("btnCancel")
+                            if ($cancelBtn) {
+                                $cancelBtn.Visibility = "Collapsed"
+                            }
+                        }, [System.Windows.Threading.DispatcherPriority]::Normal)
+                } catch {}
+            }
+
+            # Evaluar resultado
+            if ($script:cleanupCancelled) {
+                Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: CANCELADO por usuario" Yellow
+                Write-Host "`n`tLimpieza de disco cancelada por el usuario." -ForegroundColor Yellow
+
+                try {
+                    $proc.Kill()
+                    $proc.WaitForExit(3000)
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso terminado por cancelación"
+                } catch {
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Error al terminar proceso cancelado" Yellow
+                }
+
+                if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
+                    if ($ProgressWindow.PSObject.Properties.Name -contains 'MessageLabel') {
+                        $ProgressWindow.MessageLabel.Text = "Limpieza de disco cancelada"
+                    }
+                }
+
+                return "Cancelled"
+            } elseif ($proc.HasExited) {
                 Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso completado. ExitCode=$($proc.ExitCode)"
                 Write-Host "`n`tLiberador de espacio completado." -ForegroundColor Green
 
@@ -461,6 +628,8 @@ function Invoke-DiskCleanup {
                         $ProgressWindow.MessageLabel.Text = "Limpieza completada exitosamente"
                     }
                 }
+
+                return "Completed"
             } else {
                 Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: TIMEOUT alcanzado" Yellow
                 Write-Host "`n`tAdvertencia: El proceso excedió el tiempo límite." -ForegroundColor Yellow
@@ -468,10 +637,18 @@ function Invoke-DiskCleanup {
                 try {
                     $proc.Kill()
                     $proc.WaitForExit(5000)
-                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso terminado forzosamente"
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Proceso terminado forzosamente por timeout"
                 } catch {
-                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Error al terminar proceso" Red
+                    Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: Error al terminar proceso por timeout" Red
                 }
+
+                if ($ProgressWindow -ne $null -and $ProgressWindow.IsVisible) {
+                    if ($ProgressWindow.PSObject.Properties.Name -contains 'MessageLabel') {
+                        $ProgressWindow.MessageLabel.Text = "Limpieza de disco: tiempo agotado"
+                    }
+                }
+
+                return "Timeout"
             }
         } else {
             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzando /sagerun:$profileId (NO bloqueante)"
@@ -481,15 +658,20 @@ function Invoke-DiskCleanup {
                 -PassThru
             Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: lanzado. PID=$($proc.Id)"
             Write-Host "`n`tLiberador de espacio iniciado." -ForegroundColor Green
+            return "Started"
         }
 
         Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: FIN OK"
     } catch {
         Write-DzDebug "`t[DEBUG]Invoke-DiskCleanup: EXCEPCIÓN: $($_.Exception.Message)" Red
         Write-Host "`n`tError en limpieza de disco: $($_.Exception.Message)" -ForegroundColor Red
+        return "Error"
+    } finally {
+        # Limpiar variables de script
+        $script:cleanupCancelled = $false
+        $script:cleanupCompleted = $false
     }
 }
-
 function Stop-CleanmgrProcesses {
     [CmdletBinding()]
     param()
@@ -1588,6 +1770,59 @@ function Get-NetworkAdapterStatus {
     }
     return $adapterStatus
 }
+function Apply-SavedSqlCredentials {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ServerText
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ServerText)) {
+        Write-DzDebug "`t[DEBUG] ServerText está vacío"
+        return
+    }
+
+    Write-DzDebug "`t[DEBUG] Aplicando credenciales guardadas para: '$ServerText'"
+
+    $saved = Get-DzSavedSqlConnection -Server $ServerText
+
+    if (-not $saved) {
+        Write-DzDebug "`t[DEBUG] No hay credenciales guardadas para: '$ServerText'"
+
+        # LIMPIAR los campos cuando no hay credenciales
+        try {
+            if ($global:txtUser) {
+                $global:txtUser.Text = ""
+                Write-DzDebug "`t[DEBUG] ✓ Campo de usuario limpiado"
+            }
+
+            if ($global:txtPassword) {
+                $global:txtPassword.Password = ""
+                Write-DzDebug "`t[DEBUG] ✓ Campo de contraseña limpiado"
+            }
+        } catch {
+            Write-DzDebug "`t[DEBUG] ✗ Error limpiando campos: $_" -Color Red
+        }
+
+        return
+    }
+
+    Write-DzDebug "`t[DEBUG] ✓ Credenciales encontradas para: '$ServerText' (User: $($saved.User))"
+
+    try {
+        if ($global:txtUser) {
+            $global:txtUser.Text = $saved.User
+            Write-DzDebug "`t[DEBUG] ✓ Usuario aplicado: '$($saved.User)'"
+        }
+
+        if ($global:txtPassword) {
+            $global:txtPassword.Password = $saved.Password
+            Write-DzDebug "`t[DEBUG] ✓ Contraseña aplicada"
+        }
+    } catch {
+        Write-DzDebug "`t[DEBUG] ✗ Error aplicando credenciales: $_" -Color Red
+    }
+}
 Export-ModuleMember -Function @(
     'Get-DzToolsConfigPath',
     'Get-DzDebugPreference',
@@ -1595,6 +1830,10 @@ Export-ModuleMember -Function @(
     'Set-DzUiMode',
     'Set-DzDebugPreference',
     'Initialize-DzToolsConfig',
+    'Get-DzIniSectionMap',
+    'Get-DzSavedSqlConnections',
+    'Get-DzSavedSqlConnection',
+    'Save-DzSqlConnection',
     'Write-DzDebug',
     'Test-Administrator',
     'Get-SystemInfo',
@@ -1620,4 +1859,5 @@ Export-ModuleMember -Function @(
     'Set-ClipboardTextSafe',
     'Initialize-SystemInfo',
     'Update-PortsUI',
-    'Update-NetworkUI')
+    'Update-NetworkUI',
+    'Apply-SavedSqlCredentials')

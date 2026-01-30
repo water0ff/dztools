@@ -128,7 +128,7 @@ if ($Release) {
     @'
 @echo off
 echo ===================================================
-echo        Gerardo Zermeño Tools - Suite de Utilidades
+echo   ...Local RUN \ GDZT Tools - Suite de Utilidades
 echo ===================================================
 echo.
 

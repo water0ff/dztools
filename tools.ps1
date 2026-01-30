@@ -3,7 +3,6 @@ param(
     [switch]$ForceUpdate
 )
 
-# ===================== ADVERTENCIA DE VERSIÓN BETA =====================
 Write-Host "`n==============================================" -ForegroundColor Red
 Write-Host "           ADVERTENCIA DE VERSIÓN BETA " -ForegroundColor Red
 Write-Host "==============================================" -ForegroundColor Red
@@ -23,7 +22,6 @@ if ($answer -ne 'Y') {
     Write-Host "`nEjecución cancelada por el usuario.`n" -ForegroundColor Red
     return
 }
-# ======================================================================
 
 Clear-Host
 
@@ -33,8 +31,6 @@ $versionFile = Join-Path $releasePath "version.json"
 $mainPath = Join-Path $releasePath "main.ps1"
 $Owner = "water0ff"
 $Repo = "dztools"
-
-# ===================== FUNCIONES AUXILIARES =====================
 
 function Get-LocalVersion {
     if (-not (Test-Path $versionFile)) {
@@ -62,12 +58,9 @@ function Get-LatestGitHubVersion {
 function Compare-Versions {
     param([string]$Local, [string]$Remote)
 
-    # Formato esperado: v260129.1101
-    # Remover la 'v' inicial
     $localClean = $Local -replace '^v', ''
     $remoteClean = $Remote -replace '^v', ''
 
-    # Comparar como strings (ya que el formato es YYMMDD.HHMM)
     if ($remoteClean -gt $localClean) {
         return "Newer"
     } elseif ($remoteClean -eq $localClean) {
@@ -94,8 +87,6 @@ function Get-UserChoice {
 
     return $answer
 }
-
-# ===================== DETECCIÓN DE VERSIONES =====================
 
 $localVersion = Get-LocalVersion
 $hasLocalInstall = (Test-Path $mainPath) -and ($null -ne $localVersion)
@@ -126,20 +117,12 @@ if ($hasLocalInstall -and -not $ForceUpdate) {
                 Write-Host ""
                 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
                 Write-Host ""
+                Write-Host "  ✅ Ya tienes la última versión. Iniciando versión local..." -ForegroundColor Green
+                Write-Host ""
 
-                $choice = Get-UserChoice "¿Ejecutar versión local? (S/N): " @('S', 'N')
-
-                if ($choice -eq 'S') {
-                    Write-Host ""
-                    Write-Host "Iniciando versión local..." -ForegroundColor Green
-                    Write-Host ""
-                    $exe = if ($PSVersionTable.PSVersion.Major -ge 6) { "pwsh" } else { "powershell" }
-                    & $exe -NoProfile -ExecutionPolicy Bypass -File $mainPath
-                    return
-                } else {
-                    Write-Host "`nEjecución cancelada.`n" -ForegroundColor Yellow
-                    return
-                }
+                $exe = if ($PSVersionTable.PSVersion.Major -ge 6) { "pwsh" } else { "powershell" }
+                & $exe -NoProfile -ExecutionPolicy Bypass -File $mainPath
+                return
             }
             "Newer" {
                 Write-Host "$remoteVersion " -NoNewline -ForegroundColor Yellow
@@ -158,7 +141,6 @@ if ($hasLocalInstall -and -not $ForceUpdate) {
                     & $exe -NoProfile -ExecutionPolicy Bypass -File $mainPath
                     return
                 }
-                # Si dice Sí, continúa con la descarga
             }
             "Older" {
                 Write-Host "$remoteVersion " -NoNewline -ForegroundColor DarkGray
@@ -203,8 +185,6 @@ if ($hasLocalInstall -and -not $ForceUpdate) {
         }
     }
 }
-
-# ===================== DESCARGA E INSTALACIÓN =====================
 
 Write-Host ""
 if ($ForceUpdate) {
@@ -259,7 +239,6 @@ if (-not (Test-Path $mainPath)) {
     return
 }
 
-# Leer versión recién descargada
 $newVersion = Get-LocalVersion
 if ($newVersion) {
     Write-Host "  ✓ Versión instalada: $newVersion" -ForegroundColor Green

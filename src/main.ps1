@@ -784,6 +784,7 @@ function New-MainForm {
         })
     #en main.ps1
     $global:dgResults = $window.FindName("dgResults")
+    $global:spResults = $window.FindName("spResults")
     $btnClearQuery.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {
@@ -791,6 +792,7 @@ function New-MainForm {
                 if (-not $editor) { throw "No hay una pestaña de consulta activa." }
                 Clear-SqlEditorText -Editor $editor
                 if ($global:dgResults) { $global:dgResults.ItemsSource = $null }
+                if ($global:spResults) { $global:spResults.Children.Clear() }
                 if ($global:txtMessages) { $global:txtMessages.Text = "" }
                 if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: --" }
                 $tab = Get-ActiveQueryTab -TabControl $global:tcQueries

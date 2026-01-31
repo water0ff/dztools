@@ -755,89 +755,219 @@ function Show-MultipleResultSets {
         [Parameter(Mandatory)][System.Windows.Controls.TabControl]$TabControl,
         [Parameter()][AllowEmptyCollection()][array]$ResultSets = @()
     )
+    function Get-ResultsStackPanel {
+        param([System.Windows.Controls.TabControl]$TabControl)
+        if ($global:spResults -and $global:spResults -is [System.Windows.Controls.StackPanel]) {
+            return $global:spResults
+        }
+        if (-not $TabControl) { return $null }
+        $panel = $null
+        try { $panel = $TabControl.FindName("spResults") } catch { $panel = $null }
+        if ($panel -and $panel -is [System.Windows.Controls.StackPanel]) { return $panel }
+        foreach ($item in $TabControl.Items) {
+            if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+            $header = $null
+            if ($item.Header -is [string]) {
+                $header = $item.Header
+            } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+                foreach ($child in $item.Header.Children) {
+                    if ($child -is [System.Windows.Controls.TextBlock]) {
+                        $header = $child.Text
+                        break
+                    }
+                }
+            }
+            if (-not ($header -and $header -match "Resultados")) { continue }
+            $content = $item.Content
+            if ($content -is [System.Windows.Controls.ScrollViewer]) {
+                $inner = $content.Content
+                if ($inner -is [System.Windows.Controls.StackPanel]) { return $inner }
+            } elseif ($content -is [System.Windows.Controls.StackPanel]) {
+                return $content
+            }
+        }
+        return $null
+    }
+    function New-PreviewTable {
+        param(
+            [Parameter(Mandatory)][System.Data.DataTable]$DataTable,
+            [int]$MaxRows
+        )
+        if ($MaxRows -le 0 -or $DataTable.Rows.Count -le $MaxRows) { return $DataTable }
+        $preview = $DataTable.Clone()
+        $limit = [Math]::Min($MaxRows, $DataTable.Rows.Count)
+        for ($ri = 0; $ri -lt $limit; $ri++) {
+            $preview.ImportRow($DataTable.Rows[$ri])
+        }
+        return $preview
+    }
+    function New-RowFilterExpression {
+        param(
+            [Parameter(Mandatory)][System.Data.DataTable]$DataTable,
+            [string]$Text
+        )
+        if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
+        $escaped = $Text.Replace("'", "''")
+        $parts = New-Object System.Collections.Generic.List[string]
+        foreach ($col in $DataTable.Columns) {
+            if ($col.DataType -eq [byte[]]) { continue }
+            $name = $col.ColumnName.Replace("]", "]]")
+            $parts.Add("CONVERT([$name], 'System.String') LIKE '%$escaped%'") | Out-Null
+        }
+        if ($parts.Count -eq 0) { return "" }
+        return ($parts -join " OR ")
+    }
+    function Set-GridItemsSource {
+        param(
+            [Parameter(Mandatory)][System.Windows.Controls.DataGrid]$Grid,
+            [Parameter(Mandatory)][System.Data.DataTable]$DataTable,
+            [string]$FilterText
+        )
+        if ([string]::IsNullOrWhiteSpace($FilterText)) {
+            $Grid.ItemsSource = $DataTable.DefaultView
+            return
+        }
+        $view = New-Object System.Data.DataView($DataTable)
+        $filter = New-RowFilterExpression -DataTable $DataTable -Text $FilterText
+        if (-not [string]::IsNullOrWhiteSpace($filter)) {
+            $view.RowFilter = $filter
+        }
+        $Grid.ItemsSource = $view
+    }
+    function Update-ResultHeaderText {
+        param(
+            [Parameter(Mandatory)][System.Windows.Controls.TextBlock]$TitleBlock,
+            [string]$BaseTitle,
+            [int]$RowCount,
+            [int]$ShownColumns,
+            [int]$TotalColumns
+        )
+        if ($TotalColumns -gt 0 -and $ShownColumns -gt 0 -and $ShownColumns -lt $TotalColumns) {
+            $TitleBlock.Text = "$BaseTitle ($RowCount filas, $ShownColumns/$TotalColumns columnas)"
+        } elseif ($TotalColumns -gt 0) {
+            $TitleBlock.Text = "$BaseTitle ($RowCount filas, $TotalColumns columnas)"
+        } else {
+            $TitleBlock.Text = "$BaseTitle ($RowCount filas)"
+        }
+    }
+    function Adjust-GridColumnWidths {
+        param(
+            [Parameter(Mandatory)][System.Windows.Controls.DataGrid]$Grid,
+            [int]$MaxAutoColumns
+        )
+        try {
+            $min = 60
+            $max = 900
+            $pad = 14
+            $sampleMax = 60
+            $dv = $Grid.ItemsSource
+            $dt = $null
+            try { $dt = $dv.Table } catch { $dt = $null }
+            $dpi = 96.0
+            try {
+                $src = [System.Windows.PresentationSource]::FromVisual($Grid)
+                if ($src -and $src.CompositionTarget -and $src.CompositionTarget.TransformToDevice) {
+                    $dpi = 96.0 * $src.CompositionTarget.TransformToDevice.M11
+                }
+            } catch { $dpi = 96.0 }
+            $typeface = New-Object System.Windows.Media.Typeface($Grid.FontFamily, $Grid.FontStyle, $Grid.FontWeight, $Grid.FontStretch)
+            $fontSize = [double]$Grid.FontSize
+
+            foreach ($col in $Grid.Columns) {
+                $col.MinWidth = $min
+                $col.MaxWidth = $max
+            }
+
+            $Grid.Dispatcher.BeginInvoke([action] {
+                    try {
+                        $Grid.UpdateLayout()
+                        $colCount = $Grid.Columns.Count
+                        $limit = if ($MaxAutoColumns -gt 0) { [Math]::Min($MaxAutoColumns, $colCount) } else { $colCount }
+                        for ($ci = 0; $ci -lt $limit; $ci++) {
+                            $col = $Grid.Columns[$ci]
+                            $prop = $null
+                            try { $prop = $col.SortMemberPath } catch { $prop = $null }
+                            if ([string]::IsNullOrWhiteSpace($prop)) {
+                                try { $prop = $col.Header.ToString() } catch { $prop = $null }
+                            }
+
+                            $best = 0.0
+                            $hText = ""
+                            try { $hText = [string]$col.Header } catch { $hText = "" }
+
+                            if (-not [string]::IsNullOrEmpty($hText)) {
+                                $ftH = New-Object System.Windows.Media.FormattedText(
+                                    $hText,
+                                    [System.Globalization.CultureInfo]::CurrentCulture,
+                                    [System.Windows.FlowDirection]::LeftToRight,
+                                    $typeface,
+                                    $fontSize,
+                                    [System.Windows.Media.Brushes]::Black,
+                                    $dpi
+                                )
+                                $best = [Math]::Max($best, $ftH.WidthIncludingTrailingWhitespace)
+                            }
+
+                            $count = 0
+                            if ($dt -and $prop -and $dt.Columns.Contains($prop)) {
+                                foreach ($row in $dt.Rows) {
+                                    if ($count -ge $sampleMax) { break }
+                                    $val = $row[$prop]
+                                    $txt = $null
+
+                                    if ($null -eq $val -or $val -is [System.DBNull]) {
+                                        $txt = "NULL"
+                                    } else {
+                                        if ($val -is [datetime]) {
+                                            $txt = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff")
+                                        } else {
+                                            $txt = [string]$val
+                                        }
+                                    }
+
+                                    if (-not [string]::IsNullOrEmpty($txt)) {
+                                        $ft = New-Object System.Windows.Media.FormattedText(
+                                            $txt,
+                                            [System.Globalization.CultureInfo]::CurrentCulture,
+                                            [System.Windows.FlowDirection]::LeftToRight,
+                                            $typeface,
+                                            $fontSize,
+                                            [System.Windows.Media.Brushes]::Black,
+                                            $dpi
+                                        )
+                                        if ($ft.WidthIncludingTrailingWhitespace -gt $best) {
+                                            $best = $ft.WidthIncludingTrailingWhitespace
+                                        }
+                                    }
+                                    $count++
+                                }
+                            } else {
+                                $best = [Math]::Max($best, 120.0)
+                            }
+
+                            $w = [Math]::Ceiling($best + $pad)
+                            if ($w -lt $col.MinWidth) { $w = $col.MinWidth }
+                            if ($w -gt $col.MaxWidth) { $w = $col.MaxWidth }
+                            $col.Width = $w
+                        }
+                    } catch { }
+                }, [System.Windows.Threading.DispatcherPriority]::Loaded) | Out-Null
+        } catch { }
+    }
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] INICIO"
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] ResultSets Count: $($ResultSets.Count)"
-    $messagesTab = $null
-    $messagesTabIndex = -1
-    for ($ti = 0; $ti -lt $TabControl.Items.Count; $ti++) {
-        $item = $TabControl.Items[$ti]
-        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
-        $header = $null
-        if ($item.Header -is [string]) {
-            $header = $item.Header
-        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
-            foreach ($child in $item.Header.Children) {
-                if ($child -is [System.Windows.Controls.TextBlock]) {
-                    $header = $child.Text
-                    break
-                }
-            }
-        }
-        if ($header -and $header -match "Mensajes") {
-            $messagesTab = $item
-            $messagesTabIndex = $ti
-            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] ✓ Pestaña de Mensajes encontrada en índice $ti"
-            break
-        }
+    $resultsPanel = Get-ResultsStackPanel -TabControl $TabControl
+    if (-not $resultsPanel) {
+        Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] No se encontró panel de resultados."
+        return
     }
-    $itemsToRemove = New-Object System.Collections.ArrayList
-    foreach ($item in $TabControl.Items) {
-        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
-        $header = $null
-        if ($item.Header -is [string]) {
-            $header = $item.Header
-        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
-            foreach ($child in $item.Header.Children) {
-                if ($child -is [System.Windows.Controls.TextBlock]) {
-                    $header = $child.Text
-                    break
-                }
-            }
-        }
-        if (-not ($header -and $header -match "Mensajes")) {
-            [void]$itemsToRemove.Add($item)
-        }
-    }
-    foreach ($item in $itemsToRemove) {
-        $TabControl.Items.Remove($item)
-    }
-    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestañas removidas: $($itemsToRemove.Count)"
-    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestañas restantes: $($TabControl.Items.Count)"
+    $resultsPanel.Children.Clear()
     if (-not $ResultSets -or $ResultSets.Count -eq 0) {
-        $tab = New-Object System.Windows.Controls.TabItem
-
-        $headerPanel = New-Object System.Windows.Controls.StackPanel
-        $headerPanel.Orientation = "Horizontal"
-
-        $iconText = New-Object System.Windows.Controls.TextBlock
-        $iconText.Text = "📊"
-        $iconText.Margin = "0,0,6,0"
-
-        $titleText = New-Object System.Windows.Controls.TextBlock
-        $titleText.Text = "Resultado"
-        $titleText.VerticalAlignment = "Center"
-
-        [void]$headerPanel.Children.Add($iconText)
-        [void]$headerPanel.Children.Add($titleText)
-        $tab.Header = $headerPanel
-
         $text = New-Object System.Windows.Controls.TextBlock
         $text.Text = "La consulta no devolvió resultados."
         $text.Margin = "10"
-        $tab.Content = $text
-
-        # CRÍTICO: Insertar ANTES de Mensajes (índice 0)
-        if ($messagesTab) {
-            $TabControl.Items.Insert(0, $tab)
-            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña vacía insertada en índice 0 (antes de Mensajes)"
-        } else {
-            [void]$TabControl.Items.Add($tab)
-            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña vacía agregada (no hay Mensajes)"
-        }
-
-        # NO seleccionar - dejar que el código de mensajes seleccione Mensajes
+        $resultsPanel.Children.Add($text) | Out-Null
         if ($global:lblRowCount) { $global:lblRowCount.Text = "📊 0" }
-
         Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN (sin resultados)"
         return
     }
@@ -911,216 +1041,374 @@ function Show-MultipleResultSets {
     [void]$tNull.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::ForegroundProperty, $nullFg)))
     [void]$textStyleBase.Triggers.Add($tNull)
 
+    $maxAutoColumns = 12
+    $columnDisplayLimit = 60
+    $queue = New-Object System.Collections.Generic.Queue[object]
     $i = 0
     foreach ($rs in $ResultSets) {
         $i++
-        $tab = New-Object System.Windows.Controls.TabItem
         $rowCount = if ($rs.RowCount -ne $null) { $rs.RowCount } else { $rs.DataTable.Rows.Count }
+        $baseTitle = "Resultado $i"
 
-        $headerPanel = New-Object System.Windows.Controls.StackPanel
-        $headerPanel.Orientation = "Horizontal"
+        $card = New-Object System.Windows.Controls.Border
+        $card.BorderBrush = $gridLine
+        $card.BorderThickness = "1"
+        $card.CornerRadius = "6"
+        $card.Background = $gridBg
+        $card.Margin = "0,0,0,10"
 
-        $iconText = New-Object System.Windows.Controls.TextBlock
-        $iconText.Text = "📊"
-        $iconText.Margin = "0,0,6,0"
+        $cardPanel = New-Object System.Windows.Controls.StackPanel
+        $cardPanel.Orientation = "Vertical"
+        $cardPanel.Margin = "6"
+        $card.Child = $cardPanel
 
-        $titleText = New-Object System.Windows.Controls.TextBlock
-        $titleText.Text = "Resultado $i ($rowCount filas)"
-        $titleText.VerticalAlignment = "Center"
+        $headerGrid = New-Object System.Windows.Controls.Grid
+        $headerGrid.Margin = "0,0,0,6"
+        [void]$headerGrid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = "Auto" }))
+        [void]$headerGrid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition -Property @{ Width = "*" }))
 
-        [void]$headerPanel.Children.Add($iconText)
-        [void]$headerPanel.Children.Add($titleText)
-        $tab.Header = $headerPanel
+        $titleBlock = New-Object System.Windows.Controls.TextBlock
+        $titleBlock.FontWeight = "SemiBold"
+        $titleBlock.FontSize = 12
+        $titleBlock.Margin = "0,0,10,0"
+        $titleBlock.Foreground = $gridFg
+        [System.Windows.Controls.Grid]::SetColumn($titleBlock, 0)
+        Update-ResultHeaderText -TitleBlock $titleBlock -BaseTitle $baseTitle -RowCount $rowCount -ShownColumns 0 -TotalColumns $rs.DataTable.Columns.Count
+        $headerGrid.Children.Add($titleBlock) | Out-Null
 
-        $dg = New-Object System.Windows.Controls.DataGrid
-        $dg.AutoGenerateColumns = $true
-        $dg.ItemsSource = $rs.DataTable.DefaultView
-        $dg.IsReadOnly = $true
-        $dg.CanUserAddRows = $false
-        $dg.CanUserDeleteRows = $false
-        $dg.SelectionMode = "Extended"
-        $dg.HeadersVisibility = "Column"
-        $dg.GridLinesVisibility = "All"
-        $dg.HorizontalGridLinesBrush = $gridLine
-        $dg.VerticalGridLinesBrush = $gridLine
-        $dg.Background = $gridBg
-        $dg.Foreground = $gridFg
-        $dg.RowBackground = $gridBg
-        $dg.AlternatingRowBackground = $rowAlt
-        $dg.BorderBrush = $gridLine
-        $dg.BorderThickness = "1"
-        $dg.RowHeight = 26
-        $dg.ColumnHeaderHeight = 28
-        $dg.HorizontalScrollBarVisibility = "Auto"
-        $dg.VerticalScrollBarVisibility = "Auto"
-        $dg.CanUserResizeColumns = $true
-        $dg.CanUserSortColumns = $true
-        $dg.AlternationCount = 2
-        $dg.ColumnHeaderStyle = $hdrStyle
-        $dg.CellStyle = $cellStyle
+        $controlsPanel = New-Object System.Windows.Controls.StackPanel
+        $controlsPanel.Orientation = "Horizontal"
+        $controlsPanel.HorizontalAlignment = "Right"
+        [System.Windows.Controls.Grid]::SetColumn($controlsPanel, 1)
 
-        $dg.Add_AutoGeneratingColumn({
-                param($s, $e)
-                $prop = $e.PropertyName
-                $hdr = $e.Column.Header
+        $labelShow = New-Object System.Windows.Controls.TextBlock
+        $labelShow.Text = "Mostrar:"
+        $labelShow.Margin = "0,0,4,0"
+        $labelShow.VerticalAlignment = "Center"
+        $controlsPanel.Children.Add($labelShow) | Out-Null
 
-                if ($e.PropertyType -eq [datetime]) {
-                    $col = New-Object System.Windows.Controls.DataGridTextColumn
-                    $col.Header = $hdr
-                    $b = New-Object System.Windows.Data.Binding($prop)
-                    $b.StringFormat = "yyyy-MM-dd HH:mm:ss.fff"
-                    $b.TargetNullValue = "NULL"
-                    $col.Binding = $b
-                    $ts = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
-                    $ts.BasedOn = $textStyleBase
-                    $col.ElementStyle = $ts
-                    $e.Column = $col
-                    return
-                }
-                if ($e.PropertyType -eq [bool]) {
-                    if ($e.Column -is [System.Windows.Controls.DataGridCheckBoxColumn]) {
-                        $e.Column.IsThreeState = $true
-                        $cbBind = $e.Column.Binding
-                        if ($cbBind -is [System.Windows.Data.Binding]) { $cbBind.TargetNullValue = $null }
-                    }
-                    return
-                }
+        $cmbShow = New-Object System.Windows.Controls.ComboBox
+        $cmbShow.Width = 90
+        $cmbShow.Margin = "0,0,8,0"
+        $cmbShow.Items.Add("100") | Out-Null
+        $cmbShow.Items.Add("1000") | Out-Null
+        $cmbShow.Items.Add("Todo") | Out-Null
+        $cmbShow.SelectedIndex = 0
+        $controlsPanel.Children.Add($cmbShow) | Out-Null
 
-                if ($e.PropertyType -in @([int], [long], [decimal], [double], [single])) {
-                    if ($e.Column -is [System.Windows.Controls.DataGridTextColumn]) {
-                        $b = $e.Column.Binding
-                        if (-not ($b -is [System.Windows.Data.Binding])) { $b = New-Object System.Windows.Data.Binding($prop) }
-                        $b.TargetNullValue = "NULL"
-                        $e.Column.Binding = $b
-                        $ts = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
-                        $ts.BasedOn = $textStyleBase
-                        [void]$ts.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::TextAlignmentProperty, [System.Windows.TextAlignment]::Right)))
-                        $e.Column.ElementStyle = $ts
-                    }
-                    return
-                }
-                if ($e.Column -is [System.Windows.Controls.DataGridTextColumn]) {
-                    $b = $e.Column.Binding
-                    if (-not ($b -is [System.Windows.Data.Binding])) { $b = New-Object System.Windows.Data.Binding($prop) }
-                    $b.TargetNullValue = "NULL"
-                    $e.Column.Binding = $b
-                    $ts = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
-                    $ts.BasedOn = $textStyleBase
-                    $e.Column.ElementStyle = $ts
-                }
-            })
-        $dg.Add_AutoGeneratedColumns({
-                param($s, $e)
-                try {
-                    $min = 60
-                    $max = 900
-                    $pad = 14
-                    $sampleMax = 60
-                    $dv = $s.ItemsSource
-                    $dt = $null
-                    try { $dt = $dv.Table } catch { $dt = $null }
-                    $dpi = 96.0
-                    try {
-                        $src = [System.Windows.PresentationSource]::FromVisual($s)
-                        if ($src -and $src.CompositionTarget -and $src.CompositionTarget.TransformToDevice) {
-                            $dpi = 96.0 * $src.CompositionTarget.TransformToDevice.M11
-                        }
-                    } catch { $dpi = 96.0 }
+        $labelFreeze = New-Object System.Windows.Controls.TextBlock
+        $labelFreeze.Text = "Freeze:"
+        $labelFreeze.Margin = "0,0,4,0"
+        $labelFreeze.VerticalAlignment = "Center"
+        $controlsPanel.Children.Add($labelFreeze) | Out-Null
 
-                    $typeface = New-Object System.Windows.Media.Typeface($s.FontFamily, $s.FontStyle, $s.FontWeight, $s.FontStretch)
-                    $fontSize = [double]$s.FontSize
+        $cmbFreeze = New-Object System.Windows.Controls.ComboBox
+        $cmbFreeze.Width = 60
+        $cmbFreeze.Margin = "0,0,8,0"
+        $cmbFreeze.Items.Add("0") | Out-Null
+        $cmbFreeze.Items.Add("1") | Out-Null
+        $cmbFreeze.Items.Add("2") | Out-Null
+        $cmbFreeze.Items.Add("3") | Out-Null
+        $cmbFreeze.SelectedIndex = 0
+        $controlsPanel.Children.Add($cmbFreeze) | Out-Null
 
-                    foreach ($col in $s.Columns) {
-                        $col.MinWidth = $min
-                        $col.MaxWidth = $max
-                    }
+        $chkHeaders = New-Object System.Windows.Controls.CheckBox
+        $chkHeaders.Content = "Copiar con encabezados"
+        $chkHeaders.Margin = "0,0,8,0"
+        $chkHeaders.IsChecked = $true
+        $controlsPanel.Children.Add($chkHeaders) | Out-Null
 
-                    $s.Dispatcher.BeginInvoke([action] {
-                            try {
-                                $s.UpdateLayout()
-                                foreach ($col in $s.Columns) {
-                                    $prop = $null
-                                    try { $prop = $col.SortMemberPath } catch { $prop = $null }
-                                    if ([string]::IsNullOrWhiteSpace($prop)) {
-                                        try { $prop = $col.Header.ToString() } catch { $prop = $null }
-                                    }
+        $btnAutosize = New-Object System.Windows.Controls.Button
+        $btnAutosize.Content = "Ajustar columnas"
+        $btnAutosize.Margin = "0,0,8,0"
+        $btnAutosize.Padding = "8,2"
+        $controlsPanel.Children.Add($btnAutosize) | Out-Null
 
-                                    $best = 0.0
-                                    $hText = ""
-                                    try { $hText = [string]$col.Header } catch { $hText = "" }
+        $btnShowAllCols = New-Object System.Windows.Controls.Button
+        $btnShowAllCols.Content = "Mostrar todas columnas"
+        $btnShowAllCols.Margin = "0,0,8,0"
+        $btnShowAllCols.Padding = "8,2"
+        $btnShowAllCols.Visibility = if ($rs.DataTable.Columns.Count -gt $columnDisplayLimit) { "Visible" } else { "Collapsed" }
+        $controlsPanel.Children.Add($btnShowAllCols) | Out-Null
 
-                                    if (-not [string]::IsNullOrEmpty($hText)) {
-                                        $ftH = New-Object System.Windows.Media.FormattedText(
-                                            $hText,
-                                            [System.Globalization.CultureInfo]::CurrentCulture,
-                                            [System.Windows.FlowDirection]::LeftToRight,
-                                            $typeface,
-                                            $fontSize,
-                                            [System.Windows.Media.Brushes]::Black,
-                                            $dpi
-                                        )
-                                        $best = [Math]::Max($best, $ftH.WidthIncludingTrailingWhitespace)
-                                    }
+        $labelSearch = New-Object System.Windows.Controls.TextBlock
+        $labelSearch.Text = "Buscar:"
+        $labelSearch.Margin = "0,0,4,0"
+        $labelSearch.VerticalAlignment = "Center"
+        $controlsPanel.Children.Add($labelSearch) | Out-Null
 
-                                    $count = 0
-                                    if ($dt -and $prop -and $dt.Columns.Contains($prop)) {
-                                        foreach ($row in $dt.Rows) {
-                                            if ($count -ge $sampleMax) { break }
-                                            $val = $row[$prop]
-                                            $txt = $null
+        $txtSearch = New-Object System.Windows.Controls.TextBox
+        $txtSearch.Width = 160
+        $txtSearch.Margin = "0,0,4,0"
+        $controlsPanel.Children.Add($txtSearch) | Out-Null
 
-                                            if ($null -eq $val -or $val -is [System.DBNull]) {
-                                                $txt = "NULL"
-                                            } else {
-                                                if ($val -is [datetime]) {
-                                                    $txt = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff")
-                                                } else {
-                                                    $txt = [string]$val
-                                                }
-                                            }
+        $btnSearch = New-Object System.Windows.Controls.Button
+        $btnSearch.Content = "Buscar"
+        $btnSearch.Margin = "0,0,4,0"
+        $btnSearch.Padding = "6,2"
+        $controlsPanel.Children.Add($btnSearch) | Out-Null
 
-                                            if (-not [string]::IsNullOrEmpty($txt)) {
-                                                $ft = New-Object System.Windows.Media.FormattedText(
-                                                    $txt,
-                                                    [System.Globalization.CultureInfo]::CurrentCulture,
-                                                    [System.Windows.FlowDirection]::LeftToRight,
-                                                    $typeface,
-                                                    $fontSize,
-                                                    [System.Windows.Media.Brushes]::Black,
-                                                    $dpi
-                                                )
-                                                if ($ft.WidthIncludingTrailingWhitespace -gt $best) {
-                                                    $best = $ft.WidthIncludingTrailingWhitespace
-                                                }
-                                            }
-                                            $count++
-                                        }
-                                    } else {
-                                        $best = [Math]::Max($best, 120.0)
-                                    }
+        $btnClearSearch = New-Object System.Windows.Controls.Button
+        $btnClearSearch.Content = "Limpiar"
+        $btnClearSearch.Padding = "6,2"
+        $controlsPanel.Children.Add($btnClearSearch) | Out-Null
 
-                                    $w = [Math]::Ceiling($best + $pad)
-                                    if ($w -lt $col.MinWidth) { $w = $col.MinWidth }
-                                    if ($w -gt $col.MaxWidth) { $w = $col.MaxWidth }
-                                    $col.Width = $w
-                                }
-                            } catch { }
-                        }, [System.Windows.Threading.DispatcherPriority]::Loaded) | Out-Null
-                } catch { }
-            })
-        $tab.Content = $dg
-        if ($messagesTab) {
-            $TabControl.Items.Insert($i - 1, $tab)
-            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i insertada en índice $($i-1) (antes de Mensajes)"
-        } else {
-            [void]$TabControl.Items.Add($tab)
-            Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña $i agregada (no hay Mensajes)"
+        $headerGrid.Children.Add($controlsPanel) | Out-Null
+        $cardPanel.Children.Add($headerGrid) | Out-Null
+
+        $contentHost = New-Object System.Windows.Controls.ContentControl
+        $placeholder = New-Object System.Windows.Controls.TextBlock
+        $placeholder.Text = "Cargando resultados..."
+        $placeholder.Margin = "6"
+        $placeholder.Foreground = $gridFg
+        $contentHost.Content = $placeholder
+        $cardPanel.Children.Add($contentHost) | Out-Null
+
+        $card.Tag = [pscustomobject]@{
+            ResultSet          = $rs
+            BaseTitle          = $baseTitle
+            RowCount           = $rowCount
+            TitleBlock         = $titleBlock
+            ContentHost        = $contentHost
+            ShowCombo          = $cmbShow
+            FreezeCombo        = $cmbFreeze
+            CopyHeadersCheck   = $chkHeaders
+            AutoSizeButton     = $btnAutosize
+            ShowAllColsButton  = $btnShowAllCols
+            SearchBox          = $txtSearch
+            SearchButton       = $btnSearch
+            ClearSearchButton  = $btnClearSearch
+            PreviewCache       = @{}
+            FilterText         = ""
+            ColumnLimitEnabled = $true
         }
 
-        Write-Host "`tPestaña $i creada con $rowCount filas" -ForegroundColor Green
+        $resultsPanel.Children.Add($card) | Out-Null
+        $queue.Enqueue($card) | Out-Null
+
+        Write-Host "`tCard $i preparada con $rowCount filas" -ForegroundColor Green
     }
 
-    # ========== PASO 6: Actualizar contador y seleccionar pestaña ==========
+    if ($script:resultsRenderTimer) {
+        try { $script:resultsRenderTimer.Stop() } catch {}
+        $script:resultsRenderTimer = $null
+    }
+    $script:resultsRenderTimer = [System.Windows.Threading.DispatcherTimer]::new()
+    $script:resultsRenderTimer.Interval = [TimeSpan]::FromMilliseconds(60)
+    $script:resultsRenderTimer.Add_Tick({
+            try {
+                if ($queue.Count -eq 0) {
+                    $script:resultsRenderTimer.Stop()
+                    return
+                }
+                $card = $queue.Dequeue()
+                if (-not $card) { return }
+                $meta = $card.Tag
+                $rs = $meta.ResultSet
+                $dt = $rs.DataTable
+
+                $dg = New-Object System.Windows.Controls.DataGrid
+                $dg.AutoGenerateColumns = $true
+                $dg.IsReadOnly = $true
+                $dg.CanUserAddRows = $false
+                $dg.CanUserDeleteRows = $false
+                $dg.SelectionMode = "Extended"
+                $dg.HeadersVisibility = "Column"
+                $dg.GridLinesVisibility = "All"
+                $dg.HorizontalGridLinesBrush = $gridLine
+                $dg.VerticalGridLinesBrush = $gridLine
+                $dg.Background = $gridBg
+                $dg.Foreground = $gridFg
+                $dg.RowBackground = $gridBg
+                $dg.AlternatingRowBackground = $rowAlt
+                $dg.BorderBrush = $gridLine
+                $dg.BorderThickness = "1"
+                $dg.RowHeight = 26
+                $dg.ColumnHeaderHeight = 28
+                $dg.HorizontalScrollBarVisibility = "Auto"
+                $dg.VerticalScrollBarVisibility = "Auto"
+                $dg.CanUserResizeColumns = $true
+                $dg.CanUserSortColumns = $true
+                $dg.AlternationCount = 2
+                $dg.ColumnHeaderStyle = $hdrStyle
+                $dg.CellStyle = $cellStyle
+                $dg.ClipboardCopyMode = [System.Windows.Controls.DataGridClipboardCopyMode]::IncludeHeader
+                $dg.EnableRowVirtualization = $true
+                $dg.EnableColumnVirtualization = $true
+                [System.Windows.Controls.VirtualizingPanel]::SetIsVirtualizing($dg, $true)
+                [System.Windows.Controls.VirtualizingPanel]::SetVirtualizationMode($dg, [System.Windows.Controls.VirtualizationMode]::Recycling)
+                [System.Windows.Controls.ScrollViewer]::SetCanContentScroll($dg, $true)
+
+                $dg.Tag = [pscustomobject]@{
+                    ColumnIndex        = 0
+                    ColumnDisplayLimit = $columnDisplayLimit
+                    LimitColumns       = $meta.ColumnLimitEnabled
+                    MaxAutoColumns     = $maxAutoColumns
+                    TitleBlock         = $meta.TitleBlock
+                    BaseTitle          = $meta.BaseTitle
+                    RowCount           = $meta.RowCount
+                    TotalColumns       = $dt.Columns.Count
+                }
+
+                $dg.Add_AutoGeneratingColumn({
+                        param($s, $e)
+                        $tag = $s.Tag
+                        if ($tag.LimitColumns -and $tag.ColumnIndex -ge $tag.ColumnDisplayLimit) {
+                            $e.Cancel = $true
+                            return
+                        }
+                        $tag.ColumnIndex++
+                        $prop = $e.PropertyName
+                        $hdr = $e.Column.Header
+
+                        if ($e.PropertyType -eq [datetime]) {
+                            $col = New-Object System.Windows.Controls.DataGridTextColumn
+                            $col.Header = $hdr
+                            $b = New-Object System.Windows.Data.Binding($prop)
+                            $b.StringFormat = "yyyy-MM-dd HH:mm:ss.fff"
+                            $b.TargetNullValue = "NULL"
+                            $col.Binding = $b
+                            $ts = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
+                            $ts.BasedOn = $textStyleBase
+                            $col.ElementStyle = $ts
+                            $e.Column = $col
+                            return
+                        }
+                        if ($e.PropertyType -eq [bool]) {
+                            if ($e.Column -is [System.Windows.Controls.DataGridCheckBoxColumn]) {
+                                $e.Column.IsThreeState = $true
+                                $cbBind = $e.Column.Binding
+                                if ($cbBind -is [System.Windows.Data.Binding]) { $cbBind.TargetNullValue = $null }
+                            }
+                            return
+                        }
+
+                        if ($e.PropertyType -in @([int], [long], [decimal], [double], [single])) {
+                            if ($e.Column -is [System.Windows.Controls.DataGridTextColumn]) {
+                                $b = $e.Column.Binding
+                                if (-not ($b -is [System.Windows.Data.Binding])) { $b = New-Object System.Windows.Data.Binding($prop) }
+                                $b.TargetNullValue = "NULL"
+                                $e.Column.Binding = $b
+                                $ts = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
+                                $ts.BasedOn = $textStyleBase
+                                [void]$ts.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.TextBlock]::TextAlignmentProperty, [System.Windows.TextAlignment]::Right)))
+                                $e.Column.ElementStyle = $ts
+                            }
+                            return
+                        }
+                        if ($e.Column -is [System.Windows.Controls.DataGridTextColumn]) {
+                            $b = $e.Column.Binding
+                            if (-not ($b -is [System.Windows.Data.Binding])) { $b = New-Object System.Windows.Data.Binding($prop) }
+                            $b.TargetNullValue = "NULL"
+                            $e.Column.Binding = $b
+                            $ts = New-Object System.Windows.Style([System.Windows.Controls.TextBlock])
+                            $ts.BasedOn = $textStyleBase
+                            $e.Column.ElementStyle = $ts
+                        }
+                    })
+                $dg.Add_AutoGeneratedColumns({
+                        param($s, $e)
+                        $tag = $s.Tag
+                        Update-ResultHeaderText -TitleBlock $tag.TitleBlock -BaseTitle $tag.BaseTitle -RowCount $tag.RowCount -ShownColumns $s.Columns.Count -TotalColumns $tag.TotalColumns
+                        Adjust-GridColumnWidths -Grid $s -MaxAutoColumns $tag.MaxAutoColumns
+                    })
+
+                $meta.ContentHost.Content = $dg
+                $meta.Grid = $dg
+
+                $meta.ShowCombo.Add_SelectionChanged({
+                        param($sender, $args)
+                        $choice = [string]$sender.SelectedItem
+                        $maxRows = 0
+                        if ($choice -eq "100") { $maxRows = 100 }
+                        elseif ($choice -eq "1000") { $maxRows = 1000 }
+                        else { $maxRows = 0 }
+                        $cacheKey = if ($maxRows -gt 0) { $maxRows.ToString() } else { "all" }
+                        if (-not $meta.PreviewCache.ContainsKey($cacheKey)) {
+                            $meta.PreviewCache[$cacheKey] = (New-PreviewTable -DataTable $dt -MaxRows $maxRows)
+                        }
+                        $table = $meta.PreviewCache[$cacheKey]
+                        Set-GridItemsSource -Grid $meta.Grid -DataTable $table -FilterText $meta.FilterText
+                        Update-ResultHeaderText -TitleBlock $meta.TitleBlock -BaseTitle $meta.BaseTitle -RowCount $meta.RowCount -ShownColumns $meta.Grid.Columns.Count -TotalColumns $dt.Columns.Count
+                    })
+
+                $meta.FreezeCombo.Add_SelectionChanged({
+                        param($sender, $args)
+                        if (-not $meta.Grid) { return }
+                        $value = 0
+                        if ([int]::TryParse([string]$sender.SelectedItem, [ref]$value)) {
+                            $meta.Grid.FrozenColumnCount = $value
+                        }
+                    })
+
+                $meta.CopyHeadersCheck.Add_Click({
+                        if (-not $meta.Grid) { return }
+                        if ($meta.CopyHeadersCheck.IsChecked) {
+                            $meta.Grid.ClipboardCopyMode = [System.Windows.Controls.DataGridClipboardCopyMode]::IncludeHeader
+                        } else {
+                            $meta.Grid.ClipboardCopyMode = [System.Windows.Controls.DataGridClipboardCopyMode]::ExcludeHeader
+                        }
+                    })
+
+                $meta.AutoSizeButton.Add_Click({
+                        if (-not $meta.Grid) { return }
+                        Adjust-GridColumnWidths -Grid $meta.Grid -MaxAutoColumns $maxAutoColumns
+                    })
+
+                $meta.ShowAllColsButton.Add_Click({
+                        if (-not $meta.Grid) { return }
+                        $meta.ColumnLimitEnabled = $false
+                        $meta.Grid.Columns.Clear()
+                        $meta.Grid.AutoGenerateColumns = $true
+                        $meta.Grid.Tag.ColumnIndex = 0
+                        $meta.Grid.Tag.LimitColumns = $false
+                        $currentView = $meta.Grid.ItemsSource
+                        $meta.Grid.ItemsSource = $null
+                        $meta.Grid.ItemsSource = $currentView
+                        $meta.ShowAllColsButton.IsEnabled = $false
+                        $meta.ShowAllColsButton.Content = "Columnas completas"
+                    })
+
+                $applySearch = {
+                    param($searchText)
+                    $meta.FilterText = $searchText
+                    $currentView = $meta.Grid.ItemsSource
+                    $currentTable = $null
+                    if ($currentView -is [System.Data.DataView]) {
+                        $currentTable = $currentView.Table
+                    } elseif ($currentView -is [System.Data.DataTable]) {
+                        $currentTable = $currentView
+                    } else {
+                        $currentTable = $dt
+                    }
+                    Set-GridItemsSource -Grid $meta.Grid -DataTable $currentTable -FilterText $meta.FilterText
+                }
+
+                $meta.SearchButton.Add_Click({
+                        $applySearch.Invoke($meta.SearchBox.Text)
+                    })
+                $meta.ClearSearchButton.Add_Click({
+                        $meta.SearchBox.Text = ""
+                        $applySearch.Invoke("")
+                    })
+                $meta.SearchBox.Add_KeyDown({
+                        param($sender, $args)
+                        if ($args.Key -eq [System.Windows.Input.Key]::Enter) {
+                            $applySearch.Invoke($sender.Text)
+                            $args.Handled = $true
+                        }
+                    })
+
+                $meta.PreviewCache["100"] = (New-PreviewTable -DataTable $dt -MaxRows 100)
+                Set-GridItemsSource -Grid $meta.Grid -DataTable $meta.PreviewCache["100"] -FilterText ""
+
+                Update-ResultHeaderText -TitleBlock $meta.TitleBlock -BaseTitle $meta.BaseTitle -RowCount $meta.RowCount -ShownColumns $meta.Grid.Columns.Count -TotalColumns $dt.Columns.Count
+            } catch {
+                Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Error creando grid: $_"
+            }
+        })
+    $script:resultsRenderTimer.Start()
+
     if ($global:lblRowCount) {
         $totalRows = ($ResultSets | Measure-Object -Property RowCount -Sum).Sum
         if ($ResultSets.Count -eq 1) {
@@ -1130,11 +1418,7 @@ function Show-MultipleResultSets {
         }
     }
 
-    # Seleccionar primera pestaña de resultados (NO Mensajes)
     $TabControl.SelectedIndex = 0
-
-    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestañas totales: $($TabControl.Items.Count)"
-    Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña seleccionada: índice $($TabControl.SelectedIndex)"
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN"
 }
 
@@ -1596,26 +1880,56 @@ function Get-ResultTabHeaderText {
     if ($null -ne $header) { return [string]$header }
     return "Resultado"
 }
+function Get-ResultsStackPanel {
+    [CmdletBinding()]
+    param([System.Windows.Controls.TabControl]$TabControl)
+    if ($global:spResults -and $global:spResults -is [System.Windows.Controls.StackPanel]) {
+        return $global:spResults
+    }
+    if (-not $TabControl) { return $null }
+    $panel = $null
+    try { $panel = $TabControl.FindName("spResults") } catch { $panel = $null }
+    if ($panel -and $panel -is [System.Windows.Controls.StackPanel]) { return $panel }
+    foreach ($item in $TabControl.Items) {
+        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
+        $header = $null
+        if ($item.Header -is [string]) {
+            $header = $item.Header
+        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
+            foreach ($child in $item.Header.Children) {
+                if ($child -is [System.Windows.Controls.TextBlock]) {
+                    $header = $child.Text
+                    break
+                }
+            }
+        }
+        if (-not ($header -and $header -match "Resultados")) { continue }
+        $content = $item.Content
+        if ($content -is [System.Windows.Controls.ScrollViewer]) {
+            $inner = $content.Content
+            if ($inner -is [System.Windows.Controls.StackPanel]) { return $inner }
+        } elseif ($content -is [System.Windows.Controls.StackPanel]) {
+            return $content
+        }
+    }
+    return $null
+}
 function Get-ExportableResultTabs {
     param([System.Windows.Controls.TabControl]$TabControl)
     $exportable = @()
     if (-not $TabControl) { return $exportable }
-    foreach ($item in $TabControl.Items) {
-        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
-        $dg = $item.Content
-        if ($dg -isnot [System.Windows.Controls.DataGrid]) { continue }
-        $dt = $null
-        if ($dg.ItemsSource -is [System.Data.DataView]) {
-            $dt = $dg.ItemsSource.Table
-        } elseif ($dg.ItemsSource -is [System.Data.DataTable]) {
-            $dt = $dg.ItemsSource
-        } else {
-            try { $dt = $dg.ItemsSource.Table } catch { $dt = $null }
-        }
+    $panel = Get-ResultsStackPanel -TabControl $TabControl
+    if (-not $panel) { return $exportable }
+    $index = 0
+    foreach ($child in $panel.Children) {
+        $index++
+        $card = $child
+        if (-not ($card -and $card.Tag -and $card.Tag.ResultSet)) { continue }
+        $dt = $card.Tag.ResultSet.DataTable
         if (-not $dt -or -not $dt.Rows -or $dt.Rows.Count -lt 1) { continue }
-        $headerText = Get-ResultTabHeaderText -TabItem $item
+        $headerText = if ($card.Tag.BaseTitle) { $card.Tag.BaseTitle } else { "Resultado $index" }
         $exportable += [pscustomobject]@{
-            Tab          = $item
+            Tab          = $card
             DataTable    = $dt
             RowCount     = $dt.Rows.Count
             Display      = "$headerText ($($dt.Rows.Count) filas)"
@@ -1669,36 +1983,10 @@ function Show-ErrorResultTab {
         [Parameter(Mandatory)][string]$Message,
         [Parameter()][switch]$AddWithoutClear
     )
-    if (-not $AddWithoutClear) {
-        try {
-            $itemsToRemove = New-Object System.Collections.ArrayList
-            foreach ($item in $ResultsTabControl.Items) {
-                if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
-                $header = $null
-                if ($item.Header -is [string]) {
-                    $header = $item.Header
-                } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
-                    foreach ($child in $item.Header.Children) {
-                        if ($child -is [System.Windows.Controls.TextBlock]) {
-                            $header = $child.Text
-                            break
-                        }
-                    }
-                }
-                if (-not ($header -and $header -match "Mensajes")) {
-                    [void]$itemsToRemove.Add($item)
-                }
-            }
-            foreach ($item in $itemsToRemove) {
-                $ResultsTabControl.Items.Remove($item)
-            }
-        } catch {}
+    $panel = Get-ResultsStackPanel -TabControl $ResultsTabControl
+    if ($panel -and -not $AddWithoutClear) {
+        try { $panel.Children.Clear() } catch {}
     }
-    $tab = New-Object System.Windows.Controls.TabItem
-    $ht = New-Object System.Windows.Controls.TextBlock
-    $ht.Text = "Error"
-    $ht.VerticalAlignment = "Center"
-    $tab.Header = $ht
     $text = New-Object System.Windows.Controls.TextBox
     $text.Text = $Message
     $text.Margin = "10"
@@ -1706,34 +1994,10 @@ function Show-ErrorResultTab {
     $text.TextWrapping = "Wrap"
     $text.VerticalScrollBarVisibility = "Auto"
     $text.HorizontalScrollBarVisibility = "Auto"
-    $tab.Content = $text
-    $messagesTabIndex = -1
-    for ($i = 0; $i -lt $ResultsTabControl.Items.Count; $i++) {
-        $item = $ResultsTabControl.Items[$i]
-        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
-        $header = $null
-        if ($item.Header -is [string]) {
-            $header = $item.Header
-        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
-            foreach ($child in $item.Header.Children) {
-                if ($child -is [System.Windows.Controls.TextBlock]) {
-                    $header = $child.Text
-                    break
-                }
-            }
-        }
-        if ($header -and $header -match "Mensajes") {
-            $messagesTabIndex = $i
-            break
-        }
-    }
-    if ($messagesTabIndex -ge 0) {
-        $ResultsTabControl.Items.Insert($messagesTabIndex, $tab)
-    } else {
-        [void]$ResultsTabControl.Items.Add($tab)
-    }
-    if (-not $AddWithoutClear) {
-        $ResultsTabControl.SelectedIndex = 0
+    if ($panel) {
+        $panel.Children.Add($text) | Out-Null
+        if (-not $AddWithoutClear) { $ResultsTabControl.SelectedIndex = 0 }
+        return
     }
 }
 function Disconnect-DbCore {
@@ -1831,6 +2095,7 @@ function Disconnect-DbCore {
     if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $false }
     if ($Ctx.sqlEditor1) { $Ctx.sqlEditor1.IsEnabled = $false }
     if ($Ctx.dgResults) { $Ctx.dgResults.IsEnabled = $false }
+    if ($Ctx.spResults) { $Ctx.spResults.IsEnabled = $false }
     if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $false }
 
     if ($Ctx.txtMessages) {
@@ -1919,6 +2184,7 @@ function Connect-DbCore {
     if ($Ctx.tcResults) { $Ctx.tcResults.IsEnabled = $true }
     if ($Ctx.sqlEditor1) { $Ctx.sqlEditor1.IsEnabled = $true }
     if ($Ctx.dgResults) { $Ctx.dgResults.IsEnabled = $true }
+    if ($Ctx.spResults) { $Ctx.spResults.IsEnabled = $true }
     if ($Ctx.txtMessages) { $Ctx.txtMessages.IsEnabled = $true }
 
     if ($Ctx.sqlEditor1) { try { $Ctx.sqlEditor1.Focus() | Out-Null } catch {} }
@@ -2181,6 +2447,7 @@ function Get-DbUiContext {
         tcResults              = $global:tcResults
         sqlEditor1             = $global:sqlEditor1
         dgResults              = $global:dgResults
+        spResults              = $global:spResults
         txtMessages            = $global:txtMessages
         lblRowCount            = $global:lblRowCount
         lblExecutionTimer      = $global:lblExecutionTimer
@@ -2230,5 +2497,5 @@ Export-ModuleMember -Function @(
     'Show-MultipleResultSets', 'Export-ResultSetToCsv', 'Export-ResultSetToDelimitedText',
     'Get-TextPointerAtOffset',
     'Get-PredefinedQueries', 'Initialize-PredefinedQueries', 'Remove-SqlComments', 'Set-WpfSqlHighlighting', 'Get-TextPointerFromOffset', 'Get-ResultTabHeaderText',
-    'Get-ExportableResultTabs', 'Write-DataTableConsole', 'Show-ErrorResultTab', 'Get-UseDatabaseFromQuery', 'Disconnect-DbCore', 'Connect-DbCore', 'Export-ResultsCore', 'Get-DbNameFromComboSelection'
+    'Get-ResultsStackPanel', 'Get-ExportableResultTabs', 'Write-DataTableConsole', 'Show-ErrorResultTab', 'Get-UseDatabaseFromQuery', 'Disconnect-DbCore', 'Connect-DbCore', 'Export-ResultsCore', 'Get-DbNameFromComboSelection'
 )

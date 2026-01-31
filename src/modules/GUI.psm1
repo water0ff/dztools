@@ -1165,11 +1165,12 @@ function Get-MainWindowXaml {
                                     </Style>
                                 </TabControl.ItemContainerStyle>
                                 <TabItem Header="📊 Resultados">
-                                    <DataGrid Name="dgResults"
-                                            IsReadOnly="True"
-                                            AutoGenerateColumns="True"
-                                            CanUserAddRows="False"
-                                            CanUserDeleteRows="False"/>
+                                    <ScrollViewer Name="svResults"
+                                                VerticalScrollBarVisibility="Auto"
+                                                HorizontalScrollBarVisibility="Disabled"
+                                                Padding="6">
+                                        <StackPanel Name="spResults" Orientation="Vertical"/>
+                                    </ScrollViewer>
                                 </TabItem>
                                 <TabItem Header="💬 Mensajes">
                                     <TextBox Name="txtMessages"

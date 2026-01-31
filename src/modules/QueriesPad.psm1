@@ -388,7 +388,6 @@ function Clear-ResultTabsKeepMessages {
     )
     $messagesTabIndex = -1
     if (-not $TabControl) { return $messagesTabIndex }
-    $itemsToRemove = New-Object System.Collections.ArrayList
     for ($i = 0; $i -lt $TabControl.Items.Count; $i++) {
         $item = $TabControl.Items[$i]
         if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
@@ -405,12 +404,14 @@ function Clear-ResultTabsKeepMessages {
         }
         if ($header -and $header -match "Mensajes") {
             if ($messagesTabIndex -lt 0) { $messagesTabIndex = $i }
-            continue
         }
-        [void]$itemsToRemove.Add($item)
     }
-    foreach ($item in $itemsToRemove) {
-        $TabControl.Items.Remove($item)
+    $panel = $null
+    if (Get-Command Get-ResultsStackPanel -ErrorAction SilentlyContinue) {
+        try { $panel = Get-ResultsStackPanel -TabControl $TabControl } catch { $panel = $null }
+    }
+    if ($panel) {
+        try { $panel.Children.Clear() } catch {}
     }
     return $messagesTabIndex
 }
@@ -486,6 +487,7 @@ function Execute-QueryCore {
     }
     if ($Ctx.tcResults) { [void](Clear-ResultTabsKeepMessages -TabControl $Ctx.tcResults) }
     if ($Ctx.dgResults) { $Ctx.dgResults.ItemsSource = $null }
+    if ($Ctx.spResults) { $Ctx.spResults.Children.Clear() }
     if ($Ctx.txtMessages) { $Ctx.txtMessages.Text = "" }
     if ($Ctx.lblRowCount) { $Ctx.lblRowCount.Text = "Filas: --" }
     if ($Ctx.lblExecutionTimer) { $Ctx.lblExecutionTimer.Text = "Tiempo: 00:00.0" }
@@ -798,24 +800,20 @@ function Execute-QueryCore {
                 }
                 if ($result -and ($result -is [hashtable]) -and $result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
                     if ($global:tcResults) {
-                        $messagesTabIndex = Clear-ResultTabsKeepMessages -TabControl $global:tcResults
-                        $tab = New-Object System.Windows.Controls.TabItem
-                        $tab.Header = "Resultado"
-                        $text = New-Object System.Windows.Controls.TextBlock
-                        $text.Text = "Filas afectadas: $($result.RowsAffected)"
-                        $text.Margin = "10"
-                        $text.FontSize = 14
-                        $text.FontWeight = "Bold"
-                        $tab.Content = $text
-                        if ($messagesTabIndex -ge 0) {
-                            $global:tcResults.Items.Insert($messagesTabIndex, $tab)
-                        } else {
-                            [void]$global:tcResults.Items.Add($tab)
+                        [void](Clear-ResultTabsKeepMessages -TabControl $global:tcResults)
+                        $panel = $null
+                        if (Get-Command Get-ResultsStackPanel -ErrorAction SilentlyContinue) {
+                            try { $panel = Get-ResultsStackPanel -TabControl $global:tcResults } catch { $panel = $null }
                         }
-                        $hasMessages = $result.Messages -and $result.Messages.Count -gt 0
-                        if (-not $hasMessages) {
-                            $global:tcResults.SelectedItem = $tab
+                        if ($panel) {
+                            $text = New-Object System.Windows.Controls.TextBlock
+                            $text.Text = "Filas afectadas: $($result.RowsAffected)"
+                            $text.Margin = "10"
+                            $text.FontSize = 14
+                            $text.FontWeight = "Bold"
+                            $panel.Children.Add($text) | Out-Null
                         }
+                        $global:tcResults.SelectedIndex = 0
                     }
                     if ($global:txtMessages -and [string]::IsNullOrWhiteSpace($global:txtMessages.Text)) {
                         $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)"

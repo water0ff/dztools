@@ -1,4 +1,5 @@
 ﻿#requires -Version 5.0
+#NationalUtilities.psm1 - Módulo de utilidades NS
 function Show-DllRegistrationDialog {
     [CmdletBinding()]
     param()

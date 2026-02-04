@@ -1,7 +1,6 @@
 ﻿if ($PSVersionTable.PSVersion.Major -lt 5) { throw "Se requiere PowerShell 5.0 o superior." }
 $script:queryTabCounter = 1
-if ([string]::IsNullOrWhiteSpace($global:DzSqlKeywords)) { $global:DzSqlKeywords = 'ADD|ALL|ALTER|AND|ANY|AS|ASC|AUTHORIZATION|BACKUP|BETWEEN|BIGINT|BINARY|BIT|BY|CASE|CHECK|COLUMN|CONSTRAINT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|DATABASE|DEFAULT|DELETE|DESC|DISTINCT|DROP|EXEC|EXECUTE|EXISTS|FOREIGN|FROM|FULL|FUNCTION|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|NOT|NULL|ON|OR|ORDER|OUTER|PRIMARY|PROCEDURE|REFERENCES|RETURN|RIGHT|ROWNUM|SELECT|SET|SMALLINT|TABLE|TOP|TRUNCATE|UNION|UNIQUE|UPDATE|VALUES|VIEW|WHERE|WITH|RESTORE' }
-function Process-SqlProgressMessage { param([string]$Message) if ($Message -match '(?i)(\d{1,3})\s*percent') { $percent = [int]$Matches[1]; Write-Output "Progreso: $percent%" } elseif ($Message -match 'BACKUP DATABASE successfully processed') { Write-Output "Backup completado exitosamente" } }
+#Database.psm1 - Módulo de funciones de acceso a bases de datos SQL Server
 function New-DzSqlConnectionFromCredential {
     [CmdletBinding()]
     param(
@@ -415,44 +414,11 @@ ORDER BY
     Write-DzDebug "`t[DEBUG][Get-SqlDatabasesInfo] Retornando $($databases.Count) bases de datos"
     return $databases
 }
-function Backup-Database {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)][string]$Server,
-        [Parameter(Mandatory = $true)][string]$Database,
-        [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
-        [Parameter(Mandatory = $true)][string]$BackupPath,
-        [Parameter(Mandatory = $false)][scriptblock]$ProgressCallback
-    )
-    try {
-        Write-DzDebug "`t[DEBUG][Backup-Database] Iniciando backup de '$Database' a '$BackupPath'"
-        $backupQuery = @"
-BACKUP DATABASE [$Database]
-TO DISK='$BackupPath'
-WITH CHECKSUM, STATS = 1, FORMAT, INIT
-"@
-        $infoCallback = { param($message) if ($ProgressCallback) { & $ProgressCallback $message } }
-        $result = Invoke-SqlQuery -Server $Server -Database "master" -Query $backupQuery -Credential $Credential -InfoMessageCallback $infoCallback
-        if ($result.Success) { Write-DzDebug "`t[DEBUG][Backup-Database] Backup completado exitosamente"; return @{ Success = $true; BackupPath = $BackupPath } }
-        Write-DzDebug "`t[DEBUG][Backup-Database] Error en backup: $($result.ErrorMessage)"
-        @{ Success = $false; ErrorMessage = $result.ErrorMessage }
-    } catch {
-        Write-DzDebug "`t[DEBUG][Backup-Database] Excepción: $($_.Exception.Message)"
-        @{ Success = $false; ErrorMessage = $_.Exception.Message }
-    }
-}
 function Execute-SqlQuery {
     param([string]$server, [string]$database, [string]$query)
     $result = Invoke-DzSqlCommandInternal -Server $server -Database $database -Query $query -User $global:user -Password $global:password -CollectMessages
     if (-not $result.Success) { throw $result.ErrorMessage }
     return $result
-}
-function Show-ResultsConsole {
-    param([string]$query)
-    try {
-        $results = Execute-SqlQuery -server $global:server -database $global:database -query $query
-        Write-DzSqlResultSummary -Result $results -Context "Consulta"
-    } catch { Write-Host "`nError al ejecutar la consulta: $_" -ForegroundColor Red }
 }
 function Get-IniConnections {
     $connections = @()
@@ -517,15 +483,6 @@ function Load-IniConnectionsToComboBox {
     } else {
         $Combo.Text = ".\NationalSoft"
     }
-}
-function ConvertTo-DataTable {
-    param($InputObject)
-    $dt = New-Object System.Data.DataTable
-    if (-not $InputObject) { return $dt }
-    $cols = $InputObject[0].Keys
-    foreach ($c in $cols) { [void]$dt.Columns.Add($c) }
-    foreach ($row in $InputObject) { $dr = $dt.NewRow(); foreach ($c in $cols) { $dr[$c] = $row[$c] }; [void]$dt.Rows.Add($dr) }
-    $dt
 }
 function Show-MultipleResultSets {
     [CmdletBinding()]
@@ -971,24 +928,6 @@ function Export-ResultSetToDelimitedText {
         $writer.Dispose()
     }
 }
-function Get-TextPointerAtOffset {
-    param(
-        [Parameter(Mandatory)][System.Windows.Documents.TextPointer]$Start,
-        [Parameter(Mandatory)][int]$Offset
-    )
-    $navigator = $Start
-    $count = 0
-    while ($navigator -ne $null) {
-        if ($navigator.GetPointerContext([System.Windows.Documents.LogicalDirection]::Forward) -eq [System.Windows.Documents.TextPointerContext]::Text) {
-            $run = $navigator.GetTextInRun([System.Windows.Documents.LogicalDirection]::Forward)
-            $remaining = $Offset - $count
-            if ($remaining -le $run.Length) { return $navigator.GetPositionAtOffset($remaining) }
-            $count += $run.Length
-        }
-        $navigator = $navigator.GetNextContextPosition([System.Windows.Documents.LogicalDirection]::Forward)
-    }
-    return $Start
-}
 function Get-PredefinedQueries {
     return @{
         "Monitor de Servicios | Ventas a subir"           = @"
@@ -1250,82 +1189,6 @@ function Get-DzThemeBrush {
         return $Fallback
     }
 }
-function Initialize-PredefinedQueries {
-    param(
-        [Parameter(Mandatory = $true)][System.Windows.Controls.ComboBox]$ComboQueries,
-        [Parameter(Mandatory = $true)][System.Windows.Controls.TabControl]$TabControl,
-        [Parameter(Mandatory = $true)][hashtable]$Queries
-    )
-    $ComboQueries.Items.Clear()
-    [void]$ComboQueries.Items.Add("Selecciona una consulta predefinida")
-    foreach ($key in ($Queries.Keys | Sort-Object)) { [void]$ComboQueries.Items.Add($key) }
-    $ComboQueries.SelectedIndex = 0
-    $ComboQueries.Tag = [pscustomobject]@{
-        Queries     = $Queries
-        TabControl  = $TabControl
-        SqlKeywords = $global:DzSqlKeywords
-    }
-    $ComboQueries.Add_SelectionChanged({
-            param($sender, $e)
-            try {
-                $selectedQuery = $sender.SelectedItem
-                if (-not $selectedQuery -or $selectedQuery -eq "Selecciona una consulta predefinida") { return }
-                $ctx = $sender.Tag
-                if (-not $ctx -or -not $ctx.Queries.ContainsKey($selectedQuery)) { return }
-                $editor = Get-ActiveQueryRichTextBox -TabControl $ctx.TabControl
-                if (-not $editor) { return }
-                $queryText = $ctx.Queries[$selectedQuery]
-                Set-SqlEditorText -Editor $editor -Text $queryText
-                $editor.Focus()
-            } catch {
-                Write-DzDebug "`t[DEBUG] Error en SelectionChanged (queries): $($_.Exception.Message)" -Color Red
-            }
-        })
-}
-function Set-WpfSqlHighlighting {
-    param(
-        [Parameter(Mandatory)][System.Windows.Controls.RichTextBox]$RichTextBox,
-        [Parameter(Mandatory)][string]$Keywords
-    )
-    if ($null -eq $RichTextBox -or $null -eq $RichTextBox.Document) { return }
-    if ([string]::IsNullOrWhiteSpace($Keywords)) { return }
-    $theme = Get-DzUiTheme
-    $defaultBrush = Get-DzThemeBrush -Hex $theme.ControlForeground -Fallback ([System.Windows.Media.Brushes]::Black)
-    $commentBrush = Get-DzThemeBrush -Hex $theme.AccentMuted -Fallback ([System.Windows.Media.Brushes]::DarkGreen)
-    $keywordBrush = Get-DzThemeBrush -Hex $theme.AccentPrimary -Fallback ([System.Windows.Media.Brushes]::Blue)
-    $range = New-Object System.Windows.Documents.TextRange($RichTextBox.Document.ContentStart, $RichTextBox.Document.ContentEnd)
-    $text = $range.Text
-    if ([string]::IsNullOrWhiteSpace($text)) { return }
-    $range.ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $defaultBrush)
-    $commentRanges = @()
-    foreach ($c in [regex]::Matches($text, '--.*', [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
-        $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $c.Index
-        $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($c.Index + $c.Length)
-        if ($start -and $end) {
-            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $commentBrush)
-            $commentRanges += [pscustomobject]@{ Start = $c.Index; End = $c.Index + $c.Length }
-        }
-    }
-    foreach ($b in [regex]::Matches($text, '/\*[\s\S]*?\*/', [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
-        $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $b.Index
-        $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($b.Index + $b.Length)
-        if ($start -and $end) {
-            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $commentBrush)
-            $commentRanges += [pscustomobject]@{ Start = $b.Index; End = $b.Index + $b.Length }
-        }
-    }
-    $pattern = '\b(' + $Keywords + ')\b'
-    $matches = [regex]::Matches($text, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-    foreach ($m in $matches) {
-        $inComment = $commentRanges | Where-Object { $m.Index -ge $_.Start -and $m.Index -lt $_.End }
-        if ($inComment) { continue }
-        $start = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset $m.Index
-        $end = Get-TextPointerFromOffset -RichTextBox $RichTextBox -Offset ($m.Index + $m.Length)
-        if ($start -and $end) {
-            (New-Object System.Windows.Documents.TextRange($start, $end)).ApplyPropertyValue([System.Windows.Documents.TextElement]::ForegroundProperty, $keywordBrush)
-        }
-    }
-}
 function Get-TextPointerFromOffset {
     param(
         [Parameter(Mandatory)][System.Windows.Controls.RichTextBox]$RichTextBox,
@@ -1401,118 +1264,6 @@ function Get-ExportableResultTabs {
         }
     }
     return $exportable
-}
-function Write-DataTableConsole {
-    param(
-        [Parameter(Mandatory)][System.Data.DataTable]$DataTable,
-        [int]$MaxRows = 50
-    )
-    if (-not $DataTable) { return }
-    $rows = @($DataTable.Rows)
-    $cols = @($DataTable.Columns | ForEach-Object { $_.ColumnName })
-    Write-Host ""
-    Write-Host ("Columnas: {0} | Filas: {1}" -f $cols.Count, $rows.Count) -ForegroundColor DarkGray
-    $sample = $rows | Select-Object -First $MaxRows
-    $width = @{}
-    foreach ($c in $cols) { $width[$c] = [Math]::Max($c.Length, 4) }
-    foreach ($r in $sample) {
-        foreach ($c in $cols) {
-            $v = $r[$c]
-            if ($v -is [DBNull]) { $v = $null }
-            $s = if ($null -eq $v) { "NULL" } else { [string]$v }
-            if ($s.Length -gt 80) { $s = $s.Substring(0, 77) + "..." }
-            $width[$c] = [Math]::Min(80, [Math]::Max($width[$c], $s.Length))
-        }
-    }
-    $header = ($cols | ForEach-Object { $_.PadRight($width[$_] + 2) }) -join ""
-    Write-Host $header -ForegroundColor Cyan
-    Write-Host ("-" * $header.Length) -ForegroundColor DarkGray
-    foreach ($r in $sample) {
-        $line = ($cols | ForEach-Object {
-                $v = $r[$_]
-                if ($v -is [DBNull]) { $v = $null }
-                $s = if ($null -eq $v) { "NULL" } else { [string]$v }
-                if ($s.Length -gt 80) { $s = $s.Substring(0, 77) + "..." }
-                $s.PadRight($width[$_] + 2)
-            }) -join ""
-        Write-Host $line
-    }
-    if ($rows.Count -gt $MaxRows) {
-        Write-Host ("... mostrando {0} de {1} filas (limite MaxRows={0})" -f $MaxRows, $rows.Count) -ForegroundColor Yellow
-    }
-}
-function Show-ErrorResultTab {
-    param(
-        [Parameter(Mandatory)][System.Windows.Controls.TabControl]$ResultsTabControl,
-        [Parameter(Mandatory)][string]$Message,
-        [Parameter()][switch]$AddWithoutClear
-    )
-    if (-not $AddWithoutClear) {
-        try {
-            $itemsToRemove = New-Object System.Collections.ArrayList
-            foreach ($item in $ResultsTabControl.Items) {
-                if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
-                $header = $null
-                if ($item.Header -is [string]) {
-                    $header = $item.Header
-                } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
-                    foreach ($child in $item.Header.Children) {
-                        if ($child -is [System.Windows.Controls.TextBlock]) {
-                            $header = $child.Text
-                            break
-                        }
-                    }
-                }
-                if (-not ($header -and $header -match "Mensajes")) {
-                    [void]$itemsToRemove.Add($item)
-                }
-            }
-            foreach ($item in $itemsToRemove) {
-                $ResultsTabControl.Items.Remove($item)
-            }
-        } catch {}
-    }
-    $tab = New-Object System.Windows.Controls.TabItem
-    $ht = New-Object System.Windows.Controls.TextBlock
-    $ht.Text = "Error"
-    $ht.VerticalAlignment = "Center"
-    $tab.Header = $ht
-    $text = New-Object System.Windows.Controls.TextBox
-    $text.Text = $Message
-    $text.Margin = "10"
-    $text.IsReadOnly = $true
-    $text.TextWrapping = "Wrap"
-    $text.VerticalScrollBarVisibility = "Auto"
-    $text.HorizontalScrollBarVisibility = "Auto"
-    $tab.Content = $text
-    $messagesTabIndex = -1
-    for ($i = 0; $i -lt $ResultsTabControl.Items.Count; $i++) {
-        $item = $ResultsTabControl.Items[$i]
-        if ($item -isnot [System.Windows.Controls.TabItem]) { continue }
-        $header = $null
-        if ($item.Header -is [string]) {
-            $header = $item.Header
-        } elseif ($item.Header -is [System.Windows.Controls.StackPanel]) {
-            foreach ($child in $item.Header.Children) {
-                if ($child -is [System.Windows.Controls.TextBlock]) {
-                    $header = $child.Text
-                    break
-                }
-            }
-        }
-        if ($header -and $header -match "Mensajes") {
-            $messagesTabIndex = $i
-            break
-        }
-    }
-    if ($messagesTabIndex -ge 0) {
-        $ResultsTabControl.Items.Insert($messagesTabIndex, $tab)
-    } else {
-        [void]$ResultsTabControl.Items.Add($tab)
-    }
-    if (-not $AddWithoutClear) {
-        $ResultsTabControl.SelectedIndex = 0
-    }
 }
 function Disconnect-DbCore {
     [CmdletBinding()]
@@ -1897,9 +1648,6 @@ function Export-ResultsCore {
 
     Ui-Info "Exportación completada en:`n$filePath" "Exportación" $Ctx.MainWindow
 }
-
-
-
 function Get-DbNameFromComboSelection {
     [CmdletBinding()]
     param([Parameter(Mandatory)]$ComboBox)
@@ -2004,9 +1752,8 @@ function Connect-DbUiSafe {
 }
 Export-ModuleMember -Function @(
     'Invoke-SqlQuery', 'Invoke-SqlQueryMultiResultSet', 'Remove-SqlComments', 'Get-SqlDatabases', 'Get-SqlDatabasesInfo', 'Backup-Database', 'Connect-DbUiSafe', 'Disconnect-DbUiSafe', 'get-DbUiContext',
-    'Execute-SqlQuery', 'Show-ResultsConsole', 'Get-IniConnections', 'Load-IniConnectionsToComboBox', 'ConvertTo-DataTable',
+    'Execute-SqlQuery', 'Get-IniConnections', 'Load-IniConnectionsToComboBox',
     'Show-MultipleResultSets', 'Export-ResultSetToCsv', 'Export-ResultSetToDelimitedText',
-    'Get-TextPointerAtOffset',
-    'Get-PredefinedQueries', 'Initialize-PredefinedQueries', 'Remove-SqlComments', 'Set-WpfSqlHighlighting', 'Get-TextPointerFromOffset', 'Get-ResultTabHeaderText',
-    'Get-ExportableResultTabs', 'Write-DataTableConsole', 'Show-ErrorResultTab', 'Get-UseDatabaseFromQuery', 'Disconnect-DbCore', 'Connect-DbCore', 'Export-ResultsCore', 'Get-DbNameFromComboSelection'
+    'Get-PredefinedQueries', 'Remove-SqlComments', 'Get-TextPointerFromOffset', 'Get-ResultTabHeaderText',
+    'Get-ExportableResultTabs', 'Get-UseDatabaseFromQuery', 'Disconnect-DbCore', 'Connect-DbCore', 'Export-ResultsCore', 'Get-DbNameFromComboSelection'
 )

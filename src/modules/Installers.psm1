@@ -1,4 +1,5 @@
 ﻿#requires -Version 5.0
+#Installers.psm1 - Módulo de gestión de instaladores y paquetes Chocolatey
 function Check-Chocolatey {
     if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
         $result = Show-WpfMessageBox `

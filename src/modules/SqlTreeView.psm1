@@ -1,4 +1,5 @@
 ﻿#requires -Version 5.0
+#SqlTreeView.psm1
 function New-SqlTreeNode {
     param(
         [Parameter(Mandatory = $true)][string]$Header,
@@ -1233,7 +1234,7 @@ ALTER DATABASE [$safeNew] SET MULTI_USER;
                 Write-DzDebug "`t[DEBUG][TreeView] SET READ_WRITE cancelado por usuario"
                 return
             }
-            $query = "ALTER DATABASE [$safeName] SET READ_WRITE WITH NO_WAIT"
+            $query = "ALTER DATABASE [$safeName] SET READ_WRITE WITH ROLLBACK IMMEDIATE"
             $result = Invoke-SqlQuery -Server $server -Database "master" -Query $query -Credential $credential
             if (-not $result.Success) {
                 Ui-Error "No se pudo poner READ_WRITE la base:`n`n$($result.ErrorMessage)" $global:MainWindow
@@ -1429,163 +1430,348 @@ function Show-DeleteDatabaseDialog {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Eliminar Base de Datos"
-        Height="360" Width="560"
-        WindowStartupLocation="CenterOwner"
+        Width="560" Height="360"
+        MinWidth="560" MinHeight="360"
+        MaxWidth="560" MaxHeight="360"
+        WindowStartupLocation="Manual"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Background="Transparent"
         AllowsTransparency="True"
-        Topmost="True">
-    <Window.Resources>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-        </Style>
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-        </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,6"/>
-        </Style>
-        <Style x:Key="BaseButtonStyle" TargetType="Button">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="SnapsToDevicePixels" Value="True"/>
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="1"/>
-                    <Setter Property="Cursor" Value="Arrow"/>
-                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
-                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-            <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-                    <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
-                    <Setter Property="BorderThickness" Value="1"/>
-                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-<Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-    <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-    <Style.Triggers>
+        Topmost="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
+
+  <Window.Resources>
+
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+    </Style>
+
+    <Style x:Key="TextBoxStyle" TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Height" Value="34"/>
+    </Style>
+
+    <!-- Botón ícono (close) como en rename -->
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Botones base / acción / outline (tu estilo, pero ordenado) -->
+    <Style x:Key="BaseButtonStyle" TargetType="Button">
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="MinWidth" Value="110"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource AccentMagenta}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Style.Triggers>
         <Trigger Property="IsMouseOver" Value="True">
-            <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-            <Setter Property="BorderThickness" Value="0"/>
+          <Setter Property="Background" Value="{DynamicResource AccentMagentaHover}"/>
         </Trigger>
-    </Style.Triggers>
-</Style>
-<Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-    <Setter Property="Width" Value="34"/>
-    <Setter Property="Height" Value="34"/>
-    <Setter Property="Padding" Value="0"/>
-    <Setter Property="FontSize" Value="16"/>
-    <Setter Property="FontWeight" Value="SemiBold"/>
-    <Setter Property="Content" Value="×"/>
-</Style>
-</Window.Resources>
-<Grid Background="{DynamicResource FormBg}" Margin="12">
-    <Grid.RowDefinitions>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+          <Setter Property="Foreground" Value="{DynamicResource AccentMuted}"/>
+          <Setter Property="BorderThickness" Value="1"/>
+          <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="OutlineButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+          <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+  </Window.Resources>
+
+  <!-- Contenedor con sombra (como rename) -->
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
+
+    <Border.Effect>
+      <DropShadowEffect Color="Black"
+                        Direction="270"
+                        ShadowDepth="4"
+                        BlurRadius="14"
+                        Opacity="0.25"/>
+    </Border.Effect>
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="52"/>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
-    </Grid.RowDefinitions>
-    <Border Grid.Row="0" Name="brdTitleBar" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,10">
-        <DockPanel LastChildFill="True">
-            <StackPanel DockPanel.Dock="Left">
-                <TextBlock Text="⚠️ Advertencia: Eliminar Base de Datos" Foreground="{DynamicResource FormFg}" FontSize="16" FontWeight="SemiBold"/>
-                <TextBlock Text="Esta acción es irreversible. Verifica antes de continuar." Foreground="{DynamicResource PanelFg}" Margin="0,2,0,0"/>
-            </StackPanel>
-            <Button DockPanel.Dock="Right" Name="btnClose" Style="{StaticResource CloseButtonStyle}"/>
-        </DockPanel>
-    </Border>
-    <Border Grid.Row="1" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="10" Padding="12">
+      </Grid.RowDefinitions>
+
+      <!-- Header draggable -->
+      <Border Grid.Row="0"
+              Name="HeaderBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
         <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Text="Estás a punto de eliminar permanentemente la base de datos:" TextWrapping="Wrap" Margin="0,0,0,10"/>
-            <Border Grid.Row="1" Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
-                <TextBlock Text="🗄️ $safeDb" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentPrimary}"/>
-            </Border>
-            <StackPanel Grid.Row="2" Margin="0,0,0,10">
-                <CheckBox x:Name="chkDeleteBackupHistory" IsChecked="True" Margin="0,0,0,8">
-                    <TextBlock Text="Eliminar historial de backup y restore" TextWrapping="Wrap"/>
-                </CheckBox>
-                <CheckBox x:Name="chkCloseConnections" IsChecked="True">
-                    <TextBlock Text="Cerrar conexiones existentes (SINGLE_USER + ROLLBACK IMMEDIATE)" TextWrapping="Wrap"/>
-                </CheckBox>
-            </StackPanel>
-            <Border Grid.Row="3" Background="{DynamicResource FormBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="8" Padding="10">
-                <TextBlock FontSize="11" Foreground="{DynamicResource AccentMuted}" TextWrapping="Wrap">
-                    Recomendación: realiza un respaldo antes de continuar. Si la base de datos está en uso, se forzará el cierre de sesiones para poder eliminarla.
-                </TextBlock>
-            </Border>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+
+          <StackPanel Grid.Column="1">
+            <TextBlock Text="⚠️ Eliminar base de datos"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Esta acción es irreversible. Verifica antes de continuar."
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+
+          <Button Grid.Column="2"
+                  Name="btnClose"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
         </Grid>
-    </Border>
-    <Border Grid.Row="2" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,10,0,0">
+      </Border>
+
+      <!-- Tip / warning -->
+      <Border Grid.Row="1"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="10,8"
+              Margin="12,0,12,10">
+        <TextBlock Text="Recomendación: realiza un respaldo antes de continuar. Si la base de datos está en uso, se forzará el cierre de sesiones."
+                   Foreground="{DynamicResource PanelFg}"
+                   FontSize="10"
+                   Opacity="0.9"
+                   TextWrapping="Wrap"/>
+      </Border>
+
+      <!-- Content -->
+      <Border Grid.Row="2"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="12"
+              Margin="12,0,12,10">
         <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Enter: Eliminar   |   Esc: Cerrar" VerticalAlignment="Center"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <Button x:Name="btnCancelar" Content="Cancelar" Width="120" Height="34" Margin="0,0,10,0" IsCancel="True" Style="{StaticResource OutlineButtonStyle}"/>
-                <Button x:Name="btnEliminar" Content="Eliminar" Width="140" Height="34" IsDefault="True" Style="{StaticResource ActionButtonStyle}"/>
-            </StackPanel>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <TextBlock Grid.Row="0"
+                     Text="Estás a punto de eliminar permanentemente la base de datos:"
+                     TextWrapping="Wrap"
+                     Margin="0,0,0,10"/>
+
+          <Border Grid.Row="1"
+                  Background="{DynamicResource ControlBg}"
+                  BorderBrush="{DynamicResource BorderBrushColor}"
+                  BorderThickness="1"
+                  CornerRadius="8"
+                  Padding="10"
+                  Margin="0,0,0,12">
+            <TextBlock Text="🗄️ $safeDb"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource AccentPrimary}"/>
+          </Border>
+
+          <StackPanel Grid.Row="2" Margin="0,0,0,10">
+            <CheckBox x:Name="chkDeleteBackupHistory" IsChecked="True" Margin="0,0,0,8">
+              <TextBlock Text="Eliminar historial de backup y restore" TextWrapping="Wrap"/>
+            </CheckBox>
+            <CheckBox x:Name="chkCloseConnections" IsChecked="True">
+              <TextBlock Text="Cerrar conexiones existentes (SINGLE_USER + ROLLBACK IMMEDIATE)" TextWrapping="Wrap"/>
+            </CheckBox>
+          </StackPanel>
+
+          <Border Grid.Row="3"
+                  Background="{DynamicResource FormBg}"
+                  BorderBrush="{DynamicResource BorderBrushColor}"
+                  BorderThickness="1"
+                  CornerRadius="8"
+                  Padding="10">
+            <TextBlock FontSize="11"
+                       Foreground="{DynamicResource AccentMuted}"
+                       TextWrapping="Wrap">
+              Enter: Eliminar   |   Esc: Cerrar
+            </TextBlock>
+          </Border>
+
         </Grid>
-    </Border>
-</Grid>
+      </Border>
+
+      <!-- Footer -->
+      <Grid Grid.Row="3" Margin="12,0,12,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Column="0"
+                   Text="Server: $Server"
+                   Foreground="{DynamicResource AccentMuted}"
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis"/>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
+          <Button x:Name="btnCancelar"
+                  Content="Cancelar"
+                  Width="120"
+                  Margin="0,0,10,0"
+                  IsCancel="True"
+                  Style="{StaticResource OutlineButtonStyle}"/>
+          <Button x:Name="btnEliminar"
+                  Content="Eliminar"
+                  Width="140"
+                  IsDefault="True"
+                  Style="{StaticResource ActionButtonStyle}"/>
+        </StackPanel>
+      </Grid>
+
+    </Grid>
+  </Border>
 </Window>
 "@
     try {
         $ui = New-WpfWindow -Xaml $xaml -PassThru
         $window = $ui.Window
+        $c = $ui.Controls
         $theme = Get-DzUiTheme
         Set-DzWpfThemeResources -Window $window -Theme $theme
         try { Set-WpfDialogOwner -Dialog $window } catch {}
+        try { if (-not $window.Owner -and $global:MainWindow -is [System.Windows.Window]) { $window.Owner = $global:MainWindow } } catch {}
+        $window.WindowStartupLocation = "Manual"
+        $window.Add_Loaded({
+                try {
+                    $owner = $window.Owner
+                    if (-not $owner) { $window.WindowStartupLocation = "CenterScreen"; return }
+                    $ob = $owner.RestoreBounds
+                    $targetW = $window.ActualWidth; if ($targetW -le 0) { $targetW = $window.Width }
+                    $targetH = $window.ActualHeight; if ($targetH -le 0) { $targetH = $window.Height }
+                    $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                    $top = $ob.Top + (($ob.Height - $targetH) / 2)
+                    $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                    $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                    $wa = $screen.WorkingArea
+                    if ($left -lt $wa.Left) { $left = $wa.Left }
+                    if ($top -lt $wa.Top) { $top = $wa.Top }
+                    if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                    if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+                    $window.Left = [double]$left
+                    $window.Top = [double]$top
+                } catch {}
+            }.GetNewClosure())
+        if ($c['HeaderBar']) {
+            $c['HeaderBar'].Add_MouseLeftButtonDown({
+                    if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
+                        try { $window.DragMove() } catch {}
+                    }
+                })
+        }
         $brdTitleBar = $window.FindName("brdTitleBar")
         if ($brdTitleBar) {
             $brdTitleBar.Add_MouseLeftButtonDown({

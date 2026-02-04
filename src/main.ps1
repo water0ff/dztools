@@ -1,4 +1,5 @@
 ﻿#requires -Version 5.0
+#main.ps1 - Punto de entrada principal para la aplicación DzTools
 chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
 [Console]::InputEncoding = [System.Text.UTF8Encoding]::new()

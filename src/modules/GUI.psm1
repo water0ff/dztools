@@ -1,4 +1,5 @@
 ﻿#requires -Version 5.0
+#GUI.psm1 - Módulo de funciones GUI WPF para DzTools
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase

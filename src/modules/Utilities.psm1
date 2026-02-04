@@ -1,4 +1,5 @@
 ﻿#requires -Version 5.0
+#Utilities.psm1 - Módulo de utilidades para DzTools
 
 $script:DzToolsConfigPath = "C:\Temp\dztools\dztools.ini"
 $script:DzDebugEnabled = $null

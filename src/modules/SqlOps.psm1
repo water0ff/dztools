@@ -1,4 +1,5 @@
 ﻿if ($PSVersionTable.PSVersion.Major -lt 5) { throw "Se requiere PowerShell 5.0 o superior." }
+#SqlOps.psm1 - Módulo de operaciones SQL Server
 function Show-AttachDialog {
   [CmdletBinding()]
   param(

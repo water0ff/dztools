@@ -617,7 +617,6 @@ function Show-MultipleResultSets {
 
     $nullBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FDFBAC")
     $nullFg = [System.Windows.Media.Brushes]::Black
-
     $hdrStyle = New-Object System.Windows.Style([System.Windows.Controls.Primitives.DataGridColumnHeader])
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BackgroundProperty, $headerBg)))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $headerFg)))
@@ -626,6 +625,7 @@ function Show-MultipleResultSets {
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 4, 8, 4)))))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $gridLine)))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
+    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.ContentControl]::RecognizesAccessKeyProperty, $false)))
 
     $cellStyle = New-Object System.Windows.Style([System.Windows.Controls.DataGridCell])
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 2, 8, 2)))))

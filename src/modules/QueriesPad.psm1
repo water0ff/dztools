@@ -1414,144 +1414,153 @@ function Show-QueryHistoryWindow {
                     <Border Grid.Row="2" Background="{DynamicResource PanelBg}"
                             BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"
                             CornerRadius="8" Margin="0,0,0,6">
-                        <DataGrid Name="dgHistory"
-                                IsReadOnly="True"
-                                AutoGenerateColumns="False"
-                                CanUserAddRows="False"
-                                CanUserDeleteRows="False"
-                                SelectionMode="Extended"
-                                SelectionUnit="FullRow"
-                                HeadersVisibility="Column"
-                                GridLinesVisibility="Horizontal"
-                                AlternatingRowBackground="{DynamicResource ControlBg}"
-                                RowHeight="28"
-                                FontFamily="Consolas"
-                                FontSize="11"
-                                Padding="4"
-                                Background="{DynamicResource PanelBg}"
-                                Foreground="{DynamicResource PanelFg}"
-                                ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <DataGrid Name="dgHistory"
+                        IsReadOnly="True"
+                        AutoGenerateColumns="False"
+                        CanUserAddRows="False"
+                        CanUserDeleteRows="False"
+                        SelectionMode="Extended"
+                        SelectionUnit="FullRow"
+                        HeadersVisibility="Column"
+                        GridLinesVisibility="Horizontal"
+                        AlternationCount="2"
+                        RowHeight="28"
+                        FontFamily="Consolas"
+                        FontSize="11"
+                        Padding="4"
+                        Background="{DynamicResource PanelBg}"
+                        Foreground="{DynamicResource PanelFg}"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+                                <Style.Triggers>
+                                    <!-- Efecto zebra (filas alternas) -->
+                                    <Trigger Property="AlternationIndex" Value="1">
+                                        <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                                    </Trigger>
+                                    <!-- IMPORTANTE: IsSelected debe estar DESPUÉS de AlternationIndex -->
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                                    </Trigger>
+                                    <!-- Hover effect -->
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="IsMouseOver" Value="True"/>
+                                            <Condition Property="IsSelected" Value="False"/>
+                                        </MultiTrigger.Conditions>
+                                        <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                                    </MultiTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
 
-                            <!-- Estilos para las filas -->
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow">
-                                    <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
-                                    <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-                                            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource AccentSecondary}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.RowStyle>
+                        <!-- Estilos para los headers -->
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                <Setter Property="Padding" Value="8,4"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="FontSize" Value="11"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
 
-                            <!-- Estilos para los headers -->
-                            <DataGrid.ColumnHeaderStyle>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-                                    <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-                                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-                                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                                    <Setter Property="Padding" Value="8,4"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="FontSize" Value="11"/>
-                                </Style>
-                            </DataGrid.ColumnHeaderStyle>
+                        <!-- Estilos para las celdas -->
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.CellStyle>
 
-                            <!-- Estilos para las celdas -->
-                            <DataGrid.CellStyle>
-                                <Style TargetType="DataGridCell">
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                                    <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="Transparent"/>
-                                            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.CellStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="📅 Fecha" Binding="{Binding Timestamp}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
 
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="📅 Fecha" Binding="{Binding Timestamp}" Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="4,0"/>
-                                            <Setter Property="FontFamily" Value="Consolas"/>
-                                            <Setter Property="FontSize" Value="10"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                            <DataGridTextColumn Header="🖥️ Servidor" Binding="{Binding Server}" Width="110">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="🖥️ Servidor" Binding="{Binding Server}" Width="110">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="4,0"/>
-                                            <Setter Property="FontFamily" Value="Consolas"/>
-                                            <Setter Property="FontSize" Value="10"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                            <DataGridTextColumn Header="🗄️ DB" Binding="{Binding Database}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="🗄️ DB" Binding="{Binding Database}" Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="4,0"/>
-                                            <Setter Property="FontFamily" Value="Consolas"/>
-                                            <Setter Property="FontSize" Value="10"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                            <DataGridTextColumn Header="📝 Query" Binding="{Binding Preview}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="TextWrapping" Value="NoWrap"/>
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                        <Setter Property="ToolTipService.ShowDuration" Value="60000"/>
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <ToolTip MaxWidth="900">
+                                                    <TextBox Text="{Binding FullQuery}"
+                                                            IsReadOnly="True"
+                                                            TextWrapping="Wrap"
+                                                            BorderThickness="0"
+                                                            Background="Transparent"
+                                                            FontFamily="Consolas"
+                                                            FontSize="11"/>
+                                                </ToolTip>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
 
-                                <DataGridTextColumn Header="📝 Query" Binding="{Binding Preview}" Width="*">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="4,0"/>
-                                            <Setter Property="TextWrapping" Value="NoWrap"/>
-                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                            <Setter Property="FontFamily" Value="Consolas"/>
-                                            <Setter Property="FontSize" Value="10"/>
-                                            <Setter Property="ToolTipService.ShowDuration" Value="60000"/>
-                                            <Setter Property="ToolTip">
-                                                <Setter.Value>
-                                                    <ToolTip MaxWidth="900">
-                                                        <TextBox Text="{Binding FullQuery}"
-                                                                IsReadOnly="True"
-                                                                TextWrapping="Wrap"
-                                                                BorderThickness="0"
-                                                                Background="Transparent"
-                                                                FontFamily="Consolas"
-                                                                FontSize="11"/>
-                                                    </ToolTip>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="✅ Estado" Binding="{Binding Result}" Width="140">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="4,0"/>
-                                            <Setter Property="FontFamily" Value="Consolas"/>
-                                            <Setter Property="FontSize" Value="10"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                            <DataGridTextColumn Header="✅ Estado" Binding="{Binding Result}" Width="140">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="4,0"/>
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
                     </Border>
 
                     <Border Grid.Row="3" Background="{DynamicResource PanelBg}"

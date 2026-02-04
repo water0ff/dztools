@@ -625,7 +625,7 @@ function Show-MultipleResultSets {
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 4, 8, 4)))))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $gridLine)))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
-    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.ContentControl]::RecognizesAccessKeyProperty, $false)))
+    # [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.ContentControl]::RecognizesAccessKeyProperty, $false)))
 
     $cellStyle = New-Object System.Windows.Style([System.Windows.Controls.DataGridCell])
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 2, 8, 2)))))
@@ -697,8 +697,10 @@ function Show-MultipleResultSets {
         $dg.Add_AutoGeneratingColumn({
                 param($s, $e)
                 $prop = $e.PropertyName
-                $hdr = $e.Column.Header
-
+                $hdr = [string]$e.Column.Header
+                # ✅ Mostrar guion bajo literal en header
+                $hdr = $hdr -replace '_', '__'
+                $e.Column.Header = $hdr
                 if ($e.PropertyType -eq [datetime]) {
                     $col = New-Object System.Windows.Controls.DataGridTextColumn
                     $col.Header = $hdr
@@ -872,7 +874,6 @@ function Show-MultipleResultSets {
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] Pestaña seleccionada: índice $($TabControl.SelectedIndex)"
     Write-DzDebug "`t[DEBUG][Show-MultipleResultSets] FIN"
 }
-
 function Export-ResultSetToCsv {
     [CmdletBinding()]
     param(

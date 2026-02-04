@@ -315,7 +315,6 @@ function Restore-OpenQueryTabs {
             Write-DzDebug "`t[DEBUG][Queries] No hay archivo de configuración para restaurar"
             return 0
         }
-        Write-DzDebug "`t[DEBUG][Queries] Restaurando pestañas..."
         $content = Get-Content -LiteralPath $script:QueriesConfigPath -ErrorAction Stop
         $inOpenSection = $false
         $restoredCount = 0
@@ -350,7 +349,6 @@ function Restore-OpenQueryTabs {
                 }
             }
         }
-        Write-DzDebug "`t[DEBUG][Queries] Pestañas restauradas: $restoredCount"
         if ($restoredCount -gt 0) {
             $lastQueryTabIndex = -1
             for ($i = 0; $i -lt $TabControl.Items.Count; $i++) {
@@ -1889,7 +1887,6 @@ function New-SqlEditor {
         $searchPanel.MarkerBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FFD700")  # Amarillo
         $searchPanel.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($grayBackground)
         $searchPanel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#000000")
-        Write-DzDebug "`t[DEBUG] Panel de búsqueda instalado correctamente" -Color Green
     } catch {
         Write-DzDebug "`t[DEBUG] Error instalando panel de búsqueda: $_" -Color Yellow
     }

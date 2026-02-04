@@ -311,7 +311,6 @@ function New-MainForm {
         }
     }
     if ($btnSsmsPanelToggle) {
-        Write-DzDebug "`t[DEBUG] Configurando toggle del panel SSMS..."
         $panelContent = $window.FindName("panelSsmsContent")
         if (-not $panelContent) {
             Write-DzDebug "`t[DEBUG] ERROR: No se encontró panelSsmsContent" -Color Red
@@ -343,7 +342,6 @@ function New-MainForm {
                     Write-Host "Error detallado: $($_ | Format-List * -Force | Out-String)" -ForegroundColor Red
                 }
             }.GetNewClosure())
-        Write-DzDebug "`t[DEBUG] Toggle configurado exitosamente"
     }
     $lblHostname.text = [System.Net.Dns]::GetHostName()
     $txt_InfoInstrucciones.Text = $global:defaultInstructions
@@ -859,7 +857,6 @@ function New-MainForm {
             }
             $e.Handled = $true
         })
-    Write-DzDebug "`t[DEBUG] Configurando evento de cierre de ventana"
     $window.Add_Closing({
             param($sender, $e)
             Write-Host "`n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan

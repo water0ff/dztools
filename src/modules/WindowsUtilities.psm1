@@ -1012,7 +1012,6 @@ function Show-InstallPrinterDialog {
     }
     Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] FIN"
 }
-
 function Invoke-ClearPrintJobs {
     [CmdletBinding()]param([System.Windows.Controls.TextBlock]$InfoTextBlock)
     try {
@@ -1062,90 +1061,320 @@ function Show-AddUserDialog {
     Write-DzDebug "`t[DEBUG][Show-AddUserDialog] INICIO"
     $theme = Get-DzUiTheme
     $stringXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Crear Usuario de Windows" Height="420" Width="640" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False" WindowStyle="None" AllowsTransparency="True" Background="Transparent" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Crear Usuario de Windows"
+        Width="640" Height="420"
+        MinWidth="640" MinHeight="420"
+        MaxWidth="640" MaxHeight="420"
+        WindowStartupLocation="Manual"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
+
   <Window.Resources>
-    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="$($theme.FormForeground)"/></Style>
-    <Style TargetType="TextBox">
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-      <Setter Property="BorderThickness" Value="1"/>
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
     </Style>
-    <Style TargetType="PasswordBox">
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-      <Setter Property="BorderThickness" Value="1"/>
+
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
-    <Style TargetType="RadioButton"><Setter Property="Foreground" Value="$($theme.FormForeground)"/></Style>
-    <Style TargetType="ToggleButton">
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="MinWidth" Value="130"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Style.Triggers>
-        <Trigger Property="IsChecked" Value="True">
-          <Setter Property="Background" Value="$($theme.AccentPrimary)"/>
-          <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-        </Trigger>
-      </Style.Triggers>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
-    <Style x:Key="SystemButtonStyle" TargetType="Button">
-      <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
-      <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
+
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+    </Style>
+
+    <Style x:Key="TextInputStyle" TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Height" Value="30"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="PasswordInputStyle" TargetType="PasswordBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Height" Value="30"/>
+    </Style>
+
+    <Style x:Key="ToggleEyeStyle" TargetType="ToggleButton">
+      <Setter Property="Width" Value="40"/>
+      <Setter Property="Height" Value="30"/>
+      <Setter Property="Margin" Value="8,0,0,0"/>
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ToggleButton">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+              </Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="RadioStyle" TargetType="RadioButton">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="Margin" Value="0,0,12,0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
   </Window.Resources>
-  <Border Background="{DynamicResource FormBg}" CornerRadius="10" BorderBrush="{DynamicResource AccentPrimary}" BorderThickness="2" Padding="0">
-    <Border.Effect><DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/></Border.Effect>
-    <Grid Margin="16">
+
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
+    <Border.Effect>
+      <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/>
+    </Border.Effect>
+
+    <Grid>
       <Grid.RowDefinitions>
-        <RowDefinition Height="36"/>
-        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="52"/>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
-      <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <TextBlock Text="Crear Usuario de Windows" VerticalAlignment="Center" FontWeight="SemiBold"/>
-        <Button Name="btnClose" Grid.Column="1" Content="✕" Width="34" Height="26" Margin="8,0,0,0" ToolTip="Cerrar" Background="Transparent" BorderBrush="Transparent"/>
-      </Grid>
-      <TextBlock Grid.Row="1" Text="Crea un usuario local y asígnalo al grupo correspondiente." FontWeight="SemiBold" Margin="0,0,0,12"/>
-      <Grid Grid.Row="2" Margin="0,0,0,12">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Nombre de usuario" VerticalAlignment="Center" Margin="0,0,10,8"/>
-        <TextBox Name="txtUsername" Grid.Row="0" Grid.Column="1" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,8"/>
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Contraseña" VerticalAlignment="Center" Margin="0,0,10,8"/>
-        <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
-          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-          <PasswordBox Name="pwdPassword" Grid.Column="0" Height="32" Padding="6,0,6,0"/>
-          <TextBox Name="txtPasswordVisible" Grid.Column="0" Height="32" VerticalContentAlignment="Center" Visibility="Collapsed"/>
-          <ToggleButton Name="tglShowPassword" Grid.Column="1" Content="👁" Width="40" Height="32" Margin="8,0,0,0" ToolTip="Mostrar/Ocultar contraseña"/>
+
+      <!-- Header -->
+      <Border Grid.Row="0"
+              Name="HeaderBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Text="Crear Usuario de Windows"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Crea un usuario local y asígnalo al grupo correspondiente."
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+
+          <Button Grid.Column="2"
+                  Name="btnClose"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
         </Grid>
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="Tipo de usuario" VerticalAlignment="Center"/>
+      </Border>
+
+      <!-- Form -->
+      <Grid Grid.Row="1" Margin="12,0,12,10">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="170"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Nombre de usuario" VerticalAlignment="Center" Foreground="{DynamicResource FormFg}" Margin="0,0,10,8"/>
+        <TextBox Grid.Row="0" Grid.Column="1" Name="txtUsername" Style="{StaticResource TextInputStyle}" Margin="0,0,0,8"/>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Contraseña" VerticalAlignment="Center" Foreground="{DynamicResource FormFg}" Margin="0,0,10,8"/>
+        <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <PasswordBox Grid.Column="0" Name="pwdPassword" Style="{StaticResource PasswordInputStyle}"/>
+          <TextBox Grid.Column="0" Name="txtPasswordVisible" Style="{StaticResource TextInputStyle}" Visibility="Collapsed"/>
+
+          <ToggleButton Grid.Column="1"
+                        Name="tglShowPassword"
+                        Style="{StaticResource ToggleEyeStyle}"
+                        Content="👁"
+                        ToolTip="Mostrar/Ocultar contraseña"/>
+        </Grid>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Tipo de usuario" VerticalAlignment="Center" Foreground="{DynamicResource FormFg}"/>
         <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-          <RadioButton Name="rbStandard" Content="Usuario estándar" IsChecked="True" Margin="0,0,12,0"/>
-          <RadioButton Name="rbAdmin" Content="Administrador"/>
+          <RadioButton Name="rbStandard" Content="Usuario estándar" IsChecked="True" Style="{StaticResource RadioStyle}"/>
+          <RadioButton Name="rbAdmin" Content="Administrador" Foreground="{DynamicResource FormFg}" VerticalAlignment="Center"/>
         </StackPanel>
-        <Button Name="btnShowUsers" Grid.Row="2" Grid.Column="2" Content="Ver usuarios" Width="110" Height="30" Margin="12,0,0,0" Style="{StaticResource SystemButtonStyle}"/>
+
+        <Button Grid.Row="2" Grid.Column="2"
+                Name="btnShowUsers"
+                Content="Ver usuarios"
+                Style="{StaticResource SecondaryButtonStyle}"
+                MinWidth="120"
+                Margin="12,0,0,0"/>
       </Grid>
-      <Border Grid.Row="3" Background="{DynamicResource ControlBg}" CornerRadius="8" Padding="12">
+
+      <!-- Requirements -->
+      <Border Grid.Row="2"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="12"
+              Margin="12,0,12,10">
         <StackPanel>
-          <TextBlock Text="Requisitos:" FontWeight="SemiBold" Margin="0,0,0,6"/>
-          <TextBlock Text="• Nombre: sin espacios (ej. soporte01)" Margin="0,0,0,2"/>
-          <TextBlock Text="• Contraseña: mínimo 8 caracteres" Margin="0,0,0,2"/>
-          <TextBlock Text="• Administrador: úsalo solo si es necesario"/>
+          <TextBlock Text="Requisitos"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource PanelFg}"
+                     Margin="0,0,0,8"/>
+          <TextBlock Text="• Nombre: sin espacios (ej. soporte01)" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,2"/>
+          <TextBlock Text="• Contraseña: mínimo 8 caracteres" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,2"/>
+          <TextBlock Text="• Administrador: úsalo solo si es necesario" Foreground="{DynamicResource PanelFg}"/>
         </StackPanel>
       </Border>
-      <Grid Grid.Row="4" Margin="0,12,0,0">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <TextBlock Name="lblStatus" Grid.Column="0" Text="Listo." Foreground="#2E7D32" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,10,0"/>
+
+      <!-- Footer -->
+      <Grid Grid.Row="3" Margin="12,0,12,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10,8"
+                Margin="0,0,10,0">
+          <TextBlock Name="lblStatus"
+                     Text="Listo."
+                     Foreground="{DynamicResource PanelFg}"
+                     VerticalAlignment="Center"
+                     TextWrapping="Wrap"/>
+        </Border>
+
         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-          <Button Name="btnCancel" Content="Cancelar" Width="110" Height="30" Margin="0,0,10,0" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
-          <Button Name="btnCreate" Content="Crear usuario" Width="130" Height="30" Style="{StaticResource SystemButtonStyle}" IsEnabled="False" IsDefault="True"/>
+          <Button Name="btnCancel"
+                  Content="Cancelar"
+                  Style="{StaticResource SecondaryButtonStyle}"
+                  Margin="0,0,10,0"
+                  IsCancel="True"/>
+
+          <Button Name="btnCreate"
+                  Content="Crear usuario"
+                  Style="{StaticResource PrimaryButtonStyle}"
+                  IsEnabled="False"
+                  IsDefault="True"/>
         </StackPanel>
       </Grid>
+
     </Grid>
   </Border>
 </Window>
@@ -1155,6 +1384,34 @@ function Show-AddUserDialog {
     $c = $ui.Controls
     Set-DzWpfThemeResources -Window $w -Theme $theme
     try { Set-WpfDialogOwner -Dialog $w }catch {}
+    try {
+        if (-not $w.Owner -and $global:MainWindow -is [System.Windows.Window]) {
+            $w.Owner = $global:MainWindow
+        }
+    } catch {}
+    $w.WindowStartupLocation = "Manual"
+    $w.Add_Loaded({
+            try {
+                $owner = $w.Owner
+                if (-not $owner) { return }
+                $ob = $owner.RestoreBounds
+                $targetW = $w.ActualWidth
+                $targetH = $w.ActualHeight
+                if ($targetW -le 0) { $targetW = $w.Width }
+                if ($targetH -le 0) { $targetH = $w.Height }
+                $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                $top = $ob.Top + (($ob.Height - $targetH) / 2)
+                $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                $wa = $screen.WorkingArea
+                if ($left -lt $wa.Left) { $left = $wa.Left }
+                if ($top -lt $wa.Top) { $top = $wa.Top }
+                if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+                $w.Left = [double]$left
+                $w.Top = [double]$top
+            } catch {}
+        }.GetNewClosure())
     if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
     $script:__dlgResult = $false
     $c['btnClose'].Add_Click({ $w.DialogResult = $false; $w.Close() })
@@ -1208,62 +1465,309 @@ function Show-AddUserDialog {
     $ShowUsersTableDialogSb = {
         param([Parameter(Mandatory)][System.Windows.Window]$Owner, [Parameter(Mandatory)]$Rows, [Parameter(Mandatory)][scriptblock]$GetUsersRowsSb, [Parameter(Mandatory)][scriptblock]$WriteUsersTableConsoleSb)
         $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Usuarios locales" Height="500" Width="700" WindowStartupLocation="CenterOwner" ResizeMode="CanResize" ShowInTaskbar="False" Background="{DynamicResource FormBg}">
-  <Grid Margin="12">
-    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <TextBlock Grid.Row="0" Text="Usuarios locales" Foreground="{DynamicResource FormFg}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,10"/>
-    <Border Grid.Row="1" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="10" Padding="8">
-      <DataGrid Name="dgUsers" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="None" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" RowHeight="28" AlternationCount="2" SelectionMode="Single">
-        <DataGrid.ColumnHeaderStyle>
-          <Style TargetType="{x:Type DataGridColumnHeader}">
-            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-          </Style>
-        </DataGrid.ColumnHeaderStyle>
-        <DataGrid.RowStyle>
-          <Style TargetType="{x:Type DataGridRow}">
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Style.Triggers>
-              <Trigger Property="ItemsControl.AlternationIndex" Value="1"><Setter Property="Background" Value="{DynamicResource PanelBg}"/></Trigger>
-              <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource AccentPrimary}"/><Setter Property="Foreground" Value="{DynamicResource FormFg}"/></Trigger>
-            </Style.Triggers>
-          </Style>
-        </DataGrid.RowStyle>
-        <DataGrid.CellStyle>
-          <Style TargetType="{x:Type DataGridCell}">
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-            <Setter Property="Padding" Value="10,4"/>
-          </Style>
-        </DataGrid.CellStyle>
-        <DataGrid.Columns>
-          <DataGridTextColumn Header="Usuario" Binding="{Binding Usuario}" Width="*"/>
-          <DataGridTextColumn Header="Administrador" Binding="{Binding Administrador}" Width="140"/>
-          <DataGridTextColumn Header="Estado" Binding="{Binding Estado}" Width="150"/>
-        </DataGrid.Columns>
-      </DataGrid>
-    </Border>
-    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-      <Button Name="btnDelete" Content="Eliminar" Width="110" Height="32" Margin="0,0,10,0" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"/>
-      <Button Name="btnCopy" Content="Copiar" Width="110" Height="32" Margin="0,0,10,0" Background="{DynamicResource ControlBg}" Foreground="{DynamicResource ControlFg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1"/>
-      <Button Name="btnClose" Content="Cerrar" Width="110" Height="32" Background="{DynamicResource AccentPrimary}" Foreground="{DynamicResource FormFg}" BorderThickness="0"/>
-    </StackPanel>
-  </Grid>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Usuarios locales"
+        Width="700" Height="500"
+        MinWidth="650" MinHeight="430"
+        WindowStartupLocation="Manual"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
+
+  <Window.Resources>
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="MinWidth" Value="110"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
+    <Border.Effect>
+      <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/>
+    </Border.Effect>
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="52"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <!-- Header -->
+      <Border Grid.Row="0"
+              Name="HeaderBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Text="Usuarios locales"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Listado de usuarios del equipo (puedes copiar o eliminar)."
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+
+          <Button Grid.Column="2"
+                  Name="btnCloseX"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
+        </Grid>
+      </Border>
+
+      <!-- Grid -->
+      <Border Grid.Row="1"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="8"
+              Margin="12,0,12,10">
+        <DataGrid Name="dgUsers"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  IsReadOnly="True"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="None"
+                  Background="{DynamicResource ControlBg}"
+                  Foreground="{DynamicResource ControlFg}"
+                  BorderBrush="{DynamicResource BorderBrushColor}"
+                  BorderThickness="1"
+                  RowHeight="28"
+                  AlternationCount="2"
+                  SelectionMode="Single">
+
+          <DataGrid.ColumnHeaderStyle>
+            <Style TargetType="{x:Type DataGridColumnHeader}">
+              <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+              <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+              <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+              <Setter Property="BorderThickness" Value="0,0,0,1"/>
+              <Setter Property="Padding" Value="10,6"/>
+              <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
+          </DataGrid.ColumnHeaderStyle>
+
+          <DataGrid.RowStyle>
+            <Style TargetType="{x:Type DataGridRow}">
+              <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+              <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+              <Setter Property="BorderThickness" Value="0"/>
+              <Style.Triggers>
+                <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                  <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                  <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+                  <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                </Trigger>
+              </Style.Triggers>
+            </Style>
+          </DataGrid.RowStyle>
+
+          <DataGrid.CellStyle>
+            <Style TargetType="{x:Type DataGridCell}">
+              <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+              <Setter Property="BorderThickness" Value="0,0,0,1"/>
+              <Setter Property="Padding" Value="10,4"/>
+            </Style>
+          </DataGrid.CellStyle>
+
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Usuario" Binding="{Binding Usuario}" Width="*"/>
+            <DataGridTextColumn Header="Administrador" Binding="{Binding Administrador}" Width="140"/>
+            <DataGridTextColumn Header="Estado" Binding="{Binding Estado}" Width="150"/>
+          </DataGrid.Columns>
+        </DataGrid>
+      </Border>
+
+      <!-- Footer -->
+      <Grid Grid.Row="2" Margin="12,0,12,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10,8"
+                Margin="0,0,10,0">
+          <TextBlock Name="lblFooter"
+                     Text="Tip: selecciona un usuario para eliminar."
+                     Foreground="{DynamicResource PanelFg}"
+                     VerticalAlignment="Center"
+                     TextWrapping="Wrap"/>
+        </Border>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+          <Button Name="btnDelete" Content="Eliminar" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,10,0"/>
+          <Button Name="btnCopy" Content="Copiar" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,10,0"/>
+          <Button Name="btnClose" Content="Cerrar" Style="{StaticResource PrimaryButtonStyle}"/>
+        </StackPanel>
+      </Grid>
+
+    </Grid>
+  </Border>
 </Window>
 "@
         $ui2 = New-WpfWindow -Xaml $xaml -PassThru
         $win = $ui2.Window
         $ctrl = $ui2.Controls
+        $ctrl['btnCloseX'].Add_Click({ $win.Close() })
+        $ctrl['btnClose'].Add_Click({ $win.Close() })
+        $ctrl['HeaderBar'].Add_MouseLeftButtonDown({
+                if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $win.DragMove() }
+            })
         $theme2 = Get-DzUiTheme
         Set-DzWpfThemeResources -Window $win -Theme $theme2
-        if ($Owner) { $win.Owner = $Owner; $win.WindowStartupLocation = "CenterOwner" }else { $win.WindowStartupLocation = "CenterScreen" }
+        if ($Owner) { $win.Owner = $Owner }
+        $win.WindowStartupLocation = "Manual"
+        $win.Add_Loaded({
+                try {
+                    $owner = $win.Owner
+                    if (-not $owner) { return }
+                    $ob = $owner.RestoreBounds
+                    $targetW = $win.ActualWidth; if ($targetW -le 0) { $targetW = $win.Width }
+                    $targetH = $win.ActualHeight; if ($targetH -le 0) { $targetH = $win.Height }
+                    $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                    $top = $ob.Top + (($ob.Height - $targetH) / 2)
+                    $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                    $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                    $wa = $screen.WorkingArea
+                    if ($left -lt $wa.Left) { $left = $wa.Left }
+                    if ($top -lt $wa.Top) { $top = $wa.Top }
+                    if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                    if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+                    $win.Left = [double]$left
+                    $win.Top = [double]$top
+                } catch {}
+            }.GetNewClosure())
+        if (-not $win.Owner) { $win.WindowStartupLocation = "CenterScreen" }
         $Rows = @($Rows)
         $ctrl['dgUsers'].ItemsSource = $Rows
         $refresh = {
@@ -1467,53 +1971,240 @@ function Show-IPConfigDialog {
 
         return (Get-Ipv4ConfigSnapshot -Alias $Alias)
     }
-
-
     $stringXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Asignación de IPs"
-        Height="280" Width="620"
-        WindowStartupLocation="CenterOwner"
+        Width="620" Height="280"
+        MinWidth="620" MinHeight="280"
+        MaxWidth="620" MaxHeight="280"
+        WindowStartupLocation="Manual"
+        WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        Background="{DynamicResource FormBg}"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="False"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
-    <Window.Resources>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-        </Style>
-        <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-        <Style x:Key="SystemButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
-        </Style>
-    </Window.Resources>
-    <Grid Margin="12" Background="{DynamicResource FormBg}">
+
+  <Window.Resources>
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="MinWidth" Value="140"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+    </Style>
+
+    <Style x:Key="ComboStyle" TargetType="ComboBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,4"/>
+      <Setter Property="Height" Value="30"/>
+    </Style>
+  </Window.Resources>
+
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
+    <Border.Effect>
+      <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/>
+    </Border.Effect>
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="52"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <!-- Title bar -->
+      <Border Grid.Row="0"
+              Name="HeaderBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Text="Asignación de IPs"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Selecciona un adaptador y aplica acciones (fija, adicional o DHCP)."
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+
+          <Button Grid.Column="2"
+                  Name="btnClose"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
+        </Grid>
+      </Border>
+
+      <!-- Tip -->
+      <Border Grid.Row="1"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="10,8"
+              Margin="12,0,12,10">
+        <TextBlock Text="Tip: si el adaptador está en DHCP, al agregar IP adicional primero se convertirá a IP fija con la IP actual."
+                   Foreground="{DynamicResource PanelFg}"
+                   FontSize="10"
+                   Opacity="0.9"
+                   TextWrapping="Wrap"/>
+      </Border>
+
+      <!-- Content -->
+      <Grid Grid.Row="2" Margin="12,0,12,10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Seleccione el adaptador de red:" Margin="0,0,0,8"/>
-        <ComboBox Name="cmbAdapters" Grid.Row="1" Height="28" Margin="0,0,0,10"/>
-        <TextBlock Name="lblIps" Grid.Row="2" Text="IPs asignadas: -" TextWrapping="Wrap" Margin="0,0,0,12" MinHeight="36"/>
+        <TextBlock Grid.Row="0" Text="Adaptador de red"
+                   Foreground="{DynamicResource FormFg}"
+                   Margin="0,0,0,6"/>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Name="btnConvertStatic" Content="Convertir a IP fija" Width="150" Height="32" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
-            <Button Name="btnAssignIp"      Content="Agregar IP adicional" Width="150" Height="32" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
-            <Button Name="btnDhcp"          Content="Cambiar a DHCP" Width="140" Height="32" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
-            <Button Name="btnClose"         Content="Cerrar" Width="110" Height="32" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
-        </StackPanel>
+        <ComboBox Grid.Row="1" Name="cmbAdapters" Style="{StaticResource ComboStyle}" Margin="0,0,0,10"/>
+
+        <Border Grid.Row="2"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10">
+          <TextBlock Name="lblIps"
+                     Text="IPs asignadas: -"
+                     Foreground="{DynamicResource AccentMuted}"
+                     TextWrapping="Wrap"
+                     VerticalAlignment="Top"/>
+        </Border>
+      </Grid>
+
+      <!-- Footer buttons -->
+      <StackPanel Grid.Row="3"
+                  Orientation="Horizontal"
+                  HorizontalAlignment="Right"
+                  Margin="12,0,12,12">
+        <Button Name="btnConvertStatic"
+                Content="Convertir a IP fija"
+                Style="{StaticResource SecondaryButtonStyle}"
+                Margin="0,0,10,0"
+                IsEnabled="False"/>
+
+        <Button Name="btnAssignIp"
+                Content="Agregar IP adicional"
+                Style="{StaticResource PrimaryButtonStyle}"
+                Margin="0,0,10,0"
+                IsEnabled="False"/>
+
+        <Button Name="btnDhcp"
+                Content="Cambiar a DHCP"
+                Style="{StaticResource SecondaryButtonStyle}"
+                Margin="0,0,10,0"
+                IsEnabled="False"/>
+
+        <Button Name="btnCloseFooter"
+                Content="Cerrar"
+                Style="{StaticResource SecondaryButtonStyle}"
+                IsCancel="True"/>
+      </StackPanel>
+
     </Grid>
+  </Border>
 </Window>
 "@
 
@@ -1522,6 +2213,40 @@ function Show-IPConfigDialog {
     $c = $ui.Controls
     Set-DzWpfThemeResources -Window $window -Theme $theme
     Set-WpfDialogOwner -Dialog $window
+    try {
+        if (-not $window.Owner -and $global:MainWindow -is [System.Windows.Window]) {
+            $window.Owner = $global:MainWindow
+        }
+    } catch {}
+
+    $window.WindowStartupLocation = "Manual"
+    $window.Add_Loaded({
+            try {
+                $owner = $window.Owner
+                if (-not $owner) { return }
+
+                $ob = $owner.RestoreBounds
+                $targetW = $window.ActualWidth
+                $targetH = $window.ActualHeight
+                if ($targetW -le 0) { $targetW = $window.Width }
+                if ($targetH -le 0) { $targetH = $window.Height }
+
+                $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                $top = $ob.Top + (($ob.Height - $targetH) / 2)
+
+                $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                $wa = $screen.WorkingArea
+
+                if ($left -lt $wa.Left) { $left = $wa.Left }
+                if ($top -lt $wa.Top) { $top = $wa.Top }
+                if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+
+                $window.Left = [double]$left
+                $window.Top = [double]$top
+            } catch {}
+        }.GetNewClosure())
 
     $adapters = @(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Up" })
     $c['cmbAdapters'].Items.Clear()
@@ -1631,6 +2356,11 @@ function Show-IPConfigDialog {
         })
 
     $c['btnClose'].Add_Click({ $window.Close() })
+    $c['btnCloseFooter'].Add_Click({ $window.Close() })
+    $c['HeaderBar'].Add_MouseLeftButtonDown({
+            if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $window.DragMove() }
+        })
+
     $window.ShowDialog() | Out-Null
 }
 function Show-LZMADialog {
@@ -2496,7 +3226,7 @@ function Show-FirewallConfigDialog {
         & $SetStatus "Se encontraron $($Matches.Count) regla(s) para el puerto $Port." "Ok"
     }.GetNewClosure()
     $c['btnClose'].Add_Click({ $w.Close() })
-    $c['btnCloseFooter'].Add_Click({ $w.Close() })
+    $c['btnCancel'].Add_Click({ $w.Close() })
     $c['HeaderBar'].Add_MouseLeftButtonDown({ if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() } })
     $c['btnSearch'].Add_Click({
             Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] btnSearch click a las $([DateTime]::Now.ToString("o"))"
@@ -2592,7 +3322,6 @@ function Show-FirewallConfigDialog {
     }
     Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] FIN"
 }
-
 Export-ModuleMember -Function @('Show-SystemComponents', 'Start-SystemUpdate', 'show-NSPrinters', 'Invoke-ClearPrintJobs',
     'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog',
     'Show-InstallPrinterDialog')

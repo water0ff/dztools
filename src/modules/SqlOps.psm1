@@ -110,7 +110,22 @@ function Show-RestoreDialog {
     Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Controles: txtBackupPath=$([bool]$txtBackupPath) btnBrowseBackup=$([bool]$btnBrowseBackup) txtDestino=$([bool]$txtDestino) txtMdfPath=$([bool]$txtMdfPath) txtLdfPath=$([bool]$txtLdfPath) pbRestore=$([bool]$pbRestore) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnCerrar=$([bool]$btnCerrar)"
     if (-not $txtBackupPath -or -not $btnBrowseBackup -or -not $txtDestino -or -not $txtMdfPath -or -not $txtLdfPath -or -not $pbRestore -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnCerrar) { Write-DzDebug "`t[DEBUG][Show-RestoreDialog] ERROR: controles NULL"; throw "Controles WPF incompletos (FindName devolvió NULL)." }
     $defaultRestoreFolder = "C:\NationalSoft\DATABASES"
-    $txtDestino.Text = $Database
+    $bc = [System.Windows.Media.BrushConverter]::new()
+    function Set-TxtDestinoPlaceholder {
+        $txtDestino.Text = "SELECCIONA PRIMERO EL RESPALDO"
+        $txtDestino.Foreground = $bc.ConvertFromString($theme.AccentMuted)
+        $txtDestino.FontStyle = [System.Windows.FontStyles]::Italic
+    }
+    function Set-TxtDestinoNormal {
+        $txtDestino.Foreground = $bc.ConvertFromString($theme.ControlForeground)
+        $txtDestino.FontStyle = [System.Windows.FontStyles]::Normal
+    }
+    $txtDestino.Text = "SELECCIONA PRIMERO EL RESPALDO"
+    $txtDestino.Foreground = $bc.ConvertFromString($theme.AccentMuted)
+    $txtDestino.FontStyle = [System.Windows.FontStyles]::Italic
+    # Cuando ya tengas nombre real:
+    $txtDestino.Foreground = $bc.ConvertFromString($theme.ControlForeground)
+    $txtDestino.FontStyle = [System.Windows.FontStyles]::Normal
     function Normalize-RestoreFolder {
         param([string]$BasePath)
         if ([string]::IsNullOrWhiteSpace($BasePath)) { return $BasePath }
@@ -125,7 +140,10 @@ function Show-RestoreDialog {
         $txtMdfPath.Text = Join-Path $baseFolder "$DatabaseName.mdf"
         $txtLdfPath.Text = Join-Path $baseFolder "$DatabaseName.ldf"
     }
-    Update-RestorePaths -DatabaseName $txtDestino.Text
+    if ($txtDestino.Text -ne "SELECCIONA PRIMERO EL RESPALDO") {
+        Update-RestorePaths -DatabaseName $txtDestino.Text
+    }
+
     $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
     $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
     function Paint-Progress { param([int]$Percent, [string]$Message) $pbRestore.Value = $Percent; $txtProgress.Text = $Message }
@@ -344,7 +362,11 @@ function Show-RestoreDialog {
                 $dlg.Multiselect = $false
                 if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
                     $txtBackupPath.Text = $dlg.FileName
-                    if ([string]::IsNullOrWhiteSpace($txtDestino.Text)) { $txtDestino.Text = [System.IO.Path]::GetFileNameWithoutExtension($dlg.FileName) }
+                    $suggestedName = [System.IO.Path]::GetFileNameWithoutExtension($dlg.FileName)
+                    $txtDestino.Text = $suggestedName
+                    Set-TxtDestinoNormal
+                    Write-DzDebug "`t[DEBUG][UI] Nombre destino sugerido: '$suggestedName' (basado en archivo .bak)"
+                    Add-Log "📝 Nombre destino sugerido: $suggestedName"
                 }
             } catch {
                 Write-DzDebug "`t[DEBUG][UI] Error btnBrowseBackup: $($_.Exception.Message)"
@@ -352,7 +374,13 @@ function Show-RestoreDialog {
             }
         })
     $txtDestino.Add_TextChanged({
-            try { Update-RestorePaths -DatabaseName $txtDestino.Text } catch { Write-DzDebug "`t[DEBUG][UI] Error actualizando rutas: $($_.Exception.Message)" }
+            try {
+                if ($txtDestino.Text -and $txtDestino.Text -ne "SELECCIONA PRIMERO EL RESPALDO") {
+                    Update-RestorePaths -DatabaseName $txtDestino.Text
+                }
+            } catch {
+                Write-DzDebug "`t[DEBUG][UI] Error actualizando rutas: $($_.Exception.Message)"
+            }
         })
     $btnAceptar.Add_Click({
             Write-DzDebug "`t[DEBUG][UI] btnAceptar Restore Click"
@@ -368,6 +396,11 @@ function Show-RestoreDialog {
                 Add-Log "Iniciando proceso de restauración..."
                 $backupPath = $txtBackupPath.Text.Trim()
                 $destName = $txtDestino.Text.Trim()
+                if ($destName -eq "SELECCIONA PRIMERO EL RESPALDO") {
+                    Ui-Warn "Debes seleccionar un archivo de respaldo primero.`n`nEl nombre de la base de datos se generará automáticamente basado en el archivo .bak que selecciones." "Atención" $window
+                    Reset-RestoreUI -ProgressText "Selecciona archivo de respaldo"
+                    return
+                }
                 $mdfPath = $txtMdfPath.Text.Trim()
                 $ldfPath = $txtLdfPath.Text.Trim()
                 if ([string]::IsNullOrWhiteSpace($backupPath)) { Ui-Warn "Selecciona el archivo .bak a restaurar." "Atención" $window; Reset-RestoreUI -ProgressText "Archivo de respaldo requerido"; return }
@@ -608,6 +641,11 @@ function Show-AttachDialog {
 "@
     $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
     $window = [System.Windows.Markup.XamlReader]::Load($reader)
+    try {
+        Set-DzWpfThemeResources -Window $window -Theme $theme
+    } catch {
+        Write-DzDebug "`t[DEBUG][Show-RestoreDialog] No se pudo aplicar tema: $($_.Exception.Message)"
+    }
     if (-not $window) { Write-DzDebug "`t[DEBUG][Show-AttachDialog] ERROR: window=NULL"; throw "No se pudo crear la ventana (XAML)." }
     $txtMdfPath = $window.FindName("txtMdfPath")
     $btnBrowseMdf = $window.FindName("btnBrowseMdf")

@@ -955,9 +955,9 @@ function Show-NSApplicationsIniReport {
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
         </Style>
         <Style x:Key="CloseButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="34"/>
+            <Setter Property="MinWidth" Value="34"/>
             <Setter Property="Height" Value="34"/>
-            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Padding" Value="12,0"/>
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
@@ -971,8 +971,10 @@ function Show-NSApplicationsIniReport {
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
@@ -981,6 +983,7 @@ function Show-NSApplicationsIniReport {
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#FFFF4444"/>
                     <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="BorderThickness" Value="0"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -1002,18 +1005,27 @@ function Show-NSApplicationsIniReport {
                     CornerRadius="6"
                     Padding="12,8"
                     Margin="0,0,0,10">
-                <DockPanel LastChildFill="True">
-                    <TextBlock DockPanel.Dock="Left"
-                               Text="🚀 Aplicaciones National Soft"
-                               FontSize="16"
-                               FontWeight="Bold"
-                               Foreground="{DynamicResource FormFg}"
-                               VerticalAlignment="Center"/>
-                    <Button DockPanel.Dock="Right"
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0"
+                            Text="🚀 Aplicaciones National Soft"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Foreground="{DynamicResource FormFg}"
+                            VerticalAlignment="Center"/>
+
+                    <Button Grid.Column="1"
+                            Content="Cerrar"
                             Name="btnClose"
-                            Content="×"
-                            Style="{StaticResource CloseButtonStyle}"/>
-                </DockPanel>
+                            Style="{StaticResource CloseButtonStyle}"
+                            Margin="8,0,0,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"/>
+                </Grid>
             </Border>
             <Border Grid.Row="1"
                     Background="{DynamicResource PanelBg}"
@@ -1118,6 +1130,7 @@ function Show-NSApplicationsIniReport {
         Write-DzDebug "`t[DEBUG][Show-NSApplicationsIniReport] ERROR creando ventana: $($_.Exception.Message)" Red
     }
 }
+
 function Get-OtmConfigFromSyscfg {
     param(
         [Parameter(Mandatory)][string]$SyscfgPath

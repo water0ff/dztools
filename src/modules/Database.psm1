@@ -202,7 +202,7 @@ function Invoke-DzSqlBatchInternal {
         Add-Debug ("Batches: {0}" -f $batches.Count)
         if ($batches.Count -gt 0) {
             $preview = $batches[0]
-            if ($preview.Length -gt 300) { $preview = $preview.Substring(0, 300) + "..." }
+            if ($preview.Length -gt 100) { $preview = $preview.Substring(0, 100) + "..." }
             Add-Debug ("Batch[0] Preview: {0}" -f $preview.Replace("`r", " ").Replace("`n", " "))
         }
         $resultSets = New-Object System.Collections.Generic.List[object]
@@ -1418,6 +1418,43 @@ WHERE
 
         CLOSE cur
         DEALLOCATE cur
+"@
+        "SR SYNC | Renovar NSPlatformControl"             = @"
+/*  SE RECOMIENDA RESPALDAR LA BASE DE DATOS ANTES DE EJECUTAR ESTA CONSULTA
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+DELETE FROM dbo.nsplatformcontrol;
+UPDATE dbo.grupos
+    SET WorkspaceId = NEWID();
+UPDATE dbo.subgrupos
+    SET WorkspaceId = NEWID();
+UPDATE dbo.gruposmodificadores
+    SET WorkspaceId = NEWID();
+UPDATE dbo.comentarios
+    SET IdComentario = NEWID();
+UPDATE dbo.udsmedida
+    SET WorkspaceId = NEWID();
+UPDATE dbo.productos
+    SET WorkspaceId = NEWID();
+UPDATE dbo.modificadores
+    SET WorkspaceId = NEWID();
+UPDATE dbo.areasrestaurant
+    SET WorkspaceId = NEWID();
+UPDATE dbo.estaciones
+    SET WorkspaceId = NEWID();
+UPDATE dbo.formasdepago
+    SET WorkspaceId = NEWID();
+UPDATE dbo.usuarios
+    SET WorkspaceId = NEWID();
+UPDATE dbo.turnos
+    SET WorkspaceId = NEWID();
+UPDATE dbo.mesas
+    SET WorkspaceId = NEWID();
+UPDATE dbo.gruposmodificadoresproductos
+    SET Id = NEWID();
+UPDATE dbo.gruposmodificadoresproductos
+    SET WorkspaceId = Id;
+UPDATE dbo.declaracioncajero
+    SET WorkspaceId = NEWID();
 "@
     }
 }

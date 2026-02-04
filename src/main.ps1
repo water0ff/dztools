@@ -285,7 +285,6 @@ function New-MainForm {
     $global:tcResults = $tcResults
     $global:tvDatabases = $tvDatabases
     $global:tabAddQuery = $tabAddQuery
-    $global:dgResults = $window.FindName("dgResults")
     $global:txtMessages = $window.FindName("txtMessages")
     $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")
     $global:lblRowCount = $window.FindName("lblRowCount")
@@ -416,10 +415,77 @@ function New-MainForm {
                 $hostname = [System.Net.Dns]::GetHostName()
                 if ([string]::IsNullOrWhiteSpace($hostname)) { Write-Host "`n[AVISO] No se pudo obtener el hostname." -ForegroundColor Yellow; return }
                 $ok = Set-ClipboardTextSafe -Text $hostname -Owner $global:MainWindow
-                if ($ok) { Write-Host "`nNombre del equipo copiado: $hostname" -ForegroundColor Green } else { Ui-Error "No se pudo copiar el hostname al portapapeles." $global:MainWindow }
+                if ($ok) { Write-Host "`nNombre del equipo copiado: $hostname" -ForegroundColor Green }else { Ui-Error "No se pudo copiar el hostname al portapapeles." $global:MainWindow }
             } catch {
                 Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
                 Ui-Error "Error: $($_.Exception.Message)" $global:MainWindow
+            } finally {
+                $e.Handled = $true
+            }
+        }.GetNewClosure())
+    $lblPort.Add_PreviewMouseLeftButtonDown({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG] Click en lblPort - Evento iniciado" -Color DarkGray
+            try {
+                $textToCopy = [string]$sender.Text
+
+                if ([string]::IsNullOrWhiteSpace($textToCopy) -or $textToCopy -like "🔍*") {
+                    Write-Host "`n⚠ No hay puertos listos para copiar" -ForegroundColor Yellow
+                    return
+                }
+
+                if (Get-Command Set-ClipboardTextSafe -ErrorAction SilentlyContinue) {
+                    Set-ClipboardTextSafe -Text $textToCopy -Owner $global:MainWindow
+                    Write-Host "`n✓ Puertos SQL copiados al portapapeles" -ForegroundColor Green
+                } else {
+                    Set-Clipboard -Value $textToCopy
+                    Write-Host "`n✓ Puertos SQL copiados al portapapeles (Set-Clipboard)" -ForegroundColor Green
+                }
+
+            } catch {
+                Write-Host "`n✗ Error: $($_.Exception.Message)" -ForegroundColor Red
+            } finally {
+                $e.Handled = $true
+            }
+        }.GetNewClosure())
+    $txt_IpAdress.Add_PreviewMouseLeftButtonDown({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG] Click en txt_IpAdress - Evento iniciado" -Color DarkGray
+            try {
+                $textToCopy = [string]$sender.Text
+
+                if ([string]::IsNullOrWhiteSpace($textToCopy) -or $textToCopy -like "🔍*") {
+                    Write-Host "`n⚠ No hay IPs listas para copiar" -ForegroundColor Yellow
+                    return
+                }
+
+                if (Get-Command Set-ClipboardTextSafe -ErrorAction SilentlyContinue) {
+                    Set-ClipboardTextSafe -Text $textToCopy -Owner $global:MainWindow
+                    Write-Host "`n✓ Direcciones IP copiadas al portapapeles" -ForegroundColor Green
+                    Write-Host " IPs: $textToCopy" -ForegroundColor Green
+                } else {
+                    Set-Clipboard -Value $textToCopy
+                    Write-Host "`n✓ Direcciones IP copiadas al portapapeles (Set-Clipboard)" -ForegroundColor Green
+                }
+
+            } catch {
+                Write-Host "`n✗ Error: $($_.Exception.Message)" -ForegroundColor Red
+            } finally {
+                $e.Handled = $true
+            }
+        }.GetNewClosure())
+
+    $txt_AdapterStatus.Add_PreviewMouseLeftButtonDown({
+            param($sender, $e)
+            Write-DzDebug "`t[DEBUG] Click en txt_AdapterStatus - Evento iniciado" -Color DarkGray
+            try {
+                $adapters = $txt_AdapterStatus.Tag
+                if (-not $adapters -or $adapters.Count -eq 0) { Write-Host "`n⚠ No hay adaptadores para configurar" -ForegroundColor Yellow; return }
+                if (Get-Command Set-AdaptersToPrivate -ErrorAction SilentlyContinue) {
+                    Set-AdaptersToPrivate -AdapterDetails $adapters -Owner $global:MainWindow
+                }
+            } catch {
+                Write-Host "`n✗ Error: $($_.Exception.Message)" -ForegroundColor Red
             } finally {
                 $e.Handled = $true
             }
@@ -716,6 +782,8 @@ function New-MainForm {
                 }
             }
         })
+    #en main.ps1
+    $global:dgResults = $window.FindName("dgResults")
     $btnClearQuery.Add_Click({
             Write-DzDebug ("`t[DEBUG] Click en 'Limpiar Query' - {0}" -f (Get-Date -Format "HH:mm:ss")) -Color DarkYellow
             try {

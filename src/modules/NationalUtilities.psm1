@@ -805,64 +805,6 @@ function Invoke-CreateApk {
         return $false
     }
 }
-function Invoke-CambiarOTMConfig {
-    [CmdletBinding()]
-    param(
-        [string]$SyscfgPath = "C:\Windows\SysWOW64\Syscfg45_2.0.dll",
-        [string]$IniPath = "C:\NationalSoft\OnTheMinute4.5",
-        [System.Windows.Controls.TextBlock]$InfoTextBlock
-    )
-    Write-DzDebug "`t[DEBUG][Invoke-CambiarOTMConfig] INICIO" ([System.ConsoleColor]::DarkGray)
-    try {
-        if (-not (Test-Path -LiteralPath $SyscfgPath)) {
-            Show-WpfMessageBox -Message "El archivo de configuración no existe:`n$SyscfgPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            Write-DzDebug "`t[DEBUG][OTM] Syscfg no existe: $SyscfgPath" ([System.ConsoleColor]::Red)
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe Syscfg." }
-            return $false
-        }
-        if (-not (Test-Path -LiteralPath $IniPath)) {
-            Show-WpfMessageBox -Message "No existe la ruta de INIs:`n$IniPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            Write-DzDebug "`t[DEBUG][OTM] IniPath no existe: $IniPath" ([System.ConsoleColor]::Red)
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe ruta INI." }
-            return $false
-        }
-        $current = Get-OtmConfigFromSyscfg -SyscfgPath $SyscfgPath
-        if (-not $current) {
-            Show-WpfMessageBox -Message "No se detectó una configuración válida de SQL o DBF en:`n$SyscfgPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            Write-DzDebug "`t[DEBUG][OTM] No se detectó config válida" ([System.ConsoleColor]::Red)
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: config inválida." }
-            return $false
-        }
-        $ini = Get-OtmIniFiles -IniPath $IniPath
-        if (-not $ini) {
-            Show-WpfMessageBox -Message "No se encontraron los archivos INI esperados en:`n$IniPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-            Write-DzDebug "`t[DEBUG][OTM] No se encontraron INIs esperados" ([System.ConsoleColor]::Red)
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: faltan INIs." }
-            return $false
-        }
-        $new = if ($current -eq "SQL") { "DBF" } else { "SQL" }
-        $msg = "Actualmente tienes configurado: $current.`n¿Quieres cambiar a $new?"
-        $res = Show-WpfMessageBox -Message $msg -Title "Cambiar Configuración" -Buttons "YesNo" -Icon "Question"
-        if ($res -ne [System.Windows.MessageBoxResult]::Yes) {
-            Write-DzDebug "`t[DEBUG][OTM] Usuario canceló" ([System.ConsoleColor]::Cyan)
-            if ($InfoTextBlock) { $InfoTextBlock.Text = "Operación cancelada." }
-            return $false
-        }
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Aplicando cambios..." }
-        Set-OtmSyscfgConfig -SyscfgPath $SyscfgPath -Target $new
-        Rename-OtmIniForTarget -Target $new -IniSqlFile $ini.SQL -IniDbfFile $ini.DBF
-        Show-WpfMessageBox -Message "Configuración cambiada exitosamente a $new." -Title "Éxito" -Buttons "OK" -Icon "Information" | Out-Null
-        Write-DzDebug "`t[DEBUG][OTM] OK cambiado a $new" ([System.ConsoleColor]::Green)
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Listo: cambiado a $new." }
-        return $true
-    } catch {
-        $err = $_.Exception.Message
-        Write-DzDebug "`t[DEBUG][Invoke-CambiarOTMConfig] ERROR: $err`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
-        if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: $err" }
-        Show-WpfMessageBox -Message "Error: $err" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
-        return $false
-    }
-}
 function Show-NSApplicationsIniReport {
     [CmdletBinding()]
     param(
@@ -892,7 +834,9 @@ function Show-NSApplicationsIniReport {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Aplicaciones National Soft"
-        Height="500" Width="900"
+        Width="600" Height="300"
+        MinWidth="600" MinHeight="300"
+        MaxWidth="600" MaxHeight="300"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -903,10 +847,48 @@ function Show-NSApplicationsIniReport {
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
+        <Style TargetType="{x:Type Control}">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style x:Key="IconButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="{x:Type DataGrid}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="RowBackground" Value="{DynamicResource ControlBg}"/>
             <Setter Property="AlternatingRowBackground" Value="{DynamicResource PanelBg}"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
@@ -920,15 +902,30 @@ function Show-NSApplicationsIniReport {
             <Setter Property="SelectionUnit" Value="Cell"/>
             <Setter Property="CanUserResizeRows" Value="False"/>
             <Setter Property="CanUserSortColumns" Value="True"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
         </Style>
         <Style TargetType="{x:Type DataGridRow}">
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
+                <Trigger Property="AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
                     <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
                 </Trigger>
-                <Trigger Property="IsMouseOver" Value="True">
+                <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
                     <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
                 </Trigger>
@@ -936,54 +933,11 @@ function Show-NSApplicationsIniReport {
         </Style>
         <Style TargetType="{x:Type DataGridCell}">
             <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Padding" Value="10,5"/>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
                     <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-                    <Setter Property="BorderBrush" Value="Transparent"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style TargetType="{x:Type DataGridColumnHeader}">
-            <Setter Property="Background" Value="{DynamicResource AccentOrange}"/>
-            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-        </Style>
-        <Style x:Key="CloseButtonStyle" TargetType="Button">
-            <Setter Property="MinWidth" Value="34"/>
-            <Setter Property="Height" Value="34"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#FFFF4444"/>
-                    <Setter Property="Foreground" Value="White"/>
-                    <Setter Property="BorderThickness" Value="0"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -991,64 +945,76 @@ function Show-NSApplicationsIniReport {
     <Border Background="{DynamicResource FormBg}"
             BorderBrush="{DynamicResource BorderBrushColor}"
             BorderThickness="1"
-            CornerRadius="8"
-            Margin="10">
-        <Grid Margin="10">
+            CornerRadius="12"
+            Margin="10"
+            SnapsToDevicePixels="True">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/>
+        </Border.Effect>
+        <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="52"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             <Border Grid.Row="0"
                     Name="brdTitleBar"
-                    Background="{DynamicResource AccentOrange}"
-                    CornerRadius="6"
-                    Padding="12,8"
-                    Margin="0,0,0,10">
+                    Background="{DynamicResource FormBg}"
+                    CornerRadius="12,12,0,0"
+                    Padding="12,8">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-
-                    <TextBlock Grid.Column="0"
-                            Text="🚀 Aplicaciones National Soft"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Foreground="{DynamicResource FormFg}"
-                            VerticalAlignment="Center"/>
-
-                    <Button Grid.Column="1"
-                            Content="Cerrar"
+                    <Border Grid.Column="0"
+                            Width="6"
+                            CornerRadius="3"
+                            Background="{DynamicResource AccentPrimary}"
+                            Margin="0,4,10,4"/>
+                    <StackPanel Grid.Column="1" Orientation="Vertical">
+                        <TextBlock Text="Aplicaciones National Soft"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource FormFg}"
+                                   FontSize="12"/>
+                        <TextBlock Text="Clic derecho en una celda para copiar"
+                                   Foreground="{DynamicResource AccentMuted}"
+                                   FontSize="10"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="2"
                             Name="btnClose"
-                            Style="{StaticResource CloseButtonStyle}"
-                            Margin="8,0,0,0"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"/>
+                            Style="{StaticResource IconButtonStyle}"
+                            Content="✕"
+                            ToolTip="Cerrar"/>
                 </Grid>
             </Border>
             <Border Grid.Row="1"
                     Background="{DynamicResource PanelBg}"
                     BorderBrush="{DynamicResource BorderBrushColor}"
                     BorderThickness="1"
-                    CornerRadius="4"
-                    Padding="10,6"
-                    Margin="0,0,0,10">
-                <TextBlock Text="💡 Clic derecho en cualquier celda para copiar su contenido al portapapeles"
-                           Foreground="{DynamicResource AccentMuted}"
-                           FontStyle="Italic"/>
+                    CornerRadius="10"
+                    Padding="10,8"
+                    Margin="12,0,12,10">
+                <TextBlock Text="Tip: puedes dejar esta ventana a un lado como widget informativo."
+                           Foreground="{DynamicResource PanelFg}"
+                           FontSize="10"
+                           Opacity="0.9"/>
             </Border>
             <Border Grid.Row="2"
+                    Margin="12,0,12,12"
+                    Background="{DynamicResource ControlBg}"
                     BorderBrush="{DynamicResource BorderBrushColor}"
                     BorderThickness="1"
-                    CornerRadius="6">
+                    CornerRadius="10">
                 <DataGrid Name="dgApps" IsReadOnly="True">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="📱 Aplicación" Binding="{Binding Aplicacion}" Width="180"/>
-                        <DataGridTextColumn Header="📄 INI" Binding="{Binding INI}" Width="200"/>
-                        <DataGridTextColumn Header="🗄️ DataSource" Binding="{Binding DataSource}" Width="180"/>
-                        <DataGridTextColumn Header="💾 Catalog" Binding="{Binding Catalog}" Width="150"/>
-                        <DataGridTextColumn Header="👤 Usuario" Binding="{Binding Usuario}" Width="*"/>
+                        <DataGridTextColumn Header="Aplicación" Binding="{Binding Aplicacion}" Width="Auto"/>
+                        <DataGridTextColumn Header="INI" Binding="{Binding INI}" Width="Auto"/>
+                        <DataGridTextColumn Header="DataSource" Binding="{Binding DataSource}" Width="Auto"/>
+                        <DataGridTextColumn Header="Catalog" Binding="{Binding Catalog}" Width="Auto"/>
+                        <DataGridTextColumn Header="Usuario" Binding="{Binding Usuario}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
@@ -1063,6 +1029,13 @@ function Show-NSApplicationsIniReport {
         Set-DzWpfThemeResources -Window $w -Theme $theme
         try {
             Set-WpfDialogOwner -Dialog $w
+            try {
+                if ($w.Owner) {
+                    $w.WindowStartupLocation = "Manual"
+                    $w.Top = $w.Owner.Top
+                    $w.Left = $w.Owner.Left + $w.Owner.Width + 10
+                }
+            } catch {}
             $brdTitleBar = $c['brdTitleBar']
             if ($brdTitleBar) {
                 $brdTitleBar.Add_MouseLeftButtonDown({
@@ -1124,13 +1097,98 @@ function Show-NSApplicationsIniReport {
             [void]$menu.Items.Add($menuItem)
             $grid.ContextMenu = $menu
         }
+        try {
+            if (-not $w.Owner -and $global:MainWindow -is [System.Windows.Window]) {
+                $w.Owner = $global:MainWindow
+            }
+        } catch {}
+        $w.WindowStartupLocation = "Manual"
+        $w.Add_Loaded({
+                try {
+                    $owner = $w.Owner
+                    if (-not $owner) { return }
+                    $ob = $owner.RestoreBounds
+                    $targetW = $w.ActualWidth
+                    $targetH = $w.ActualHeight
+                    if ($targetW -le 0) { $targetW = $w.Width }
+                    if ($targetH -le 0) { $targetH = $w.Height }
+                    $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                    $top = $ob.Top + (($ob.Height - $targetH) / 2)
+                    $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                    $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                    $wa = $screen.WorkingArea
+                    if ($left -lt $wa.Left) { $left = $wa.Left }
+                    if ($top -lt $wa.Top) { $top = $wa.Top }
+                    if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                    if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+                    $w.Left = [double]$left
+                    $w.Top = [double]$top
+                } catch {}
+            }.GetNewClosure())
         $w.Show() | Out-Null
     } catch {
         Write-Host "`n❌ ERROR creando ventana: $($_.Exception.Message)" -ForegroundColor Red
         Write-DzDebug "`t[DEBUG][Show-NSApplicationsIniReport] ERROR creando ventana: $($_.Exception.Message)" Red
     }
 }
-
+function Invoke-CambiarOTMConfig {
+    [CmdletBinding()]
+    param(
+        [string]$SyscfgPath = "C:\Windows\SysWOW64\Syscfg45_2.0.dll",
+        [string]$IniPath = "C:\NationalSoft\OnTheMinute4.5",
+        [System.Windows.Controls.TextBlock]$InfoTextBlock
+    )
+    Write-DzDebug "`t[DEBUG][Invoke-CambiarOTMConfig] INICIO" ([System.ConsoleColor]::DarkGray)
+    try {
+        if (-not (Test-Path -LiteralPath $SyscfgPath)) {
+            Show-WpfMessageBox -Message "El archivo de configuración no existe:`n$SyscfgPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            Write-DzDebug "`t[DEBUG][OTM] Syscfg no existe: $SyscfgPath" ([System.ConsoleColor]::Red)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe Syscfg." }
+            return $false
+        }
+        if (-not (Test-Path -LiteralPath $IniPath)) {
+            Show-WpfMessageBox -Message "No existe la ruta de INIs:`n$IniPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            Write-DzDebug "`t[DEBUG][OTM] IniPath no existe: $IniPath" ([System.ConsoleColor]::Red)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: no existe ruta INI." }
+            return $false
+        }
+        $current = Get-OtmConfigFromSyscfg -SyscfgPath $SyscfgPath
+        if (-not $current) {
+            Show-WpfMessageBox -Message "No se detectó una configuración válida de SQL o DBF en:`n$SyscfgPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            Write-DzDebug "`t[DEBUG][OTM] No se detectó config válida" ([System.ConsoleColor]::Red)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: config inválida." }
+            return $false
+        }
+        $ini = Get-OtmIniFiles -IniPath $IniPath
+        if (-not $ini) {
+            Show-WpfMessageBox -Message "No se encontraron los archivos INI esperados en:`n$IniPath" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+            Write-DzDebug "`t[DEBUG][OTM] No se encontraron INIs esperados" ([System.ConsoleColor]::Red)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: faltan INIs." }
+            return $false
+        }
+        $new = if ($current -eq "SQL") { "DBF" } else { "SQL" }
+        $msg = "Actualmente tienes configurado: $current.`n¿Quieres cambiar a $new?"
+        $res = Show-WpfMessageBox -Message $msg -Title "Cambiar Configuración" -Buttons "YesNo" -Icon "Question"
+        if ($res -ne [System.Windows.MessageBoxResult]::Yes) {
+            Write-DzDebug "`t[DEBUG][OTM] Usuario canceló" ([System.ConsoleColor]::Cyan)
+            if ($InfoTextBlock) { $InfoTextBlock.Text = "Operación cancelada." }
+            return $false
+        }
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Aplicando cambios..." }
+        Set-OtmSyscfgConfig -SyscfgPath $SyscfgPath -Target $new
+        Rename-OtmIniForTarget -Target $new -IniSqlFile $ini.SQL -IniDbfFile $ini.DBF
+        Show-WpfMessageBox -Message "Configuración cambiada exitosamente a $new." -Title "Éxito" -Buttons "OK" -Icon "Information" | Out-Null
+        Write-DzDebug "`t[DEBUG][OTM] OK cambiado a $new" ([System.ConsoleColor]::Green)
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Listo: cambiado a $new." }
+        return $true
+    } catch {
+        $err = $_.Exception.Message
+        Write-DzDebug "`t[DEBUG][Invoke-CambiarOTMConfig] ERROR: $err`n$($_.ScriptStackTrace)" ([System.ConsoleColor]::Magenta)
+        if ($InfoTextBlock) { $InfoTextBlock.Text = "Error: $err" }
+        Show-WpfMessageBox -Message "Error: $err" -Title "Error" -Buttons "OK" -Icon "Error" | Out-Null
+        return $false
+    }
+}
 function Get-OtmConfigFromSyscfg {
     param(
         [Parameter(Mandatory)][string]$SyscfgPath
@@ -1163,7 +1221,6 @@ function Get-OtmIniFiles {
         All = $iniFiles
     }
 }
-
 function Set-OtmSyscfgConfig {
     param(
         [Parameter(Mandatory)][string]$SyscfgPath,
@@ -1186,7 +1243,6 @@ function Set-OtmSyscfgConfig {
         Set-Content -LiteralPath $SyscfgPath
     }
 }
-
 function Rename-OtmIniForTarget {
     param(
         [Parameter(Mandatory)][ValidateSet("SQL", "DBF")][string]$Target,

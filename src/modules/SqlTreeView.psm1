@@ -1679,18 +1679,8 @@ function Select-SqlTreeDatabase {
     }
 }
 Export-ModuleMember -Function @(
-    "bdd_RenameFromTree",
-    "Initialize-SqlTreeView",
-    "Refresh-SqlTreeServerNode",
-    "Refresh-SqlTreeView",
-    "Load-DatabasesIntoTree",
-    "Load-TablesIntoNode",
-    "Load-ColumnsIntoTableNode",
-    "Add-TreeNodeContextMenu",
-    "Add-DatabaseContextMenu",
-    "Add-ServerContextMenu",
-    "Show-DeleteDatabaseDialog",
-    "Get-DbStatusBadgeText",
-    "Get-DbStatusInfo",
-    "Select-SqlTreeDatabase"
+    "bdd_RenameFromTree", "Initialize-SqlTreeView", "Refresh-SqlTreeServerNode", "Refresh-SqlTreeView",
+    "Load-DatabasesIntoTree", "Load-TablesIntoNode", "Load-ColumnsIntoTableNode", "Add-TreeNodeContextMenu",
+    "Add-DatabaseContextMenu", "Add-ServerContextMenu", "Show-DeleteDatabaseDialog", "Get-DbStatusBadgeText",
+    "Get-DbStatusInfo", "Select-SqlTreeDatabase"
 )

@@ -1895,23 +1895,13 @@ function Set-AdaptersToPrivate {
     }
 }
 Export-ModuleMember -Function @(
-    'Get-DzToolsConfigPath', 'Get-DzDebugPreference',
-    'Get-DzUiMode', 'Set-DzUiMode',
-    'Set-DzDebugPreference', 'Initialize-DzToolsConfig',
-    'Get-DzIniSectionMap', 'Get-DzSavedSqlConnections',
-    'Get-DzSavedSqlConnection', 'Save-DzSqlConnection',
-    'Write-DzDebug', 'Test-Administrator',
-    'Get-SystemInfo', 'Clear-TemporaryFiles',
-    'Test-ChocolateyInstalled', 'Install-Chocolatey',
-    'Get-AdminGroupName', 'Invoke-DiskCleanup',
-    'Stop-CleanmgrProcesses', 'Test-SameHost',
-    'Test-7ZipInstalled', 'Test-MegaToolsInstalled',
-    'Download-FileWithProgressWpfStream', 'Refresh-AdapterStatus',
-    'Get-NetworkAdapterStatus', 'Get-SqlPortWithDebug',
-    'Show-SqlPortsInfo', 'Show-WarnDialog',
-    'Get-7ZipPath', 'Install-7ZipWithChoco',
-    'Show-SQLselector', 'get-NSApplicationsIniReport',
-    'Set-ClipboardTextSafe', 'Initialize-SystemInfo',
-    'Update-PortsUI', 'Update-NetworkUI',
-    'Apply-SavedSqlCredentials', 'Apply-SavedSqlCredentials',
-    'Set-AdaptersToPrivate')
+    'Get-DzToolsConfigPath', 'Get-DzDebugPreference', 'Get-DzUiMode', 'Set-DzUiMode',
+    'Set-DzDebugPreference', 'Initialize-DzToolsConfig', 'Get-DzIniSectionMap', 'Get-DzSavedSqlConnections',
+    'Get-DzSavedSqlConnection', 'Save-DzSqlConnection', 'Write-DzDebug', 'Test-Administrator',
+    'Get-SystemInfo', 'Clear-TemporaryFiles', 'Test-ChocolateyInstalled', 'Install-Chocolatey',
+    'Get-AdminGroupName', 'Invoke-DiskCleanup', 'Stop-CleanmgrProcesses', 'Test-SameHost',
+    'Test-7ZipInstalled', 'Test-MegaToolsInstalled', 'Download-FileWithProgressWpfStream', 'Refresh-AdapterStatus',
+    'Get-NetworkAdapterStatus', 'Get-SqlPortWithDebug', 'Show-SqlPortsInfo', 'Show-WarnDialog',
+    'Get-7ZipPath', 'Install-7ZipWithChoco', 'Show-SQLselector', 'get-NSApplicationsIniReport',
+    'Set-ClipboardTextSafe', 'Initialize-SystemInfo', 'Update-PortsUI', 'Update-NetworkUI',
+    'Apply-SavedSqlCredentials', 'Apply-SavedSqlCredentials', 'Set-AdaptersToPrivate')

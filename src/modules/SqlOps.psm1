@@ -2561,8 +2561,6 @@ Esta operación:
     try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch { }
 }
 
-Export-ModuleMember -Function @('Show-RestoreDialog', 'Show-AttachDialog',
-    'Reset-RestoreUI', 'Reset-AttachUI',
-    'Show-BackupDialog', 'Reset-BackupUI',
-    'Show-DetachDialog', 'Reset-DetachUI', 'Show-DatabaseSizeDialog',
+Export-ModuleMember -Function @('Show-RestoreDialog', 'Show-AttachDialog', 'Reset-RestoreUI', 'Reset-AttachUI',
+    'Show-BackupDialog', 'Reset-BackupUI', 'Show-DetachDialog', 'Reset-DetachUI', 'Show-DatabaseSizeDialog',
     'Show-DatabaseRepairDialog', 'Reset-DatabaseRepairUI')

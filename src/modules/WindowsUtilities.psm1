@@ -186,31 +186,27 @@ function Show-SystemComponents {
     }
     Write-DzDebug "`t[DEBUG]Show-SystemComponents: FIN"
 }
-function Get-NSPrinters {
-    [CmdletBinding()]
-    param()
-
-    try {
-        # Get-CimInstance es más moderno; mantiene compatibilidad con Win10/11 en PS5
-        $printers = Get-CimInstance -ClassName Win32_Printer -ErrorAction Stop | ForEach-Object {
-            $p = $_
-            [PSCustomObject]@{
-                Name       = $p.Name
-                PortName   = $p.PortName
-                DriverName = $p.DriverName
-                Shared     = [bool]$p.Shared
-            }
-        }
-        return $printers
-    } catch {
-        Write-DzDebug "`t[DEBUG][Get-NSPrinters] ERROR: $($_.Exception.Message)" ([System.ConsoleColor]::Yellow)
-        return @()
-    }
-}
 function Show-NSPrinters {
     [CmdletBinding()]param()
     Write-Host "`nImpresoras disponibles en el sistema:"
-    $printers = Get-NSPrinters
+    $GetNSPrinters = {
+        [CmdletBinding()]
+        param()
+        try {
+            Get-CimInstance -ClassName Win32_Printer -ErrorAction Stop | ForEach-Object {
+                [PSCustomObject]@{
+                    Name       = $_.Name
+                    PortName   = $_.PortName
+                    DriverName = $_.DriverName
+                    Shared     = [bool]$_.Shared
+                }
+            }
+        } catch {
+            Write-DzDebug "`t[DEBUG][Get-NSPrinters] ERROR: $($_.Exception.Message)" ([System.ConsoleColor]::Yellow)
+            @()
+        }
+    }.GetNewClosure()
+    $printers = & $GetNSPrinters
     if (-not $printers -or $printers.Count -eq 0) { Write-Host "`nNo se encontraron impresoras."; return }
     $view = $printers | ForEach-Object {
         [PSCustomObject]@{
@@ -236,21 +232,61 @@ function Show-NSPrinters {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Impresoras instaladas"
-        Height="500" Width="900"
-        WindowStartupLocation="CenterOwner"
+        Width="600" Height="300"
+        MinWidth="600" MinHeight="300"
+        MaxWidth="600" MaxHeight="300"
+        WindowStartupLocation="Manual"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Background="Transparent"
         AllowsTransparency="True"
-        Topmost="True"
+        Topmost="False"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
     <Window.Resources>
+        <Style TargetType="{x:Type Control}">
+            <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style x:Key="IconButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="{x:Type DataGrid}">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="RowBackground" Value="{DynamicResource ControlBg}"/>
             <Setter Property="AlternatingRowBackground" Value="{DynamicResource PanelBg}"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
@@ -262,15 +298,32 @@ function Show-NSPrinters {
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
             <Setter Property="SelectionUnit" Value="Cell"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="CanUserSortColumns" Value="True"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
         </Style>
         <Style TargetType="{x:Type DataGridRow}">
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
+                <Trigger Property="AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
                     <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
                 </Trigger>
-                <Trigger Property="IsMouseOver" Value="True">
+                <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
                     <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
                 </Trigger>
@@ -278,91 +331,95 @@ function Show-NSPrinters {
         </Style>
         <Style TargetType="{x:Type DataGridCell}">
             <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Padding" Value="10,5"/>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
                     <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-                    <Setter Property="BorderBrush" Value="Transparent"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-        <Style TargetType="{x:Type DataGridColumnHeader}">
-            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-            <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-        </Style>
-        <Style x:Key="CloseButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="34"/>
-            <Setter Property="Height" Value="34"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-            <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#FFFF4444"/>
-                    <Setter Property="Foreground" Value="White"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
     </Window.Resources>
-    <Border Background="{DynamicResource FormBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="8" Margin="10">
-        <Grid Margin="10">
+
+    <Border Background="{DynamicResource FormBg}"
+            BorderBrush="{DynamicResource BorderBrushColor}"
+            BorderThickness="1"
+            CornerRadius="12"
+            Margin="10"
+            SnapsToDevicePixels="True">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/>
+        </Border.Effect>
+
+        <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="52"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
+
             <Border Grid.Row="0"
                     Name="brdTitleBar"
-                    Background="{DynamicResource AccentPrimary}"
-                    CornerRadius="6"
-                    Padding="12,8"
-                    Margin="0,0,0,10">
-                <DockPanel LastChildFill="True">
-                    <TextBlock DockPanel.Dock="Left"
-                            Text="🖨️ Impresoras del Sistema"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Foreground="{DynamicResource OnAccentFg}"
-                            VerticalAlignment="Center"/>
-                    <Button DockPanel.Dock="Right"
+                    Background="{DynamicResource FormBg}"
+                    CornerRadius="12,12,0,0"
+                    Padding="12,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Width="6"
+                            CornerRadius="3"
+                            Background="{DynamicResource AccentPrimary}"
+                            Margin="0,4,10,4"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Vertical">
+                        <TextBlock Text="🖨️ Impresoras del Sistema"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource FormFg}"
+                                   FontSize="12"/>
+                        <TextBlock Text="Clic derecho en una celda para copiar"
+                                   Foreground="{DynamicResource AccentMuted}"
+                                   FontSize="10"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="2"
                             Name="btnClose"
-                            Content="×"
-                            Style="{StaticResource CloseButtonStyle}"/>
-                </DockPanel>
+                            Style="{StaticResource IconButtonStyle}"
+                            Content="✕"
+                            ToolTip="Cerrar"/>
+                </Grid>
             </Border>
-            <Border Grid.Row="1" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,0,0,10">
-                <TextBlock Text="💡 Clic derecho en cualquier celda para copiar su contenido al portapapeles" Foreground="{DynamicResource AccentMuted}" FontStyle="Italic"/>
+
+            <Border Grid.Row="1"
+                    Background="{DynamicResource PanelBg}"
+                    BorderBrush="{DynamicResource BorderBrushColor}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="10,8"
+                    Margin="12,0,12,10">
+                <TextBlock Text="Tip: puedes dejar esta ventana a un lado como widget informativo."
+                           Foreground="{DynamicResource PanelFg}"
+                           FontSize="10"
+                           Opacity="0.9"/>
             </Border>
-            <Border Grid.Row="2" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="6">
+
+            <Border Grid.Row="2"
+                    Margin="12,0,12,12"
+                    Background="{DynamicResource ControlBg}"
+                    BorderBrush="{DynamicResource BorderBrushColor}"
+                    BorderThickness="1"
+                    CornerRadius="10">
                 <DataGrid Name="dgPrinters" IsReadOnly="True">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="📛 Nombre" Binding="{Binding Name}" Width="250"/>
-                        <DataGridTextColumn Header="🔌 Puerto" Binding="{Binding PortName}" Width="180"/>
-                        <DataGridTextColumn Header="⚙️ Driver" Binding="{Binding DriverName}" Width="220"/>
-                        <DataGridTextColumn Header="🌐 Compartida" Binding="{Binding IsShared}" Width="*"/>
+                        <DataGridTextColumn Header="Nombre" Binding="{Binding Name}" Width="200"/>
+                        <DataGridTextColumn Header="Puerto" Binding="{Binding PortName}" Width="150"/>
+                        <DataGridTextColumn Header="Driver" Binding="{Binding DriverName}" Width="150"/>
+                        <DataGridTextColumn Header="Compartida" Binding="{Binding IsShared}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
@@ -375,6 +432,36 @@ function Show-NSPrinters {
         $w = $ui.Window
         $c = $ui.Controls
         Set-DzWpfThemeResources -Window $w -Theme $theme
+        Set-WpfDialogOwner -Dialog $w
+
+        $w.WindowStartupLocation = "Manual"
+        $w.Add_Loaded({
+                try {
+                    $owner = $w.Owner
+                    if (-not $owner) { return }
+
+                    $ob = $owner.RestoreBounds
+                    $targetW = $w.ActualWidth
+                    $targetH = $w.ActualHeight
+                    if ($targetW -le 0) { $targetW = $w.Width }
+                    if ($targetH -le 0) { $targetH = $w.Height }
+
+                    $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                    $top = $ob.Top + (($ob.Height - $targetH) / 2)
+
+                    $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                    $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                    $wa = $screen.WorkingArea
+
+                    if ($left -lt $wa.Left) { $left = $wa.Left }
+                    if ($top -lt $wa.Top) { $top = $wa.Top }
+                    if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                    if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+
+                    $w.Left = [double]$left
+                    $w.Top = [double]$top
+                } catch {}
+            }.GetNewClosure())
         try {
             Set-WpfDialogOwner -Dialog $w
             $brdTitleBar = $c['brdTitleBar']
@@ -442,7 +529,6 @@ function Show-NSPrinters {
         Write-DzDebug "`t[DEBUG][Show-NSPrinters] ERROR creando ventana: $($_.Exception.Message)" Red
     }
 }
-
 function Show-InstallPrinterDialog {
     [CmdletBinding()]
     param()
@@ -453,68 +539,211 @@ function Show-InstallPrinterDialog {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Instalar impresora"
-        Height="260" Width="560"
-        WindowStartupLocation="CenterOwner"
+        Width="560" Height="260"
+        MinWidth="560" MinHeight="260"
+        MaxWidth="560" MaxHeight="260"
+        WindowStartupLocation="Manual"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Background="Transparent"
-        AllowsTransparency="True">
-
+        AllowsTransparency="True"
+        Topmost="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
   <Window.Resources>
-    <Style x:Key="SystemButtonStyle" TargetType="Button">
-      <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
+    </Style>
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="MinWidth" Value="110"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
       <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="10,6"/>
       <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
-
-    <Style TargetType="TextBlock">
-      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
     </Style>
-
-    <Style TargetType="TextBox">
+    <Style x:Key="TextInputStyle" TargetType="TextBox">
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="6,4"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Height" Value="30"/>
     </Style>
   </Window.Resources>
-
   <Border Background="{DynamicResource FormBg}"
           BorderBrush="{DynamicResource BorderBrushColor}"
           BorderThickness="1"
-          CornerRadius="8"
-          Padding="12">
-
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
+    <Border.Effect>
+      <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/>
+    </Border.Effect>
     <Grid>
       <Grid.RowDefinitions>
+        <RowDefinition Height="44"/>
         <RowDefinition Height="Auto"/>
-        <RowDefinition Height="Auto"/>
-        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
-
-      <TextBlock Grid.Row="0" Text="Usaremos el driver 'Generic / Text Only'." Margin="0,0,0,8"/>
-
-      <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
-        <TextBlock Text="Nombre:" Width="90" VerticalAlignment="Center"/>
-        <TextBox Name="txtPrinterName" Width="380" Height="28"/>
-      </StackPanel>
-
-      <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
-        <TextBlock Text="IP:" Width="90" VerticalAlignment="Center"/>
-        <TextBox Name="txtPrinterIp" Width="200" Height="28"/>
-      </StackPanel>
-
-      <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
-        <Button Name="btnInstall" Content="Instalar" Width="120" Height="32" Margin="0,0,10,0"
-                Style="{StaticResource SystemButtonStyle}"/>
-        <Button Name="btnClose" Content="Cerrar" Width="110" Height="32"
-                Style="{StaticResource SystemButtonStyle}"/>
+      <Border Grid.Row="0"
+              Name="brdTitleBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Text="Instalar impresora"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Usaremos el driver 'Generic / Text Only'."
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+          <Button Grid.Column="2"
+                  Name="btnClose"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
+        </Grid>
+      </Border>
+      <Border Grid.Row="1"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="10,8"
+              Margin="12,0,12,10">
+        <TextBlock Text="Tip: el nombre es como quieres verla en Windows; la IP es la del equipo/impresora."
+                   Foreground="{DynamicResource PanelFg}"
+                   FontSize="10"
+                   Opacity="0.9"/>
+      </Border>
+      <Grid Grid.Row="2" Margin="12,0,12,10">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="90"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="90"/>
+          <ColumnDefinition Width="160"/>
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Nombre" VerticalAlignment="Center" Foreground="{DynamicResource FormFg}"/>
+        <TextBox  Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3" Name="txtPrinterName" Style="{StaticResource TextInputStyle}"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="IP" VerticalAlignment="Center" Foreground="{DynamicResource FormFg}" Margin="0,10,0,0"/>
+        <Grid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,10,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="60"/>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="60"/>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="60"/>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="60"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <TextBox Name="ip1" Grid.Column="0" Style="{StaticResource TextInputStyle}" Padding="10,6" HorizontalContentAlignment="Center"/>
+          <TextBlock Grid.Column="1" Text="." VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource AccentMuted}" FontSize="16"/>
+          <TextBox Name="ip2" Grid.Column="2" Style="{StaticResource TextInputStyle}" Padding="10,6" HorizontalContentAlignment="Center"/>
+          <TextBlock Grid.Column="3" Text="." VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource AccentMuted}" FontSize="16"/>
+          <TextBox Name="ip3" Grid.Column="4" Style="{StaticResource TextInputStyle}" Padding="10,6" HorizontalContentAlignment="Center"/>
+          <TextBlock Grid.Column="5" Text="." VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource AccentMuted}" FontSize="16"/>
+          <TextBox Name="ip4" Grid.Column="6" Style="{StaticResource TextInputStyle}" Padding="10,6" HorizontalContentAlignment="Center"/>
+          <TextBlock Grid.Column="7"
+                     Text="Ej: 192.168.1.50"
+                     VerticalAlignment="Center"
+                     Foreground="{DynamicResource AccentMuted}"
+                     Margin="12,0,0,0"/>
+        </Grid>
+      </Grid>
+      <StackPanel Grid.Row="3"
+                  Orientation="Horizontal"
+                  HorizontalAlignment="Right"
+                  Margin="12,0,12,12">
+        <Button Name="btnInstall"
+                Content="Instalar"
+                Style="{StaticResource PrimaryButtonStyle}"
+                Margin="0,0,10,0"/>
+        <Button Name="btnCancel"
+                Content="Cancelar"
+                Style="{StaticResource SecondaryButtonStyle}"/>
       </StackPanel>
     </Grid>
   </Border>
@@ -526,42 +755,212 @@ function Show-InstallPrinterDialog {
         $c = $ui.Controls
         Set-DzWpfThemeResources -Window $w -Theme $theme
         try { Set-WpfDialogOwner -Dialog $w } catch {}
+        try {
+            if (-not $w.Owner -and $global:MainWindow -is [System.Windows.Window]) {
+                $w.Owner = $global:MainWindow
+            }
+        } catch {}
+        $w.WindowStartupLocation = "Manual"
+        $w.Add_Loaded({
+                try {
+                    $owner = $w.Owner
+                    if (-not $owner) { return }
+                    $ob = $owner.RestoreBounds
+                    $targetW = $w.ActualWidth
+                    $targetH = $w.ActualHeight
+                    if ($targetW -le 0) { $targetW = $w.Width }
+                    if ($targetH -le 0) { $targetH = $w.Height }
+                    $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                    $top = $ob.Top + (($ob.Height - $targetH) / 2)
+                    $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                    $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                    $wa = $screen.WorkingArea
+                    if ($left -lt $wa.Left) { $left = $wa.Left }
+                    if ($top -lt $wa.Top) { $top = $wa.Top }
+                    if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                    if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+                    $w.Left = [double]$left
+                    $w.Top = [double]$top
+                } catch {}
+            }.GetNewClosure())
+        $ipBoxes = @($c['ip1'], $c['ip2'], $c['ip3'], $c['ip4']) | Where-Object { $_ -ne $null }
+        $GetIpText = {
+            $vals = @('ip1', 'ip2', 'ip3', 'ip4') | ForEach-Object {
+                $t = [string]$c[$_].Text
+                if ([string]::IsNullOrWhiteSpace($t)) { return "" }
+                return $t.Trim()
+            }
+            ($vals -join ".")
+        }.GetNewClosure()
+        $SetIpFromString = {
+            param([string]$ip)
+            $parts = $ip -split '\.'
+            if ($parts.Count -ne 4) { return $false }
+            for ($i = 0; $i -lt 4; $i++) {
+                if ($parts[$i] -notmatch '^\d{1,3}$') { return $false }
+                $n = [int]$parts[$i]
+                if ($n -lt 0 -or $n -gt 255) { return $false }
+            }
+            $c['ip1'].Text = ([int]$parts[0]).ToString()
+            $c['ip2'].Text = ([int]$parts[1]).ToString()
+            $c['ip3'].Text = ([int]$parts[2]).ToString()
+            $c['ip4'].Text = ([int]$parts[3]).ToString()
+            $c['ip4'].Focus() | Out-Null
+            $c['ip4'].SelectAll()
+            $true
+        }.GetNewClosure()
+        $IsDigitText = {
+            param([string]$text)
+            ($text -match '^\d+$')
+        }.GetNewClosure()
+        $ClampOctet = {
+            param($tb)
+            $t = [string]$tb.Text
+            if ([string]::IsNullOrWhiteSpace($t)) { return }
+            if ($t -notmatch '^\d{1,3}$') { $tb.Text = ""; return }
+            $n = [int]$t
+            if ($n -gt 255) { $n = 255 }
+            if ($n -lt 0) { $n = 0 }
+            $tb.Text = $n.ToString()
+        }.GetNewClosure()
+        for ($i = 0; $i -lt $ipBoxes.Count; $i++) {
+            $tb = $ipBoxes[$i]
+            $next = if ($i -lt 3) { $ipBoxes[$i + 1] } else { $null }
+            $prev = if ($i -gt 0) { $ipBoxes[$i - 1] } else { $null }
+            $tb.MaxLength = 3
+            $tb.AddHandler([System.Windows.UIElement]::PreviewTextInputEvent,
+                [System.Windows.Input.TextCompositionEventHandler] {
+                    param($sender, $e)
+                    if ($e.Text -eq ".") {
+                        $e.Handled = $true
+                        if ($next) { $next.Focus() | Out-Null; $next.SelectAll() }
+                        return
+                    }
+                    if ($e.Text -notmatch '^\d+$') { $e.Handled = $true; return }
+                    $start = $sender.SelectionStart
+                    $selLen = $sender.SelectionLength
+                    $before = if ($start -gt 0) { $sender.Text.Substring(0, $start) } else { "" }
+                    $after = if (($start + $selLen) -lt $sender.Text.Length) { $sender.Text.Substring($start + $selLen) } else { "" }
+                    $newText = $before + $e.Text + $after
+                    if ($newText.Length -gt 3) { $e.Handled = $true; return }
+                    if ($newText.Length -eq 3 -and $next) {
+                        $sender.Dispatcher.BeginInvoke([action] {
+                                try { $next.Focus() | Out-Null; $next.SelectAll() } catch {}
+                            }) | Out-Null
+                    }
+                }, $true)
+            [System.Windows.Input.CommandManager]::AddPreviewExecutedHandler($tb, {
+                    param($sender, $e)
+                    try {
+                        if ($e.Command -ne [System.Windows.Input.ApplicationCommands]::Paste) { return }
+                        $e.Handled = $true
+                        $text = [System.Windows.Clipboard]::GetText()
+                        if ([string]::IsNullOrWhiteSpace($text)) { return }
+                        $text = $text.Trim()
+                        if ($text -match '^\d{1,3}(\.\d{1,3}){3}$') {
+                            [void](& $SetIpFromString $text)
+                            return
+                        }
+                        if ($text -notmatch '^\d+$') { return }
+                        if ($text.Length -gt 3) { return }
+                        $start = $sender.SelectionStart
+                        $new = ($sender.Text.Remove($start, $sender.SelectionLength)).Insert($start, $text)
+                        if ($new.Length -gt 3) { return }
+                        $sender.Text = $new
+                        $sender.SelectionStart = [Math]::Min($new.Length, $start + $text.Length)
+                    } catch { }
+                }.GetNewClosure())
+            $tb.AddHandler([System.Windows.Controls.TextBox]::TextChangedEvent,
+                [System.Windows.Controls.TextChangedEventHandler] {
+                    param($sender, $e)
+                    if (-not $next) { return }
+                    if ($sender.Text.Length -lt 3) { return }
+                    $caretAtEnd = ($sender.CaretIndex -ge $sender.Text.Length)
+                    $allSelected = ($sender.SelectionLength -eq $sender.Text.Length)
+                    if ($caretAtEnd -or $allSelected) {
+                        try { $next.Focus() | Out-Null; $next.SelectAll() } catch {}
+                    }
+                }, $true)
+            $tb.AddHandler([System.Windows.UIElement]::LostFocusEvent,
+                [System.Windows.RoutedEventHandler] {
+                    param($sender, $e)
+                    & $ClampOctet $sender
+                }, $true)
+            $tb.AddHandler([System.Windows.UIElement]::PreviewKeyDownEvent,
+                [System.Windows.Input.KeyEventHandler] {
+                    param($sender, $e)
+                    if ($e.Key -in @([System.Windows.Input.Key]::OemPeriod,
+                            [System.Windows.Input.Key]::Decimal,
+                            [System.Windows.Input.Key]::OemComma)) {
+                        $e.Handled = $true
+                        if ($next) { $next.Focus() | Out-Null; $next.SelectAll() }
+                        return
+                    }
+                    if ($e.Key -eq [System.Windows.Input.Key]::Back) {
+                        if ($sender.SelectionStart -eq 0 -and $sender.SelectionLength -eq 0 -and [string]::IsNullOrEmpty($sender.Text) -and $prev) {
+                            $prev.Focus() | Out-Null
+                            $prev.SelectAll()
+                            $e.Handled = $true
+                            return
+                        }
+                    }
+                    if ($e.Key -eq [System.Windows.Input.Key]::Left) {
+                        if ($sender.SelectionStart -eq 0 -and $prev) {
+                            $prev.Focus() | Out-Null
+                            $prev.SelectAll()
+                            $e.Handled = $true
+                            return
+                        }
+                    }
+                    if ($e.Key -eq [System.Windows.Input.Key]::Right) {
+                        if ($sender.SelectionStart -ge $sender.Text.Length -and $next) {
+                            $next.Focus() | Out-Null
+                            $next.SelectAll()
+                            $e.Handled = $true
+                            return
+                        }
+                    }
+                }, $true)
+        }
+        try { $c['ip1'].Focus() | Out-Null } catch {}
         $ensureDriverSb = {
             param([string]$DriverName = "Generic / Text Only")
-
-            # 1) ¿Ya existe?
             if (Get-PrinterDriver -Name $DriverName -ErrorAction SilentlyContinue) {
                 return @{ Ok = $true; DriverName = $DriverName; InstalledNow = $false; Message = "Driver ya estaba instalado." }
             }
-
-            # 2) Intentar instalarlo automáticamente (requiere admin: tú ya validas antes)
             try {
                 $inf = Join-Path $env:WINDIR "INF\ntprint.inf"
                 if (-not (Test-Path -LiteralPath $inf -PathType Leaf)) {
                     return @{ Ok = $false; DriverName = $DriverName; InstalledNow = $false; Message = "No se encontró ntprint.inf en: $inf" }
                 }
-
                 $arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
                 $args = "printui.dll,PrintUIEntry /ia /m `"$DriverName`" /f `"$inf`" /h `"$arch`" /v `"Type 3 - User Mode`""
-
                 Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] Instalando driver via rundll32: $DriverName ($arch)"
                 $p = Start-Process -FilePath "rundll32.exe" -ArgumentList $args -Wait -PassThru -WindowStyle Hidden
-
-                # 3) Re-verificar
                 if (Get-PrinterDriver -Name $DriverName -ErrorAction SilentlyContinue) {
                     return @{ Ok = $true; DriverName = $DriverName; InstalledNow = $true; Message = "Driver instalado correctamente." }
                 }
-
                 return @{ Ok = $false; DriverName = $DriverName; InstalledNow = $false; Message = "Se ejecutó la instalación, pero el driver no apareció. ExitCode: $($p.ExitCode)" }
             } catch {
                 return @{ Ok = $false; DriverName = $DriverName; InstalledNow = $false; Message = "Error instalando driver: $($_.Exception.Message)" }
             }
         }.GetNewClosure()
-
         $c['btnInstall'].Add_Click({
                 Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] Clic en Instalar"
                 $name = [string]$c['txtPrinterName'].Text
-                $ip = [string]$c['txtPrinterIp'].Text
+                $ip = (& $GetIpText).Trim()
+                if ($ip -notmatch '^\d{1,3}(\.\d{1,3}){3}$') {
+                    Show-WpfMessageBox -Message "Completa los 4 segmentos de la IP." -Title "IP incompleta" -Buttons OK -Icon Warning | Out-Null
+                    return
+                }
+                $parts = $ip -split '\.'
+                foreach ($p in $parts) {
+                    $n = [int]$p
+                    if ($n -lt 0 -or $n -gt 255) {
+                        Show-WpfMessageBox -Message "La IP no es válida. Cada segmento debe estar entre 0 y 255." -Title "IP inválida" -Buttons OK -Icon Warning | Out-Null
+                        return
+                    }
+                }
                 if ([string]::IsNullOrWhiteSpace($name) -or [string]::IsNullOrWhiteSpace($ip)) {
                     Show-WpfMessageBox -Message "Ingresa el nombre de la impresora y la IP." -Title "Datos requeridos" -Buttons OK -Icon Warning | Out-Null
                     return
@@ -576,12 +975,10 @@ function Show-InstallPrinterDialog {
                 }
                 $driverCheck = & $ensureDriverSb "Generic / Text Only"
                 $driverName = $driverCheck.DriverName
-
                 if (-not $driverCheck.Ok) {
                     Show-WpfMessageBox -Message "No se pudo asegurar el driver '$driverName'.`n`n$($driverCheck.Message)" -Title "Driver no disponible" -Buttons OK -Icon Error | Out-Null
                     return
                 }
-
                 if ($driverCheck.InstalledNow) {
                     Show-WpfMessageBox -Message "Se instaló automáticamente el driver '$driverName'.`nContinuaremos con la instalación de la impresora." -Title "Driver instalado" -Buttons OK -Icon Information | Out-Null
                 }
@@ -607,6 +1004,7 @@ function Show-InstallPrinterDialog {
                 }
             })
         $c['btnClose'].Add_Click({ $w.Close() })
+        $c['btnCancel'].Add_Click({ $w.Close() })
         $w.ShowDialog() | Out-Null
     } catch {
         Write-DzDebug "`t[DEBUG][Show-InstallPrinterDialog] ERROR creando ventana: $($_.Exception.Message)" Red
@@ -1294,73 +1692,115 @@ function Show-LZMADialog {
     }
     $items = foreach ($i in $Instaladores) {
         if (-not $i) { continue }
-        $provider = if ($null -ne $i.PSObject.Properties['ProviderPath']) { [string]$i.ProviderPath }else { [string]$i.Path }
-        $displayPath = if ($null -ne $i.PSObject.Properties['DisplayPath'] -and -not [string]::IsNullOrWhiteSpace([string]$i.DisplayPath)) { [string]$i.DisplayPath }else { Convert-RegProviderPathToDisplay -ProviderPath $provider }
+        $provider = if ($null -ne $i.PSObject.Properties['ProviderPath']) { [string]$i.ProviderPath } else { [string]$i.Path }
+        $displayPath = if ($null -ne $i.PSObject.Properties['DisplayPath'] -and -not [string]::IsNullOrWhiteSpace([string]$i.DisplayPath)) { [string]$i.DisplayPath } else { Convert-RegProviderPathToDisplay -ProviderPath $provider }
         [PSCustomObject]@{Name = [string]$i.Name; ProviderPath = $provider; DisplayPath = $displayPath; Display = ("{0}  |  {1}" -f [string]$i.Name, $displayPath) }
     }
     $stringXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Carpetas LZMA" Height="290" Width="760" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False" WindowStyle="None" AllowsTransparency="True" Background="Transparent" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Carpetas LZMA"
+        Width="760" Height="290"
+        MinWidth="760" MinHeight="290"
+        MaxWidth="760" MaxHeight="290"
+        WindowStartupLocation="Manual"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
   <Window.Resources>
-    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#2A2A2A"/>
-    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#2A2A2A"/>
-    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="ComboItemHoverBg" Color="#2A2A2A"/>
-    <Style TargetType="TextBlock">
-      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
     </Style>
-    <Style TargetType="ComboBox">
-      <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-      <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="8,4"/>
-      <Setter Property="SnapsToDevicePixels" Value="True"/>
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
-          <ControlTemplate TargetType="ComboBox">
-            <Grid>
-              <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" SnapsToDevicePixels="True">
-                <DockPanel>
-                  <Border DockPanel.Dock="Right" Width="32" Background="Transparent">
-                    <Path Data="M 0 0 L 6 6 L 12 0 Z" Fill="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,2,0,0"/>
-                  </Border>
-                  <ContentPresenter x:Name="ContentSite" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" HorizontalAlignment="Left" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" RecognizesAccessKey="True"/>
-                </DockPanel>
-              </Border>
-              <ToggleButton x:Name="DropDownToggle" Background="Transparent" BorderThickness="0" Focusable="False" ClickMode="Press" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-              <Popup x:Name="Popup" Placement="Bottom" PlacementTarget="{Binding ElementName=Bd}" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
-                <Border Background="$($theme.ControlBackground)" BorderBrush="$($theme.BorderColor)" BorderThickness="1" CornerRadius="8" SnapsToDevicePixels="True" Margin="0,6,0,0">
-                  <ScrollViewer Margin="4" SnapsToDevicePixels="True">
-                    <ItemsPresenter/>
-                  </ScrollViewer>
-                </Border>
-              </Popup>
-            </Grid>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="Bd" Property="Opacity" Value="0.60"/>
-              </Trigger>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Bd" Property="BorderBrush" Value="$($theme.AccentPrimary)"/>
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
               </Trigger>
-              <Trigger Property="IsDropDownOpen" Value="True">
-                <Setter TargetName="Bd" Property="BorderBrush" Value="$($theme.AccentPrimary)"/>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
     </Style>
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="MinWidth" Value="110"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+    </Style>
+    <Style x:Key="ComboStyle" TargetType="ComboBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,4"/>
+      <Setter Property="Height" Value="30"/>
+    </Style>
     <Style TargetType="ComboBoxItem">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="Padding" Value="8,6"/>
+      <Setter Property="Padding" Value="10,6"/>
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
       <Style.Triggers>
         <Trigger Property="IsHighlighted" Value="True">
-          <Setter Property="Background" Value="{StaticResource ComboItemHoverBg}"/>
-          <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+          <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
         </Trigger>
         <Trigger Property="IsSelected" Value="True">
           <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
@@ -1371,59 +1811,146 @@ function Show-LZMADialog {
         </Trigger>
       </Style.Triggers>
     </Style>
-    <Style TargetType="TextBox">
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-    </Style>
-    <Style x:Key="SystemButtonStyle" TargetType="Button">
-      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-    </Style>
   </Window.Resources>
-  <Border Background="{DynamicResource FormBg}" CornerRadius="10" BorderBrush="{DynamicResource AccentPrimary}" BorderThickness="2" Padding="0">
+
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
     <Border.Effect>
-      <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="12" Opacity="0.25"/>
+      <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/>
     </Border.Effect>
-    <Grid Margin="16">
+
+    <Grid>
       <Grid.RowDefinitions>
-        <RowDefinition Height="36"/>
-        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="52"/>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
-      <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-        <TextBlock Text="Carpetas LZMA" VerticalAlignment="Center" FontWeight="SemiBold"/>
-        <Button Name="btnClose" Grid.Column="1" Content="✕" Width="34" Height="26" Margin="8,0,0,0" ToolTip="Cerrar" Background="Transparent" BorderBrush="Transparent"/>
-      </Grid>
-      <TextBlock Grid.Row="1" Text="Seleccione el instalador (registro) que desea renombrar." FontWeight="SemiBold" Margin="0,0,0,10"/>
-      <ComboBox Name="cmbInstallers" Grid.Row="2" Height="30" Margin="0,0,0,10" DisplayMemberPath="Display" SelectedValuePath="ProviderPath"/>
-      <Border Grid.Row="3" Background="{DynamicResource ControlBg}" CornerRadius="8" Padding="10" Margin="0,0,0,8" MinHeight="78">
-        <StackPanel>
-          <TextBlock Text="AI_ExePath:" Margin="0,0,0,4"/>
-          <TextBlock Name="lblExePath" Text="-" Foreground="{DynamicResource AccentMuted}" TextWrapping="Wrap" TextTrimming="None" MaxHeight="48"/>
-        </StackPanel>
+
+      <Border Grid.Row="0"
+              Name="HeaderBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Text="Carpetas LZMA"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Seleccione el instalador (registro) que desea renombrar."
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+
+          <Button Grid.Column="2"
+                  Name="btnClose"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
+        </Grid>
       </Border>
-      <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
-        <Button Name="btnRename" Content="Renombrar" Width="110" Height="30" Margin="0,0,10,0" IsEnabled="False" Style="{StaticResource SystemButtonStyle}"/>
-        <Button Name="btnExit" Content="Salir" Width="110" Height="30" IsCancel="True" Style="{StaticResource SystemButtonStyle}"/>
+
+      <Border Grid.Row="1"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="10,8"
+              Margin="12,0,12,10">
+        <TextBlock Text="Tip: si algo falla, puedes renombrar el registro para forzar que el instalador se regenere."
+                   Foreground="{DynamicResource PanelFg}"
+                   FontSize="10"
+                   Opacity="0.9"/>
+      </Border>
+
+      <Grid Grid.Row="2" Margin="12,0,12,10">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <ComboBox Name="cmbInstallers"
+                  Grid.Row="0"
+                  Style="{StaticResource ComboStyle}"
+                  Margin="0,0,0,10"
+                  DisplayMemberPath="Display"
+                  SelectedValuePath="ProviderPath"/>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10">
+          <StackPanel>
+            <TextBlock Text="AI_ExePath:" Foreground="{DynamicResource FormFg}" Margin="0,0,0,4"/>
+            <TextBlock Name="lblExePath"
+                       Text="-"
+                       Foreground="{DynamicResource AccentMuted}"
+                       TextWrapping="Wrap"
+                       TextTrimming="None"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <StackPanel Grid.Row="3"
+                  Orientation="Horizontal"
+                  HorizontalAlignment="Right"
+                  Margin="12,0,12,12">
+        <Button Name="btnRename" Content="Renombrar" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,10,0" IsEnabled="False"/>
+        <Button Name="btnExit" Content="Salir" Style="{StaticResource SecondaryButtonStyle}" IsCancel="True"/>
       </StackPanel>
     </Grid>
   </Border>
 </Window>
 "@
-    try { $ui = New-WpfWindow -Xaml $stringXaml -PassThru }catch { Write-DzDebug "`t[DEBUG][Show-LZMADialog] ERROR creando ventana: $($_.Exception.Message)" Red; Show-WpfMessageBox -Message "No se pudo crear la ventana LZMA." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
+    try { $ui = New-WpfWindow -Xaml $stringXaml -PassThru } catch { Write-DzDebug "`t[DEBUG][Show-LZMADialog] ERROR creando ventana: $($_.Exception.Message)" Red; Show-WpfMessageBox -Message "No se pudo crear la ventana LZMA." -Title "Error" -Buttons OK -Icon Error | Out-Null; return }
     $w = $ui.Window
     $c = $ui.Controls
     Set-DzWpfThemeResources -Window $w -Theme $theme
-    try { Set-WpfDialogOwner -Dialog $w }catch {}
-    if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
+    try { Set-WpfDialogOwner -Dialog $w } catch {}
+    try { if (-not $w.Owner -and $global:MainWindow -is [System.Windows.Window]) { $w.Owner = $global:MainWindow } } catch {}
+    $w.WindowStartupLocation = "Manual"
+    $w.Add_Loaded({
+            try {
+                $owner = $w.Owner
+                if (-not $owner) { $w.WindowStartupLocation = "CenterScreen"; return }
+                $ob = $owner.RestoreBounds
+                $targetW = $w.ActualWidth
+                $targetH = $w.ActualHeight
+                if ($targetW -le 0) { $targetW = $w.Width }
+                if ($targetH -le 0) { $targetH = $w.Height }
+                $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                $top = $ob.Top + (($ob.Height - $targetH) / 2)
+                $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                $wa = $screen.WorkingArea
+                if ($left -lt $wa.Left) { $left = $wa.Left }
+                if ($top -lt $wa.Top) { $top = $wa.Top }
+                if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+                $w.Left = [double]$left
+                $w.Top = [double]$top
+            } catch {}
+        }.GetNewClosure())
     $script:__dlgResult = $false
     $script:__allowClose = $false
     $w.Add_Closing({ param($sender, $e)if (-not $script:__allowClose) { $e.Cancel = $true } })
@@ -1440,7 +1967,7 @@ function Show-LZMADialog {
         if (-not $it -or [string]::IsNullOrWhiteSpace($it.ProviderPath)) { $c['lblExePath'].Text = "No encontrado"; return }
         try {
             $prop = Get-ItemProperty -Path $it.ProviderPath -Name "AI_ExePath" -ErrorAction SilentlyContinue
-            if ($prop -and $prop.AI_ExePath) { $c['lblExePath'].Text = [string]$prop.AI_ExePath }else { $c['lblExePath'].Text = "No encontrado" }
+            if ($prop -and $prop.AI_ExePath) { $c['lblExePath'].Text = [string]$prop.AI_ExePath } else { $c['lblExePath'].Text = "No encontrado" }
         } catch { $c['lblExePath'].Text = "Error leyendo AI_ExePath" }
     }
     $c['cmbInstallers'].Add_SelectionChanged({ & $updateUi })
@@ -1453,13 +1980,9 @@ function Show-LZMADialog {
             $rutaVieja = [string]$it.ProviderPath
             $nombreViejo = [string]$it.Name
             $nuevoNombre = "$nombreViejo.backup"
-            Write-DzDebug "`t[DEBUG][Show-LZMADialog] Renombrar solicitado:" -Color DarkGray
-            Write-DzDebug "`t[DEBUG][Show-LZMADialog] Nombre viejo: $nombreViejo" -Color DarkGray
-            Write-DzDebug "`t[DEBUG][Show-LZMADialog] Nuevo nombre: $nuevoNombre" -Color DarkGray
-            Write-DzDebug "`t[DEBUG][Show-LZMADialog] ProviderPath viejo: $rutaVieja" -Color DarkGray
             $msg = "¿Está seguro de renombrar el registro?`n`n$rutaVieja`n`nA:`n$nuevoNombre"
             $ok = & $UiConfirm $msg "Confirmar renombrado"
-            if (-not $ok) { Write-DzDebug "t[DEBUG][Show-LZMADialog] Usuario canceló renombrado." -Color DarkGray; return }
+            if (-not $ok) { return }
             try {
                 Rename-Item -Path $rutaVieja -NewName $nuevoNombre -ErrorAction Stop
                 Show-WpfMessageBox -Message "Registro renombrado correctamente." -Title "Éxito" -Buttons OK -Icon Information -Owner $w | Out-Null
@@ -1486,97 +2009,322 @@ function Show-FirewallConfigDialog {
     }
     $theme = Get-DzUiTheme
     $stringXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Configuraciones de Firewall" Height="560" Width="760" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False" WindowStyle="None" AllowsTransparency="True" Background="Transparent" FontFamily="{DynamicResource UiFontFamily}" FontSize="{DynamicResource UiFontSize}">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Configuraciones de Firewall"
+        Width="760" Height="350"
+        MinWidth="760" MinHeight="350"
+        MaxWidth="760" MaxHeight="350"
+        WindowStartupLocation="Manual"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
   <Window.Resources>
-    <Style TargetType="TextBlock"><Setter Property="Foreground" Value="$($theme.FormForeground)"/></Style>
-    <Style TargetType="TextBox">
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="6,2"/>
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
     </Style>
-    <Style TargetType="CheckBox"><Setter Property="Foreground" Value="$($theme.FormForeground)"/></Style>
-    <Style TargetType="Button">
-      <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
-      <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
-      <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="MinWidth" Value="130"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
       <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+    </Style>
+    <Style x:Key="TextInputStyle" TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Height" Value="30"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="CheckStyle" TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="Margin" Value="0,0,10,0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="ListBoxStyle" TargetType="ListBox">
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="Padding" Value="6"/>
     </Style>
   </Window.Resources>
-  <Border Background="{DynamicResource FormBg}" CornerRadius="12" BorderBrush="{DynamicResource AccentPrimary}" BorderThickness="2" Padding="0">
-    <Border.Effect><DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/></Border.Effect>
-    <Grid Margin="18">
+
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
+    <Border.Effect>
+      <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/>
+    </Border.Effect>
+
+    <Grid>
       <Grid.RowDefinitions>
-        <RowDefinition Height="36"/>
+        <RowDefinition Height="52"/>
         <RowDefinition Height="Auto"/>
-        <RowDefinition Height="Auto"/>
-        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
-      <Grid Grid.Row="0" Name="HeaderBar" Background="Transparent">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <TextBlock Text="Configuraciones de Firewall" VerticalAlignment="Center" FontWeight="SemiBold"/>
-        <Button Name="btnClose" Grid.Column="1" Content="✕" Width="34" Height="26" Margin="8,0,0,0" ToolTip="Cerrar" Background="Transparent" BorderBrush="Transparent"/>
-      </Grid>
-      <TextBlock Grid.Row="1" Text="Busca y agrega puertos al Firewall de Windows (reglas de entrada/salida)." FontWeight="SemiBold" Margin="0,0,0,12"/>
-      <Border Grid.Row="2" Background="{DynamicResource ControlBg}" CornerRadius="10" Padding="12" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1">
+
+      <Border Grid.Row="0"
+              Name="HeaderBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
         <Grid>
-          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-          <TextBlock Text="Buscar puerto" FontWeight="SemiBold" Margin="0,0,0,8"/>
-          <Grid Grid.Row="1" Margin="0,0,0,8">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Puerto" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Name="txtSearchPort" Height="30" IsEnabled="False" VerticalContentAlignment="Center"/>
-            <Button Grid.Column="2" Name="btnSearch" IsEnabled="False" Content="Buscar" Width="110" Height="30" Margin="10,0,0,0"/>
-          </Grid>
-          <ListBox Grid.Row="2" Name="lbResults" Height="140" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Background="{DynamicResource PanelBg}" Foreground="{DynamicResource FormFg}"/>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Text="Configuraciones de Firewall"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Busca y agrega puertos al Firewall de Windows (reglas de entrada/salida)."
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+
+          <Button Grid.Column="2"
+                  Name="btnClose"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
         </Grid>
       </Border>
-      <Border Grid.Row="3" Background="{DynamicResource ControlBg}" CornerRadius="10" Padding="12" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" Margin="0,12,0,0">
-        <Grid>
+
+      <Border Grid.Row="1"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="10,8"
+              Margin="12,0,12,10">
+        <TextBlock Text="Tip: escribe un puerto (1-65535) para buscar reglas existentes o crear nuevas reglas de Entrada/Salida."
+                   Foreground="{DynamicResource PanelFg}"
+                   FontSize="10"
+                   Opacity="0.9"/>
+      </Border>
+
+      <Grid Grid.Row="2" Margin="12,0,12,10">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="12"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Row="0" Grid.Column="0"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12">
+          <Grid>
             <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <TextBlock Text="Agregar regla de puerto" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+            <TextBlock Text="Buscar puerto"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       Margin="0,0,0,8"/>
+
             <Grid Grid.Row="1" Margin="0,0,0,8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="120"/>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="90"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Puerto" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Name="txtAddPort" Height="30" VerticalContentAlignment="Center"/>
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
-                <CheckBox Name="chkInbound" Content="Entrada" Margin="0,0,10,0" IsChecked="True"/>
-                <CheckBox Name="chkOutbound" Content="Salida" IsChecked="True"/>
-            </StackPanel>
+              </Grid.ColumnDefinitions>
+
+              <TextBlock Grid.Column="0" Text="Puerto" VerticalAlignment="Center" Foreground="{DynamicResource FormFg}"/>
+              <TextBox Grid.Column="1" Name="txtSearchPort" Style="{StaticResource TextInputStyle}" IsEnabled="False" Margin="0,0,10,0"/>
+              <Button Grid.Column="2" Name="btnSearch" IsEnabled="False" Content="Buscar" Style="{StaticResource SecondaryButtonStyle}" MinWidth="110"/>
             </Grid>
-            <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="120"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Nombre de regla" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Name="txtRuleName" Height="30" VerticalContentAlignment="Center" Text="Regla de puerto"/>
-            </Grid>
-        </Grid>
+
+            <ListBox Grid.Row="2" Name="lbResults" Style="{StaticResource ListBoxStyle}"/>
+          </Grid>
         </Border>
-      <Grid Grid.Row="4" Margin="0,12,0,0">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <TextBlock Name="lblStatus" Grid.Column="0" Text="Listo." Foreground="#2E7D32" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,10,0"/>
+
+        <Border Grid.Row="0" Grid.Column="2"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12">
+          <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Agregar regla de puerto"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       Margin="0,0,0,8"/>
+
+            <Grid Grid.Row="1" Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="90"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <TextBlock Grid.Column="0" Text="Puerto" VerticalAlignment="Center" Foreground="{DynamicResource FormFg}"/>
+              <TextBox Grid.Column="1" Name="txtAddPort" Style="{StaticResource TextInputStyle}"/>
+            </Grid>
+
+            <Grid Grid.Row="2" Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="90"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <TextBlock Grid.Column="0" Text="Nombre" VerticalAlignment="Center" Foreground="{DynamicResource FormFg}"/>
+              <TextBox Grid.Column="1" Name="txtRuleName" Style="{StaticResource TextInputStyle}" Text="Regla de puerto"/>
+            </Grid>
+
+            <Border Grid.Row="3"
+                    Background="{DynamicResource PanelBg}"
+                    BorderBrush="{DynamicResource BorderBrushColor}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="10">
+              <StackPanel>
+                <TextBlock Text="Dirección"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource PanelFg}"
+                           Margin="0,0,0,8"/>
+                <StackPanel Orientation="Horizontal">
+                  <CheckBox Name="chkInbound" Content="Entrada" Style="{StaticResource CheckStyle}" IsChecked="True"/>
+                  <CheckBox Name="chkOutbound" Content="Salida" Style="{StaticResource CheckStyle}" IsChecked="True" Margin="0,0,0,0"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <Grid Grid.Row="3" Margin="12,0,12,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0"
+                Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="10,8"
+                Margin="0,0,10,0">
+          <TextBlock Name="lblStatus"
+                     Text="Listo."
+                     Foreground="{DynamicResource PanelFg}"
+                     VerticalAlignment="Center"
+                     TextWrapping="Wrap"/>
+        </Border>
+
         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-          <Button Name="btnAdd" Content="Agregar reglas" Width="140" Height="32" Margin="0,0,10,0"/>
-          <Button Name="btnCloseFooter" Content="Cerrar" Width="110" Height="32"/>
+          <Button Name="btnAdd" Content="Agregar reglas" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,10,0"/>
+          <Button Name="btnCloseFooter" Content="Cerrar" Style="{StaticResource SecondaryButtonStyle}"/>
         </StackPanel>
       </Grid>
     </Grid>
   </Border>
 </Window>
 "@
-    try { $ui = New-WpfWindow -Xaml $stringXaml -PassThru }catch {
+    try {
+        $ui = New-WpfWindow -Xaml $stringXaml -PassThru
+    } catch {
         Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] ERROR creando ventana: $($_.Exception.Message)" Red
         Show-WpfMessageBox -Message "No se pudo crear la ventana de firewall." -Title "Error" -Buttons OK -Icon Error | Out-Null
         return
@@ -1584,8 +2332,35 @@ function Show-FirewallConfigDialog {
     $w = $ui.Window
     $c = $ui.Controls
     Set-DzWpfThemeResources -Window $w -Theme $theme
-    try { Set-WpfDialogOwner -Dialog $w }catch {}
-    if (-not $w.Owner) { $w.WindowStartupLocation = "CenterScreen" }
+    try { Set-WpfDialogOwner -Dialog $w } catch {}
+    try {
+        if (-not $w.Owner -and $global:MainWindow -is [System.Windows.Window]) {
+            $w.Owner = $global:MainWindow
+        }
+    } catch {}
+    $w.WindowStartupLocation = "Manual"
+    $w.Add_Loaded({
+            try {
+                $owner = $w.Owner
+                if (-not $owner) { return }
+                $ob = $owner.RestoreBounds
+                $targetW = $w.ActualWidth
+                $targetH = $w.ActualHeight
+                if ($targetW -le 0) { $targetW = $w.Width }
+                if ($targetH -le 0) { $targetH = $w.Height }
+                $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                $top = $ob.Top + (($ob.Height - $targetH) / 2)
+                $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                $wa = $screen.WorkingArea
+                if ($left -lt $wa.Left) { $left = $wa.Left }
+                if ($top -lt $wa.Top) { $top = $wa.Top }
+                if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+                $w.Left = [double]$left
+                $w.Top = [double]$top
+            } catch {}
+        }.GetNewClosure())
     $SetStatus = {
         param([string]$Text, [string]$Level = "Ok")
         switch ($Level) {
@@ -1752,7 +2527,7 @@ function Show-FirewallConfigDialog {
                     $c['btnAdd'].IsEnabled = $true
                 }
             }.GetNewClosure()
-            try { $job = & $GetFirewallPortMatchesAsync $port $pb $onComplete }catch {
+            try { $job = & $GetFirewallPortMatchesAsync $port $pb $onComplete } catch {
                 Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] Error iniciando búsqueda async: $($_.Exception.Message)" Red
                 & $SetStatus "Error al iniciar búsqueda: $($_.Exception.Message)" "Error"
                 if ($pb) { Close-WpfProgressBar -Window $pb }
@@ -1775,7 +2550,7 @@ function Show-FirewallConfigDialog {
                 $createdRules = @()
                 $errors = @()
                 foreach ($dir in $directions) {
-                    $dirLabel = if ($dir -eq "Inbound") { "Entrada" }else { "Salida" }
+                    $dirLabel = if ($dir -eq "Inbound") { "Entrada" } else { "Salida" }
                     $finalRuleName = "$ruleName ($dirLabel)"
                     $desc = "Regla creada para puerto $port ($dirLabel)."
                     try {
@@ -1796,7 +2571,7 @@ function Show-FirewallConfigDialog {
                     & $SetStatus "Errores al crear reglas: $($errors -join '; ')" "Error"
                 } elseif ($created -gt 0) {
                     & $SetStatus "Se agregaron $created regla(s) para el puerto $port." "Ok"
-                    $dirText = ($directions | ForEach-Object { if ($_ -eq "Inbound") { "Entrada" }else { "Salida" } }) -join " y "
+                    $dirText = ($directions | ForEach-Object { if ($_ -eq "Inbound") { "Entrada" } else { "Salida" } }) -join " y "
                     $msg = "Regla(s) agregada(s) exitosamente:`n`nNombre: $($createdRules -join ', ')`nPuerto: $port`nDirección: $dirText"
                     $result = Show-WpfMessageBox -Message $msg -Title "Regla agregada" -Buttons "OK" -Icon "Information" -Owner $w
                     if ($result -eq [System.Windows.MessageBoxResult]::OK) { $w.Close() }
@@ -1817,6 +2592,7 @@ function Show-FirewallConfigDialog {
     }
     Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] FIN"
 }
+
 Export-ModuleMember -Function @('Show-SystemComponents', 'Start-SystemUpdate', 'show-NSPrinters', 'Invoke-ClearPrintJobs',
     'Show-AddUserDialog', 'Show-IPConfigDialog', 'Show-LZMADialog', 'Show-FirewallConfigDialog',
     'Show-InstallPrinterDialog')

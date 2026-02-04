@@ -1263,18 +1263,8 @@ function Invoke-LectorDP {
     }
 }
 Export-ModuleMember -Function @(
-    'Check-Chocolatey',
-    'Test-ChocolateyInstalled',
-    'Install-Software',
-    'Download-File',
-    'Expand-ArchiveFile',
-    'Show-SSMSInstallerDialog',
-    'Test-7ZipInstalled',
-    'Test-MegaToolsInstalled',
-    'Get-InstalledChocoPackages',
-    'Search-ChocoPackages',
-    'Install-ChocoPackage',
-    'Uninstall-ChocoPackage',
-    'Show-ChocolateyInstallerMenu',
-    'Invoke-PortableTool', 'Invoke-LectorDP'
+    'Check-Chocolatey', 'Test-ChocolateyInstalled', 'Install-Software', 'Download-File',
+    'Expand-ArchiveFile', 'Show-SSMSInstallerDialog', 'Test-7ZipInstalled', 'Test-MegaToolsInstalled',
+    'Get-InstalledChocoPackages', 'Search-ChocoPackages', 'Install-ChocoPackage', 'Uninstall-ChocoPackage',
+    'Show-ChocolateyInstallerMenu', 'Invoke-PortableTool', 'Invoke-LectorDP'
 )

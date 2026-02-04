@@ -1951,30 +1951,12 @@ function New-SqlEditor {
     return $editor
 }
 Export-ModuleMember -Function @(
-    'Initialize-QueriesConfig',
-    'Add-QueryToHistory',
-    'Save-DbUiContext',
-    'Get-QueryHistory',
-    'Clear-QueryHistory',
-    'Remove-QueriesFromHistory',
-    'Save-OpenQueryTabs',
-    'Restore-OpenQueryTabs',
-    'Show-QueryHistoryWindow',
-    'Execute-QueryUiSafe',
-    'Export-ResultsUiSafe',
-    'New-QueryTab',
-    'Set-QueryTabsDatabase',
-    'Close-OtherQueryTabs',
-    'Get-ActiveQueryTab', 'Get-ActiveQueryRichTextBox', 'Set-QueryTextInActiveTab', 'Insert-TextIntoActiveQuery',
-    'Clear-ActiveQueryTab', 'Update-QueryTabHeader', 'Close-QueryTab', 'Execute-QueryInTab',
-    'Get-SqlEditorPaths',
-    'Import-AvalonEditAssembly',
-    'Get-SqlEditorHighlighting',
-    'New-SqlEditor',
-    'Set-SqlEditorText',
-    'Get-SqlEditorText',
-    'Clear-SqlEditorText',
-    'Insert-SqlEditorText',
-    'Get-SqlEditorSelectedText',
-    'Show-QueryHistoryWindow'
+    'Initialize-QueriesConfig', 'Add-QueryToHistory', 'Save-DbUiContext', 'Get-QueryHistory',
+    'Clear-QueryHistory', 'Remove-QueriesFromHistory', 'Save-OpenQueryTabs', 'Restore-OpenQueryTabs',
+    'Show-QueryHistoryWindow', 'Execute-QueryUiSafe', 'Export-ResultsUiSafe', 'New-QueryTab',
+    'Set-QueryTabsDatabase', 'Close-OtherQueryTabs', 'Get-ActiveQueryTab', 'Get-ActiveQueryRichTextBox',
+    'Set-QueryTextInActiveTab', 'Insert-TextIntoActiveQuery', 'Clear-ActiveQueryTab', 'Update-QueryTabHeader',
+    'Close-QueryTab', 'Execute-QueryInTab', 'Get-SqlEditorPaths', 'Import-AvalonEditAssembly',
+    'Get-SqlEditorHighlighting', 'New-SqlEditor', 'Set-SqlEditorText', 'Get-SqlEditorText',
+    'Clear-SqlEditorText', 'Insert-SqlEditorText', 'Get-SqlEditorSelectedText', 'Show-QueryHistoryWindow'
 )

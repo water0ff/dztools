@@ -736,7 +736,7 @@ function Show-MultipleResultSets {
                     [System.Windows.Clipboard]::SetText($textToCopy)
                     $headerMsg = if ($IncludeHeaders) { "con encabezados" } else { "sin encabezados" }
                     Write-DzDebug "`t[DEBUG][DataGrid] ✓ Copiado: $($grid.SelectedItems.Count) filas × $($columns.Count) columnas ($headerMsg)"
-                    Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
+                    #Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
                     return
                 }
                 if ((-not $grid.SelectedItems -or $grid.SelectedItems.Count -eq 0) -and
@@ -784,7 +784,7 @@ function Show-MultipleResultSets {
                         [System.Windows.Clipboard]::SetText($textToCopy)
                         $headerMsg = if ($IncludeHeaders) { "con encabezados" } else { "sin encabezados" }
                         Write-DzDebug "`t[DEBUG][DataGrid] ✓ Copiado (por celda en 1 fila): 1 filas × $($columns.Count) columnas ($headerMsg)"
-                        Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
+                        #Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
                         return
                     }
                 }
@@ -805,7 +805,7 @@ function Show-MultipleResultSets {
                     [System.Windows.Clipboard]::SetText($textToCopy)
                     $headerMsg = if ($IncludeHeaders) { "con encabezados" } else { "sin encabezados" }
                     Write-DzDebug "`t[DEBUG][DataGrid] ✓ Copiado (nativo): celdas seleccionadas ($headerMsg)"
-                    Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
+                    #Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
                     return
                 } catch {
                     Write-DzDebug "`t[DEBUG][DataGrid] Error en copiar (nativo): $_" -Color Red
@@ -862,7 +862,7 @@ function Show-MultipleResultSets {
                 [System.Windows.Clipboard]::SetText($textToCopy)
                 $headerMsg = if ($IncludeHeaders) { "con encabezados" } else { "sin encabezados" }
                 Write-DzDebug "`t[DEBUG][DataGrid] ✓ Copiado: $($rowGroups.Count) filas × $($columns.Count) columnas ($headerMsg)"
-                Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
+                #Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
             } catch {
                 Write-DzDebug "`t[DEBUG][DataGrid] Error en copiar: $_" -Color Red
             }

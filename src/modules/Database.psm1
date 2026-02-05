@@ -694,7 +694,126 @@ function Show-MultipleResultSets {
             param([bool]$IncludeHeaders)
             try {
                 $grid = $dg
+                $sb = New-Object System.Text.StringBuilder
+                $visibleCols = @($grid.Columns | Where-Object { $_.Visibility -eq 'Visible' } | Sort-Object DisplayIndex)
+                if ($grid.SelectedItems -and $grid.SelectedItems.Count -gt 0) {
+                    $columns = $visibleCols
+                    if ($IncludeHeaders) {
+                        $headers = foreach ($col in $columns) {
+                            $h = if ($col.Header -is [string]) { $col.Header } elseif ($col.Header) { $col.Header.ToString() } else { "" }
+                            ($h -replace '__', '_' -replace "`t", " ")
+                        }
+                        [void]$sb.AppendLine(($headers -join "`t"))
+                    }
+                    foreach ($row in @($grid.SelectedItems)) {
+                        $values = foreach ($col in $columns) {
+                            $propName = $null
+                            if ($col -is [System.Windows.Controls.DataGridBoundColumn]) {
+                                $binding = $col.Binding
+                                if ($binding -and $binding.Path) { $propName = $binding.Path.Path }
+                            }
+                            if (-not $propName -and $col.SortMemberPath) { $propName = $col.SortMemberPath }
+                            if (-not $propName -and $col.Header) {
+                                $h2 = $col.Header
+                                $propName = if ($h2 -is [string]) { ($h2 -replace '__', '_') } else { $h2.ToString() }
+                            }
+                            $cellValue = ""
+                            try {
+                                $val = $null
+                                if ($row -is [System.Data.DataRowView]) { $val = $row[$propName] }
+                                elseif ($row.PSObject.Properties[$propName]) { $val = $row.PSObject.Properties[$propName].Value }
+                                else { $val = $row.$propName }
+                                if ($null -eq $val -or $val -is [System.DBNull]) { $cellValue = "NULL" }
+                                elseif ($val -is [datetime]) { $cellValue = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff") }
+                                elseif ($val -is [bool]) { $cellValue = if ($val) { "True" } else { "False" } }
+                                else { $cellValue = $val.ToString() }
+                            } catch { $cellValue = "" }
+                            $cellValue -replace "`t", " " -replace "`r`n", " " -replace "`n", " " -replace "`r", " "
+                        }
+                        [void]$sb.AppendLine(($values -join "`t"))
+                    }
+                    $textToCopy = $sb.ToString().TrimEnd("`r", "`n")
+                    [System.Windows.Clipboard]::SetText($textToCopy)
+                    $headerMsg = if ($IncludeHeaders) { "con encabezados" } else { "sin encabezados" }
+                    Write-DzDebug "`t[DEBUG][DataGrid] ✓ Copiado: $($grid.SelectedItems.Count) filas × $($columns.Count) columnas ($headerMsg)"
+                    Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
+                    return
+                }
+                if ((-not $grid.SelectedItems -or $grid.SelectedItems.Count -eq 0) -and
+                    ($grid.SelectedCells -and $grid.SelectedCells.Count -gt 0)) {
+                    $rowsFromCells = @(
+                        $grid.SelectedCells |
+                        Select-Object -ExpandProperty Item -Unique
+                    )
+                    if ($grid.SelectedCells.Count -eq 1) {
+                        $row = $rowsFromCells[0]
+                        $columns = $visibleCols
+                        if ($IncludeHeaders) {
+                            $headers = foreach ($col in $columns) {
+                                $h = if ($col.Header -is [string]) { $col.Header } elseif ($col.Header) { $col.Header.ToString() } else { "" }
+                                ($h -replace '__', '_' -replace "`t", " ")
+                            }
+                            [void]$sb.AppendLine(($headers -join "`t"))
+                        }
+                        $values = foreach ($col in $columns) {
+                            $propName = $null
+                            if ($col -is [System.Windows.Controls.DataGridBoundColumn]) {
+                                $binding = $col.Binding
+                                if ($binding -and $binding.Path) { $propName = $binding.Path.Path }
+                            }
+                            if (-not $propName -and $col.SortMemberPath) { $propName = $col.SortMemberPath }
+                            if (-not $propName -and $col.Header) {
+                                $h2 = $col.Header
+                                $propName = if ($h2 -is [string]) { (($h2 -replace '__', '_')) } else { ($h2.ToString() -replace '__', '_') }
+                            }
+                            $cellValue = ""
+                            try {
+                                $val = $null
+                                if ($row -is [System.Data.DataRowView]) { $val = $row[$propName] }
+                                elseif ($row.PSObject.Properties[$propName]) { $val = $row.PSObject.Properties[$propName].Value }
+                                else { $val = $row.$propName }
+                                if ($null -eq $val -or $val -is [System.DBNull]) { $cellValue = "NULL" }
+                                elseif ($val -is [datetime]) { $cellValue = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff") }
+                                elseif ($val -is [bool]) { $cellValue = if ($val) { "True" } else { "False" } }
+                                else { $cellValue = $val.ToString() }
+                            } catch { $cellValue = "" }
+                            $cellValue -replace "`t", " " -replace "`r`n", " " -replace "`n", " " -replace "`r", " "
+                        }
+                        [void]$sb.AppendLine(($values -join "`t"))
+                        $textToCopy = $sb.ToString().TrimEnd("`r", "`n")
+                        [System.Windows.Clipboard]::SetText($textToCopy)
+                        $headerMsg = if ($IncludeHeaders) { "con encabezados" } else { "sin encabezados" }
+                        Write-DzDebug "`t[DEBUG][DataGrid] ✓ Copiado (por celda en 1 fila): 1 filas × $($columns.Count) columnas ($headerMsg)"
+                        Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
+                        return
+                    }
+                }
+                # 2) Si NO hay filas seleccionadas, copiar por CELDAS (usar copiado nativo del DataGrid)
                 if (-not $grid.SelectedCells -or $grid.SelectedCells.Count -eq 0) { return }
+                $oldMode = $grid.ClipboardCopyMode
+                try {
+                    if ($IncludeHeaders) {
+                        $grid.ClipboardCopyMode = [System.Windows.Controls.DataGridClipboardCopyMode]::IncludeHeader
+                    } else {
+                        $grid.ClipboardCopyMode = [System.Windows.Controls.DataGridClipboardCopyMode]::ExcludeHeader
+                    }
+                    [System.Windows.Input.ApplicationCommands]::Copy.Execute($null, $grid)
+                    $textToCopy = [System.Windows.Clipboard]::GetText()
+                    if ($null -eq $textToCopy) { $textToCopy = "" }
+                    $textToCopy = $textToCopy.TrimEnd("`r", "`n")
+                    if ([string]::IsNullOrWhiteSpace($textToCopy)) { return }
+                    [System.Windows.Clipboard]::SetText($textToCopy)
+                    $headerMsg = if ($IncludeHeaders) { "con encabezados" } else { "sin encabezados" }
+                    Write-DzDebug "`t[DEBUG][DataGrid] ✓ Copiado (nativo): celdas seleccionadas ($headerMsg)"
+                    Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
+                    return
+                } catch {
+                    Write-DzDebug "`t[DEBUG][DataGrid] Error en copiar (nativo): $_" -Color Red
+                    return
+                } finally {
+                    # Volver al modo anterior SIEMPRE
+                    $grid.ClipboardCopyMode = $oldMode
+                }
                 $selectedCells = @(
                     $grid.SelectedCells |
                     Sort-Object -Property @{ Expression = { $_.Item } }, @{ Expression = { $_.Column.DisplayIndex } }
@@ -702,12 +821,10 @@ function Show-MultipleResultSets {
                 if ($selectedCells.Count -eq 0) { return }
                 $rowGroups = @($selectedCells | Group-Object -Property { $_.Item })
                 $columns = @($selectedCells | Select-Object -ExpandProperty Column -Unique | Sort-Object DisplayIndex)
-                $sb = New-Object System.Text.StringBuilder
                 if ($IncludeHeaders) {
                     $headers = foreach ($col in $columns) {
-                        $headerText = if ($col.Header -is [string]) { $col.Header } elseif ($col.Header) { $col.Header.ToString() } else { "" }
-                        $headerText = $headerText -replace '__', '_' -replace "`t", " "
-                        $headerText
+                        $h = if ($col.Header -is [string]) { $col.Header } elseif ($col.Header) { $col.Header.ToString() } else { "" }
+                        ($h -replace '__', '_' -replace "`t", " ")
                     }
                     [void]$sb.AppendLine(($headers -join "`t"))
                 }
@@ -723,27 +840,20 @@ function Show-MultipleResultSets {
                         }
                         if (-not $propName -and $col.SortMemberPath) { $propName = $col.SortMemberPath }
                         if (-not $propName -and $col.Header) {
-                            $h = $col.Header
-                            $propName = if ($h -is [string]) { ($h -replace '__', '_') } else { $h.ToString() }
+                            $h2 = $col.Header
+                            $propName = if ($h2 -is [string]) { ($h2 -replace '__', '_') } else { $h2.ToString() }
                         }
                         $cellValue = ""
                         try {
                             $val = $null
-                            if ($row -is [System.Data.DataRowView]) {
-                                $val = $row[$propName]
-                            } elseif ($row.PSObject.Properties[$propName]) {
-                                $val = $row.PSObject.Properties[$propName].Value
-                            } else {
-                                $val = $row.$propName
-                            }
-
+                            if ($row -is [System.Data.DataRowView]) { $val = $row[$propName] }
+                            elseif ($row.PSObject.Properties[$propName]) { $val = $row.PSObject.Properties[$propName].Value }
+                            else { $val = $row.$propName }
                             if ($null -eq $val -or $val -is [System.DBNull]) { $cellValue = "NULL" }
                             elseif ($val -is [datetime]) { $cellValue = ([datetime]$val).ToString("yyyy-MM-dd HH:mm:ss.fff") }
                             elseif ($val -is [bool]) { $cellValue = if ($val) { "True" } else { "False" } }
                             else { $cellValue = $val.ToString() }
-                        } catch {
-                            $cellValue = ""
-                        }
+                        } catch { $cellValue = "" }
                         $cellValue -replace "`t", " " -replace "`r`n", " " -replace "`n", " " -replace "`r", " "
                     }
                     [void]$sb.AppendLine(($values -join "`t"))
@@ -752,25 +862,27 @@ function Show-MultipleResultSets {
                 [System.Windows.Clipboard]::SetText($textToCopy)
                 $headerMsg = if ($IncludeHeaders) { "con encabezados" } else { "sin encabezados" }
                 Write-DzDebug "`t[DEBUG][DataGrid] ✓ Copiado: $($rowGroups.Count) filas × $($columns.Count) columnas ($headerMsg)"
+                Write-DzDebug "`t[DEBUG][DataGrid] Texto copiado:`n$textToCopy"
             } catch {
                 Write-DzDebug "`t[DEBUG][DataGrid] Error en copiar: $_" -Color Red
             }
         }.GetNewClosure()
+        $copyFn = $CopyToClipboard
         $dg.Add_PreviewKeyDown({
                 param($s, $e)
                 $isCtrl = ([System.Windows.Input.Keyboard]::Modifiers -band [System.Windows.Input.ModifierKeys]::Control) -ne 0
                 $isShift = ([System.Windows.Input.Keyboard]::Modifiers -band [System.Windows.Input.ModifierKeys]::Shift) -ne 0
                 if ($e.Key -eq [System.Windows.Input.Key]::C -and $isCtrl -and $isShift) {
-                    & $CopyToClipboard $true
+                    $copyFn.Invoke($true)
                     $e.Handled = $true
-                } elseif ($e.Key -eq [System.Windows.Input.Key]::C -and $isCtrl -and -not $isShift) {
-                    & $CopyToClipboard $false
+                } elseif ($e.Key -eq [System.Windows.Input.Key]::C -and $isCtrl) {
+                    $copyFn.Invoke($false)
                     $e.Handled = $true
                 } elseif ($e.Key -eq [System.Windows.Input.Key]::A -and $isCtrl) {
                     $s.SelectAllCells()
                     $e.Handled = $true
                 }
-            })
+            }.GetNewClosure())
         $contextMenu = New-Object System.Windows.Controls.ContextMenu
         $menuCopy = New-Object System.Windows.Controls.MenuItem
         $menuCopy.Header = "Copiar                                    Ctrl+C"

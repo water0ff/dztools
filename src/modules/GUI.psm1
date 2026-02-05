@@ -1493,6 +1493,7 @@ function Get-MainWindowXaml {
                                 <TabItem Header="📊 Resultados">
                                     <DataGrid Name="dgResults"
                                             IsReadOnly="True"
+                                            FontSize="10"
                                             AutoGenerateColumns="True"
                                             CanUserAddRows="False"
                                             CanUserDeleteRows="False"/>
@@ -1502,7 +1503,7 @@ function Get-MainWindowXaml {
                                             IsReadOnly="True"
                                             VerticalScrollBarVisibility="Auto"
                                             FontFamily="Consolas"
-                                            FontSize="11"
+                                            FontSize="10"
                                             Background="Transparent"
                                             BorderThickness="0"/>
                                 </TabItem>

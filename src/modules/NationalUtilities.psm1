@@ -16,70 +16,242 @@ function Show-DllRegistrationDialog {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Registro de DLLs"
-        Height="400" Width="760"
-        WindowStartupLocation="CenterOwner"
+        Width="760" Height="420"
+        MinWidth="760" MinHeight="420"
+        MaxWidth="760" MaxHeight="420"
+        WindowStartupLocation="Manual"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Background="Transparent"
-        AllowsTransparency="True">
+        AllowsTransparency="True"
+        Topmost="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
+
   <Window.Resources>
-    <Style x:Key="SystemButtonStyle" TargetType="Button">
-      <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
-      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="10,6"/>
-      <Setter Property="Cursor" Value="Hand"/>
+
+    <!-- Tipografías base -->
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
     </Style>
+
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
     </Style>
+
     <Style TargetType="RadioButton">
       <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
     </Style>
+
+    <!-- Botón base parecido a tus otros diálogos -->
+    <Style x:Key="BaseButtonStyle" TargetType="Button">
+      <Setter Property="OverridesDefaultStyle" Value="True"/>
+      <Setter Property="SnapsToDevicePixels" Value="True"/>
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                <Setter Property="Cursor" Value="Arrow"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
   </Window.Resources>
+
+  <!-- CONTENEDOR / SOMBRA -->
   <Border Background="{DynamicResource FormBg}"
           BorderBrush="{DynamicResource BorderBrushColor}"
           BorderThickness="1"
-          CornerRadius="8"
-          Padding="12">
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
+
+    <Border.Effect>
+      <DropShadowEffect Color="Black"
+                        Direction="270"
+                        ShadowDepth="4"
+                        BlurRadius="14"
+                        Opacity="0.25"/>
+    </Border.Effect>
+
     <Grid>
       <Grid.RowDefinitions>
-        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="52"/>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
-      <TextBlock Grid.Row="0"
-                 Text="Escribe las rutas a registrar o deregistrar (una por línea)."
-                 Margin="0,0,0,6"
-                 FontWeight="SemiBold"/>
-      <TextBlock Grid.Row="1"
-                 Text="Nota: si un renglón empieza con #, se omitirá."
-                 Foreground="{DynamicResource AccentMuted}"
-                 Margin="0,0,0,8"/>
-      <RichTextBox Grid.Row="2" Name="rtbDlls"
-                   VerticalScrollBarVisibility="Auto"
-                   Background="{DynamicResource ControlBg}"
-                   Foreground="{DynamicResource ControlFg}"
-                   BorderBrush="{DynamicResource BorderBrushColor}"
-                   BorderThickness="1"/>
-      <Grid Grid.Row="3" Margin="0,10,0,0">
+
+      <!-- Header draggable -->
+      <Border Grid.Row="0"
+              Name="HeaderBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Text="Registro de DLLs"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Registrar / deregistrar con regsvr32"
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+
+          <Button Grid.Column="2"
+                  Name="btnCloseX"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
+        </Grid>
+      </Border>
+
+      <!-- Hint -->
+      <Border Grid.Row="1"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="10,8"
+              Margin="12,0,12,10">
+        <StackPanel>
+          <TextBlock Text="Escribe las rutas a registrar o deregistrar (una por línea)."
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource FormFg}"/>
+          <TextBlock Text="Nota: si un renglón empieza con #, se omitirá."
+                     Foreground="{DynamicResource AccentMuted}"
+                     Margin="0,4,0,0"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Editor -->
+      <Border Grid.Row="2"
+              Background="{DynamicResource ControlBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="10"
+              Margin="12,0,12,10">
+        <RichTextBox Name="rtbDlls"
+                     VerticalScrollBarVisibility="Auto"
+                     Background="{DynamicResource ControlBg}"
+                     Foreground="{DynamicResource ControlFg}"
+                     BorderThickness="0"/>
+      </Border>
+
+      <!-- Footer -->
+      <Grid Grid.Row="3" Margin="12,0,12,12">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="Auto"/>
-          <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
           <RadioButton Name="rbRegister" Content="Registrar (regsvr32)" IsChecked="True" Margin="0,0,16,0"/>
           <RadioButton Name="rbUnregister" Content="Deregistrar (regsvr32 /u)"/>
         </StackPanel>
-        <Button Grid.Column="1" Name="btnRun" Content="Ejecutar" Width="120" Height="32" Margin="0,0,10,0"
-                Style="{StaticResource SystemButtonStyle}"/>
-        <Button Grid.Column="2" Name="btnClose" Content="Cerrar" Width="110" Height="32"
-                Style="{StaticResource SystemButtonStyle}"/>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
+          <Button Name="btnRun"
+                  Content="Ejecutar"
+                  Width="130"
+                  Height="34"
+                  Margin="0,0,10,0"
+                  Style="{StaticResource PrimaryButtonStyle}"/>
+          <Button Name="btnClose"
+                  Content="Cerrar"
+                  Width="120"
+                  Height="34"
+                  IsCancel="True"
+                  Style="{StaticResource SecondaryButtonStyle}"/>
+        </StackPanel>
       </Grid>
+
     </Grid>
   </Border>
 </Window>
@@ -91,6 +263,44 @@ function Show-DllRegistrationDialog {
         $theme = Get-DzUiTheme
         Set-DzWpfThemeResources -Window $w -Theme $theme
         try { Set-WpfDialogOwner -Dialog $w } catch {}
+        # Asegura el centrado real como bdd_RenameFromTree
+        $w.WindowStartupLocation = "Manual"
+        $w.Add_Loaded({
+                try {
+                    $owner = $w.Owner
+                    if (-not $owner) { $w.WindowStartupLocation = "CenterScreen"; return }
+                    $ob = $owner.RestoreBounds
+                    $targetW = $w.ActualWidth; if ($targetW -le 0) { $targetW = $w.Width }
+                    $targetH = $w.ActualHeight; if ($targetH -le 0) { $targetH = $w.Height }
+                    $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                    $top = $ob.Top + (($ob.Height - $targetH) / 2)
+                    $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                    $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                    $wa = $screen.WorkingArea
+                    if ($left -lt $wa.Left) { $left = $wa.Left }
+                    if ($top -lt $wa.Top) { $top = $wa.Top }
+                    if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                    if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+                    $w.Left = [double]$left
+                    $w.Top = [double]$top
+                } catch {}
+            }.GetNewClosure())
+        if ($c.ContainsKey('HeaderBar') -and $c['HeaderBar']) {
+            $c['HeaderBar'].Add_MouseLeftButtonDown({
+                    if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
+                        try { $w.DragMove() } catch {}
+                    }
+                })
+        }
+        if ($c.ContainsKey('btnCloseX') -and $c['btnCloseX']) {
+            $c['btnCloseX'].Add_Click({ try { $w.Close() } catch {} })
+        }
+        $w.Add_PreviewKeyDown({
+                param($sender, $e)
+                if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                    try { $w.Close() } catch {}
+                }
+            })
         $rtb = $c['rtbDlls']
         $textRange = New-Object System.Windows.Documents.TextRange($rtb.Document.ContentStart, $rtb.Document.ContentEnd)
         $textRange.Text = $defaultList
@@ -355,26 +565,31 @@ function Show-InstallerExtractorDialog {
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Extractor de instalador"
-        Height="400" Width="720"
-        WindowStartupLocation="CenterOwner"
+        Height="350" Width="720"
+        MinHeight="350" MinWidth="720"
+        MaxHeight="350" MaxWidth="720"
+        WindowStartupLocation="Manual"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Background="Transparent"
         AllowsTransparency="True"
-        Topmost="True"
+        Topmost="False"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
+
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
         </Style>
+
         <Style TargetType="TextBox">
             <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Height" Value="34"/>
         </Style>
 
         <Style x:Key="BaseButtonStyle" TargetType="Button">
@@ -443,151 +658,188 @@ function Show-InstallerExtractorDialog {
         </Style>
 
         <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
-            <Setter Property="Width" Value="34"/>
-            <Setter Property="Height" Value="34"/>
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="26"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Content" Value="×"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Content" Value="✕"/>
         </Style>
     </Window.Resources>
 
-    <Grid Background="{DynamicResource FormBg}" Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <!-- CONTENEDOR REAL (como bdd_RenameFromTree) -->
+    <Border Background="{DynamicResource FormBg}"
+            BorderBrush="{DynamicResource BorderBrushColor}"
+            BorderThickness="1"
+            CornerRadius="12"
+            Margin="10"
+            SnapsToDevicePixels="True">
 
-        <Border Grid.Row="0"
-                Name="brdTitleBar"
-                Background="{DynamicResource PanelBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12"
-                Margin="0,0,0,10">
-            <DockPanel LastChildFill="True">
-                <StackPanel DockPanel.Dock="Left">
-                    <TextBlock Text="Extractor de instalador"
-                               Foreground="{DynamicResource FormFg}"
-                               FontSize="16"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Text="Seleccione el instalador y el destino de extracción."
-                               Foreground="{DynamicResource PanelFg}"
-                               Margin="0,2,0,0"/>
-                </StackPanel>
-                <Button DockPanel.Dock="Right"
-                        Name="btnClose"
-                        Style="{StaticResource CloseButtonStyle}"/>
-            </DockPanel>
-        </Border>
+        <Border.Effect>
+            <DropShadowEffect Color="Black"
+                              Direction="270"
+                              ShadowDepth="4"
+                              BlurRadius="14"
+                              Opacity="0.25"/>
+        </Border.Effect>
 
-        <Border Grid.Row="1"
-                Background="{DynamicResource PanelBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12"
-                Margin="0,0,0,10">
-            <Grid>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="52"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header draggable -->
+            <Border Grid.Row="0"
+                    Name="HeaderBar"
+                    Background="{DynamicResource FormBg}"
+                    CornerRadius="12,12,0,0"
+                    Padding="12,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Width="6"
+                            CornerRadius="3"
+                            Background="{DynamicResource AccentMagenta}"
+                            Margin="0,4,10,4"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Vertical">
+                        <TextBlock Text="Extractor de instalador"
+                                   Foreground="{DynamicResource FormFg}"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"/>
+                        <TextBlock Text="Seleccione el instalador y el destino de extracción."
+                                   Foreground="{DynamicResource AccentMuted}"
+                                   FontSize="10"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="2"
+                            Name="btnClose"
+                            Style="{StaticResource CloseButtonStyle}"
+                            ToolTip="Cerrar"/>
+                </Grid>
+            </Border>
+
+            <!-- Content -->
+            <Grid Grid.Row="1" Margin="12,0,12,10">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="Instalador (.exe)" Margin="0,0,0,6"/>
-                <Grid Grid.Row="1" Margin="0,0,0,12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Button Name="btnPickInstaller"
-                            Content="📁"
-                            Width="42" Height="34"
-                            Margin="0,0,8,0"
-                            ToolTip="Seleccionar instalador"
-                            Style="{StaticResource OutlineButtonStyle}"/>
-                    <TextBox Name="txtInstallerPath"
-                             Grid.Column="1"
-                             Height="34"
-                             IsReadOnly="True"
-                             VerticalContentAlignment="Center"
-                             Text=""/>
-                </Grid>
-
-                <Border Grid.Row="2"
-                        Background="{DynamicResource FormBg}"
+                <!-- Panel principal -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource PanelBg}"
                         BorderBrush="{DynamicResource BorderBrushColor}"
                         BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="10"
-                        Margin="0,0,0,12">
-                    <StackPanel>
-                        <TextBlock Name="lblVersionInfo" Text="Versión: -"/>
-                        <TextBlock Name="lblLastWrite" Text="Última modificación: -" Margin="0,4,0,0"/>
-                    </StackPanel>
+                        CornerRadius="10"
+                        Padding="12"
+                        Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="Instalador (.exe)" Margin="0,0,0,6"/>
+                        <Grid Grid.Row="1" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Name="btnPickInstaller"
+                                    Content="📁"
+                                    Width="42" Height="34"
+                                    Margin="0,0,8,0"
+                                    ToolTip="Seleccionar instalador"
+                                    Style="{StaticResource OutlineButtonStyle}"/>
+                            <TextBox Name="txtInstallerPath"
+                                     Grid.Column="1"
+                                     IsReadOnly="True"
+                                     VerticalContentAlignment="Center"
+                                     Text=""/>
+                        </Grid>
+
+                        <Border Grid.Row="2"
+                                Background="{DynamicResource ControlBg}"
+                                BorderBrush="{DynamicResource BorderBrushColor}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="10"
+                                Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Name="lblVersionInfo" Text="Versión: -"/>
+                                <TextBlock Name="lblLastWrite" Text="Última modificación: -" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Grid.Row="3" Text="Destino" Margin="0,0,0,6"/>
+                        <Grid Grid.Row="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Name="btnPickDestination"
+                                    Content="📁"
+                                    Width="42" Height="34"
+                                    Margin="0,0,8,0"
+                                    ToolTip="Seleccionar destino"
+                                    Style="{StaticResource OutlineButtonStyle}"/>
+                            <TextBox Name="txtDestinationPath"
+                                     Grid.Column="1"
+                                     IsReadOnly="False"
+                                     VerticalContentAlignment="Center"
+                                     Text=""/>
+                        </Grid>
+                    </Grid>
                 </Border>
 
-                <TextBlock Grid.Row="3" Text="Destino" Margin="0,0,0,6"/>
-                <Grid Grid.Row="4">
+                <!-- Footer -->
+                <Grid Grid.Row="1" Margin="0,0,0,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Button Name="btnPickDestination"
-                            Content="📁"
-                            Width="42" Height="34"
-                            Margin="0,0,8,0"
-                            ToolTip="Seleccionar destino"
-                            Style="{StaticResource OutlineButtonStyle}"/>
-                    <TextBox Name="txtDestinationPath"
-                             Grid.Column="1"
-                             Height="34"
-                             IsReadOnly="False"
-                             VerticalContentAlignment="Center"
-                             Text=""/>
+
+                    <TextBlock Grid.Column="0"
+                               Text="Enter: Extraer   |   Esc: Cerrar"
+                               Foreground="{DynamicResource AccentMuted}"
+                               VerticalAlignment="Center"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Name="btnCancel"
+                                Content="Cancelar"
+                                Width="120"
+                                Height="34"
+                                Margin="0,0,10,0"
+                                IsCancel="True"
+                                Style="{StaticResource OutlineButtonStyle}"/>
+                        <Button Name="btnExtract"
+                                Content="Extraer"
+                                Width="140"
+                                Height="34"
+                                IsDefault="True"
+                                Style="{StaticResource ActionButtonStyle}"/>
+                    </StackPanel>
                 </Grid>
             </Grid>
-        </Border>
-        <Border Grid.Row="2"
-                Background="{DynamicResource PanelBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="10"
-                Margin="0,10,0,0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0"
-                           Text="Enter: Extraer   |   Esc: Cerrar"
-                           VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Name="btnCancel"
-                            Content="Cancelar"
-                            Width="120"
-                            Height="34"
-                            Margin="0,0,10,0"
-                            IsCancel="True"
-                            Style="{StaticResource OutlineButtonStyle}"/>
-                    <Button Name="btnExtract"
-                            Content="Extraer"
-                            Width="140"
-                            Height="34"
-                            IsDefault="True"
-                            Style="{StaticResource ActionButtonStyle}"/>
-                </StackPanel>
-            </Grid>
-        </Border>
 
-    </Grid>
+            <!-- (Opcional) si luego agregas status, puedes meter otro row aquí -->
+        </Grid>
+    </Border>
 </Window>
 "@
 
@@ -596,6 +848,27 @@ function Show-InstallerExtractorDialog {
         $window = $ui.Window
         Set-DzWpfThemeResources -Window $window -Theme $theme
         try { Set-WpfDialogOwner -Dialog $window } catch {}
+        $window.WindowStartupLocation = "Manual"
+        $window.Add_Loaded({
+                try {
+                    $owner = $window.Owner
+                    if (-not $owner) { $window.WindowStartupLocation = "CenterScreen"; return }
+                    $ob = $owner.RestoreBounds
+                    $targetW = $window.ActualWidth; if ($targetW -le 0) { $targetW = $window.Width }
+                    $targetH = $window.ActualHeight; if ($targetH -le 0) { $targetH = $window.Height }
+                    $left = $ob.Left + (($ob.Width - $targetW) / 2)
+                    $top = $ob.Top + (($ob.Height - $targetH) / 2)
+                    $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+                    $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+                    $wa = $screen.WorkingArea
+                    if ($left -lt $wa.Left) { $left = $wa.Left }
+                    if ($top -lt $wa.Top) { $top = $wa.Top }
+                    if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+                    if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+                    $window.Left = [double]$left
+                    $window.Top = [double]$top
+                } catch {}
+            }.GetNewClosure())
     } catch {
         Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] ERROR creando ventana: $($_.Exception.Message)" Red
         Show-WpfMessageBox -Message "No se pudo crear la ventana del extractor." -Title "Error" -Buttons OK -Icon Error | Out-Null
@@ -609,17 +882,15 @@ function Show-InstallerExtractorDialog {
     $destinationManuallySet = $false
 
     if ($c.ContainsKey('btnClose') -and $c['btnClose']) { $c['btnClose'].Add_Click({ $window.Close() }) }
-
-    $brdTitleBar = $window.FindName("brdTitleBar")
-    if ($brdTitleBar) {
-        $brdTitleBar.Add_MouseLeftButtonDown({
+    $header = $window.FindName("HeaderBar")
+    if ($header) {
+        $header.Add_MouseLeftButtonDown({
                 param($sender, $e)
-                if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                if ($e.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
                     try { $window.DragMove() } catch {}
                 }
             })
     }
-
     $updateStatus = {
         param([string]$msg)
         if ($c.ContainsKey('txtStatus') -and $c['txtStatus']) { $c['txtStatus'].Text = $msg }
@@ -736,7 +1007,6 @@ function Show-InstallerExtractorDialog {
     $window.ShowDialog() | Out-Null
     Write-DzDebug "`t[DEBUG][Show-InstallerExtractorDialog] FIN"
 }
-
 function Invoke-CreateApk {
     [CmdletBinding()]
     param(

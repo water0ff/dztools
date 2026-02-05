@@ -645,7 +645,7 @@ function Show-InstallPrinterDialog {
     </Border.Effect>
     <Grid>
       <Grid.RowDefinitions>
-        <RowDefinition Height="44"/>
+        <RowDefinition Height="52"/>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
@@ -1988,13 +1988,14 @@ function Show-IPConfigDialog {
         Topmost="False"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
-
   <Window.Resources>
     <Style TargetType="{x:Type Control}">
       <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
       <Setter Property="FontSize" Value="11"/>
     </Style>
-
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
     <Style x:Key="IconButtonStyle" TargetType="Button">
       <Setter Property="Width" Value="30"/>
       <Setter Property="Height" Value="26"/>
@@ -2025,13 +2026,12 @@ function Show-IPConfigDialog {
         </Setter.Value>
       </Setter>
     </Style>
-
-    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+    <Style x:Key="BaseButtonStyle" TargetType="Button">
       <Setter Property="Height" Value="32"/>
       <Setter Property="MinWidth" Value="140"/>
       <Setter Property="Padding" Value="12,6"/>
-      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Cursor" Value="Hand"/>
@@ -2054,18 +2054,23 @@ function Show-IPConfigDialog {
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
                 <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                <Setter Property="Cursor" Value="Arrow"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
     </Style>
-
-    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderThickness" Value="1"/>
     </Style>
-
     <Style x:Key="ComboStyle" TargetType="ComboBox">
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
@@ -2075,7 +2080,6 @@ function Show-IPConfigDialog {
       <Setter Property="Height" Value="30"/>
     </Style>
   </Window.Resources>
-
   <Border Background="{DynamicResource FormBg}"
           BorderBrush="{DynamicResource BorderBrushColor}"
           BorderThickness="1"
@@ -2085,7 +2089,6 @@ function Show-IPConfigDialog {
     <Border.Effect>
       <DropShadowEffect Color="Black" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.25"/>
     </Border.Effect>
-
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="52"/>
@@ -2093,8 +2096,6 @@ function Show-IPConfigDialog {
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
-
-      <!-- Title bar -->
       <Border Grid.Row="0"
               Name="HeaderBar"
               Background="{DynamicResource FormBg}"
@@ -2106,13 +2107,11 @@ function Show-IPConfigDialog {
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-
           <Border Grid.Column="0"
                   Width="6"
                   CornerRadius="3"
                   Background="{DynamicResource AccentPrimary}"
                   Margin="0,4,10,4"/>
-
           <StackPanel Grid.Column="1" Orientation="Vertical">
             <TextBlock Text="Asignación de IPs"
                        FontWeight="SemiBold"
@@ -2123,7 +2122,6 @@ function Show-IPConfigDialog {
                        FontSize="10"
                        Margin="0,2,0,0"/>
           </StackPanel>
-
           <Button Grid.Column="2"
                   Name="btnClose"
                   Style="{StaticResource IconButtonStyle}"
@@ -2131,8 +2129,6 @@ function Show-IPConfigDialog {
                   ToolTip="Cerrar"/>
         </Grid>
       </Border>
-
-      <!-- Tip -->
       <Border Grid.Row="1"
               Background="{DynamicResource PanelBg}"
               BorderBrush="{DynamicResource BorderBrushColor}"
@@ -2146,21 +2142,20 @@ function Show-IPConfigDialog {
                    Opacity="0.9"
                    TextWrapping="Wrap"/>
       </Border>
-
-      <!-- Content -->
       <Grid Grid.Row="2" Margin="12,0,12,10">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-
-        <TextBlock Grid.Row="0" Text="Adaptador de red"
+        <TextBlock Grid.Row="0"
+                   Text="Adaptador de red"
                    Foreground="{DynamicResource FormFg}"
                    Margin="0,0,0,6"/>
-
-        <ComboBox Grid.Row="1" Name="cmbAdapters" Style="{StaticResource ComboStyle}" Margin="0,0,0,10"/>
-
+        <ComboBox Grid.Row="1"
+                  Name="cmbAdapters"
+                  Style="{StaticResource ComboStyle}"
+                  Margin="0,0,0,10"/>
         <Border Grid.Row="2"
                 Background="{DynamicResource ControlBg}"
                 BorderBrush="{DynamicResource BorderBrushColor}"
@@ -2174,8 +2169,6 @@ function Show-IPConfigDialog {
                      VerticalAlignment="Top"/>
         </Border>
       </Grid>
-
-      <!-- Footer buttons -->
       <StackPanel Grid.Row="3"
                   Orientation="Horizontal"
                   HorizontalAlignment="Right"
@@ -2185,29 +2178,26 @@ function Show-IPConfigDialog {
                 Style="{StaticResource SecondaryButtonStyle}"
                 Margin="0,0,10,0"
                 IsEnabled="False"/>
-
         <Button Name="btnAssignIp"
                 Content="Agregar IP adicional"
                 Style="{StaticResource PrimaryButtonStyle}"
                 Margin="0,0,10,0"
                 IsEnabled="False"/>
-
         <Button Name="btnDhcp"
                 Content="Cambiar a DHCP"
                 Style="{StaticResource SecondaryButtonStyle}"
                 Margin="0,0,10,0"
                 IsEnabled="False"/>
-
         <Button Name="btnCloseFooter"
                 Content="Cerrar"
                 Style="{StaticResource SecondaryButtonStyle}"
                 IsCancel="True"/>
       </StackPanel>
-
     </Grid>
   </Border>
 </Window>
 "@
+
 
   $ui = New-WpfWindow -Xaml $stringXaml -PassThru
   $window = $ui.Window

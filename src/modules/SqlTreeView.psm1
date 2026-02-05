@@ -1417,12 +1417,6 @@ function Show-DeleteDatabaseDialog {
         [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
         [Parameter(Mandatory = $true)]$ParentNode
     )
-    function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) {
-        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null
-    }
-    function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) {
-        Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null
-    }
     Write-DzDebug "`t[DEBUG][DeleteDB] INICIO: Server='$Server' Database='$Database'"
     Add-Type -AssemblyName PresentationFramework
     $safeDb = [Security.SecurityElement]::Escape($Database)

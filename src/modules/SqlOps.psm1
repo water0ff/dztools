@@ -12,10 +12,6 @@ function Show-AttachDialog {
   )
   $script:AttachRunning = $false
   $script:AttachDone = $false
-  function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
-  function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null }
-  function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
-  function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) { (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes }
   Write-DzDebug "`t[DEBUG][Show-AttachDialog] INICIO"
   Write-DzDebug "`t[DEBUG][Show-AttachDialog] Server='$Server' User='$User'"
   Add-Type -AssemblyName PresentationFramework
@@ -593,10 +589,6 @@ function Show-DetachDialog {
     [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential,
     [Parameter(Mandatory = $true)]$ParentNode
   )
-
-  function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
-  function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
-
   Write-DzDebug "`t[DEBUG][DetachDB] INICIO: Server='$Server' Database='$Database'"
   Add-Type -AssemblyName PresentationFramework
   $safeDb = [Security.SecurityElement]::Escape($Database)
@@ -973,9 +965,6 @@ function Show-DatabaseSizeDialog {
     [Parameter(Mandatory = $true)][string]$Database,
     [Parameter(Mandatory = $true)][System.Management.Automation.PSCredential]$Credential
   )
-  function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) {
-    Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null
-  }
   Write-DzDebug "`t[DEBUG][DBSize] INICIO: Server='$Server' Database='$Database'"
   Add-Type -AssemblyName PresentationFramework
   $safeDbName = $Database -replace ']', ']]'
@@ -1311,9 +1300,6 @@ function Show-DatabaseRepairDialog {
   )
   $script:RepairRunning = $false
   $script:RepairDone = $false
-  function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
-  function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
-  function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) { (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes }
   Write-DzDebug "`t[DEBUG][DBRepair] INICIO: Server='$Server' Database='$Database'"
   Add-Type -AssemblyName PresentationFramework
   $safeDb = [Security.SecurityElement]::Escape($Database)
@@ -1894,10 +1880,6 @@ function Show-BackupDialog {
   $script:BackupRunning = $false
   $script:BackupDone = $false
   $script:EnableThreadJob = $false
-  function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
-  function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null }
-  function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
-  function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) { (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes }
   function Initialize-ThreadJob {
     [CmdletBinding()]
     param()
@@ -2739,10 +2721,6 @@ function Show-RestoreDialog {
   } else {
     Write-DzDebug "`t[DEBUG][Show-RestoreDialog] El directorio $defaultPath ya existe" -Color DarkYellow
   }
-  function Ui-Info([string]$m, [string]$t = "Información", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Information" -Owner $o | Out-Null }
-  function Ui-Warn([string]$m, [string]$t = "Atención", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Warning" -Owner $o | Out-Null }
-  function Ui-Error([string]$m, [string]$t = "Error", [System.Windows.Window]$o) { Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "OK" -Icon "Error" -Owner $o | Out-Null }
-  function Ui-Confirm([string]$m, [string]$t = "Confirmar", [System.Windows.Window]$o) { (Show-WpfMessageBoxSafe -Message $m -Title $t -Buttons "YesNo" -Icon "Question" -Owner $o) -eq [System.Windows.MessageBoxResult]::Yes }
   Write-DzDebug "`t[DEBUG][Show-RestoreDialog] INICIO"
   Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Server='$Server' Database='$Database' User='$User'"
   Add-Type -AssemblyName PresentationFramework

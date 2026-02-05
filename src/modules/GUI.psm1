@@ -563,10 +563,28 @@ function Show-WpfFolderDialog {
     $r = $dialog.ShowDialog()
     if ($r -eq [System.Windows.Forms.DialogResult]::OK) { $dialog.SelectedPath } else { $null }
 }
-function Ui-Info { param([string]$Message, [string]$Title = "Información", [System.Windows.Window]$Owner) Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Information" -Owner $Owner | Out-Null }
-function Ui-Warn { param([string]$Message, [string]$Title = "Atención", [System.Windows.Window]$Owner) Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Warning" -Owner $Owner | Out-Null }
-function Ui-Error { param([string]$Message, [string]$Title = "Error", [System.Windows.Window]$Owner) Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Error" -Owner $Owner | Out-Null }
-function Ui-Confirm { param([string]$Message, [string]$Title = "Confirmar", [System.Windows.Window]$Owner) (Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "YesNo" -Icon "Question" -Owner $Owner) -eq [System.Windows.MessageBoxResult]::Yes }
+function Ui-Info {
+    param(        [string]$Message, [string]$Title = "Información", [System.Windows.Window]$Owner    )
+    Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Information" -Owner $Owner | Out-Null
+}
+function Ui-Warn {
+    param(        [string]$Message, [string]$Title = "Atención", [System.Windows.Window]$Owner    )
+    Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Warning" -Owner $Owner | Out-Null
+}
+function Ui-Error {
+    param(        [string]$Message, [string]$Title = "Error", [System.Windows.Window]$Owner    )
+    Show-WpfMessageBoxSafe -Message $Message -Title $Title -Buttons "OK" -Icon "Error" -Owner $Owner | Out-Null
+}
+function Ui-Confirm {
+    param(        [string]$Message, [string]$Title = "Confirmar", [System.Windows.Window]$Owner    )
+    (Show-WpfMessageBoxSafe `
+        -Message $Message `
+        -Title $Title `
+        -Buttons "YesNo" `
+        -Icon "Question" `
+        -Owner $Owner
+    ) -eq [System.Windows.MessageBoxResult]::Yes
+}
 function Get-MainWindowXaml {
     param([hashtable]$Theme)
     @"
@@ -1231,7 +1249,6 @@ function Get-MainWindowXaml {
 </Window>
 "@
 }
-
 function New-MainWindow {
     [CmdletBinding()]
     param()
@@ -1251,7 +1268,6 @@ function New-MainWindow {
         throw
     }
 }
-
 Export-ModuleMember -Function @(
     'Get-DzUiTheme', 'New-WpfWindow', 'Show-WpfMessageBox', 'Show-WpfMessageBoxSafe', 'ConvertTo-MessageBoxResult',
     'New-WpfInputDialog', 'Show-WpfProgressBar', 'Update-WpfProgressBar', 'Close-WpfProgressBar', 'Show-ProgressBar',

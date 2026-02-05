@@ -1914,83 +1914,481 @@ function Show-BackupDialog {
   Add-Type -AssemblyName System.Windows.Forms
   $theme = Get-DzUiTheme
   $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Opciones de Respaldo" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Background="$($theme.FormBackground)">
-    <Window.Resources>
-        <Style TargetType="Label">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-        </Style>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-        </Style>
-        <Style TargetType="GroupBox">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-        </Style>
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="$($theme.FormForeground)"/>
-        </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-        <Style TargetType="PasswordBox">
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ControlForeground)"/>
-            <Setter Property="BorderBrush" Value="$($theme.BorderColor)"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-        <Style TargetType="ProgressBar">
-            <Setter Property="Foreground" Value="$($theme.AccentSecondary)"/>
-            <Setter Property="Background" Value="$($theme.ControlBackground)"/>
-        </Style>
-        <Style x:Key="SystemButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="$($theme.ButtonSystemBackground)"/>
-            <Setter Property="Foreground" Value="$($theme.ButtonSystemForeground)"/>
-        </Style>
-    </Window.Resources>
-    <Grid Margin="20" Background="$($theme.FormBackground)"><Grid.RowDefinitions><RowDefinition Height="Auto"/>
-    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <CheckBox x:Name="chkRespaldo" Grid.Row="0" IsChecked="True" IsEnabled="False" Margin="0,0,0,10"><TextBlock Text="Respaldar" FontWeight="Bold"/>
-    </CheckBox><Label Grid.Row="1" Content="Nombre del respaldo:"/><TextBox x:Name="txtNombre" Grid.Row="2" Height="25" Margin="0,5,0,10"/>
-    <CheckBox x:Name="chkComprimir" Grid.Row="3" Margin="0,0,0,10"><TextBlock Text="Comprimir (requiere Chocolatey)" FontWeight="Bold"/>
-    </CheckBox><Label x:Name="lblPassword" Grid.Row="4" Content="Contraseña (opcional) para ZIP:"/><Grid Grid.Row="5" Margin="0,5,0,10">
-    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
-    </Grid.ColumnDefinitions><PasswordBox x:Name="txtPassword" Grid.Column="0" Height="25"/>
-    <Button x:Name="btnTogglePassword" Grid.Column="1" Content="👁" Width="30" Margin="5,0,0,0" Style="{StaticResource SystemButtonStyle}"/>
-    </Grid><CheckBox x:Name="chkSubir" Grid.Row="6" Margin="0,0,0,20" IsEnabled="False">
-    <TextBlock Text="Subir a Mega.nz (opción deshabilitada)" FontWeight="Bold" Foreground="$($theme.FormForeground)"/>
-    </CheckBox>
-    <GroupBox Grid.Row="7" Header="Progreso" Margin="0,0,0,10">
-    <StackPanel><ProgressBar x:Name="pbBackup" Height="20" Margin="5" Minimum="0" Maximum="100" Value="0"/>
-    <TextBlock x:Name="txtProgress" Text="Esperando..." Margin="5,5,5,10" TextWrapping="Wrap"/>
-    </StackPanel></GroupBox><GroupBox Grid.Row="8" Header="Log">
-    <TextBox x:Name="txtLog" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="160"/>
-    </GroupBox><StackPanel Grid.Row="9" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0"><Button x:Name="btnAceptar" Content="Iniciar Respaldo" Width="120" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/>
-    <Button x:Name="btnAbrirCarpeta" Content="Abrir Carpeta" Width="100" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/>
-    <Button x:Name="btnCerrar" Content="Cerrar" Width="80" Height="30" Margin="5,0" Style="{StaticResource SystemButtonStyle}"/></StackPanel></Grid>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Opciones de Respaldo"
+        Width="680" Height="560"
+        MinWidth="680" MinHeight="560"
+        MaxWidth="680" MaxHeight="560"
+        WindowStartupLocation="Manual"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
+
+  <Window.Resources>
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+
+    <Style TargetType="Label">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="MinWidth" Value="120"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="SecondaryButtonStyle"
+           TargetType="Button"
+           BasedOn="{StaticResource PrimaryButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PanelBg}"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="TextBoxStyle" TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Height" Value="34"/>
+    </Style>
+
+    <Style x:Key="PasswordBoxStyle" TargetType="PasswordBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Height" Value="34"/>
+    </Style>
+
+    <Style x:Key="CheckBoxStyle" TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="Margin" Value="0,0,0,6"/>
+    </Style>
+
+    <Style x:Key="CardTitleStyle" TargetType="TextBlock">
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="Margin" Value="0,0,0,10"/>
+    </Style>
+  </Window.Resources>
+
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
+
+    <Border.Effect>
+      <DropShadowEffect Color="Black"
+                        Direction="270"
+                        ShadowDepth="4"
+                        BlurRadius="14"
+                        Opacity="0.25"/>
+    </Border.Effect>
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="52"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <!-- Header draggable -->
+      <Border Grid.Row="0"
+              x:Name="HeaderBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Text="Opciones de Respaldo"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Backup + compresión opcional"
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+
+          <Button Grid.Column="2"
+                  x:Name="btnClose"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
+        </Grid>
+      </Border>
+
+      <!-- Hint -->
+      <Border Grid.Row="1"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="10,8"
+              Margin="12,0,12,10">
+        <TextBlock Text="Tip: si el servidor es remoto, la ruta UNC debe ser accesible para que puedas abrir la carpeta desde tu PC."
+                   Foreground="{DynamicResource PanelFg}"
+                   FontSize="10"
+                   Opacity="0.9"
+                   TextWrapping="Wrap"/>
+      </Border>
+
+      <!-- Content -->
+      <Grid Grid.Row="2" Margin="12,0,12,10">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Opciones -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12"
+                Margin="0,0,0,10">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Opciones" Style="{StaticResource CardTitleStyle}"/>
+
+            <CheckBox x:Name="chkRespaldo" Grid.Row="1"
+                      Style="{StaticResource CheckBoxStyle}"
+                      IsChecked="True" IsEnabled="False">
+              <TextBlock Text="Respaldar" FontWeight="SemiBold"/>
+            </CheckBox>
+
+            <TextBlock Grid.Row="2" Text="Nombre del respaldo:" Margin="0,2,0,6"/>
+            <TextBox x:Name="txtNombre" Grid.Row="3" Style="{StaticResource TextBoxStyle}" />
+          <Grid Grid.Row="4" Margin="0,10,0,0">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+              <CheckBox x:Name="chkComprimir" Grid.Row="0"
+                        Style="{StaticResource CheckBoxStyle}">
+                <TextBlock Text="Comprimir (requiere Chocolatey + 7-Zip)" FontWeight="SemiBold"/>
+              </CheckBox>
+
+              <TextBlock x:Name="lblPassword" Grid.Row="1" Text="Contraseña (opcional) para ZIP:" Margin="0,2,0,6"/>
+
+              <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <PasswordBox x:Name="txtPassword" Grid.Column="0" Style="{StaticResource PasswordBoxStyle}"/>
+                <Button x:Name="btnTogglePassword" Grid.Column="1"
+                        Content="👁"
+                        Width="34"
+                        Height="34"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource SecondaryButtonStyle}"/>
+              </Grid>
+
+              <CheckBox x:Name="chkSubir" Grid.Row="3"
+                        Style="{StaticResource CheckBoxStyle}"
+                        Margin="0,10,0,0"
+                        IsEnabled="False"
+                        IsChecked="False">
+                <TextBlock Text="Subir a Mega.nz (opción deshabilitada)" FontWeight="SemiBold"/>
+              </CheckBox>
+            </Grid>
+          </Grid>
+        </Border>
+
+        <!-- Progreso -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12"
+                Margin="0,0,0,10">
+          <StackPanel>
+            <TextBlock Text="Progreso" Style="{StaticResource CardTitleStyle}"/>
+            <ProgressBar x:Name="pbBackup" Height="20" Minimum="0" Maximum="100" Value="0"/>
+            <TextBlock x:Name="txtProgress" Text="Esperando..." Margin="0,8,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+
+        <!-- Log -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Log" Style="{StaticResource CardTitleStyle}"/>
+            <TextBox x:Name="txtLog" Grid.Row="1"
+                     IsReadOnly="True"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"
+                     TextWrapping="NoWrap"
+                     Background="{DynamicResource PanelBg}"
+                     Foreground="{DynamicResource PanelFg}"
+                     BorderBrush="{DynamicResource BorderBrushColor}"
+                     BorderThickness="1"
+                     Padding="10"/>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <!-- Footer -->
+      <Grid Grid.Row="3" Margin="12,0,12,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Column="0"
+                   Text="Enter: Iniciar   |   Esc: Cerrar"
+                   Foreground="{DynamicResource AccentMuted}"
+                   VerticalAlignment="Center"/>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
+          <Button x:Name="btnAbrirCarpeta"
+                  Content="Abrir Carpeta"
+                  Style="{StaticResource SecondaryButtonStyle}"
+                  Width="130"
+                  Margin="0,0,10,0"/>
+          <Button x:Name="btnCerrar"
+                  Content="Cerrar"
+                  Style="{StaticResource SecondaryButtonStyle}"
+                  Width="110"
+                  Margin="0,0,10,0"
+                  IsCancel="True"/>
+          <Button x:Name="btnAceptar"
+                  Content="Iniciar Respaldo"
+                  Style="{StaticResource PrimaryButtonStyle}"
+                  Width="160"
+                  IsDefault="True"/>
+        </StackPanel>
+      </Grid>
+
+    </Grid>
+  </Border>
 </Window>
 "@
-  $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$xaml)
-  $window = [System.Windows.Markup.XamlReader]::Load($reader)
-  if (-not $window) { Write-DzDebug "`t[DEBUG][Show-BackupDialog] ERROR: window=NULL"; throw "No se pudo crear la ventana (XAML)." }
-  Write-DzDebug "`t[DEBUG][Show-BackupDialog] Ventana creada OK"
-  $chkRespaldo = $window.FindName("chkRespaldo")
-  $txtNombre = $window.FindName("txtNombre")
-  $chkComprimir = $window.FindName("chkComprimir")
-  $txtPassword = $window.FindName("txtPassword")
-  $lblPassword = $window.FindName("lblPassword")
-  $chkSubir = $window.FindName("chkSubir")
-  $pbBackup = $window.FindName("pbBackup")
-  $txtProgress = $window.FindName("txtProgress")
-  $txtLog = $window.FindName("txtLog")
-  $btnAceptar = $window.FindName("btnAceptar")
-  $btnAbrirCarpeta = $window.FindName("btnAbrirCarpeta")
-  $btnCerrar = $window.FindName("btnCerrar")
-  $btnTogglePassword = $window.FindName("btnTogglePassword")
+  $ui = New-WpfWindow -Xaml $xaml -PassThru
+  $window = $ui.Window
+  $c = $ui.Controls
+  function Get-Ctrl([string]$name) {
+    try {
+      if ($null -ne $c -and $c.ContainsKey($name) -and $null -ne $c[$name]) { return $c[$name] }
+    } catch {}
+    try { return $window.FindName($name) } catch { return $null }
+  }
+
+  $theme = Get-DzUiTheme
+  Set-DzWpfThemeResources -Window $window -Theme $theme
+  try { Set-WpfDialogOwner -Dialog $window } catch {}
+  try { if (-not $window.Owner -and $global:MainWindow -is [System.Windows.Window]) { $window.Owner = $global:MainWindow } } catch {}
+  $chkRespaldo = Get-Ctrl "chkRespaldo"
+  $txtNombre = Get-Ctrl "txtNombre"
+  $chkComprimir = Get-Ctrl "chkComprimir"
+  $txtPassword = Get-Ctrl "txtPassword"
+  $lblPassword = Get-Ctrl "lblPassword"
+  $chkSubir = Get-Ctrl "chkSubir"
+  $pbBackup = Get-Ctrl "pbBackup"
+  $txtProgress = Get-Ctrl "txtProgress"
+  $txtLog = Get-Ctrl "txtLog"
+  $btnAceptar = Get-Ctrl "btnAceptar"
+  $btnAbrirCarpeta = Get-Ctrl "btnAbrirCarpeta"
+  $btnCerrar = Get-Ctrl "btnCerrar"
+  $btnTogglePassword = Get-Ctrl "btnTogglePassword"
+
+  $headerBar = Get-Ctrl "HeaderBar"
+  $btnClose = Get-Ctrl "btnClose"
+
   Write-DzDebug "`t[DEBUG][Show-BackupDialog] Controles: chkRespaldo=$([bool]$chkRespaldo) txtNombre=$([bool]$txtNombre) chkComprimir=$([bool]$chkComprimir) txtPassword=$([bool]$txtPassword) lblPassword=$([bool]$lblPassword) chkSubir=$([bool]$chkSubir) pbBackup=$([bool]$pbBackup) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnAbrirCarpeta=$([bool]$btnAbrirCarpeta) btnCerrar=$([bool]$btnCerrar) btnTogglePassword=$([bool]$btnTogglePassword)"
+  $window.WindowStartupLocation = "Manual"
+  $window.Add_Loaded({
+      try {
+        $owner = $window.Owner
+        if (-not $owner) { $window.WindowStartupLocation = "CenterScreen"; return }
+        $ob = $owner.RestoreBounds
+        $targetW = $window.ActualWidth; if ($targetW -le 0) { $targetW = $window.Width }
+        $targetH = $window.ActualHeight; if ($targetH -le 0) { $targetH = $window.Height }
+        $left = $ob.Left + (($ob.Width - $targetW) / 2)
+        $top = $ob.Top + (($ob.Height - $targetH) / 2)
+
+        $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+        $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+        $wa = $screen.WorkingArea
+        if ($left -lt $wa.Left) { $left = $wa.Left }
+        if ($top -lt $wa.Top) { $top = $wa.Top }
+        if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+        if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+        $window.Left = [double]$left
+        $window.Top = [double]$top
+      } catch {}
+    }.GetNewClosure())
+  if ($headerBar) {
+    $headerBar.Add_MouseLeftButtonDown({
+        if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
+          try { $window.DragMove() } catch {}
+        }
+      })
+  } else {
+    Write-DzDebug "`t[DEBUG][Show-BackupDialog] HeaderBar=NULL (no se pudo enganchar DragMove)"
+  }
+
+  if ($btnClose) {
+    $btnClose.Add_Click({
+        try { $window.DialogResult = $false } catch {}
+        try { $window.Close() } catch {}
+      })
+  } else {
+    Write-DzDebug "`t[DEBUG][Show-BackupDialog] btnClose=NULL (no se pudo enganchar cerrar con X)"
+  }
+
+  $btnCerrar.Add_Click({
+      try { $window.DialogResult = $false } catch {}
+      try { $window.Close() } catch {}
+    })
+  $window.Add_PreviewKeyDown({
+      param($sender, $e)
+      if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+        try { $window.DialogResult = $false } catch {}
+        try { $window.Close() } catch {}
+      }
+    })
   if (-not $txtNombre -or -not $chkComprimir -or -not $txtPassword -or -not $lblPassword -or -not $chkSubir -or -not $pbBackup -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnAbrirCarpeta -or -not $btnCerrar) { Write-DzDebug "`t[DEBUG][Show-BackupDialog] ERROR: uno o más controles son NULL. Cerrando..."; throw "Controles WPF incompletos (FindName devolvió NULL)." }
   $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'
   $txtNombre.Text = ("$Database-$timestampsDefault.bak")

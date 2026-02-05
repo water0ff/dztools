@@ -3227,7 +3227,7 @@ function Show-FirewallConfigDialog {
     & $SetStatus "Se encontraron $($Matches.Count) regla(s) para el puerto $Port." "Ok"
   }.GetNewClosure()
   $c['btnClose'].Add_Click({ $w.Close() })
-  $c['btnCancel'].Add_Click({ $w.Close() })
+  $c['btnCloseFooter'].Add_Click({ $w.Close() })
   $c['HeaderBar'].Add_MouseLeftButtonDown({ if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) { $w.DragMove() } })
   $c['btnSearch'].Add_Click({
       Write-DzDebug "`t[DEBUG][Show-FirewallConfigDialog] btnSearch click a las $([DateTime]::Now.ToString("o"))"

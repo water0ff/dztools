@@ -3039,7 +3039,20 @@ RECONFIGURE;
             <RowDefinition Height="Auto"/>
           </Grid.RowDefinitions>
           <TextBlock Grid.Row="0" Text="Carpeta destino en servidor:" FontWeight="SemiBold" Margin="0,0,0,6"/>
-          <TextBox Grid.Row="1" Name="txtServerFolder" Style="{StaticResource SmallTextBoxStyle}" Margin="0,0,0,10"/>
+          <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" Name="txtServerFolder" Style="{StaticResource SmallTextBoxStyle}"/>
+            <Button Name="btnBrowseServerFolder"
+                    Grid.Column="1"
+                    Content="🗂️ Servidor"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Width="120"
+                    Margin="10,0,0,0"
+                    ToolTip="Explorar carpetas en el servidor SQL"/>
+          </Grid>
           <TextBlock Grid.Row="2" Text="Ruta MDF (datos) en servidor:" FontWeight="SemiBold" Margin="0,0,0,6"/>
           <TextBox Grid.Row="3" Name="txtMdfPath" Style="{StaticResource SmallTextBoxStyle}" IsReadOnly="True" Margin="0,0,0,10"/>
           <TextBlock Grid.Row="4" Text="Ruta LDF (log) en servidor:" FontWeight="SemiBold" Margin="0,0,0,6"/>
@@ -3137,6 +3150,7 @@ RECONFIGURE;
   $btnBrowseBackup = $c['btnBrowseBackup']
   $txtDestino = $c['txtDestino']
   $txtServerFolder = $c['txtServerFolder']
+  $btnBrowseServerFolder = $c['btnBrowseServerFolder']
   $txtMdfPath = $c['txtMdfPath']
   $txtLdfPath = $c['txtLdfPath']
   $pbRestore = $c['pbRestore']
@@ -3153,10 +3167,11 @@ RECONFIGURE;
     $btnBrowseBackup.IsEnabled = $true
     $txtDestino.IsEnabled = $true
     $txtServerFolder.IsEnabled = $true
+    $btnBrowseServerFolder.IsEnabled = $true
     $txtProgress.Text = $ProgressText
   }.GetNewClosure()
-  Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Controles: txtBackupPath=$([bool]$txtBackupPath) btnBrowseBackup=$([bool]$btnBrowseBackup) txtDestino=$([bool]$txtDestino) txtServerFolder=$([bool]$txtServerFolder) txtMdfPath=$([bool]$txtMdfPath) txtLdfPath=$([bool]$txtLdfPath) pbRestore=$([bool]$pbRestore) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnCerrar=$([bool]$btnCerrar)"
-  if (-not $txtBackupPath -or -not $btnBrowseBackup -or -not $txtDestino -or -not $txtServerFolder -or -not $txtMdfPath -or -not $txtLdfPath -or -not $pbRestore -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnCerrar) {
+  Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Controles: txtBackupPath=$([bool]$txtBackupPath) btnBrowseBackup=$([bool]$btnBrowseBackup) txtDestino=$([bool]$txtDestino) txtServerFolder=$([bool]$txtServerFolder) btnBrowseServerFolder=$([bool]$btnBrowseServerFolder) txtMdfPath=$([bool]$txtMdfPath) txtLdfPath=$([bool]$txtLdfPath) pbRestore=$([bool]$pbRestore) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnCerrar=$([bool]$btnCerrar)"
+  if (-not $txtBackupPath -or -not $btnBrowseBackup -or -not $txtDestino -or -not $txtServerFolder -or -not $btnBrowseServerFolder -or -not $txtMdfPath -or -not $txtLdfPath -or -not $pbRestore -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnCerrar) {
     Write-DzDebug "`t[DEBUG][Show-RestoreDialog] ERROR: controles NULL"; throw "Controles WPF incompletos (diccionario Controls devolvió NULL)."
   }
   $txtServerFolder.Text = $defaultPath
@@ -3428,6 +3443,7 @@ EXEC master.dbo.xp_cmdshell @Cmd, NO_OUTPUT
             $btnBrowseBackup.IsEnabled = $true
             $txtDestino.IsEnabled = $true
             $txtServerFolder.IsEnabled = $true
+            $btnBrowseServerFolder.IsEnabled = $true
             $tmp = $null
             while ($progressQueue.TryDequeue([ref]$tmp)) { }
             Paint-Progress -Percent 100 -Message "Completado"
@@ -3528,6 +3544,24 @@ EXEC master.dbo.xp_cmdshell @Cmd, NO_OUTPUT
         }
       } catch {
         Write-DzDebug "`t[DEBUG][UI] Error actualizando rutas: $($_.Exception.Message)"
+      }
+    })
+  $btnBrowseServerFolder.Add_Click({
+      try {
+        $cred = New-SafeCredential -Username $User -PlainPassword $Password
+
+        if (Get-Command Show-ServerFolderBrowser -ErrorAction SilentlyContinue) {
+          $selected = Show-ServerFolderBrowser -Server $Server -Credential $cred -StartPath $txtServerFolder.Text
+          if ($selected) {
+            $txtServerFolder.Text = $selected
+            Update-RestorePaths -DatabaseName $txtDestino.Text -ServerFolder $txtServerFolder.Text
+          }
+          return
+        }
+
+        Ui-Warn "La función 'Show-ServerFolderBrowser' no está disponible en este build.`n`nPuedes escribir la ruta manualmente (es ruta del SERVIDOR SQL).`nEjemplo: C:\NationalSoft\DATABASES" "Explorador no disponible" $window
+      } catch {
+        Ui-Error "Error al abrir explorador de carpetas en servidor: $($_.Exception.Message)" "Error" $window
       }
     })
 
@@ -3671,6 +3705,8 @@ END
         $btnBrowseBackup.IsEnabled = $false
         $txtDestino.IsEnabled = $false
         $txtServerFolder.IsEnabled = $false
+        $btnBrowseServerFolder.IsEnabled = $false
+
       } catch {
         Write-DzDebug "`t[DEBUG][UI] ERROR btnAceptar Restore: $($_.Exception.Message)"
         Add-Log "❌ Error: $($_.Exception.Message)"
@@ -3689,6 +3725,588 @@ END
   $null = $window.ShowDialog()
   Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Después de ShowDialog()"
 }
-Export-ModuleMember -Function @('Show-RestoreDialog', 'Show-AttachDialog', 'Reset-AttachUI',
-  'Show-BackupDialog', 'Reset-BackupUI', 'Show-DetachDialog', 'Reset-DetachUI', 'Show-DatabaseSizeDialog',
-  'Show-DatabaseRepairDialog', 'Reset-DatabaseRepairUI')
+function Invoke-SqlScalarTable {
+  param(
+    [Parameter(Mandatory)] [string]$Server,
+    [Parameter(Mandatory)] [string]$Database,
+    [Parameter(Mandatory)] [string]$Query,
+    [Parameter(Mandatory)] [System.Management.Automation.PSCredential]$Credential
+  )
+
+  $conn = $null
+  $bstr = [IntPtr]::Zero
+  $plain = $null
+
+  try {
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+    $plain = [Runtime.InteropServices.Marshal]::PtrToStringUni($bstr)
+
+    $cs = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plain;MultipleActiveResultSets=True"
+    $conn = New-Object System.Data.SqlClient.SqlConnection($cs)
+    $conn.Open()
+
+    $cmd = $conn.CreateCommand()
+    $cmd.CommandText = $Query
+    $cmd.CommandTimeout = 30
+
+    $r = $cmd.ExecuteReader()
+    if (-not $r) {
+      return @{ Success = $false; ErrorMessage = "SQL ExecuteReader devolvió NULL."; DataTable = $null }
+    }
+
+    $dt = New-Object System.Data.DataTable
+    $dt.Load($r)
+    $r.Close()
+
+    return @{ Success = $true; ErrorMessage = $null; DataTable = $dt }
+  } catch {
+    return @{ Success = $false; ErrorMessage = $_.Exception.Message; DataTable = $null }
+  } finally {
+    if ($plain) { $plain = $null }
+    if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+    if ($conn) { try { $conn.Close() } catch {}; try { $conn.Dispose() } catch {} }
+  }
+}
+function Get-ServerSubDirs {
+  param(
+    [Parameter(Mandatory)] [string]$Server,
+    [Parameter(Mandatory)] [string]$Path,
+    [Parameter(Mandatory)] [System.Management.Automation.PSCredential]$Credential
+  )
+
+  $p = [string]$Path
+  $p = $p.Trim().TrimEnd('\')
+
+  if ([string]::IsNullOrWhiteSpace($p)) {
+    return @{ Success = $false; ErrorMessage = "Path vacío."; Items = @() }
+  }
+
+  $pEsc = $p -replace "'", "''"
+
+  # 1) Intento: xp_dirtree
+  $q1 = @"
+DECLARE @p nvarchar(4000)=N'$pEsc';
+CREATE TABLE #t(subdirectory nvarchar(512), depth int, [file] int);
+INSERT #t EXEC master..xp_dirtree @p, 1, 1;
+SELECT subdirectory
+FROM #t
+WHERE [file]=0
+ORDER BY subdirectory;
+"@
+
+  $r1 = Invoke-SqlScalarTable -Server $Server -Database "master" -Query $q1 -Credential $Credential
+
+  if ($r1 -and $r1.Success -and $r1.DataTable) {
+    $names = @()
+    foreach ($row in $r1.DataTable.Rows) {
+      $n = [string]$row["subdirectory"]
+      if (-not [string]::IsNullOrWhiteSpace($n)) { $names += $n }
+    }
+    return @{ Success = $true; ErrorMessage = $null; Items = $names }
+  }
+
+  # 2) Fallback: xp_cmdshell dir /b /ad (requiere xp_cmdshell)
+  $q2 = @"
+DECLARE @cmd nvarchar(4000)=N'cmd /c dir /b /ad "$pEsc"';
+CREATE TABLE #x(line nvarchar(4000));
+INSERT #x EXEC master..xp_cmdshell @cmd;
+SELECT line
+FROM #x
+WHERE line IS NOT NULL
+  AND LTRIM(RTRIM(line)) <> ''
+  AND line NOT LIKE '%File Not Found%'
+  AND line NOT LIKE '%Access is denied%'
+ORDER BY line;
+"@
+
+  $r2 = Invoke-SqlScalarTable -Server $Server -Database "master" -Query $q2 -Credential $Credential
+
+  if ($r2 -and $r2.Success -and $r2.DataTable) {
+    $names = @()
+    foreach ($row in $r2.DataTable.Rows) {
+      $n = [string]$row["line"]
+      if (-not [string]::IsNullOrWhiteSpace($n)) { $names += $n.Trim() }
+    }
+    return @{ Success = $true; ErrorMessage = $null; Items = $names }
+  }
+
+  $msg = $null
+  if ($r1 -and $r1.ErrorMessage) { $msg = $r1.ErrorMessage }
+  if (-not $msg -and $r2 -and $r2.ErrorMessage) { $msg = $r2.ErrorMessage }
+  if (-not $msg) { $msg = "No se pudo listar carpetas (xp_dirtree y xp_cmdshell fallaron)." }
+
+  return @{ Success = $false; ErrorMessage = $msg; Items = @() }
+}
+function Show-ServerFolderBrowser {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)] [string]$Server,
+    [Parameter(Mandatory)] [System.Management.Automation.PSCredential]$Credential,
+    [Parameter(Mandatory)] [string]$StartPath
+  )
+
+  Add-Type -AssemblyName PresentationFramework
+
+  function Normalize-Path([string]$p) {
+    if ([string]::IsNullOrWhiteSpace($p)) { return $p }
+    return $p.Trim().TrimEnd('\')
+  }
+
+  $current = Normalize-Path $StartPath
+  if ([string]::IsNullOrWhiteSpace($current)) { $current = "C:\" }
+
+  $safeTitle = [Security.SecurityElement]::Escape("Explorar carpetas en servidor SQL")
+  $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="$safeTitle"
+        Width="720" Height="540"
+        MinWidth="720" MinHeight="540"
+        MaxWidth="720" MaxHeight="540"
+        WindowStartupLocation="Manual"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
+
+  <Window.Resources>
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="MinWidth" Value="110"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="SecondaryButtonStyle"
+           TargetType="Button"
+           BasedOn="{StaticResource PrimaryButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PanelBg}"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="TextBoxStyle" TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Height" Value="34"/>
+    </Style>
+
+    <Style x:Key="ListViewStyle" TargetType="ListView">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+  </Window.Resources>
+
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
+
+    <Border.Effect>
+      <DropShadowEffect Color="Black"
+                        Direction="270"
+                        ShadowDepth="4"
+                        BlurRadius="14"
+                        Opacity="0.25"/>
+    </Border.Effect>
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="52"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <Border Grid.Row="0"
+              Name="HeaderBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Text="$safeTitle"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Navega hasta la carpeta deseada"
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+
+          <Button Grid.Column="2"
+                  Name="btnClose"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="1"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="10,10"
+              Margin="12,0,12,10">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <TextBlock Grid.Row="0"
+                     Text="Ruta actual (en el servidor):"
+                     FontWeight="SemiBold"
+                     Margin="0,0,0,8"/>
+
+          <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox Grid.Column="0"
+                     Name="txtPath"
+                     Style="{StaticResource TextBoxStyle}"
+                     VerticalContentAlignment="Center"/>
+
+            <Button Grid.Column="1"
+                    Name="btnUp"
+                    Content="⬆ Subir"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Width="120"
+                    Margin="10,0,0,0"/>
+          </Grid>
+
+          <TextBlock Grid.Row="2"
+                     Name="lblStatus"
+                     Foreground="{DynamicResource AccentMuted}"
+                     Margin="0,8,0,0"
+                     TextWrapping="Wrap"/>
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="2"
+              Background="{DynamicResource ControlBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="0"
+              Margin="12,0,12,10">
+        <ListView Name="lvDirs" Style="{StaticResource ListViewStyle}">
+          <ListView.View>
+            <GridView>
+              <GridViewColumn Header="Carpetas"
+                              DisplayMemberBinding="{Binding Name}"
+                              Width="640"/>
+            </GridView>
+          </ListView.View>
+        </ListView>
+      </Border>
+
+      <Grid Grid.Row="3" Margin="12,0,12,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Column="0"
+                   Text="Doble click: Entrar   |   Enter: Seleccionar   |   Esc: Cerrar"
+                   Foreground="{DynamicResource AccentMuted}"
+                   VerticalAlignment="Center"/>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
+          <Button Name="btnCancel"
+                  Content="Cancelar"
+                  Style="{StaticResource SecondaryButtonStyle}"
+                  Width="120"
+                  Margin="0,0,10,0"
+                  IsCancel="True"/>
+          <Button Name="btnOk"
+                  Content="Seleccionar"
+                  Style="{StaticResource PrimaryButtonStyle}"
+                  Width="140"
+                  IsDefault="True"/>
+        </StackPanel>
+      </Grid>
+
+    </Grid>
+  </Border>
+</Window>
+"@
+
+  try {
+    $ui = New-WpfWindow -Xaml $xaml -PassThru
+    $w = $ui.Window
+    $c = $ui.Controls
+
+    $theme = Get-DzUiTheme
+    Set-DzWpfThemeResources -Window $w -Theme $theme
+
+    try { Set-WpfDialogOwner -Dialog $w } catch {}
+    try { if (-not $w.Owner -and $global:MainWindow -is [System.Windows.Window]) { $w.Owner = $global:MainWindow } } catch {}
+
+    $w.WindowStartupLocation = "Manual"
+    $w.Add_Loaded({
+        try {
+          $owner = $w.Owner
+          if (-not $owner) { $w.WindowStartupLocation = "CenterScreen"; return }
+
+          $ob = $owner.RestoreBounds
+          $targetW = $w.ActualWidth; if ($targetW -le 0) { $targetW = $w.Width }
+          $targetH = $w.ActualHeight; if ($targetH -le 0) { $targetH = $w.Height }
+
+          $left = $ob.Left + (($ob.Width - $targetW) / 2)
+          $top = $ob.Top + (($ob.Height - $targetH) / 2)
+
+          $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+          $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+          $wa = $screen.WorkingArea
+
+          if ($left -lt $wa.Left) { $left = $wa.Left }
+          if ($top -lt $wa.Top ) { $top = $wa.Top }
+          if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+          if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+
+          $w.Left = [double]$left
+          $w.Top = [double]$top
+        } catch {}
+      }.GetNewClosure())
+
+    $c['HeaderBar'].Add_MouseLeftButtonDown({
+        if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
+          try { $w.DragMove() } catch {}
+        }
+      })
+
+    $txtPath = $c['txtPath']
+    $btnUp = $c['btnUp']
+    $lvDirs = $c['lvDirs']
+    $btnCancel = $c['btnCancel']
+    $btnOk = $c['btnOk']
+    $btnClose = $c['btnClose']
+    $lblStatus = $c['lblStatus']
+
+    $script:resultPath = $null
+
+    function Load-Dirs([string]$path) {
+      $path = Normalize-Path $path
+      $txtPath.Text = $path
+      $lblStatus.Text = "Cargando..."
+      $lvDirs.ItemsSource = $null
+
+      try {
+        $res = Get-ServerSubDirs -Server $Server -Path $path -Credential $Credential
+
+        if (-not $res.Success) {
+          $lblStatus.Text = "Error: $($res.ErrorMessage)"
+          $lvDirs.ItemsSource = @()
+          Write-DzDebug "`t[DEBUG][Show-ServerFolderBrowser] Error cargando directorios: $($res.ErrorMessage)"
+          return
+        }
+
+        $items = foreach ($name in $res.Items) { [pscustomobject]@{ Name = $name } }
+        $lvDirs.ItemsSource = $items
+        $lblStatus.Text = "Carpetas encontradas: $($items.Count)"
+        $script:current = $path
+      } catch {
+        $lblStatus.Text = "Error: $($_.Exception.Message)"
+        $lvDirs.ItemsSource = @()
+        Write-DzDebug "`t[DEBUG][Show-ServerFolderBrowser] Error cargando directorios: $($_.Exception.Message)"
+      }
+    }
+
+    $btnClose.Add_Click({ $script:resultPath = $null; try { $w.Close() } catch {} })
+    $btnCancel.Add_Click({ $script:resultPath = $null; try { $w.Close() } catch {} })
+    $w.Add_PreviewKeyDown({
+        param($sender, $e)
+        if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+          $script:resultPath = $null
+          try { $w.Close() } catch {}
+        }
+      })
+
+    $btnUp.Add_Click({
+        Write-DzDebug "`t[DEBUG][UI] btnUp Click"
+        try {
+          $p = Normalize-Path $txtPath.Text
+          Write-DzDebug "`t[DEBUG][UI] btnUp Click - Current path: $p"
+          if (-not $p -or $p -notmatch '^[A-Za-z]:\\') {
+            Write-DzDebug "`t[DEBUG][UI] btnUp Click - Invalid path: $p"
+            return
+          }
+          $parent = Split-Path -Path $p -Parent
+          Write-DzDebug "`t[DEBUG][UI] btnUp Click - Parent path: $parent"
+          if ($parent -and $parent -ne $p) {
+            Load-Dirs $parent
+            Write-DzDebug "`t[DEBUG][UI] btnUp Click - Loaded parent path: $parent"
+          }
+        } catch {
+          Write-DzDebug "`t[DEBUG][UI] btnUp Click - Error: $($_.Exception.Message)"
+        }
+      })
+
+    $lvDirs.Add_MouseDoubleClick({
+        try {
+          $sel = $lvDirs.SelectedItem
+          if (-not $sel) { return }
+          $next = Join-Path (Normalize-Path $txtPath.Text) $sel.Name
+          Load-Dirs $next
+        } catch {}
+      })
+
+    $btnOk.Add_Click({
+        $p = Normalize-Path $txtPath.Text
+        if ($lvDirs.SelectedItem) {
+          $p = Join-Path $p $lvDirs.SelectedItem.Name
+          $p = Normalize-Path $p
+        }
+        $script:resultPath = $p
+        try { $w.DialogResult = $true } catch {}
+        try { $w.Close() } catch {}
+      })
+
+    Load-Dirs $current
+    $null = $w.ShowDialog()
+    return $script:resultPath
+  } catch {
+    Write-Error "Error creando diálogo de exploración: $($_.Exception.Message)"
+    return $null
+  }
+}
+
+
+Export-ModuleMember -Function @(
+  'Show-RestoreDialog',
+  'Show-ServerFolderBrowser',
+  'Show-AttachDialog',
+  'Reset-AttachUI',
+  'Show-BackupDialog',
+  'Reset-BackupUI',
+  'Show-DetachDialog',
+  'Reset-DetachUI',
+  'Show-DatabaseSizeDialog',
+  'Show-DatabaseRepairDialog',
+  'Reset-DatabaseRepairUI'
+)

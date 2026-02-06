@@ -2715,24 +2715,77 @@ function Show-RestoreDialog {
   $script:RestoreRunning = $false
   $script:RestoreDone = $false
   $defaultPath = "C:\NationalSoft\DATABASES"
-  if (-not (Test-Path -Path $defaultPath)) {
-    New-Item -Path $defaultPath -ItemType Directory -Force | Out-Null
-    Write-Host "Directorio creado: $defaultPath" -ForegroundColor Green
-  } else {
-    Write-DzDebug "`t[DEBUG][Show-RestoreDialog] El directorio $defaultPath ya existe" -Color DarkYellow
-  }
   Write-DzDebug "`t[DEBUG][Show-RestoreDialog] INICIO"
   Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Server='$Server' Database='$Database' User='$User'"
   Add-Type -AssemblyName PresentationFramework
   Add-Type -AssemblyName System.Windows.Forms
   $theme = Get-DzUiTheme
+
+  function Test-XpCmdShellEnabled {
+    param([string]$Server, [System.Management.Automation.PSCredential]$Credential)
+    $checkQuery = "SELECT CONVERT(int, ISNULL(value, value_in_use)) AS IsEnabled FROM sys.configurations WHERE name = 'xp_cmdshell'"
+    $connection = $null
+    $passwordBstr = [IntPtr]::Zero
+    $plainPassword = $null
+    try {
+      $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+      $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+      $cs = "Server=$Server;Database=master;User Id=$($Credential.UserName);Password=$plainPassword;Connection Timeout=10"
+      $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
+      $connection.Open()
+      $cmd = $connection.CreateCommand()
+      $cmd.CommandText = $checkQuery
+      $cmd.CommandTimeout = 10
+      $result = $cmd.ExecuteScalar()
+      return ([int]$result) -eq 1
+    } catch {
+      Write-DzDebug "`t[DEBUG][Test-XpCmdShellEnabled] Error: $($_.Exception.Message)"
+      return $false
+    } finally {
+      if ($plainPassword) { $plainPassword = $null }
+      if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
+      if ($connection) { try { $connection.Close() } catch { }; try { $connection.Dispose() } catch { } }
+    }
+  }
+
+  function Enable-XpCmdShell {
+    param([string]$Server, [System.Management.Automation.PSCredential]$Credential)
+    $enableQuery = @"
+EXEC sp_configure 'show advanced options', 1;
+RECONFIGURE;
+EXEC sp_configure 'xp_cmdshell', 1;
+RECONFIGURE;
+"@
+    $connection = $null
+    $passwordBstr = [IntPtr]::Zero
+    $plainPassword = $null
+    try {
+      $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+      $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+      $cs = "Server=$Server;Database=master;User Id=$($Credential.UserName);Password=$plainPassword;Connection Timeout=10"
+      $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
+      $connection.Open()
+      $cmd = $connection.CreateCommand()
+      $cmd.CommandText = $enableQuery
+      $cmd.CommandTimeout = 30
+      [void]$cmd.ExecuteNonQuery()
+      return @{ Success = $true }
+    } catch {
+      return @{ Success = $false; ErrorMessage = $_.Exception.Message }
+    } finally {
+      if ($plainPassword) { $plainPassword = $null }
+      if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
+      if ($connection) { try { $connection.Close() } catch { }; try { $connection.Dispose() } catch { } }
+    }
+  }
+
   $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Opciones de Restauración"
-        Width="650" Height="700"
-        MinWidth="650" MinHeight="700"
-        MaxWidth="650" MaxHeight="700"
+        Width="650" Height="720"
+        MinWidth="650" MinHeight="720"
+        MaxWidth="650" MaxHeight="720"
         WindowStartupLocation="Manual"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -2742,22 +2795,17 @@ function Show-RestoreDialog {
         Topmost="False"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
-
   <Window.Resources>
-
     <Style TargetType="{x:Type Control}">
       <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
       <Setter Property="FontSize" Value="11"/>
     </Style>
-
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
     </Style>
-
     <Style TargetType="Label">
       <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
     </Style>
-
     <Style x:Key="IconButtonStyle" TargetType="Button">
       <Setter Property="Width" Value="30"/>
       <Setter Property="Height" Value="26"/>
@@ -2788,7 +2836,6 @@ function Show-RestoreDialog {
         </Setter.Value>
       </Setter>
     </Style>
-
     <Style x:Key="PrimaryButtonStyle" TargetType="Button">
       <Setter Property="Height" Value="32"/>
       <Setter Property="MinWidth" Value="130"/>
@@ -2823,10 +2870,7 @@ function Show-RestoreDialog {
         </Setter.Value>
       </Setter>
     </Style>
-
-    <Style x:Key="SecondaryButtonStyle"
-           TargetType="Button"
-           BasedOn="{StaticResource PrimaryButtonStyle}">
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
@@ -2858,7 +2902,6 @@ function Show-RestoreDialog {
         </Setter.Value>
       </Setter>
     </Style>
-
     <Style x:Key="TextBoxStyle" TargetType="TextBox">
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
@@ -2867,12 +2910,10 @@ function Show-RestoreDialog {
       <Setter Property="Padding" Value="10,6"/>
       <Setter Property="Height" Value="34"/>
     </Style>
-
     <Style x:Key="SmallTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource TextBoxStyle}">
       <Setter Property="Height" Value="30"/>
       <Setter Property="Padding" Value="10,5"/>
     </Style>
-
     <Style x:Key="GroupBoxStyle" TargetType="GroupBox">
       <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
@@ -2880,22 +2921,18 @@ function Show-RestoreDialog {
       <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
       <Setter Property="Padding" Value="10"/>
     </Style>
-
     <Style x:Key="ProgressBarStyle" TargetType="ProgressBar">
       <Setter Property="Foreground" Value="{DynamicResource AccentPrimary}"/>
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Height" Value="18"/>
     </Style>
-
   </Window.Resources>
-
   <Border Background="{DynamicResource FormBg}"
           BorderBrush="{DynamicResource BorderBrushColor}"
           BorderThickness="1"
           CornerRadius="12"
           Margin="10"
           SnapsToDevicePixels="True">
-
     <Border.Effect>
       <DropShadowEffect Color="Black"
                         Direction="270"
@@ -2903,7 +2940,6 @@ function Show-RestoreDialog {
                         BlurRadius="14"
                         Opacity="0.25"/>
     </Border.Effect>
-
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="52"/>
@@ -2911,8 +2947,6 @@ function Show-RestoreDialog {
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
-
-      <!-- Header draggable -->
       <Border Grid.Row="0"
               Name="HeaderBar"
               Background="{DynamicResource FormBg}"
@@ -2924,24 +2958,21 @@ function Show-RestoreDialog {
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-
           <Border Grid.Column="0"
                   Width="6"
                   CornerRadius="3"
                   Background="{DynamicResource AccentPrimary}"
                   Margin="0,4,10,4"/>
-
           <StackPanel Grid.Column="1" Orientation="Vertical">
             <TextBlock Text="Opciones de Restauración"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource FormFg}"
                        FontSize="12"/>
-            <TextBlock Text="Selecciona el .bak y define destino (MDF/LDF)"
+            <TextBlock Text="Selecciona el .bak y define destino en el servidor SQL"
                        Foreground="{DynamicResource AccentMuted}"
                        FontSize="10"
                        Margin="0,2,0,0"/>
           </StackPanel>
-
           <Button Grid.Column="2"
                   Name="btnClose"
                   Style="{StaticResource IconButtonStyle}"
@@ -2949,8 +2980,6 @@ function Show-RestoreDialog {
                   ToolTip="Cerrar"/>
         </Grid>
       </Border>
-
-      <!-- Hint -->
       <Border Grid.Row="1"
               Background="{DynamicResource PanelBg}"
               BorderBrush="{DynamicResource BorderBrushColor}"
@@ -2958,14 +2987,12 @@ function Show-RestoreDialog {
               CornerRadius="10"
               Padding="10,8"
               Margin="12,0,12,10">
-        <TextBlock Text="Tip: el nombre destino se sugiere automáticamente por el nombre del archivo .bak (puedes ajustarlo)."
+        <TextBlock Text="⚠️ Las rutas MDF/LDF son del SERVIDOR SQL, no de esta máquina. El directorio se creará automáticamente si no existe."
                    Foreground="{DynamicResource PanelFg}"
                    FontSize="10"
                    Opacity="0.9"
                    TextWrapping="Wrap"/>
       </Border>
-
-      <!-- Content -->
       <Grid Grid.Row="2" Margin="12,0,12,10">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
@@ -2974,22 +3001,17 @@ function Show-RestoreDialog {
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-
-        <!-- Backup -->
         <Grid Grid.Row="0" Margin="0,0,0,10">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
           </Grid.RowDefinitions>
-
           <TextBlock Grid.Row="0" Text="Archivo de respaldo (.bak):" FontWeight="SemiBold" Margin="0,0,0,6"/>
-
           <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-
             <TextBox Name="txtBackupPath" Style="{StaticResource TextBoxStyle}" Grid.Column="0"/>
             <Button Name="btnBrowseBackup"
                     Grid.Column="1"
@@ -2999,43 +3021,36 @@ function Show-RestoreDialog {
                     Margin="10,0,0,0"/>
           </Grid>
         </Grid>
-
-        <!-- Destino -->
         <Grid Grid.Row="1" Margin="0,0,0,10">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
           </Grid.RowDefinitions>
-
           <TextBlock Grid.Row="0" Text="Nombre destino:" FontWeight="SemiBold" Margin="0,0,0,6"/>
           <TextBox Grid.Row="1" Name="txtDestino" Style="{StaticResource TextBoxStyle}"/>
         </Grid>
-
-        <!-- Paths -->
         <Grid Grid.Row="2" Margin="0,0,0,10">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
           </Grid.RowDefinitions>
-
-          <TextBlock Grid.Row="0" Text="Ruta MDF (datos):" FontWeight="SemiBold" Margin="0,0,0,6"/>
-          <TextBox Grid.Row="1" Name="txtMdfPath" Style="{StaticResource SmallTextBoxStyle}"/>
-
-          <TextBlock Grid.Row="2" Text="Ruta LDF (log):" FontWeight="SemiBold" Margin="0,10,0,6"/>
-          <TextBox Grid.Row="3" Name="txtLdfPath" Style="{StaticResource SmallTextBoxStyle}"/>
+          <TextBlock Grid.Row="0" Text="Carpeta destino en servidor:" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <TextBox Grid.Row="1" Name="txtServerFolder" Style="{StaticResource SmallTextBoxStyle}" Margin="0,0,0,10"/>
+          <TextBlock Grid.Row="2" Text="Ruta MDF (datos) en servidor:" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <TextBox Grid.Row="3" Name="txtMdfPath" Style="{StaticResource SmallTextBoxStyle}" IsReadOnly="True" Margin="0,0,0,10"/>
+          <TextBlock Grid.Row="4" Text="Ruta LDF (log) en servidor:" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <TextBox Grid.Row="5" Name="txtLdfPath" Style="{StaticResource SmallTextBoxStyle}" IsReadOnly="True"/>
         </Grid>
-
-        <!-- Progreso -->
         <GroupBox Grid.Row="3" Header="Progreso" Style="{StaticResource GroupBoxStyle}" Margin="0,0,0,10">
           <StackPanel>
             <ProgressBar Name="pbRestore" Style="{StaticResource ProgressBarStyle}" Minimum="0" Maximum="100" Value="0"/>
             <TextBlock Name="txtProgress" Text="Esperando..." Margin="0,8,0,0" TextWrapping="Wrap"/>
           </StackPanel>
         </GroupBox>
-
-        <!-- Log -->
         <GroupBox Grid.Row="4" Header="Log" Style="{StaticResource GroupBoxStyle}">
           <TextBox Name="txtLog"
                    Background="{DynamicResource ControlBg}"
@@ -3051,19 +3066,15 @@ function Show-RestoreDialog {
                    IsUndoEnabled="False"/>
         </GroupBox>
       </Grid>
-
-      <!-- Footer -->
       <Grid Grid.Row="3" Margin="12,0,12,12">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-
         <TextBlock Grid.Column="0"
                    Text="Esc: Cerrar"
                    Foreground="{DynamicResource AccentMuted}"
                    VerticalAlignment="Center"/>
-
         <StackPanel Grid.Column="1" Orientation="Horizontal">
           <Button Name="btnCerrar"
                   Content="Cerrar"
@@ -3078,58 +3089,43 @@ function Show-RestoreDialog {
                   IsDefault="True"/>
         </StackPanel>
       </Grid>
-
     </Grid>
   </Border>
 </Window>
 "@
-  # --- Crear UI (igual patrón que Renombrar) ---
   $ui = New-WpfWindow -Xaml $xaml -PassThru
   $window = $ui.Window
   $c = $ui.Controls
-
   $theme = Get-DzUiTheme
   Set-DzWpfThemeResources -Window $window -Theme $theme
-
   try { Set-WpfDialogOwner -Dialog $window } catch {}
   try { if (-not $window.Owner -and $global:MainWindow -is [System.Windows.Window]) { $window.Owner = $global:MainWindow } } catch {}
-
-  # --- Centrado respecto a Owner (mismo criterio que Renombrar) ---
   $window.WindowStartupLocation = "Manual"
   $window.Add_Loaded({
       try {
         $owner = $window.Owner
         if (-not $owner) { $window.WindowStartupLocation = "CenterScreen"; return }
-
         $ob = $owner.RestoreBounds
         $targetW = $window.ActualWidth; if ($targetW -le 0) { $targetW = $window.Width }
         $targetH = $window.ActualHeight; if ($targetH -le 0) { $targetH = $window.Height }
-
         $left = $ob.Left + (($ob.Width - $targetW) / 2)
         $top = $ob.Top + (($ob.Height - $targetH) / 2)
-
         $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
         $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
         $wa = $screen.WorkingArea
-
         if ($left -lt $wa.Left) { $left = $wa.Left }
         if ($top -lt $wa.Top) { $top = $wa.Top }
         if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
         if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
-
         $window.Left = [double]$left
         $window.Top = [double]$top
       } catch {}
     }.GetNewClosure())
-
-  # --- DragMove header ---
   $c['HeaderBar'].Add_MouseLeftButtonDown({
       if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
         try { $window.DragMove() } catch {}
       }
     })
-
-  # --- Cerrar (X, botón cerrar, Esc) ---
   $c['btnClose'].Add_Click({ try { $window.Close() } catch {} })
   $window.Add_PreviewKeyDown({
       param($sender, $e)
@@ -3137,11 +3133,10 @@ function Show-RestoreDialog {
         try { $window.Close() } catch {}
       }
     })
-
-  # --- Obtener controles (ya no FindName manual) ---
   $txtBackupPath = $c['txtBackupPath']
   $btnBrowseBackup = $c['btnBrowseBackup']
   $txtDestino = $c['txtDestino']
+  $txtServerFolder = $c['txtServerFolder']
   $txtMdfPath = $c['txtMdfPath']
   $txtLdfPath = $c['txtLdfPath']
   $pbRestore = $c['pbRestore']
@@ -3157,34 +3152,26 @@ function Show-RestoreDialog {
     $txtBackupPath.IsEnabled = $true
     $btnBrowseBackup.IsEnabled = $true
     $txtDestino.IsEnabled = $true
-    $txtMdfPath.IsEnabled = $true
-    $txtLdfPath.IsEnabled = $true
+    $txtServerFolder.IsEnabled = $true
     $txtProgress.Text = $ProgressText
   }.GetNewClosure()
-
-  Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Controles: txtBackupPath=$([bool]$txtBackupPath) btnBrowseBackup=$([bool]$btnBrowseBackup) txtDestino=$([bool]$txtDestino) txtMdfPath=$([bool]$txtMdfPath) txtLdfPath=$([bool]$txtLdfPath) pbRestore=$([bool]$pbRestore) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnCerrar=$([bool]$btnCerrar)"
-  if (-not $txtBackupPath -or -not $btnBrowseBackup -or -not $txtDestino -or -not $txtMdfPath -or -not $txtLdfPath -or -not $pbRestore -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnCerrar) {
+  Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Controles: txtBackupPath=$([bool]$txtBackupPath) btnBrowseBackup=$([bool]$btnBrowseBackup) txtDestino=$([bool]$txtDestino) txtServerFolder=$([bool]$txtServerFolder) txtMdfPath=$([bool]$txtMdfPath) txtLdfPath=$([bool]$txtLdfPath) pbRestore=$([bool]$pbRestore) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnCerrar=$([bool]$btnCerrar)"
+  if (-not $txtBackupPath -or -not $btnBrowseBackup -or -not $txtDestino -or -not $txtServerFolder -or -not $txtMdfPath -or -not $txtLdfPath -or -not $pbRestore -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnCerrar) {
     Write-DzDebug "`t[DEBUG][Show-RestoreDialog] ERROR: controles NULL"; throw "Controles WPF incompletos (diccionario Controls devolvió NULL)."
   }
-  $defaultRestoreFolder = "C:\NationalSoft\DATABASES"
-
-  # --- Placeholder correcto (solo una vez) ---
+  $txtServerFolder.Text = $defaultPath
   $bc = [System.Windows.Media.BrushConverter]::new()
   $PLACEHOLDER = "SELECCIONA PRIMERO EL RESPALDO"
-
   function Set-TxtDestinoPlaceholder {
     $txtDestino.Text = $PLACEHOLDER
     $txtDestino.Foreground = $bc.ConvertFromString($theme.AccentMuted)
     $txtDestino.FontStyle = [System.Windows.FontStyles]::Italic
   }
-
   function Set-TxtDestinoNormal {
     $txtDestino.Foreground = $bc.ConvertFromString($theme.ControlForeground)
     $txtDestino.FontStyle = [System.Windows.FontStyles]::Normal
   }
-
   Set-TxtDestinoPlaceholder
-
   function Normalize-RestoreFolder {
     param([string]$BasePath)
     if ([string]::IsNullOrWhiteSpace($BasePath)) { return $BasePath }
@@ -3192,22 +3179,88 @@ function Show-RestoreDialog {
     if ($trimmed.EndsWith('\')) { return $trimmed.TrimEnd('\') }
     $trimmed
   }
-
   function Update-RestorePaths {
-    param([string]$DatabaseName)
+    param([string]$DatabaseName, [string]$ServerFolder)
     if ([string]::IsNullOrWhiteSpace($DatabaseName)) { return }
     if ($DatabaseName -eq $PLACEHOLDER) { return }
-    $baseFolder = Normalize-RestoreFolder -BasePath $defaultRestoreFolder
+    if ([string]::IsNullOrWhiteSpace($ServerFolder)) { $ServerFolder = $defaultPath }
+    $baseFolder = Normalize-RestoreFolder -BasePath $ServerFolder
     $txtMdfPath.Text = Join-Path $baseFolder "$DatabaseName.mdf"
     $txtLdfPath.Text = Join-Path $baseFolder "$DatabaseName.ldf"
   }
-
-
   $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
   $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
   function Paint-Progress { param([int]$Percent, [string]$Message) $pbRestore.Value = $Percent; $txtProgress.Text = $Message }
   function Add-Log { param([string]$Message) $logQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $Message)) }
   function New-SafeCredential { param([string]$Username, [string]$PlainPassword) $secure = New-Object System.Security.SecureString; foreach ($ch in $PlainPassword.ToCharArray()) { $secure.AppendChar($ch) }; $secure.MakeReadOnly(); New-Object System.Management.Automation.PSCredential($Username, $secure) }
+
+  function Test-ServerDirectoryExists {
+    param([string]$Server, [string]$DirectoryPath, [System.Management.Automation.PSCredential]$Credential)
+    $checkQuery = @"
+DECLARE @Path NVARCHAR(512) = N'$($DirectoryPath -replace "'", "''")'
+DECLARE @FileExists INT
+EXEC master.dbo.xp_fileexist @Path, @FileExists OUTPUT
+SELECT @FileExists AS DirectoryExists
+"@
+    $connection = $null
+    $passwordBstr = [IntPtr]::Zero
+    $plainPassword = $null
+    try {
+      $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+      $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+      $cs = "Server=$Server;Database=master;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
+      $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
+      $connection.Open()
+      $cmd = $connection.CreateCommand()
+      $cmd.CommandText = $checkQuery
+      $cmd.CommandTimeout = 30
+      $reader = $cmd.ExecuteReader()
+      $exists = $false
+      if ($reader.Read()) {
+        $exists = ([int]$reader["DirectoryExists"]) -eq 1
+      }
+      $reader.Close()
+      return $exists
+    } catch {
+      Write-DzDebug "`t[DEBUG][Test-ServerDirectoryExists] Error: $($_.Exception.Message)"
+      return $false
+    } finally {
+      if ($plainPassword) { $plainPassword = $null }
+      if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
+      if ($connection) { try { $connection.Close() } catch { }; try { $connection.Dispose() } catch { } }
+    }
+  }
+
+  function Create-ServerDirectory {
+    param([string]$Server, [string]$DirectoryPath, [System.Management.Automation.PSCredential]$Credential)
+    $createQuery = @"
+DECLARE @Path NVARCHAR(512) = N'$($DirectoryPath -replace "'", "''")'
+DECLARE @Cmd NVARCHAR(1024) = N'cmd.exe /c if not exist "' + @Path + '" mkdir "' + @Path + '"'
+EXEC master.dbo.xp_cmdshell @Cmd, NO_OUTPUT
+"@
+    $connection = $null
+    $passwordBstr = [IntPtr]::Zero
+    $plainPassword = $null
+    try {
+      $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+      $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+      $cs = "Server=$Server;Database=master;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
+      $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
+      $connection.Open()
+      $cmd = $connection.CreateCommand()
+      $cmd.CommandText = $createQuery
+      $cmd.CommandTimeout = 60
+      [void]$cmd.ExecuteNonQuery()
+      return @{ Success = $true }
+    } catch {
+      return @{ Success = $false; ErrorMessage = $_.Exception.Message }
+    } finally {
+      if ($plainPassword) { $plainPassword = $null }
+      if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
+      if ($connection) { try { $connection.Close() } catch { }; try { $connection.Dispose() } catch { } }
+    }
+  }
+
   function Start-RestoreWorkAsync {
     param(
       [string]$Server,
@@ -3351,6 +3404,7 @@ function Show-RestoreDialog {
     $null = $ps.BeginInvoke()
     Write-DzDebug "`t[DEBUG][Start-RestoreWorkAsync] Worker lanzado"
   }
+
   $logTimer = [System.Windows.Threading.DispatcherTimer]::new()
   $logTimer.Interval = [TimeSpan]::FromMilliseconds(200)
   $logTimer.Add_Tick({
@@ -3373,8 +3427,7 @@ function Show-RestoreDialog {
             $txtBackupPath.IsEnabled = $true
             $btnBrowseBackup.IsEnabled = $true
             $txtDestino.IsEnabled = $true
-            $txtMdfPath.IsEnabled = $true
-            $txtLdfPath.IsEnabled = $true
+            $txtServerFolder.IsEnabled = $true
             $tmp = $null
             while ($progressQueue.TryDequeue([ref]$tmp)) { }
             Paint-Progress -Percent 100 -Message "Completado"
@@ -3414,6 +3467,32 @@ function Show-RestoreDialog {
     })
   $logTimer.Start()
   Write-DzDebug "`t[DEBUG][Show-RestoreDialog] logTimer iniciado"
+
+  $credential = New-SafeCredential -Username $User -PlainPassword $Password
+  $xpCmdShellEnabled = Test-XpCmdShellEnabled -Server $Server -Credential $credential
+  Write-DzDebug "`t[DEBUG][Show-RestoreDialog] xp_cmdshell enabled: $xpCmdShellEnabled"
+
+  if (-not $xpCmdShellEnabled) {
+    Add-Log "⚠️ xp_cmdshell está deshabilitado en el servidor"
+    $enableChoice = Ui-Confirm "xp_cmdshell está deshabilitado en SQL Server.`n`nEs necesario para crear directorios automáticamente en el servidor.`n`n¿Deseas habilitarlo ahora?`n`n(Requiere permisos de administrador SQL)" "Habilitar xp_cmdshell" $window
+    if ($enableChoice) {
+      Add-Log "Habilitando xp_cmdshell..."
+      $enableResult = Enable-XpCmdShell -Server $Server -Credential $credential
+      if ($enableResult.Success) {
+        Add-Log "✅ xp_cmdshell habilitado exitosamente"
+        $xpCmdShellEnabled = $true
+      } else {
+        Add-Log "❌ No se pudo habilitar xp_cmdshell: $($enableResult.ErrorMessage)"
+        Ui-Warn "No se pudo habilitar xp_cmdshell automáticamente.`n`nDeberás escribir manualmente la ruta completa en el campo 'Carpeta destino en servidor'.`n`nEjemplo: C:\NationalSoft\DATABASES" "Atención" $window
+      }
+    } else {
+      Add-Log "⚠️ Continuando sin xp_cmdshell (sin creación automática de directorios)"
+      Ui-Info "Deberás asegurarte de que el directorio de destino ya existe en el servidor, o escribir una ruta que ya exista.`n`nLa restauración fallará si el directorio no existe." "Información" $window
+    }
+  } else {
+    Add-Log "✅ xp_cmdshell está habilitado"
+  }
+
   $btnBrowseBackup.Add_Click({
       try {
         $dlg = New-Object System.Windows.Forms.OpenFileDialog
@@ -3421,12 +3500,10 @@ function Show-RestoreDialog {
         $dlg.Multiselect = $false
         if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
           $txtBackupPath.Text = $dlg.FileName
-
           $suggestedName = [System.IO.Path]::GetFileNameWithoutExtension($dlg.FileName)
           $txtDestino.Text = $suggestedName
           Set-TxtDestinoNormal
-          Update-RestorePaths -DatabaseName $suggestedName
-
+          Update-RestorePaths -DatabaseName $suggestedName -ServerFolder $txtServerFolder.Text
           Add-Log "📝 Nombre destino sugerido: $suggestedName"
         }
       } catch {
@@ -3436,13 +3513,24 @@ function Show-RestoreDialog {
 
   $txtDestino.Add_TextChanged({
       try {
-        if ($txtDestino.Text -and $txtDestino.Text -ne "SELECCIONA PRIMERO EL RESPALDO") {
-          Update-RestorePaths -DatabaseName $txtDestino.Text
+        if ($txtDestino.Text -and $txtDestino.Text -ne $PLACEHOLDER) {
+          Update-RestorePaths -DatabaseName $txtDestino.Text -ServerFolder $txtServerFolder.Text
         }
       } catch {
         Write-DzDebug "`t[DEBUG][UI] Error actualizando rutas: $($_.Exception.Message)"
       }
     })
+
+  $txtServerFolder.Add_TextChanged({
+      try {
+        if ($txtDestino.Text -and $txtDestino.Text -ne $PLACEHOLDER) {
+          Update-RestorePaths -DatabaseName $txtDestino.Text -ServerFolder $txtServerFolder.Text
+        }
+      } catch {
+        Write-DzDebug "`t[DEBUG][UI] Error actualizando rutas: $($_.Exception.Message)"
+      }
+    })
+
   $btnAceptar.Add_Click({
       Write-DzDebug "`t[DEBUG][UI] btnAceptar Restore Click"
       if ($script:RestoreRunning) { return }
@@ -3457,23 +3545,44 @@ function Show-RestoreDialog {
         Add-Log "Iniciando proceso de restauración..."
         $backupPath = $txtBackupPath.Text.Trim()
         $destName = $txtDestino.Text.Trim()
-        if ($destName -eq "SELECCIONA PRIMERO EL RESPALDO") {
+        if ($destName -eq $PLACEHOLDER) {
           Ui-Warn "Debes seleccionar un archivo de respaldo primero.`n`nEl nombre de la base de datos se generará automáticamente basado en el archivo .bak que selecciones." "Atención" $window
           & $ResetRestoreUI -ProgressText "Selecciona archivo de respaldo"
           return
         }
+        $serverFolder = $txtServerFolder.Text.Trim()
         $mdfPath = $txtMdfPath.Text.Trim()
         $ldfPath = $txtLdfPath.Text.Trim()
         if ([string]::IsNullOrWhiteSpace($backupPath)) { Ui-Warn "Selecciona el archivo .bak a restaurar." "Atención" $window; & $ResetRestoreUI -ProgressText "Archivo de respaldo requerido"; return }
         if ([string]::IsNullOrWhiteSpace($destName)) { Ui-Warn "Indica el nombre destino de la base de datos." "Atención" $window; & $ResetRestoreUI -ProgressText "Nombre destino requerido"; return }
-        if ([string]::IsNullOrWhiteSpace($mdfPath) -or [string]::IsNullOrWhiteSpace($ldfPath)) { Ui-Warn "Indica las rutas de destino para MDF y LDF." "Atención" $window; & $ResetRestoreUI -ProgressText "Rutas MDF/LDF requeridas"; return }
+        if ([string]::IsNullOrWhiteSpace($serverFolder)) { Ui-Warn "Indica la carpeta destino en el servidor." "Atención" $window; & $ResetRestoreUI -ProgressText "Carpeta servidor requerida"; return }
         Add-Log "Servidor: $Server"
         Add-Log "Base de datos destino: $destName"
         Add-Log "Backup: $backupPath"
+        Add-Log "Carpeta servidor: $serverFolder"
         Add-Log "MDF: $mdfPath"
         Add-Log "LDF: $ldfPath"
-        $credential = New-SafeCredential -Username $User -PlainPassword $Password
         Add-Log "✓ Credenciales listas"
+
+        if ($xpCmdShellEnabled) {
+          Add-Log "🔍 Verificando directorio en servidor..."
+          $dirExists = Test-ServerDirectoryExists -Server $Server -DirectoryPath $serverFolder -Credential $credential
+          if (-not $dirExists) {
+            Add-Log "📁 El directorio no existe, creándolo..."
+            $createResult = Create-ServerDirectory -Server $Server -DirectoryPath $serverFolder -Credential $credential
+            if (-not $createResult.Success) {
+              Ui-Error "No se pudo crear el directorio en el servidor:`n`n$($createResult.ErrorMessage)" "Error" $window
+              & $ResetRestoreUI -ProgressText "Error creando directorio"
+              return
+            }
+            Add-Log "✅ Directorio creado exitosamente"
+          } else {
+            Add-Log "✅ Directorio ya existe en servidor"
+          }
+        } else {
+          Add-Log "⚠️ Sin verificación de directorio (xp_cmdshell deshabilitado)"
+        }
+
         $escapedBackup = $backupPath -replace "'", "''"
         $escapedMdf = $mdfPath -replace "'", "''"
         $escapedLdf = $ldfPath -replace "'", "''"
@@ -3561,20 +3670,21 @@ END
         $txtBackupPath.IsEnabled = $false
         $btnBrowseBackup.IsEnabled = $false
         $txtDestino.IsEnabled = $false
-        $txtMdfPath.IsEnabled = $false
-        $txtLdfPath.IsEnabled = $false
+        $txtServerFolder.IsEnabled = $false
       } catch {
         Write-DzDebug "`t[DEBUG][UI] ERROR btnAceptar Restore: $($_.Exception.Message)"
         Add-Log "❌ Error: $($_.Exception.Message)"
         & $ResetRestoreUI -ProgressText "Error inesperado"
       }
     })
+
   $btnCerrar.Add_Click({
       Write-DzDebug "`t[DEBUG][UI] btnCerrar Restore Click"
       try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch { }
       $window.DialogResult = $false
       $window.Close()
     })
+
   Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Antes de ShowDialog()"
   $null = $window.ShowDialog()
   Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Después de ShowDialog()"

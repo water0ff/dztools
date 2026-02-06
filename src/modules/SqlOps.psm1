@@ -3161,14 +3161,13 @@ RECONFIGURE;
   $ResetRestoreUI = {
     param([string]$ButtonText = "Iniciar Restauración", [string]$ProgressText = "Esperando...")
     $script:RestoreRunning = $false
-    $btnAceptar.IsEnabled = $true
-    $btnAceptar.Content = $ButtonText
-    $txtBackupPath.IsEnabled = $true
-    $btnBrowseBackup.IsEnabled = $true
-    $txtDestino.IsEnabled = $true
-    $txtServerFolder.IsEnabled = $true
-    $btnBrowseServerFolder.IsEnabled = $true
-    $txtProgress.Text = $ProgressText
+    if ($btnAceptar) { $btnAceptar.IsEnabled = $true; $btnAceptar.Content = $ButtonText }
+    if ($txtBackupPath) { $txtBackupPath.IsEnabled = $true }
+    if ($btnBrowseBackup) { $btnBrowseBackup.IsEnabled = $true }
+    if ($txtDestino) { $txtDestino.IsEnabled = $true }
+    if ($txtServerFolder) { $txtServerFolder.IsEnabled = $true }
+    if ($btnBrowseServerFolder) { $btnBrowseServerFolder.IsEnabled = $true }
+    if ($txtProgress) { $txtProgress.Text = $ProgressText }
   }.GetNewClosure()
   Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Controles: txtBackupPath=$([bool]$txtBackupPath) btnBrowseBackup=$([bool]$btnBrowseBackup) txtDestino=$([bool]$txtDestino) txtServerFolder=$([bool]$txtServerFolder) btnBrowseServerFolder=$([bool]$btnBrowseServerFolder) txtMdfPath=$([bool]$txtMdfPath) txtLdfPath=$([bool]$txtLdfPath) pbRestore=$([bool]$pbRestore) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnCerrar=$([bool]$btnCerrar)"
   if (-not $txtBackupPath -or -not $btnBrowseBackup -or -not $txtDestino -or -not $txtServerFolder -or -not $btnBrowseServerFolder -or -not $txtMdfPath -or -not $txtLdfPath -or -not $pbRestore -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnCerrar) {
@@ -3178,13 +3177,17 @@ RECONFIGURE;
   $bc = [System.Windows.Media.BrushConverter]::new()
   $PLACEHOLDER = "SELECCIONA PRIMERO EL RESPALDO"
   function Set-TxtDestinoPlaceholder {
-    $txtDestino.Text = $PLACEHOLDER
-    $txtDestino.Foreground = $bc.ConvertFromString($theme.AccentMuted)
-    $txtDestino.FontStyle = [System.Windows.FontStyles]::Italic
+    if ($txtDestino) {
+      $txtDestino.Text = $PLACEHOLDER
+      $txtDestino.Foreground = $bc.ConvertFromString($theme.AccentMuted)
+      $txtDestino.FontStyle = [System.Windows.FontStyles]::Italic
+    }
   }
   function Set-TxtDestinoNormal {
-    $txtDestino.Foreground = $bc.ConvertFromString($theme.ControlForeground)
-    $txtDestino.FontStyle = [System.Windows.FontStyles]::Normal
+    if ($txtDestino) {
+      $txtDestino.Foreground = $bc.ConvertFromString($theme.ControlForeground)
+      $txtDestino.FontStyle = [System.Windows.FontStyles]::Normal
+    }
   }
   Set-TxtDestinoPlaceholder
   function Normalize-RestoreFolder {
@@ -3200,12 +3203,16 @@ RECONFIGURE;
     if ($DatabaseName -eq $PLACEHOLDER) { return }
     if ([string]::IsNullOrWhiteSpace($ServerFolder)) { $ServerFolder = $defaultPath }
     $baseFolder = Normalize-RestoreFolder -BasePath $ServerFolder
-    $txtMdfPath.Text = Join-Path $baseFolder "$DatabaseName.mdf"
-    $txtLdfPath.Text = Join-Path $baseFolder "$DatabaseName.ldf"
+    if ($txtMdfPath) { $txtMdfPath.Text = Join-Path $baseFolder "$DatabaseName.mdf" }
+    if ($txtLdfPath) { $txtLdfPath.Text = Join-Path $baseFolder "$DatabaseName.ldf" }
   }
   $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
   $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
-  function Paint-Progress { param([int]$Percent, [string]$Message) $pbRestore.Value = $Percent; $txtProgress.Text = $Message }
+  function Paint-Progress {
+    param([int]$Percent, [string]$Message)
+    if ($pbRestore) { $pbRestore.Value = $Percent }
+    if ($txtProgress) { $txtProgress.Text = $Message }
+  }
   function Add-Log { param([string]$Message) $logQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $Message)) }
   function New-SafeCredential { param([string]$Username, [string]$PlainPassword) $secure = New-Object System.Security.SecureString; foreach ($ch in $PlainPassword.ToCharArray()) { $secure.AppendChar($ch) }; $secure.MakeReadOnly(); New-Object System.Management.Automation.PSCredential($Username, $secure) }
 
@@ -3420,9 +3427,18 @@ EXEC master.dbo.xp_cmdshell @Cmd, NO_OUTPUT
     Write-DzDebug "`t[DEBUG][Start-RestoreWorkAsync] Worker lanzado"
   }
 
+  # Variable para controlar si el timer debe seguir ejecutándose
+  $script:timerShouldRun = $true
+
   $logTimer = [System.Windows.Threading.DispatcherTimer]::new()
   $logTimer.Interval = [TimeSpan]::FromMilliseconds(200)
   $logTimer.Add_Tick({
+      # Protección: verificar si el timer debe seguir ejecutándose
+      if (-not $script:timerShouldRun) {
+        $logTimer.Stop()
+        return
+      }
+
       try {
         $count = 0
         $doneThisTick = $false
@@ -3432,23 +3448,24 @@ EXEC master.dbo.xp_cmdshell @Cmd, NO_OUTPUT
           if (-not $logQueue.TryDequeue([ref]$line)) { break }
           if ($line -like "*SUCCESS_RESULT|*") { $finalResult = @{ Success = $true; Message = $line -replace '^.*SUCCESS_RESULT\|', '' } }
           if ($line -like "*ERROR_RESULT|*") { $finalResult = @{ Success = $false; Message = $line -replace '^.*ERROR_RESULT\|', '' } }
-          if ($line -notmatch '(SUCCESS_RESULT|ERROR_RESULT)') { $txtLog.Text = "$line`n" + $txtLog.Text }
+          if ($line -notmatch '(SUCCESS_RESULT|ERROR_RESULT)' -and $txtLog) {
+            $txtLog.Text = "$line`n" + $txtLog.Text
+          }
           if ($line -like "*__DONE__*") {
             Write-DzDebug "`t[DEBUG][UI] Señal DONE recibida (restore)"
             $doneThisTick = $true
             $script:RestoreRunning = $false
-            $btnAceptar.IsEnabled = $true
-            $btnAceptar.Content = "Iniciar Restauración"
-            $txtBackupPath.IsEnabled = $true
-            $btnBrowseBackup.IsEnabled = $true
-            $txtDestino.IsEnabled = $true
-            $txtServerFolder.IsEnabled = $true
-            $btnBrowseServerFolder.IsEnabled = $true
+            if ($btnAceptar) { $btnAceptar.IsEnabled = $true; $btnAceptar.Content = "Iniciar Restauración" }
+            if ($txtBackupPath) { $txtBackupPath.IsEnabled = $true }
+            if ($btnBrowseBackup) { $btnBrowseBackup.IsEnabled = $true }
+            if ($txtDestino) { $txtDestino.IsEnabled = $true }
+            if ($txtServerFolder) { $txtServerFolder.IsEnabled = $true }
+            if ($btnBrowseServerFolder) { $btnBrowseServerFolder.IsEnabled = $true }
             $tmp = $null
             while ($progressQueue.TryDequeue([ref]$tmp)) { }
             Paint-Progress -Percent 100 -Message "Completado"
             $script:RestoreDone = $true
-            if ($finalResult) {
+            if ($finalResult -and $window) {
               $window.Dispatcher.Invoke([action] {
                   if ($finalResult.Success) {
                     Ui-Info "Base de datos '$($txtDestino.Text)' restaurada con éxito.`n`n$($finalResult.Message)" "✓ Restauración Exitosa" $window
@@ -3464,7 +3481,7 @@ EXEC master.dbo.xp_cmdshell @Cmd, NO_OUTPUT
           }
           $count++
         }
-        if ($count -gt 0) { $txtLog.ScrollToLine(0) }
+        if ($count -gt 0 -and $txtLog) { $txtLog.ScrollToLine(0) }
         if (-not $doneThisTick) {
           $last = $null
           while ($true) {
@@ -3474,15 +3491,34 @@ EXEC master.dbo.xp_cmdshell @Cmd, NO_OUTPUT
           }
           if ($last) { Paint-Progress -Percent $last.Percent -Message $last.Message }
         }
-      } catch { Write-DzDebug "`t[DEBUG][UI][logTimer][restore] ERROR: $($_.Exception.Message)" }
+      } catch {
+        Write-DzDebug "`t[DEBUG][UI][logTimer][restore] ERROR: $($_.Exception.Message)"
+      }
       if ($script:RestoreDone) {
         $tmpLine = $null
         $tmpProg = $null
-        if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) { $logTimer.Stop(); $script:RestoreDone = $false }
+        if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) {
+          $logTimer.Stop()
+          $script:RestoreDone = $false
+        }
       }
     })
   $logTimer.Start()
   Write-DzDebug "`t[DEBUG][Show-RestoreDialog] logTimer iniciado"
+
+  # Evento de cierre de ventana - DETENER EL TIMER
+  $window.Add_Closed({
+      Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Ventana cerrada - deteniendo timer"
+      $script:timerShouldRun = $false
+      if ($logTimer) {
+        try {
+          $logTimer.Stop()
+          Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Timer detenido exitosamente"
+        } catch {
+          Write-DzDebug "`t[DEBUG][Show-RestoreDialog] Error deteniendo timer: $($_.Exception.Message)"
+        }
+      }
+    })
 
   $credential = New-SafeCredential -Username $User -PlainPassword $Password
   $xpCmdShellEnabled = Test-XpCmdShellEnabled -Server $Server -Credential $credential
@@ -3552,6 +3588,7 @@ EXEC master.dbo.xp_cmdshell @Cmd, NO_OUTPUT
 
         if (Get-Command Show-ServerFolderBrowser -ErrorAction SilentlyContinue) {
           $selected = Show-ServerFolderBrowser -Server $Server -Credential $cred -StartPath $txtServerFolder.Text
+
           if ($selected) {
             $txtServerFolder.Text = $selected
             Update-RestorePaths -DatabaseName $txtDestino.Text -ServerFolder $txtServerFolder.Text
@@ -3716,7 +3753,6 @@ END
 
   $btnCerrar.Add_Click({
       Write-DzDebug "`t[DEBUG][UI] btnCerrar Restore Click"
-      try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch { }
       $window.DialogResult = $false
       $window.Close()
     })
@@ -3844,25 +3880,22 @@ function Show-ServerFolderBrowser {
     [Parameter(Mandatory)] [System.Management.Automation.PSCredential]$Credential,
     [Parameter(Mandatory)] [string]$StartPath
   )
-
   Add-Type -AssemblyName PresentationFramework
-
+  Add-Type -AssemblyName System.Windows.Forms
   function Normalize-Path([string]$p) {
     if ([string]::IsNullOrWhiteSpace($p)) { return $p }
     return $p.Trim().TrimEnd('\')
   }
-
   $current = Normalize-Path $StartPath
   if ([string]::IsNullOrWhiteSpace($current)) { $current = "C:\" }
-
   $safeTitle = [Security.SecurityElement]::Escape("Explorar carpetas en servidor SQL")
   $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="$safeTitle"
-        Width="720" Height="540"
-        MinWidth="720" MinHeight="540"
-        MaxWidth="720" MaxHeight="540"
+        Width="650" Height="500"
+        MinWidth="650" MinHeight="500"
+        MaxWidth="650" MaxHeight="500"
         WindowStartupLocation="Manual"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -3872,17 +3905,14 @@ function Show-ServerFolderBrowser {
         Topmost="False"
         FontFamily="{DynamicResource UiFontFamily}"
         FontSize="{DynamicResource UiFontSize}">
-
   <Window.Resources>
     <Style TargetType="{x:Type Control}">
       <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
-      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontSize" Value="10"/>
     </Style>
-
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
     </Style>
-
     <Style x:Key="IconButtonStyle" TargetType="Button">
       <Setter Property="Width" Value="30"/>
       <Setter Property="Height" Value="26"/>
@@ -3905,15 +3935,11 @@ function Show-ServerFolderBrowser {
               <Trigger Property="IsPressed" Value="True">
                 <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
               </Trigger>
-              <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
-              </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
     </Style>
-
     <Style x:Key="PrimaryButtonStyle" TargetType="Button">
       <Setter Property="Height" Value="32"/>
       <Setter Property="MinWidth" Value="110"/>
@@ -3948,14 +3974,10 @@ function Show-ServerFolderBrowser {
         </Setter.Value>
       </Setter>
     </Style>
-
-    <Style x:Key="SecondaryButtonStyle"
-           TargetType="Button"
-           BasedOn="{StaticResource PrimaryButtonStyle}">
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
@@ -3983,7 +4005,6 @@ function Show-ServerFolderBrowser {
         </Setter.Value>
       </Setter>
     </Style>
-
     <Style x:Key="TextBoxStyle" TargetType="TextBox">
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
@@ -3992,22 +4013,37 @@ function Show-ServerFolderBrowser {
       <Setter Property="Padding" Value="10,6"/>
       <Setter Property="Height" Value="34"/>
     </Style>
-
-    <Style x:Key="ListViewStyle" TargetType="ListView">
+    <Style x:Key="TreeViewStyle" TargetType="TreeView">
       <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
       <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
       <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="4"/>
     </Style>
+    <Style x:Key="TreeViewItemStyle" TargetType="TreeViewItem">
+      <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="Padding" Value="2"/>
+      <Style.Triggers>
+        <Trigger Property="IsSelected" Value="True">
+          <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+          <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+    <HierarchicalDataTemplate x:Key="FolderTemplate" ItemsSource="{Binding Children}">
+      <StackPanel Orientation="Horizontal" Margin="2">
+        <TextBlock Text="📁 " Margin="0,0,4,0"/>
+        <TextBlock Text="{Binding Name}"/>
+      </StackPanel>
+    </HierarchicalDataTemplate>
   </Window.Resources>
-
   <Border Background="{DynamicResource FormBg}"
           BorderBrush="{DynamicResource BorderBrushColor}"
           BorderThickness="1"
           CornerRadius="12"
           Margin="10"
           SnapsToDevicePixels="True">
-
     <Border.Effect>
       <DropShadowEffect Color="Black"
                         Direction="270"
@@ -4015,7 +4051,6 @@ function Show-ServerFolderBrowser {
                         BlurRadius="14"
                         Opacity="0.25"/>
     </Border.Effect>
-
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="52"/>
@@ -4023,7 +4058,6 @@ function Show-ServerFolderBrowser {
         <RowDefinition Height="*"/>
         <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
-
       <Border Grid.Row="0"
               Name="HeaderBar"
               Background="{DynamicResource FormBg}"
@@ -4035,24 +4069,21 @@ function Show-ServerFolderBrowser {
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-
           <Border Grid.Column="0"
                   Width="6"
                   CornerRadius="3"
                   Background="{DynamicResource AccentPrimary}"
                   Margin="0,4,10,4"/>
-
           <StackPanel Grid.Column="1" Orientation="Vertical">
             <TextBlock Text="$safeTitle"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource FormFg}"
-                       FontSize="12"/>
-            <TextBlock Text="Navega hasta la carpeta deseada"
+                       FontSize="10"/>
+            <TextBlock Text="Navega por el árbol de carpetas del servidor"
                        Foreground="{DynamicResource AccentMuted}"
                        FontSize="10"
                        Margin="0,2,0,0"/>
           </StackPanel>
-
           <Button Grid.Column="2"
                   Name="btnClose"
                   Style="{StaticResource IconButtonStyle}"
@@ -4060,7 +4091,6 @@ function Show-ServerFolderBrowser {
                   ToolTip="Cerrar"/>
         </Grid>
       </Border>
-
       <Border Grid.Row="1"
               Background="{DynamicResource PanelBg}"
               BorderBrush="{DynamicResource BorderBrushColor}"
@@ -4074,31 +4104,15 @@ function Show-ServerFolderBrowser {
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
           </Grid.RowDefinitions>
-
           <TextBlock Grid.Row="0"
-                     Text="Ruta actual (en el servidor):"
+                     Text="Ruta seleccionada:"
                      FontWeight="SemiBold"
                      Margin="0,0,0,8"/>
-
-          <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <TextBox Grid.Column="0"
-                     Name="txtPath"
-                     Style="{StaticResource TextBoxStyle}"
-                     VerticalContentAlignment="Center"/>
-
-            <Button Grid.Column="1"
-                    Name="btnUp"
-                    Content="⬆ Subir"
-                    Style="{StaticResource SecondaryButtonStyle}"
-                    Width="120"
-                    Margin="10,0,0,0"/>
-          </Grid>
-
+          <TextBox Grid.Row="1"
+                   Name="txtPath"
+                   Style="{StaticResource TextBoxStyle}"
+                   IsReadOnly="True"
+                   VerticalContentAlignment="Center"/>
           <TextBlock Grid.Row="2"
                      Name="lblStatus"
                      Foreground="{DynamicResource AccentMuted}"
@@ -4106,36 +4120,27 @@ function Show-ServerFolderBrowser {
                      TextWrapping="Wrap"/>
         </Grid>
       </Border>
-
       <Border Grid.Row="2"
               Background="{DynamicResource ControlBg}"
               BorderBrush="{DynamicResource BorderBrushColor}"
               BorderThickness="1"
               CornerRadius="10"
-              Padding="0"
+              Padding="6"
               Margin="12,0,12,10">
-        <ListView Name="lvDirs" Style="{StaticResource ListViewStyle}">
-          <ListView.View>
-            <GridView>
-              <GridViewColumn Header="Carpetas"
-                              DisplayMemberBinding="{Binding Name}"
-                              Width="640"/>
-            </GridView>
-          </ListView.View>
-        </ListView>
+        <TreeView Name="tvFolders"
+                  Style="{StaticResource TreeViewStyle}"
+                  ItemContainerStyle="{StaticResource TreeViewItemStyle}"
+                  ItemTemplate="{StaticResource FolderTemplate}"/>
       </Border>
-
       <Grid Grid.Row="3" Margin="12,0,12,12">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-
         <TextBlock Grid.Column="0"
-                   Text="Doble click: Entrar   |   Enter: Seleccionar   |   Esc: Cerrar"
+                   Text="Expande las carpetas con + | Selecciona y presiona Enter"
                    Foreground="{DynamicResource AccentMuted}"
                    VerticalAlignment="Center"/>
-
         <StackPanel Grid.Column="1" Orientation="Horizontal">
           <Button Name="btnCancel"
                   Content="Cancelar"
@@ -4144,99 +4149,303 @@ function Show-ServerFolderBrowser {
                   Margin="0,0,10,0"
                   IsCancel="True"/>
           <Button Name="btnOk"
-                  Content="Seleccionar"
+                  Content="Aceptar"
                   Style="{StaticResource PrimaryButtonStyle}"
                   Width="140"
                   IsDefault="True"/>
         </StackPanel>
       </Grid>
-
     </Grid>
   </Border>
 </Window>
 "@
-
   try {
     $ui = New-WpfWindow -Xaml $xaml -PassThru
     $w = $ui.Window
     $c = $ui.Controls
-
     $theme = Get-DzUiTheme
     Set-DzWpfThemeResources -Window $w -Theme $theme
-
     try { Set-WpfDialogOwner -Dialog $w } catch {}
     try { if (-not $w.Owner -and $global:MainWindow -is [System.Windows.Window]) { $w.Owner = $global:MainWindow } } catch {}
-
     $w.WindowStartupLocation = "Manual"
     $w.Add_Loaded({
         try {
           $owner = $w.Owner
           if (-not $owner) { $w.WindowStartupLocation = "CenterScreen"; return }
-
           $ob = $owner.RestoreBounds
           $targetW = $w.ActualWidth; if ($targetW -le 0) { $targetW = $w.Width }
           $targetH = $w.ActualHeight; if ($targetH -le 0) { $targetH = $w.Height }
-
           $left = $ob.Left + (($ob.Width - $targetW) / 2)
           $top = $ob.Top + (($ob.Height - $targetH) / 2)
-
           $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
           $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
           $wa = $screen.WorkingArea
-
           if ($left -lt $wa.Left) { $left = $wa.Left }
-          if ($top -lt $wa.Top ) { $top = $wa.Top }
+          if ($top -lt $wa.Top) { $top = $wa.Top }
           if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
           if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
-
           $w.Left = [double]$left
           $w.Top = [double]$top
         } catch {}
       }.GetNewClosure())
-
     $c['HeaderBar'].Add_MouseLeftButtonDown({
         if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
           try { $w.DragMove() } catch {}
         }
       })
-
     $txtPath = $c['txtPath']
-    $btnUp = $c['btnUp']
-    $lvDirs = $c['lvDirs']
+    $tvFolders = $c['tvFolders']
     $btnCancel = $c['btnCancel']
     $btnOk = $c['btnOk']
     $btnClose = $c['btnClose']
     $lblStatus = $c['lblStatus']
-
     $script:resultPath = $null
-
-    function Load-Dirs([string]$path) {
-      $path = Normalize-Path $path
-      $txtPath.Text = $path
-      $lblStatus.Text = "Cargando..."
-      $lvDirs.ItemsSource = $null
-
-      try {
-        $res = Get-ServerSubDirs -Server $Server -Path $path -Credential $Credential
-
-        if (-not $res.Success) {
-          $lblStatus.Text = "Error: $($res.ErrorMessage)"
-          $lvDirs.ItemsSource = @()
-          Write-DzDebug "`t[DEBUG][Show-ServerFolderBrowser] Error cargando directorios: $($res.ErrorMessage)"
-          return
+    Add-Type -TypeDefinition @"
+    using System.Collections.ObjectModel;
+    using System.ComponentModel;
+    public class FolderNode : INotifyPropertyChanged
+    {
+        private string _name;
+        private string _fullPath;
+        private ObservableCollection<FolderNode> _children;
+        private bool _isExpanded;
+        private bool _isLoaded;
+        public string Name
+        {
+            get { return _name; }
+            set { _name = value; OnPropertyChanged("Name"); }
         }
-
-        $items = foreach ($name in $res.Items) { [pscustomobject]@{ Name = $name } }
-        $lvDirs.ItemsSource = $items
-        $lblStatus.Text = "Carpetas encontradas: $($items.Count)"
-        $script:current = $path
+        public string FullPath
+        {
+            get { return _fullPath; }
+            set { _fullPath = value; OnPropertyChanged("FullPath"); }
+        }
+        public ObservableCollection<FolderNode> Children
+        {
+            get { return _children; }
+            set { _children = value; OnPropertyChanged("Children"); }
+        }
+        public bool IsExpanded
+        {
+            get { return _isExpanded; }
+            set { _isExpanded = value; OnPropertyChanged("IsExpanded"); }
+        }
+        public bool IsLoaded
+        {
+            get { return _isLoaded; }
+            set { _isLoaded = value; }
+        }
+        public FolderNode()
+        {
+            Children = new ObservableCollection<FolderNode>();
+        }
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            if (PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+"@ -ReferencedAssemblies 'PresentationFramework', 'WindowsBase' -IgnoreWarnings -ErrorAction SilentlyContinue
+    function Get-DriveNodes {
+      $drives = @()
+      foreach ($letter in 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z') {
+        $drivePath = "${letter}:\"
+        try {
+          $testQuery = "DECLARE @path nvarchar(512) = N'$drivePath'; DECLARE @exists int; EXEC master.dbo.xp_fileexist @path, @exists OUTPUT; SELECT @exists AS [Exists]"
+          $result = Invoke-SqlScalarTable -Server $Server -Database "master" -Query $testQuery -Credential $Credential
+          if ($result.Success -and $result.DataTable.Rows.Count -gt 0) {
+            $exists = [int]$result.DataTable.Rows[0]["Exists"]
+            if ($exists -eq 1) {
+              $node = New-Object FolderNode
+              $node.Name = "${letter}:\"
+              $node.FullPath = $drivePath
+              $node.IsLoaded = $false
+              $dummy = New-Object FolderNode
+              $dummy.Name = "..."
+              $node.Children.Add($dummy)
+              $drives += $node
+            }
+          }
+        } catch {
+          if ($letter -in 'C', 'D', 'E') {
+            $node = New-Object FolderNode
+            $node.Name = "${letter}:\"
+            $node.FullPath = $drivePath
+            $node.IsLoaded = $false
+            $dummy = New-Object FolderNode
+            $dummy.Name = "..."
+            $node.Children.Add($dummy)
+            $drives += $node
+          }
+        }
+      }
+      return $drives
+    }
+    function Load-ChildFolders {
+      param([FolderNode]$Node)
+      if ($Node.IsLoaded) { return }
+      $lblStatus.Text = "Cargando subcarpetas..."
+      try {
+        $result = Get-ServerSubDirs -Server $Server -Path $Node.FullPath -Credential $Credential
+        $Node.Children.Clear()
+        if ($result.Success -and $result.Items.Count -gt 0) {
+          foreach ($folderName in $result.Items) {
+            $childNode = New-Object FolderNode
+            $childNode.Name = $folderName
+            $childNode.FullPath = Join-Path $Node.FullPath $folderName
+            $childNode.IsLoaded = $false
+            $dummy = New-Object FolderNode
+            $dummy.Name = "..."
+            $childNode.Children.Add($dummy)
+            $Node.Children.Add($childNode)
+          }
+          $lblStatus.Text = "Cargadas $($result.Items.Count) subcarpetas"
+        } else {
+          $lblStatus.Text = "Sin subcarpetas o sin acceso"
+        }
+        $Node.IsLoaded = $true
       } catch {
-        $lblStatus.Text = "Error: $($_.Exception.Message)"
-        $lvDirs.ItemsSource = @()
-        Write-DzDebug "`t[DEBUG][Show-ServerFolderBrowser] Error cargando directorios: $($_.Exception.Message)"
+        $lblStatus.Text = "Error cargando subcarpetas: $($_.Exception.Message)"
+        Write-DzDebug "`t[DEBUG][Load-ChildFolders] Error: $($_.Exception.Message)"
       }
     }
+    $lblStatus.Text = "Detectando unidades disponibles..."
+    $rootNodes = Get-DriveNodes
+    if ($rootNodes.Count -eq 0) {
+      $cNode = New-Object FolderNode
+      $cNode.Name = "C:\"
+      $cNode.FullPath = "C:\"
+      $cNode.IsLoaded = $false
+      $dummy = New-Object FolderNode
+      $dummy.Name = "..."
+      $cNode.Children.Add($dummy)
+      $rootNodes = @($cNode)
+    }
+    $tvFolders.ItemsSource = $rootNodes
+    $lblStatus.Text = "Listo. Expande las carpetas para navegar."
+    if ($current -match '^([A-Za-z]):\\(.*)') {
+      $driveLetter = $Matches[1].ToUpper()
+      $pathParts = $Matches[2] -split '\\' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+      $driveNode = $rootNodes | Where-Object { $_.Name -eq "${driveLetter}:\" } | Select-Object -First 1
+      if ($driveNode) {
+        function Expand-PathRecursively {
+          param(
+            [Parameter(Mandatory)] [FolderNode]$Node,
+            [Parameter(Mandatory)] [string[]]$Parts,
+            [Parameter(Mandatory)] $ParentContainer,
+            [int]$Index = 0
+          )
 
+          if (-not $Node.IsLoaded) { Load-ChildFolders -Node $Node }
+
+          $Node.IsExpanded = $true
+          $txtPath.Text = $Node.FullPath
+
+          $w.Dispatcher.Invoke([Action] {
+              $tvFolders.UpdateLayout()
+            }, [System.Windows.Threading.DispatcherPriority]::Render)
+
+          $thisContainer = Get-ContainerFromParent -Parent $ParentContainer -Item $Node
+          if ($thisContainer) {
+            $thisContainer.IsExpanded = $true
+            $thisContainer.BringIntoView()
+            $w.Dispatcher.Invoke([Action] {
+                $tvFolders.UpdateLayout()
+              }, [System.Windows.Threading.DispatcherPriority]::Render)
+          }
+
+          if ($Index -lt $Parts.Count) {
+            $partName = $Parts[$Index]
+            $childNode = $Node.Children | Where-Object { $_.Name -eq $partName } | Select-Object -First 1
+            if ($childNode) {
+              if ($thisContainer) {
+                Expand-PathRecursively -Node $childNode -Parts $Parts -ParentContainer $thisContainer -Index ($Index + 1)
+              } else {
+                Select-TreeViewNode -Node $Node -ParentContainer $ParentContainer
+              }
+            } else {
+              Write-DzDebug "`t[DEBUG] No se encontró la carpeta: $partName en $($Node.FullPath)"
+              Select-TreeViewNode -Node $Node -ParentContainer $ParentContainer
+            }
+          } else {
+            if ($thisContainer) {
+              Select-TreeViewNode -Node $Node -ParentContainer $ParentContainer
+            } else {
+              Select-TreeViewNode -Node $Node -ParentContainer $ParentContainer
+            }
+          }
+        }
+        function Get-ContainerFromParent {
+          param(
+            [Parameter(Mandatory)] $Parent,
+            [Parameter(Mandatory)] $Item
+          )
+          try {
+            return $Parent.ItemContainerGenerator.ContainerFromItem($Item)
+          } catch {
+            return $null
+          }
+        }
+
+        function Select-TreeViewNode {
+          param(
+            [Parameter(Mandatory)] [FolderNode]$Node,
+            [Parameter(Mandatory)] $ParentContainer
+          )
+          $w.Dispatcher.Invoke([Action] {
+              try {
+                $tvFolders.UpdateLayout()
+                $container = Get-ContainerFromParent -Parent $ParentContainer -Item $Node
+                if (-not $container) {
+                  $tvFolders.UpdateLayout()
+                  $container = Get-ContainerFromParent -Parent $ParentContainer -Item $Node
+                }
+                if ($container) {
+                  $container.IsSelected = $true
+                  $container.BringIntoView()
+                  $container.Focus()
+                  $txtPath.Text = $Node.FullPath
+                  $script:resultPath = $Node.FullPath
+                } else {
+                  Write-DzDebug "`t[DEBUG] No se pudo obtener el contenedor para: $($Node.FullPath)"
+                }
+              } catch {
+                Write-DzDebug "`t[DEBUG] Error seleccionando nodo: $($_.Exception.Message)"
+              }
+            }, [System.Windows.Threading.DispatcherPriority]::Loaded)
+        }
+        $null = $w.Dispatcher.BeginInvoke([Action] {
+            try { Expand-PathRecursively -Node $driveNode -Parts $pathParts -ParentContainer $tvFolders -Index 0 } catch {}
+          }, [System.Windows.Threading.DispatcherPriority]::Loaded)
+      }
+    }
+    $tvFolders.Add_PreviewMouseDown({
+        param($sender, $e)
+        try {
+          $item = $e.OriginalSource
+          while ($item -and $item -isnot [System.Windows.Controls.TreeViewItem]) {
+            $item = [System.Windows.Media.VisualTreeHelper]::GetParent($item)
+          }
+          if ($item -is [System.Windows.Controls.TreeViewItem]) {
+            $node = $item.DataContext
+            if ($node -and $node -is [FolderNode]) {
+              if (-not $node.IsLoaded -and $node.Name -ne "...") {
+                Load-ChildFolders -Node $node
+              }
+            }
+          }
+        } catch {}
+      })
+    $tvFolders.Add_SelectedItemChanged({
+        try {
+          $selected = $tvFolders.SelectedItem
+          if ($selected -and $selected -is [FolderNode] -and $selected.Name -ne "...") {
+            $txtPath.Text = $selected.FullPath
+            $script:resultPath = $selected.FullPath
+          }
+        } catch {}
+      })
     $btnClose.Add_Click({ $script:resultPath = $null; try { $w.Close() } catch {} })
     $btnCancel.Add_Click({ $script:resultPath = $null; try { $w.Close() } catch {} })
     $w.Add_PreviewKeyDown({
@@ -4246,56 +4455,30 @@ function Show-ServerFolderBrowser {
           try { $w.Close() } catch {}
         }
       })
-
-    $btnUp.Add_Click({
-        Write-DzDebug "`t[DEBUG][UI] btnUp Click"
+    $btnOk.Add_Click({
         try {
-          $p = Normalize-Path $txtPath.Text
-          Write-DzDebug "`t[DEBUG][UI] btnUp Click - Current path: $p"
-          if (-not $p -or $p -notmatch '^[A-Za-z]:\\') {
-            Write-DzDebug "`t[DEBUG][UI] btnUp Click - Invalid path: $p"
-            return
+          $selected = $tvFolders.SelectedItem
+          if ($selected -and $selected -is [FolderNode] -and $selected.Name -ne "...") {
+            $script:resultPath = $selected.FullPath
+            $w.DialogResult = $true
+            $w.Close()
+          } else {
+            [System.Windows.MessageBox]::Show(
+              "Por favor selecciona una carpeta válida",
+              "Selección requerida",
+              [System.Windows.MessageBoxButton]::OK,
+              [System.Windows.MessageBoxImage]::Warning
+            )
           }
-          $parent = Split-Path -Path $p -Parent
-          Write-DzDebug "`t[DEBUG][UI] btnUp Click - Parent path: $parent"
-          if ($parent -and $parent -ne $p) {
-            Load-Dirs $parent
-            Write-DzDebug "`t[DEBUG][UI] btnUp Click - Loaded parent path: $parent"
-          }
-        } catch {
-          Write-DzDebug "`t[DEBUG][UI] btnUp Click - Error: $($_.Exception.Message)"
-        }
-      })
-
-    $lvDirs.Add_MouseDoubleClick({
-        try {
-          $sel = $lvDirs.SelectedItem
-          if (-not $sel) { return }
-          $next = Join-Path (Normalize-Path $txtPath.Text) $sel.Name
-          Load-Dirs $next
         } catch {}
       })
-
-    $btnOk.Add_Click({
-        $p = Normalize-Path $txtPath.Text
-        if ($lvDirs.SelectedItem) {
-          $p = Join-Path $p $lvDirs.SelectedItem.Name
-          $p = Normalize-Path $p
-        }
-        $script:resultPath = $p
-        try { $w.DialogResult = $true } catch {}
-        try { $w.Close() } catch {}
-      })
-
-    Load-Dirs $current
     $null = $w.ShowDialog()
     return $script:resultPath
   } catch {
-    Write-Error "Error creando diálogo de exploración: $($_.Exception.Message)"
+    Write-Error "Error creando diálogo de exploración mejorado: $($_.Exception.Message)"
     return $null
   }
 }
-
 
 Export-ModuleMember -Function @(
   'Show-RestoreDialog',

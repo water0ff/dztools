@@ -1874,841 +1874,6 @@ function Safe-CloseWindow {
   } catch { }
   try { if ($Window) { $Window.Close() } } catch { }
 }
-function Show-BackupDialog {
-  [CmdletBinding()]
-  param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database)
-  $script:BackupRunning = $false
-  $script:BackupDone = $false
-  $script:EnableThreadJob = $false
-  function Initialize-ThreadJob {
-    [CmdletBinding()]
-    param()
-    Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Verificando módulo ThreadJob"
-    if (Get-Module -ListAvailable -Name ThreadJob) {
-      Import-Module ThreadJob -Force
-      Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob importado"
-      return $true
-    } else {
-      Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob no encontrado, intentando instalar"
-      try {
-        Install-Module -Name ThreadJob -Force -Scope CurrentUser -ErrorAction Stop
-        Import-Module ThreadJob -Force
-        Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob instalado e importado"
-        return $true
-      } catch {
-        Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Error instalando ThreadJob: $_"
-        return $false
-      }
-    }
-  }
-  if ($script:EnableThreadJob) { if (-not (Initialize-ThreadJob)) { Write-Host "Advertencia: No se pudo cargar ThreadJob..." -ForegroundColor Yellow } }
-  Write-DzDebug "`t[DEBUG][Show-BackupDialog] INICIO"
-  Write-DzDebug "`t[DEBUG][Show-BackupDialog] Server='$Server' Database='$Database' User='$User'"
-  Add-Type -AssemblyName PresentationFramework
-  Add-Type -AssemblyName System.Windows.Forms
-  $theme = Get-DzUiTheme
-  $xaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Opciones de Respaldo"
-        Width="630" Height="700"
-        MinWidth="630" MinHeight="700"
-        MaxWidth="630" MaxHeight="700"
-        WindowStartupLocation="Manual"
-        WindowStyle="None"
-        ResizeMode="NoResize"
-        ShowInTaskbar="False"
-        Background="Transparent"
-        AllowsTransparency="True"
-        Topmost="False"
-        FontFamily="{DynamicResource UiFontFamily}"
-        FontSize="{DynamicResource UiFontSize}">
-  <Window.Resources>
-    <Style TargetType="{x:Type Control}">
-      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
-      <Setter Property="FontSize" Value="11"/>
-    </Style>
-    <Style TargetType="TextBlock">
-      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-    </Style>
-    <Style TargetType="Label">
-      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-    </Style>
-    <Style x:Key="IconButtonStyle" TargetType="Button">
-      <Setter Property="Width" Value="30"/>
-      <Setter Property="Height" Value="26"/>
-      <Setter Property="Padding" Value="0"/>
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-      <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
-                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-              </Trigger>
-              <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
-              </Trigger>
-              <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-      <Setter Property="Height" Value="32"/>
-      <Setter Property="MinWidth" Value="120"/>
-      <Setter Property="Padding" Value="12,6"/>
-      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
-      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border x:Name="Bd"
-                    Background="{TemplateBinding Background}"
-                    BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="8">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
-              </Trigger>
-              <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
-              </Trigger>
-              <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-    <Style x:Key="SecondaryButtonStyle"
-           TargetType="Button"
-           BasedOn="{StaticResource PrimaryButtonStyle}">
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border x:Name="Bd"
-                    Background="{TemplateBinding Background}"
-                    BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="8">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PanelBg}"/>
-                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
-                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-              </Trigger>
-              <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
-              </Trigger>
-              <Trigger Property="IsEnabled" Value="False">
-                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-    <Style x:Key="TextBoxStyle" TargetType="TextBox">
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="10,6"/>
-      <Setter Property="Height" Value="34"/>
-    </Style>
-    <Style x:Key="PasswordBoxStyle" TargetType="PasswordBox">
-      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Padding" Value="10,6"/>
-      <Setter Property="Height" Value="34"/>
-    </Style>
-    <Style x:Key="CheckBoxStyle" TargetType="CheckBox">
-      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-      <Setter Property="Margin" Value="0,0,0,6"/>
-    </Style>
-    <Style x:Key="CardTitleStyle" TargetType="TextBlock">
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="FontSize" Value="11"/>
-      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
-      <Setter Property="Margin" Value="0,0,0,10"/>
-    </Style>
-  </Window.Resources>
-  <Border Background="{DynamicResource FormBg}"
-          BorderBrush="{DynamicResource BorderBrushColor}"
-          BorderThickness="1"
-          CornerRadius="12"
-          Margin="10"
-          SnapsToDevicePixels="True">
-
-    <Border.Effect>
-      <DropShadowEffect Color="Black"
-                        Direction="270"
-                        ShadowDepth="4"
-                        BlurRadius="14"
-                        Opacity="0.25"/>
-    </Border.Effect>
-    <Grid>
-      <Grid.RowDefinitions>
-        <RowDefinition Height="52"/>
-        <RowDefinition Height="Auto"/>
-        <RowDefinition Height="*"/>
-        <RowDefinition Height="Auto"/>
-      </Grid.RowDefinitions>
-      <Border Grid.Row="0"
-              x:Name="HeaderBar"
-              Background="{DynamicResource FormBg}"
-              CornerRadius="12,12,0,0"
-              Padding="12,8">
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
-          </Grid.ColumnDefinitions>
-          <Border Grid.Column="0"
-                  Width="6"
-                  CornerRadius="3"
-                  Background="{DynamicResource AccentPrimary}"
-                  Margin="0,4,10,4"/>
-          <StackPanel Grid.Column="1" Orientation="Vertical">
-            <TextBlock Text="Opciones de Respaldo"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource FormFg}"
-                       FontSize="12"/>
-            <TextBlock Text="Backup + compresión opcional"
-                       Foreground="{DynamicResource AccentMuted}"
-                       FontSize="10"
-                       Margin="0,2,0,0"/>
-          </StackPanel>
-          <Button Grid.Column="2"
-                  x:Name="btnClose"
-                  Style="{StaticResource IconButtonStyle}"
-                  Content="✕"
-                  ToolTip="Cerrar"/>
-        </Grid>
-      </Border>
-      <Border Grid.Row="1"
-              Background="{DynamicResource PanelBg}"
-              BorderBrush="{DynamicResource BorderBrushColor}"
-              BorderThickness="1"
-              CornerRadius="10"
-              Padding="10,8"
-              Margin="12,0,12,10">
-        <TextBlock Text="Tip: si el servidor es remoto, la ruta UNC debe ser accesible para que puedas abrir la carpeta desde tu PC."
-                   Foreground="{DynamicResource PanelFg}"
-                   FontSize="10"
-                   Opacity="0.9"
-                   TextWrapping="Wrap"/>
-      </Border>
-      <Grid Grid.Row="2" Margin="12,0,12,10">
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="Auto"/>
-          <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <Border Grid.Row="0"
-                Background="{DynamicResource ControlBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12"
-                Margin="0,0,0,10">
-          <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Text="Opciones" Style="{StaticResource CardTitleStyle}"/>
-            <CheckBox x:Name="chkRespaldo" Grid.Row="1"
-                      Style="{StaticResource CheckBoxStyle}"
-                      IsChecked="True" IsEnabled="False">
-              <TextBlock Text="Respaldar" FontWeight="SemiBold"/>
-            </CheckBox>
-            <TextBlock Grid.Row="2" Text="Nombre del respaldo:" Margin="0,2,0,6"/>
-            <TextBox x:Name="txtNombre" Grid.Row="3" Style="{StaticResource TextBoxStyle}" />
-          <Grid Grid.Row="4" Margin="0,10,0,0">
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-              <CheckBox x:Name="chkComprimir" Grid.Row="0"
-                        Style="{StaticResource CheckBoxStyle}">
-                <TextBlock Text="Comprimir (requiere Chocolatey + 7-Zip)" FontWeight="SemiBold"/>
-              </CheckBox>
-              <TextBlock x:Name="lblPassword" Grid.Row="1" Text="Contraseña (opcional) para ZIP:" Margin="0,2,0,6"/>
-              <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <PasswordBox x:Name="txtPassword" Grid.Column="0" Style="{StaticResource PasswordBoxStyle}"/>
-                <Button x:Name="btnTogglePassword" Grid.Column="1"
-                        Content="👁"
-                        Width="34"
-                        Height="34"
-                        Margin="8,0,0,0"
-                        Style="{StaticResource SecondaryButtonStyle}"/>
-              </Grid>
-              <CheckBox x:Name="chkSubir" Grid.Row="3"
-                        Style="{StaticResource CheckBoxStyle}"
-                        Margin="0,10,0,0"
-                        IsEnabled="False"
-                        IsChecked="False">
-                <TextBlock Text="Subir a Mega.nz (opción deshabilitada)" FontWeight="SemiBold"/>
-              </CheckBox>
-            </Grid>
-          </Grid>
-        </Border>
-        <Border Grid.Row="1"
-                Background="{DynamicResource ControlBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12"
-                Margin="0,0,0,10">
-          <StackPanel>
-            <TextBlock Text="Progreso" Style="{StaticResource CardTitleStyle}"/>
-            <ProgressBar x:Name="pbBackup" Height="20" Minimum="0" Maximum="100" Value="0"/>
-            <TextBlock x:Name="txtProgress" Text="Esperando..." Margin="0,8,0,0" TextWrapping="Wrap"/>
-          </StackPanel>
-        </Border>
-        <Border Grid.Row="2"
-                Background="{DynamicResource ControlBg}"
-                BorderBrush="{DynamicResource BorderBrushColor}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12">
-          <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto"/>
-              <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Text="Log" Style="{StaticResource CardTitleStyle}"/>
-            <TextBox x:Name="txtLog" Grid.Row="1"
-                     IsReadOnly="True"
-                     VerticalScrollBarVisibility="Auto"
-                     HorizontalScrollBarVisibility="Auto"
-                     TextWrapping="NoWrap"
-                     Background="{DynamicResource PanelBg}"
-                     Foreground="{DynamicResource PanelFg}"
-                     BorderBrush="{DynamicResource BorderBrushColor}"
-                     BorderThickness="1"
-                     Padding="10"/>
-          </Grid>
-        </Border>
-      </Grid>
-      <Grid Grid.Row="3" Margin="12,0,12,12">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-        <TextBlock Grid.Column="0"
-                   Text="Enter: Iniciar   |   Esc: Cerrar"
-                   Foreground="{DynamicResource AccentMuted}"
-                   VerticalAlignment="Center"/>
-        <StackPanel Grid.Column="1" Orientation="Horizontal">
-          <Button x:Name="btnAbrirCarpeta"
-                  Content="Abrir Carpeta"
-                  Style="{StaticResource SecondaryButtonStyle}"
-                  Width="130"
-                  Margin="0,0,10,0"/>
-          <Button x:Name="btnCerrar"
-                  Content="Cerrar"
-                  Style="{StaticResource SecondaryButtonStyle}"
-                  Width="110"
-                  Margin="0,0,10,0"
-                  IsCancel="True"/>
-          <Button x:Name="btnAceptar"
-                  Content="Iniciar Respaldo"
-                  Style="{StaticResource PrimaryButtonStyle}"
-                  Width="160"
-                  IsDefault="True"/>
-        </StackPanel>
-      </Grid>
-    </Grid>
-  </Border>
-</Window>
-"@
-  $ui = New-WpfWindow -Xaml $xaml -PassThru
-  $window = $ui.Window
-  $c = $ui.Controls
-  function Get-Ctrl([string]$name) {
-    try {
-      if ($null -ne $c -and $c.ContainsKey($name) -and $null -ne $c[$name]) { return $c[$name] }
-    } catch {}
-    try { return $window.FindName($name) } catch { return $null }
-  }
-
-  $theme = Get-DzUiTheme
-  Set-DzWpfThemeResources -Window $window -Theme $theme
-  try { Set-WpfDialogOwner -Dialog $window } catch {}
-  try { if (-not $window.Owner -and $global:MainWindow -is [System.Windows.Window]) { $window.Owner = $global:MainWindow } } catch {}
-  $chkRespaldo = Get-Ctrl "chkRespaldo"
-  $txtNombre = Get-Ctrl "txtNombre"
-  $chkComprimir = Get-Ctrl "chkComprimir"
-  $txtPassword = Get-Ctrl "txtPassword"
-  $lblPassword = Get-Ctrl "lblPassword"
-  $chkSubir = Get-Ctrl "chkSubir"
-  $pbBackup = Get-Ctrl "pbBackup"
-  $txtProgress = Get-Ctrl "txtProgress"
-  $txtLog = Get-Ctrl "txtLog"
-  $btnAceptar = Get-Ctrl "btnAceptar"
-  $btnAbrirCarpeta = Get-Ctrl "btnAbrirCarpeta"
-  $btnCerrar = Get-Ctrl "btnCerrar"
-  $btnTogglePassword = Get-Ctrl "btnTogglePassword"
-
-  $headerBar = Get-Ctrl "HeaderBar"
-  $btnClose = Get-Ctrl "btnClose"
-
-  Write-DzDebug "`t[DEBUG][Show-BackupDialog] Controles: chkRespaldo=$([bool]$chkRespaldo) txtNombre=$([bool]$txtNombre) chkComprimir=$([bool]$chkComprimir) txtPassword=$([bool]$txtPassword) lblPassword=$([bool]$lblPassword) chkSubir=$([bool]$chkSubir) pbBackup=$([bool]$pbBackup) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnAbrirCarpeta=$([bool]$btnAbrirCarpeta) btnCerrar=$([bool]$btnCerrar) btnTogglePassword=$([bool]$btnTogglePassword)"
-  $window.WindowStartupLocation = "Manual"
-  $window.Add_Loaded({
-      try {
-        $owner = $window.Owner
-        if (-not $owner) { $window.WindowStartupLocation = "CenterScreen"; return }
-        $ob = $owner.RestoreBounds
-        $targetW = $window.ActualWidth; if ($targetW -le 0) { $targetW = $window.Width }
-        $targetH = $window.ActualHeight; if ($targetH -le 0) { $targetH = $window.Height }
-        $left = $ob.Left + (($ob.Width - $targetW) / 2)
-        $top = $ob.Top + (($ob.Height - $targetH) / 2)
-
-        $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
-        $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
-        $wa = $screen.WorkingArea
-        if ($left -lt $wa.Left) { $left = $wa.Left }
-        if ($top -lt $wa.Top) { $top = $wa.Top }
-        if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
-        if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
-        $window.Left = [double]$left
-        $window.Top = [double]$top
-      } catch {}
-    }.GetNewClosure())
-  if ($headerBar) {
-    $headerBar.Add_MouseLeftButtonDown({
-        if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
-          try { $window.DragMove() } catch {}
-        }
-      })
-  } else {
-    Write-DzDebug "`t[DEBUG][Show-BackupDialog] HeaderBar=NULL (no se pudo enganchar DragMove)"
-  }
-  if ($btnClose) {
-    $btnClose.Add_Click({
-        try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch {}
-        try { if ($timer -and $timer.IsEnabled) { $timer.Stop() } } catch {}
-        try { if ($stopwatch) { $stopwatch.Stop() } } catch {}
-        Safe-CloseWindow -Window $window -Result $false
-      })
-  }
-  $btnCerrar.Add_Click({
-      try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch {}
-      try { if ($timer -and $timer.IsEnabled) { $timer.Stop() } } catch {}
-      try { if ($stopwatch) { $stopwatch.Stop() } } catch {}
-      Safe-CloseWindow -Window $window -Result $false
-    })
-  $window.Add_PreviewKeyDown({
-      param($sender, $e)
-      if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
-        try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch {}
-        try { if ($timer -and $timer.IsEnabled) { $timer.Stop() } } catch {}
-        try { if ($stopwatch) { $stopwatch.Stop() } } catch {}
-        Safe-CloseWindow -Window $window -Result $false
-      }
-    })
-  if (-not $txtNombre -or -not $chkComprimir -or -not $txtPassword -or -not $lblPassword -or -not $chkSubir -or -not $pbBackup -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnAbrirCarpeta -or -not $btnCerrar) { Write-DzDebug "`t[DEBUG][Show-BackupDialog] ERROR: uno o más controles son NULL. Cerrando..."; throw "Controles WPF incompletos (FindName devolvió NULL)." }
-  $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'
-  $txtNombre.Text = ("$Database-$timestampsDefault.bak")
-  $txtPassword.IsEnabled = $false
-  $lblPassword.IsEnabled = $false
-  $chkSubir.IsEnabled = $false
-  $chkSubir.IsChecked = $false
-  $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
-  $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
-  $script:DonePopupShown = $false
-  $script:LastDoneStatus = $null
-  function Paint-Progress { param([int]$Percent, [string]$Message) $pbBackup.Value = $Percent; $txtProgress.Text = $Message }
-  function Add-Log { param([string]$Message) $logQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $Message)) }
-  function Disable-CompressionUI { $chkComprimir.IsChecked = $false; $txtPassword.IsEnabled = $false; $lblPassword.IsEnabled = $false; $txtPassword.Password = "" }
-  function New-SafeCredential { param([string]$Username, [string]$PlainPassword) $secure = New-Object System.Security.SecureString; foreach ($ch in $PlainPassword.ToCharArray()) { $secure.AppendChar($ch) }; $secure.MakeReadOnly(); New-Object System.Management.Automation.PSCredential($Username, $secure) }
-  function Start-BackupWorkAsync {
-    param(
-      [string]$Server,
-      [string]$Database,
-      [string]$BackupQuery,
-      [string]$ScriptBackupPath,
-      [bool]$DoCompress,
-      [string]$ZipPassword,
-      [System.Management.Automation.PSCredential]$Credential,
-      [System.Collections.Concurrent.ConcurrentQueue[string]]$LogQueue,
-      [System.Collections.Concurrent.ConcurrentQueue[hashtable]]$ProgressQueue
-    )
-    Write-DzDebug "`t[DEBUG][Start-BackupWorkAsync] Preparando runspace..."
-    $worker = {
-      param($Server, $Database, $BackupQuery, $ScriptBackupPath, $DoCompress, $ZipPassword, $Credential, $LogQueue, $ProgressQueue)
-      function EnqLog([string]$m) { $LogQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $m)) }
-      function EnqProg([int]$p, [string]$m) { $ProgressQueue.Enqueue(@{Percent = $p; Message = $m }) }
-      function Invoke-SqlQueryLite {
-        param([string]$Server, [string]$Database, [string]$Query, [System.Management.Automation.PSCredential]$Credential, [scriptblock]$InfoMessageCallback)
-        $connection = $null
-        $passwordBstr = [IntPtr]::Zero
-        $plainPassword = $null
-        try {
-          $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
-          $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
-          $cs = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
-          $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
-          if ($InfoMessageCallback) { $connection.add_InfoMessage({ param($sender, $e) try { & $InfoMessageCallback $e.Message } catch { } }); $connection.FireInfoMessageEventOnUserErrors = $true }
-          $connection.Open()
-          $cmd = $connection.CreateCommand()
-          $cmd.CommandText = $Query
-          $cmd.CommandTimeout = 0
-          [void]$cmd.ExecuteNonQuery()
-          @{ Success = $true }
-        } catch { @{ Success = $false; ErrorMessage = $_.Exception.Message } } finally {
-          if ($plainPassword) { $plainPassword = $null }
-          if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
-          if ($connection) { try { $connection.Close() } catch { } ; try { $connection.Dispose() } catch { } }
-        }
-      }
-      function Get-7ZipPath {
-        $c = @("$env:ProgramFiles\7-Zip\7z.exe", "${env:ProgramFiles(x86)}\7-Zip\7z.exe")
-        foreach ($p in $c) { if (Test-Path $p) { return $p } }
-        $cmd = Get-Command 7z.exe -ErrorAction SilentlyContinue
-        if ($cmd) { return $cmd.Source }
-        $null
-      }
-      try {
-        EnqLog "Enviando comando a SQL Server..."
-        EnqProg 10 "Iniciando backup..."
-        $progressCb = {
-          param([string]$Message)
-          $m = ($Message -replace '\s+', ' ').Trim()
-          if ($m) { EnqLog ("[SQL] {0}" -f $m) }
-          $backupMax = 100
-          if ($DoCompress) { $backupMax = 90 }
-          if ($Message -match '(?i)\b(\d{1,3})\s*(percent|porcentaje|por\s+ciento)\b') {
-            $p = [int]$Matches[1]
-            if ($p -gt 100) { $p = 100 }
-            if ($p -lt 0) { $p = 0 }
-            $scaled = [int][math]::Floor(($p * $backupMax) / 100)
-            if ($DoCompress -and $scaled -ge 100) { $scaled = 90 }
-            EnqProg $scaled ("Progreso backup: {0}%" -f $p)
-            EnqLog ("Progreso backup: {0}%" -f $p)
-            return
-          }
-          if ($Message -match '(?i)\b(successfully processed|procesad[oa]\s+correctamente|completad[oa])\b') {
-            if ($DoCompress) { EnqProg 90 "Backup listo. Iniciando compresión..." } else { EnqProg 100 "¡Backup completado!" }
-            EnqLog "✅ Backup completado (mensaje SQL)"
-            return
-          }
-        }
-        $r = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $BackupQuery -Credential $Credential -InfoMessageCallback $progressCb
-        if (-not $r.Success) { EnqProg 0 "Error en backup"; EnqLog ("❌ Error de SQL: {0}" -f $r.ErrorMessage); EnqLog "__DONE_ERR__"; return }
-        if ($DoCompress) { EnqProg 90 "Backup terminado. Iniciando compresión..." } else { EnqProg 100 "Backup terminado." }
-        EnqLog "✅ Comando BACKUP finalizó (ExecuteNonQuery)"
-        Start-Sleep -Milliseconds 500
-        $canSeeFile = $false
-        try { $canSeeFile = Test-Path $ScriptBackupPath } catch { $canSeeFile = $false }
-        if ($canSeeFile) {
-          $sizeMB = [math]::Round((Get-Item $ScriptBackupPath).Length / 1MB, 2)
-          EnqLog ("📊 Tamaño del archivo: {0} MB" -f $sizeMB)
-          EnqLog ("📁 Ubicación: {0}" -f $ScriptBackupPath)
-        } else {
-          EnqLog ("⚠️ No se encontró el archivo en: {0}" -f $ScriptBackupPath)
-          EnqLog ("ℹ️ Nota: Si es servidor remoto, puede ser permisos/UNC. El backup pudo haberse generado en el servidor.")
-        }
-        if ($DoCompress) {
-          EnqProg 90 "Backup listo. Preparando compresión..."
-          EnqLog "🗜️ Iniciando compresión ZIP..."
-          $inputBak = $ScriptBackupPath
-          $zipPath = "$ScriptBackupPath.zip"
-          if (-not (Test-Path $inputBak)) { EnqProg 0 "Error: no existe BAK"; EnqLog ("⚠️ No existe el BAK accesible: {0}" -f $inputBak); EnqLog "__DONE_ERR__"; return }
-          $sevenZip = Get-7ZipPath
-          if (-not $sevenZip -or -not (Test-Path $sevenZip)) { EnqProg 0 "Error: no se encontró 7-Zip"; EnqLog "❌ No se encontró 7z.exe. No se puede comprimir."; EnqLog "__DONE_ERR__"; return }
-          try {
-            if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
-            EnqProg 92 "Comprimiendo (ZIP)..."
-            if ($ZipPassword -and $ZipPassword.Trim().Length -gt 0) { & $sevenZip a -tzip -p"$($ZipPassword.Trim())" -mem=AES256 $zipPath $inputBak | Out-Null } else { & $sevenZip a -tzip $zipPath $inputBak | Out-Null }
-            EnqProg 97 "Finalizando compresión..."
-            Start-Sleep -Milliseconds 300
-            if (Test-Path $zipPath) { $zipMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2); EnqProg 99 "ZIP creado. Cerrando..."; EnqLog ("✅ ZIP creado ({0} MB): {1}" -f $zipMB, $zipPath) } else { EnqProg 0 "Error: ZIP no generado"; EnqLog ("❌ Se ejecutó 7-Zip pero NO se generó el ZIP: {0}" -f $zipPath) }
-          } catch { EnqProg 0 "Error al comprimir"; EnqLog ("❌ Error al comprimir: {0}" -f $_.Exception.Message) }
-        }
-        if ($DoCompress) {
-          EnqLog "__DONE_OK__"
-        } else {
-          if ($canSeeFile) { EnqLog "__DONE_OK__" } else { EnqLog "__DONE_WARN__" }
-        }
-
-      } catch {
-        EnqProg 0 "Error"
-        EnqLog ("❌ Error inesperado (worker): {0}" -f $_.Exception.Message)
-        EnqLog "__DONE_ERR__"
-      }
-    }
-    $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
-    $rs.ApartmentState = 'MTA'
-    $rs.ThreadOptions = 'ReuseThread'
-    $rs.Open()
-    $ps = [PowerShell]::Create()
-    $ps.Runspace = $rs
-    [void]$ps.AddScript($worker).AddArgument($Server).AddArgument($Database).AddArgument($BackupQuery).AddArgument($ScriptBackupPath).AddArgument($DoCompress).AddArgument($ZipPassword).AddArgument($Credential).AddArgument($LogQueue).AddArgument($ProgressQueue)
-    $null = $ps.BeginInvoke()
-    Write-DzDebug "`t[DEBUG][Start-BackupWorkAsync] Worker lanzado"
-  }
-  $stopwatch = $null
-  $timer = $null
-  $logTimer = [System.Windows.Threading.DispatcherTimer]::new()
-  $logTimer.Interval = [TimeSpan]::FromMilliseconds(200)
-  $script:LogMaxChars = 60000
-  $logTimer.Add_Tick({
-      try {
-        $count = 0
-        $doneThisTick = $false
-        $prependBuffer = New-Object System.Text.StringBuilder
-        while ($count -lt 50) {
-          $line = $null
-          if (-not $logQueue.TryDequeue([ref]$line)) { break }
-          [void]$prependBuffer.AppendLine($line)
-          if ($line -like "*__DONE_OK__*" -or $line -like "*__DONE_WARN__*" -or $line -like "*__DONE_ERR__*") {
-            if ($line -like "*__DONE_OK__*") { $script:LastDoneStatus = "OK" }
-            elseif ($line -like "*__DONE_WARN__*") { $script:LastDoneStatus = "WARN" }
-            else { $script:LastDoneStatus = "ERR" }
-            $doneThisTick = $true
-            Write-DzDebug "`t[DEBUG][UI] Señal DONE recibida: $script:LastDoneStatus"
-            $script:BackupRunning = $false
-            $btnAceptar.IsEnabled = $true
-            $btnAceptar.Content = "Iniciar Respaldo"
-            $txtNombre.IsEnabled = $true
-            $chkComprimir.IsEnabled = $true
-            if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true }
-            $btnAbrirCarpeta.IsEnabled = $true
-            $tmp = $null
-            while ($progressQueue.TryDequeue([ref]$tmp)) { }
-            if ($script:LastDoneStatus -eq "ERR") {
-              Paint-Progress -Percent 0 -Message "Error"
-            } else {
-              Paint-Progress -Percent 100 -Message "Completado"
-            }
-            $script:BackupDone = $true
-            if (-not $script:DonePopupShown) {
-              $script:DonePopupShown = $true
-              if ($script:LastDoneStatus -eq "OK") {
-                Ui-Info "Respaldo finalizado." "Información" $window
-              } elseif ($script:LastDoneStatus -eq "WARN") {
-                Ui-Warn "Respaldo finalizado.`n`nTen en cuenta que a veces marca error de lectura porque es en un servidor (permisos/UNC). El backup pudo haberse generado en el servidor." "Atención" $window
-              } else {
-                Ui-Error "Ocurrió un error durante el respaldo. Revisa el log." "Error" $window
-              }
-            }
-          }
-          $count++
-        }
-        if ($count -gt 0) {
-          $newText = $prependBuffer.ToString()
-          if ($newText.Length -gt 0) {
-            $txtLog.Text = $newText + $txtLog.Text
-            if ($txtLog.Text.Length -gt $script:LogMaxChars) {
-              $txtLog.Text = $txtLog.Text.Substring(0, $script:LogMaxChars)
-            }
-            $txtLog.ScrollToLine(0)  # siempre arriba
-          }
-        }
-
-        if (-not $doneThisTick) {
-          $last = $null
-          while ($true) {
-            $p = $null
-            if (-not $progressQueue.TryDequeue([ref]$p)) { break }
-            $last = $p
-          }
-          if ($last) { Paint-Progress -Percent $last.Percent -Message $last.Message }
-        }
-      } catch { Write-DzDebug "`t[DEBUG][UI][logTimer] ERROR: $($_.Exception.Message)" }
-      if ($script:BackupDone) {
-        $tmpLine = $null
-        $tmpProg = $null
-        if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) { $logTimer.Stop(); $script:BackupDone = $false }
-      }
-    })
-  $logTimer.Start()
-  Write-DzDebug "`t[DEBUG][Show-BackupDialog] logTimer iniciado"
-  $chkComprimir.Add_Checked({
-      Write-DzDebug "`t[DEBUG][UI] chkComprimir CHECKED"
-      try {
-        if (-not (Test-ChocolateyInstalled)) {
-          $msg = @"
-Chocolatey es necesario SOLAMENTE si deseas:
-✓ Comprimir el respaldo (ZIP con contraseña)
-Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
-¿Deseas instalar Chocolatey ahora?
-"@
-          $wantChoco = Ui-Confirm $msg "Chocolatey requerido" $window
-          if (-not $wantChoco) { Ui-Warn "Compresión deshabilitada (Chocolatey no instalado)." "Atención" $window; Disable-CompressionUI; return }
-          $okChoco = Install-Chocolatey
-          if (-not $okChoco -or -not (Test-ChocolateyInstalled)) { Ui-Warn "No se pudo instalar Chocolatey. Compresión deshabilitada." "Atención" $window; Disable-CompressionUI; return }
-        }
-        if (-not (Test-7ZipInstalled)) {
-          $want7z = Ui-Confirm "Para comprimir se requiere 7-Zip. ¿Deseas instalarlo ahora con Chocolatey?" "7-Zip requerido" $window
-          if (-not $want7z) { Ui-Warn "Compresión deshabilitada (7-Zip no instalado)." "Atención" $window; Disable-CompressionUI; return }
-          $ok7z = Install-7ZipWithChoco
-          if (-not $ok7z) { Ui-Warn "No se pudo instalar 7-Zip. Compresión deshabilitada." "Atención" $window; Disable-CompressionUI; return }
-        }
-        $txtPassword.IsEnabled = $true
-        $lblPassword.IsEnabled = $true
-      } catch {
-        Write-DzDebug "`t[DEBUG][UI] Error chkComprimir CHECKED: $($_.Exception.Message)"
-        Ui-Error "Error validando requisitos de compresión: $($_.Exception.Message)" "Error" $window
-        Disable-CompressionUI
-      }
-    })
-  $chkComprimir.Add_Unchecked({ Write-DzDebug "`t[DEBUG][UI] chkComprimir UNCHECKED"; Disable-CompressionUI })
-  $btnAceptar.Add_Click({
-      if ($script:BackupRunning) { return }
-      $script:DonePopupShown = $false
-      $script:LastDoneStatus = $null
-      $script:BackupDone = $false
-      if ($script:BackupRunning) { return }
-      $script:BackupDone = $false
-      if (-not $logTimer.IsEnabled) { $logTimer.Start() }
-      if (-not $logTimer.IsEnabled) { $logTimer.Start() }
-      try {
-        $btnAceptar.IsEnabled = $false
-        $btnAceptar.Content = "Procesando..."
-        if ([string]::IsNullOrWhiteSpace($txtLog.Text)) {
-          # no hace nada
-        } else {
-          # opción 1: conservar siempre (recomendado)
-          Add-Log "— Iniciando nuevo respaldo (se conserva el log anterior) —"
-          $txtLog.AppendText("`r`n— Iniciando nuevo respaldo —`r`n")
-        }
-        $pbBackup.Value = 0
-        $txtProgress.Text = "Esperando..."
-        Add-Log "Iniciando proceso de backup..."
-        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-        $timer = [System.Windows.Threading.DispatcherTimer]::new()
-        $timer.Interval = [TimeSpan]::FromSeconds(1)
-        $timer.Start()
-        Write-DzDebug "`t[DEBUG][UI] Timer iniciado OK"
-        $machinePart = $Server.Split('\')[0]
-        $machineName = $machinePart.Split(',')[0]
-        if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
-        $sameHost = ($env:COMPUTERNAME -ieq $machineName)
-        $backupFileName = $txtNombre.Text
-        $sqlBackupFolder = "C:\Temp\SQLBackups"
-        $sqlBackupPath = Join-Path $sqlBackupFolder $backupFileName
-        if ($sameHost) { $scriptBackupPath = $sqlBackupPath } else { $scriptBackupPath = "\\$machineName\C$\Temp\SQLBackups\$backupFileName" }
-        Add-Log "Servidor: $Server"
-        Add-Log "Base de datos: $Database"
-        Add-Log "Usuario: $User"
-        Add-Log "Ruta SQL (donde escribe el motor): $sqlBackupPath"
-        Add-Log "Ruta accesible desde esta PC: $scriptBackupPath"
-        if (-not $backupFileName.ToLower().EndsWith(".bak")) { $backupFileName = "$backupFileName.bak"; $txtNombre.Text = $backupFileName }
-        $invalid = [System.IO.Path]::GetInvalidFileNameChars()
-        if ($backupFileName.IndexOfAny($invalid) -ge 0) { Show-WarnDialog -Message "El nombre contiene caracteres no válidos..." -Title "Nombre inválido" -Owner $window; Reset-BackupUI -ProgressText "Nombre inválido"; return }
-        $scriptBackupExists = $false
-        try {
-          $scriptBackupExists = Test-Path $scriptBackupPath -ErrorAction Stop
-        } catch {
-          Write-DzDebug "`t[DEBUG][UI] No se pudo validar la ruta de respaldo: $scriptBackupPath. $($_.Exception.Message)"
-        }
-        if ($scriptBackupExists) {
-          $choice = Ui-Confirm "Ya existe un respaldo con ese nombre en:`n$scriptBackupPath`n`n¿Deseas sobrescribirlo?" "Archivo existente" $window
-          if (-not $choice) { $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'; $txtNombre.Text = "$Database-$timestampsDefault.bak"; Add-Log "⚠️ Operación cancelada: el archivo ya existe. Se sugirió un nuevo nombre."; Reset-BackupUI -ProgressText "Cancelado (elige otro nombre y vuelve a intentar)"; return }
-        }
-        if ($sameHost) {
-          if (-not (Test-Path $sqlBackupFolder)) { New-Item -ItemType Directory -Path $sqlBackupFolder -Force | Out-Null }
-        } else {
-          $uncFolder = "\\$machineName\C$\Temp\SQLBackups"
-          try {
-            if (-not (Test-Path $uncFolder -ErrorAction Stop)) {
-              Add-Log "⚠️ No pude validar la carpeta UNC: $uncFolder (puede ser permisos). SQL intentará escribir en $sqlBackupFolder en el servidor."
-            }
-          } catch {
-            Write-DzDebug "`t[DEBUG][UI] No se pudo validar la carpeta UNC: $uncFolder. $($_.Exception.Message)"
-            Add-Log "⚠️ No pude validar la carpeta UNC: $uncFolder (puede ser permisos). SQL intentará escribir en $sqlBackupFolder en el servidor."
-          }
-        }
-        $credential = New-SafeCredential -Username $User -PlainPassword $Password
-        Add-Log "✓ Credenciales listas"
-        $backupQuery = @"
-BACKUP DATABASE [$Database]
-TO DISK = '$sqlBackupPath'
-WITH CHECKSUM, STATS = 1, FORMAT, INIT
-"@
-        Paint-Progress -Percent 5 -Message "Conectando a SQL Server..."
-        Write-DzDebug "`t[DEBUG][UI] Llamando Start-BackupWorkAsync"
-        Start-BackupWorkAsync -Server $Server -Database $Database -BackupQuery $backupQuery -ScriptBackupPath $scriptBackupPath -DoCompress ($chkComprimir.IsChecked -eq $true) -ZipPassword $txtPassword.Password -Credential $credential -LogQueue $logQueue -ProgressQueue $progressQueue
-      } catch {
-        Write-DzDebug "`t[DEBUG][UI] ERROR btnAceptar: $($_.Exception.Message)"
-        Add-Log "❌ Error: $($_.Exception.Message)"
-        $btnAceptar.IsEnabled = $true
-        $btnAceptar.Content = "Iniciar Respaldo"
-        if ($timer -and $timer.IsEnabled) { $timer.Stop() }
-        if ($stopwatch) { $stopwatch.Stop() }
-      }
-    })
-  $btnAbrirCarpeta.Add_Click({
-      Write-DzDebug "`t[DEBUG][UI] btnAbrirCarpeta Click"
-      $machinePart = $Server.Split('\')[0]
-      $machineName = $machinePart.Split(',')[0]
-      if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
-      $backupFolder = "\\$machineName\C$\Temp\SQLBackups"
-      if (Test-Path $backupFolder) { Start-Process explorer.exe $backupFolder } else { Ui-Warn "La carpeta de respaldos no existe todavía.`n`nRuta: $backupFolder" "Atención" $window }
-    })
-  $btnCerrar.Add_Click({
-      Write-DzDebug "`t[DEBUG][UI] btnCerrar Click"
-      try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch { }
-      try { if ($timer -and $timer.IsEnabled) { $timer.Stop() } } catch { }
-      try { if ($stopwatch) { $stopwatch.Stop() } } catch { }
-      Safe-CloseWindow -Window $window -Result $false
-    })
-  Write-DzDebug "`t[DEBUG][Show-BackupDialog] Antes de ShowDialog()"
-  $null = $window.ShowDialog()
-  Write-DzDebug "`t[DEBUG][Show-BackupDialog] Después de ShowDialog()"
-}
-function Reset-BackupUI {
-  param([string]$ButtonText = "Iniciar Respaldo", [string]$ProgressText = "Esperando...")
-  $script:BackupRunning = $false
-  $btnAceptar.IsEnabled = $true
-  $btnAceptar.Content = $ButtonText
-  $txtNombre.IsEnabled = $true
-  $chkComprimir.IsEnabled = $true
-  if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true; $lblPassword.IsEnabled = $true } else { $txtPassword.IsEnabled = $false; $lblPassword.IsEnabled = $false }
-  $btnAbrirCarpeta.IsEnabled = $true
-  $txtProgress.Text = $ProgressText
-}
 function Show-RestoreDialog {
   [CmdletBinding()]
   param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database, [Parameter(Mandatory = $false)][scriptblock]$OnRestoreCompleted)
@@ -3805,9 +2970,9 @@ function Invoke-SqlScalarTable {
 }
 function Get-ServerSubDirs {
   param(
-    [Parameter(Mandatory)] [string]$Server,
-    [Parameter(Mandatory)] [string]$Path,
-    [Parameter(Mandatory)] [System.Management.Automation.PSCredential]$Credential
+    [Parameter(Mandatory)][string]$Server,
+    [Parameter(Mandatory)][string]$Path,
+    [Parameter(Mandatory)][System.Management.Automation.PSCredential]$Credential
   )
 
   $p = [string]$Path
@@ -3819,7 +2984,6 @@ function Get-ServerSubDirs {
 
   $pEsc = $p -replace "'", "''"
 
-  # 1) Intento: xp_dirtree
   $q1 = @"
 DECLARE @p nvarchar(4000)=N'$pEsc';
 CREATE TABLE #t(subdirectory nvarchar(512), depth int, [file] int);
@@ -3836,12 +3000,13 @@ ORDER BY subdirectory;
     $names = @()
     foreach ($row in $r1.DataTable.Rows) {
       $n = [string]$row["subdirectory"]
-      if (-not [string]::IsNullOrWhiteSpace($n)) { $names += $n }
+      if (-not [string]::IsNullOrWhiteSpace($n)) {
+        $names += $n
+      }
     }
     return @{ Success = $true; ErrorMessage = $null; Items = $names }
   }
 
-  # 2) Fallback: xp_cmdshell dir /b /ad (requiere xp_cmdshell)
   $q2 = @"
 DECLARE @cmd nvarchar(4000)=N'cmd /c dir /b /ad "$pEsc"';
 CREATE TABLE #x(line nvarchar(4000));
@@ -3861,17 +3026,911 @@ ORDER BY line;
     $names = @()
     foreach ($row in $r2.DataTable.Rows) {
       $n = [string]$row["line"]
-      if (-not [string]::IsNullOrWhiteSpace($n)) { $names += $n.Trim() }
+      if (-not [string]::IsNullOrWhiteSpace($n)) {
+        $names += $n.Trim()
+      }
     }
     return @{ Success = $true; ErrorMessage = $null; Items = $names }
   }
 
   $msg = $null
-  if ($r1 -and $r1.ErrorMessage) { $msg = $r1.ErrorMessage }
-  if (-not $msg -and $r2 -and $r2.ErrorMessage) { $msg = $r2.ErrorMessage }
-  if (-not $msg) { $msg = "No se pudo listar carpetas (xp_dirtree y xp_cmdshell fallaron)." }
+  if ($r1 -and $r1.ErrorMessage) {
+    $msg = $r1.ErrorMessage
+  }
+  if (-not $msg -and $r2 -and $r2.ErrorMessage) {
+    $msg = $r2.ErrorMessage
+  }
+  if (-not $msg) {
+    $msg = "No se pudo listar carpetas (xp_dirtree y xp_cmdshell fallaron)."
+  }
 
   return @{ Success = $false; ErrorMessage = $msg; Items = @() }
+}
+function Show-BackupDialog {
+  [CmdletBinding()]
+  param([Parameter(Mandatory = $true)][string]$Server, [Parameter(Mandatory = $true)][string]$User, [Parameter(Mandatory = $true)][string]$Password, [Parameter(Mandatory = $true)][string]$Database)
+  $script:BackupRunning = $false
+  $script:BackupDone = $false
+  $script:EnableThreadJob = $false
+  $defaultBackupPath = "C:\Temp\SQLBackups"
+  function Initialize-ThreadJob {
+    [CmdletBinding()]
+    param()
+    Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Verificando módulo ThreadJob"
+    if (Get-Module -ListAvailable -Name ThreadJob) {
+      Import-Module ThreadJob -Force
+      Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob importado"
+      return $true
+    } else {
+      Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob no encontrado, intentando instalar"
+      try {
+        Install-Module -Name ThreadJob -Force -Scope CurrentUser -ErrorAction Stop
+        Import-Module ThreadJob -Force
+        Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Módulo ThreadJob instalado e importado"
+        return $true
+      } catch {
+        Write-DzDebug "`t[DEBUG][Initialize-ThreadJob] Error instalando ThreadJob: $_"
+        return $false
+      }
+    }
+  }
+  if ($script:EnableThreadJob) { if (-not (Initialize-ThreadJob)) { Write-Host "Advertencia: No se pudo cargar ThreadJob..." -ForegroundColor Yellow } }
+  Write-DzDebug "`t[DEBUG][Show-BackupDialog] INICIO"
+  Write-DzDebug "`t[DEBUG][Show-BackupDialog] Server='$Server' Database='$Database' User='$User'"
+  Add-Type -AssemblyName PresentationFramework
+  Add-Type -AssemblyName System.Windows.Forms
+  $theme = Get-DzUiTheme
+  $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Opciones de Respaldo"
+        Width="630" Height="750"
+        MinWidth="630" MinHeight="750"
+        MaxWidth="630" MaxHeight="750"
+        WindowStartupLocation="Manual"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Topmost="False"
+        FontFamily="{DynamicResource UiFontFamily}"
+        FontSize="{DynamicResource UiFontSize}">
+  <Window.Resources>
+    <Style TargetType="{x:Type Control}">
+      <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
+      <Setter Property="FontSize" Value="11"/>
+    </Style>
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+    <Style TargetType="Label">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+    </Style>
+    <Style x:Key="IconButtonStyle" TargetType="Button">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentRed}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="MinWidth" Value="120"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="SecondaryButtonStyle"
+           TargetType="Button"
+           BasedOn="{StaticResource PrimaryButtonStyle}">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="8">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PanelBg}"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentPrimary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="TextBoxStyle" TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Height" Value="34"/>
+    </Style>
+    <Style x:Key="PasswordBoxStyle" TargetType="PasswordBox">
+      <Setter Property="Background" Value="{DynamicResource ControlBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ControlFg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Height" Value="34"/>
+    </Style>
+    <Style x:Key="CheckBoxStyle" TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="Margin" Value="0,0,0,6"/>
+    </Style>
+    <Style x:Key="CardTitleStyle" TargetType="TextBlock">
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="Foreground" Value="{DynamicResource FormFg}"/>
+      <Setter Property="Margin" Value="0,0,0,10"/>
+    </Style>
+  </Window.Resources>
+  <Border Background="{DynamicResource FormBg}"
+          BorderBrush="{DynamicResource BorderBrushColor}"
+          BorderThickness="1"
+          CornerRadius="12"
+          Margin="10"
+          SnapsToDevicePixels="True">
+
+    <Border.Effect>
+      <DropShadowEffect Color="Black"
+                        Direction="270"
+                        ShadowDepth="4"
+                        BlurRadius="14"
+                        Opacity="0.25"/>
+    </Border.Effect>
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="52"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <Border Grid.Row="0"
+              x:Name="HeaderBar"
+              Background="{DynamicResource FormBg}"
+              CornerRadius="12,12,0,0"
+              Padding="12,8">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <Border Grid.Column="0"
+                  Width="6"
+                  CornerRadius="3"
+                  Background="{DynamicResource AccentPrimary}"
+                  Margin="0,4,10,4"/>
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Text="Opciones de Respaldo"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource FormFg}"
+                       FontSize="12"/>
+            <TextBlock Text="Backup + compresión opcional"
+                       Foreground="{DynamicResource AccentMuted}"
+                       FontSize="10"
+                       Margin="0,2,0,0"/>
+          </StackPanel>
+          <Button Grid.Column="2"
+                  x:Name="btnClose"
+                  Style="{StaticResource IconButtonStyle}"
+                  Content="✕"
+                  ToolTip="Cerrar"/>
+        </Grid>
+      </Border>
+      <Border Grid.Row="1"
+              Background="{DynamicResource PanelBg}"
+              BorderBrush="{DynamicResource BorderBrushColor}"
+              BorderThickness="1"
+              CornerRadius="10"
+              Padding="10,8"
+              Margin="12,0,12,10">
+        <TextBlock Text="Tip: si el servidor es remoto, la ruta UNC debe ser accesible para que puedas abrir la carpeta desde tu PC."
+                   Foreground="{DynamicResource PanelFg}"
+                   FontSize="10"
+                   Opacity="0.9"
+                   TextWrapping="Wrap"/>
+      </Border>
+      <Grid Grid.Row="2" Margin="12,0,12,10">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+         <Border Grid.Row="0" Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource BorderBrushColor}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,10">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Opciones" Style="{StaticResource CardTitleStyle}"/>
+
+            <!-- Carpeta destino en servidor (NUEVO) -->
+            <TextBlock Grid.Row="1" Text="Carpeta destino en servidor:" FontWeight="SemiBold" Margin="0,0,0,6"/>
+            <Grid Grid.Row="2" Margin="0,0,0,10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBox Grid.Column="0" Name="txtServerBackupFolder" Style="{StaticResource TextBoxStyle}" IsReadOnly="True"/>
+              <Button Name="btnBrowseServerBackupFolder" Grid.Column="1" Content="🗂️ Servidor" Style="{StaticResource SecondaryButtonStyle}" Width="120" Margin="10,0,0,0" ToolTip="Explorar carpetas en el servidor SQL"/>
+            </Grid>
+
+            <CheckBox x:Name="chkRespaldo" Grid.Row="3" Style="{StaticResource CheckBoxStyle}" IsChecked="True" IsEnabled="False">
+              <TextBlock Text="Respaldar" FontWeight="SemiBold"/>
+            </CheckBox>
+            <TextBlock Grid.Row="4" Text="Nombre del respaldo:" Margin="0,2,0,6"/>
+            <TextBox x:Name="txtNombre" Grid.Row="5" Style="{StaticResource TextBoxStyle}" />
+
+            <Grid Grid.Row="6" Margin="0,10,0,0">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+              <CheckBox x:Name="chkComprimir" Grid.Row="0" Style="{StaticResource CheckBoxStyle}">
+                <TextBlock Text="Comprimir (requiere Chocolatey + 7-Zip)" FontWeight="SemiBold"/>
+              </CheckBox>
+              <TextBlock x:Name="lblPassword" Grid.Row="1" Text="Contraseña (opcional) para ZIP:" Margin="0,2,0,6"/>
+              <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <PasswordBox x:Name="txtPassword" Grid.Column="0" Style="{StaticResource PasswordBoxStyle}"/>
+                <Button x:Name="btnTogglePassword" Grid.Column="1" Content="👁" Width="34" Height="34" Margin="8,0,0,0" Style="{StaticResource SecondaryButtonStyle}"/>
+              </Grid>
+              <CheckBox x:Name="chkSubir" Grid.Row="3" Style="{StaticResource CheckBoxStyle}" Margin="0,10,0,0" IsEnabled="False" IsChecked="False">
+                <TextBlock Text="Subir a Mega.nz (opción deshabilitada)" FontWeight="SemiBold"/>
+              </CheckBox>
+            </Grid>
+          </Grid>
+        </Border>
+        <Border Grid.Row="1"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12"
+                Margin="0,0,0,10">
+          <StackPanel>
+            <TextBlock Text="Progreso" Style="{StaticResource CardTitleStyle}"/>
+            <ProgressBar x:Name="pbBackup" Height="20" Minimum="0" Maximum="100" Value="0"/>
+            <TextBlock x:Name="txtProgress" Text="Esperando..." Margin="0,8,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+        <Border Grid.Row="2"
+                Background="{DynamicResource ControlBg}"
+                BorderBrush="{DynamicResource BorderBrushColor}"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Log" Style="{StaticResource CardTitleStyle}"/>
+            <TextBox x:Name="txtLog" Grid.Row="1"
+                     IsReadOnly="True"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Auto"
+                     TextWrapping="NoWrap"
+                     Background="{DynamicResource PanelBg}"
+                     Foreground="{DynamicResource PanelFg}"
+                     BorderBrush="{DynamicResource BorderBrushColor}"
+                     BorderThickness="1"
+                     Padding="10"/>
+          </Grid>
+        </Border>
+      </Grid>
+      <Grid Grid.Row="3" Margin="12,0,12,12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0"
+                   Text="Enter: Iniciar   |   Esc: Cerrar"
+                   Foreground="{DynamicResource AccentMuted}"
+                   VerticalAlignment="Center"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
+          <Button x:Name="btnAbrirCarpeta"
+                  Content="Abrir Carpeta"
+                  Style="{StaticResource SecondaryButtonStyle}"
+                  Width="130"
+                  Margin="0,0,10,0"/>
+          <Button x:Name="btnCerrar"
+                  Content="Cerrar"
+                  Style="{StaticResource SecondaryButtonStyle}"
+                  Width="110"
+                  Margin="0,0,10,0"
+                  IsCancel="True"/>
+          <Button x:Name="btnAceptar"
+                  Content="Iniciar Respaldo"
+                  Style="{StaticResource PrimaryButtonStyle}"
+                  Width="160"
+                  IsDefault="True"/>
+        </StackPanel>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>
+"@
+  $ui = New-WpfWindow -Xaml $xaml -PassThru
+  $window = $ui.Window
+  $c = $ui.Controls
+  function Get-Ctrl([string]$name) {
+    try {
+      if ($null -ne $c -and $c.ContainsKey($name) -and $null -ne $c[$name]) { return $c[$name] }
+    } catch {}
+    try { return $window.FindName($name) } catch { return $null }
+  }
+  $theme = Get-DzUiTheme
+  Set-DzWpfThemeResources -Window $window -Theme $theme
+  try { Set-WpfDialogOwner -Dialog $window } catch {}
+  try { if (-not $window.Owner -and $global:MainWindow -is [System.Windows.Window]) { $window.Owner = $global:MainWindow } } catch {}
+  $chkRespaldo = Get-Ctrl "chkRespaldo"
+  $txtNombre = Get-Ctrl "txtNombre"
+  $txtServerBackupFolder = Get-Ctrl "txtServerBackupFolder"
+  $btnBrowseServerBackupFolder = Get-Ctrl "btnBrowseServerBackupFolder"
+  $chkComprimir = Get-Ctrl "chkComprimir"
+  $txtPassword = Get-Ctrl "txtPassword"
+  $lblPassword = Get-Ctrl "lblPassword"
+  $chkSubir = Get-Ctrl "chkSubir"
+  $pbBackup = Get-Ctrl "pbBackup"
+  $txtProgress = Get-Ctrl "txtProgress"
+  $txtLog = Get-Ctrl "txtLog"
+  $btnAceptar = Get-Ctrl "btnAceptar"
+  $btnAbrirCarpeta = Get-Ctrl "btnAbrirCarpeta"
+  $btnCerrar = Get-Ctrl "btnCerrar"
+  $btnTogglePassword = Get-Ctrl "btnTogglePassword"
+  $headerBar = Get-Ctrl "HeaderBar"
+  $btnClose = Get-Ctrl "btnClose"
+  if ($txtServerBackupFolder) {
+    $txtServerBackupFolder.Text = $defaultBackupPath
+    Write-DzDebug "`t[DEBUG][Show-BackupDialog] Carpeta por omisión establecida: $defaultBackupPath"
+  }
+
+  Write-DzDebug "`t[DEBUG][Show-BackupDialog] Controles: chkRespaldo=$([bool]$chkRespaldo) txtNombre=$([bool]$txtNombre) chkComprimir=$([bool]$chkComprimir) txtPassword=$([bool]$txtPassword) lblPassword=$([bool]$lblPassword) chkSubir=$([bool]$chkSubir) pbBackup=$([bool]$pbBackup) txtProgress=$([bool]$txtProgress) txtLog=$([bool]$txtLog) btnAceptar=$([bool]$btnAceptar) btnAbrirCarpeta=$([bool]$btnAbrirCarpeta) btnCerrar=$([bool]$btnCerrar) btnTogglePassword=$([bool]$btnTogglePassword)"
+  $window.WindowStartupLocation = "Manual"
+  $window.Add_Loaded({
+      try {
+        $owner = $window.Owner
+        if (-not $owner) { $window.WindowStartupLocation = "CenterScreen"; return }
+        $ob = $owner.RestoreBounds
+        $targetW = $window.ActualWidth; if ($targetW -le 0) { $targetW = $window.Width }
+        $targetH = $window.ActualHeight; if ($targetH -le 0) { $targetH = $window.Height }
+        $left = $ob.Left + (($ob.Width - $targetW) / 2)
+        $top = $ob.Top + (($ob.Height - $targetH) / 2)
+        $hOwner = [System.Windows.Interop.WindowInteropHelper]::new($owner).Handle
+        $screen = [System.Windows.Forms.Screen]::FromHandle($hOwner)
+        $wa = $screen.WorkingArea
+        if ($left -lt $wa.Left) { $left = $wa.Left }
+        if ($top -lt $wa.Top) { $top = $wa.Top }
+        if (($left + $targetW) -gt $wa.Right) { $left = $wa.Right - $targetW }
+        if (($top + $targetH) -gt $wa.Bottom) { $top = $wa.Bottom - $targetH }
+        $window.Left = [double]$left
+        $window.Top = [double]$top
+      } catch {}
+    }.GetNewClosure())
+
+  if ($headerBar) {
+    $headerBar.Add_MouseLeftButtonDown({
+        if ($_.ChangedButton -eq [System.Windows.Input.MouseButton]::Left) {
+          try { $window.DragMove() } catch {}
+        }
+      })
+  } else {
+    Write-DzDebug "`t[DEBUG][Show-BackupDialog] HeaderBar=NULL (no se pudo enganchar DragMove)"
+  }
+  if ($btnClose) {
+    $btnClose.Add_Click({
+        try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch {}
+        try { if ($timer -and $timer.IsEnabled) { $timer.Stop() } } catch {}
+        try { if ($stopwatch) { $stopwatch.Stop() } } catch {}
+        Safe-CloseWindow -Window $window -Result $false
+      })
+  }
+
+  $btnCerrar.Add_Click({
+      try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch {}
+      try { if ($timer -and $timer.IsEnabled) { $timer.Stop() } } catch {}
+      try { if ($stopwatch) { $stopwatch.Stop() } } catch {}
+      Safe-CloseWindow -Window $window -Result $false
+    })
+
+  $window.Add_PreviewKeyDown({
+      param($sender, $e)
+      if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+        try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch {}
+        try { if ($timer -and $timer.IsEnabled) { $timer.Stop() } } catch {}
+        try { if ($stopwatch) { $stopwatch.Stop() } } catch {}
+        Safe-CloseWindow -Window $window -Result $false
+      }
+    })
+  if (-not $txtNombre -or -not $txtServerBackupFolder -or -not $btnBrowseServerBackupFolder -or -not $chkComprimir -or -not $txtPassword -or -not $lblPassword -or -not $chkSubir -or -not $pbBackup -or -not $txtProgress -or -not $txtLog -or -not $btnAceptar -or -not $btnAbrirCarpeta -or -not $btnCerrar) {
+    Write-DzDebug "`t[DEBUG][Show-BackupDialog] ERROR: uno o más controles son NULL. Cerrando..."
+    throw "Controles WPF incompletos (FindName devolvió NULL)."
+  }
+
+  $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'
+  $txtNombre.Text = ("$Database-$timestampsDefault.bak")
+  $txtPassword.IsEnabled = $false
+  $lblPassword.IsEnabled = $false
+  $chkSubir.IsEnabled = $false
+  $chkSubir.IsChecked = $false
+
+  $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
+  $progressQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[hashtable]'
+  $script:DonePopupShown = $false
+  $script:LastDoneStatus = $null
+  function Paint-Progress { param([int]$Percent, [string]$Message) $pbBackup.Value = $Percent; $txtProgress.Text = $Message }
+  function Add-Log { param([string]$Message) $logQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $Message)) }
+  function Disable-CompressionUI { $chkComprimir.IsChecked = $false; $txtPassword.IsEnabled = $false; $lblPassword.IsEnabled = $false; $txtPassword.Password = "" }
+  function New-SafeCredential { param([string]$Username, [string]$PlainPassword) $secure = New-Object System.Security.SecureString; foreach ($ch in $PlainPassword.ToCharArray()) { $secure.AppendChar($ch) }; $secure.MakeReadOnly(); New-Object System.Management.Automation.PSCredential($Username, $secure) }
+  function Start-BackupWorkAsync {
+    param(
+      [string]$Server,
+      [string]$Database,
+      [string]$BackupQuery,
+      [string]$ScriptBackupPath,
+      [bool]$DoCompress,
+      [string]$ZipPassword,
+      [System.Management.Automation.PSCredential]$Credential,
+      [System.Collections.Concurrent.ConcurrentQueue[string]]$LogQueue,
+      [System.Collections.Concurrent.ConcurrentQueue[hashtable]]$ProgressQueue
+    )
+    Write-DzDebug "`t[DEBUG][Start-BackupWorkAsync] Preparando runspace..."
+    $worker = {
+      param($Server, $Database, $BackupQuery, $ScriptBackupPath, $DoCompress, $ZipPassword, $Credential, $LogQueue, $ProgressQueue)
+      function EnqLog([string]$m) { $LogQueue.Enqueue(("{0} {1}" -f (Get-Date -Format 'HH:mm:ss'), $m)) }
+      function EnqProg([int]$p, [string]$m) { $ProgressQueue.Enqueue(@{Percent = $p; Message = $m }) }
+      function Invoke-SqlQueryLite {
+        param([string]$Server, [string]$Database, [string]$Query, [System.Management.Automation.PSCredential]$Credential, [scriptblock]$InfoMessageCallback)
+        $connection = $null
+        $passwordBstr = [IntPtr]::Zero
+        $plainPassword = $null
+        try {
+          $passwordBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Credential.Password)
+          $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringUni($passwordBstr)
+          $cs = "Server=$Server;Database=$Database;User Id=$($Credential.UserName);Password=$plainPassword;MultipleActiveResultSets=True"
+          $connection = New-Object System.Data.SqlClient.SqlConnection($cs)
+          if ($InfoMessageCallback) { $connection.add_InfoMessage({ param($sender, $e) try { & $InfoMessageCallback $e.Message } catch { } }); $connection.FireInfoMessageEventOnUserErrors = $true }
+          $connection.Open()
+          $cmd = $connection.CreateCommand()
+          $cmd.CommandText = $Query
+          $cmd.CommandTimeout = 0
+          [void]$cmd.ExecuteNonQuery()
+          @{ Success = $true }
+        } catch { @{ Success = $false; ErrorMessage = $_.Exception.Message } } finally {
+          if ($plainPassword) { $plainPassword = $null }
+          if ($passwordBstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordBstr) }
+          if ($connection) { try { $connection.Close() } catch { } ; try { $connection.Dispose() } catch { } }
+        }
+      }
+      function Get-7ZipPath {
+        $c = @("$env:ProgramFiles\7-Zip\7z.exe", "${env:ProgramFiles(x86)}\7-Zip\7z.exe")
+        foreach ($p in $c) { if (Test-Path $p) { return $p } }
+        $cmd = Get-Command 7z.exe -ErrorAction SilentlyContinue
+        if ($cmd) { return $cmd.Source }
+        $null
+      }
+      try {
+        EnqLog "Enviando comando a SQL Server..."
+        EnqProg 10 "Iniciando backup..."
+        $progressCb = {
+          param([string]$Message)
+          $m = ($Message -replace '\s+', ' ').Trim()
+          if ($m) { EnqLog ("[SQL] {0}" -f $m) }
+          $backupMax = 100
+          if ($DoCompress) { $backupMax = 90 }
+          if ($Message -match '(?i)\b(\d{1,3})\s*(percent|porcentaje|por\s+ciento)\b') {
+            $p = [int]$Matches[1]
+            if ($p -gt 100) { $p = 100 }
+            if ($p -lt 0) { $p = 0 }
+            $scaled = [int][math]::Floor(($p * $backupMax) / 100)
+            if ($DoCompress -and $scaled -ge 100) { $scaled = 90 }
+            EnqProg $scaled ("Progreso backup: {0}%" -f $p)
+            EnqLog ("Progreso backup: {0}%" -f $p)
+            return
+          }
+          if ($Message -match '(?i)\b(successfully processed|procesad[oa]\s+correctamente|completad[oa])\b') {
+            if ($DoCompress) { EnqProg 90 "Backup listo. Iniciando compresión..." } else { EnqProg 100 "¡Backup completado!" }
+            EnqLog "✅ Backup completado (mensaje SQL)"
+            return
+          }
+        }
+        $r = Invoke-SqlQueryLite -Server $Server -Database "master" -Query $BackupQuery -Credential $Credential -InfoMessageCallback $progressCb
+        if (-not $r.Success) { EnqProg 0 "Error en backup"; EnqLog ("❌ Error de SQL: {0}" -f $r.ErrorMessage); EnqLog "__DONE_ERR__"; return }
+        if ($DoCompress) { EnqProg 90 "Backup terminado. Iniciando compresión..." } else { EnqProg 100 "Backup terminado." }
+        EnqLog "✅ Comando BACKUP finalizó (ExecuteNonQuery)"
+        Start-Sleep -Milliseconds 500
+        $canSeeFile = $false
+        try { $canSeeFile = Test-Path $ScriptBackupPath } catch { $canSeeFile = $false }
+        if ($canSeeFile) {
+          $sizeMB = [math]::Round((Get-Item $ScriptBackupPath).Length / 1MB, 2)
+          EnqLog ("📊 Tamaño del archivo: {0} MB" -f $sizeMB)
+          EnqLog ("📁 Ubicación: {0}" -f $ScriptBackupPath)
+        } else {
+          EnqLog ("⚠️ No se encontró el archivo en: {0}" -f $ScriptBackupPath)
+          EnqLog ("ℹ️ Nota: Si es servidor remoto, puede ser permisos/UNC. El backup pudo haberse generado en el servidor.")
+        }
+        if ($DoCompress) {
+          EnqProg 90 "Backup listo. Preparando compresión..."
+          EnqLog "🗜️ Iniciando compresión ZIP..."
+          $inputBak = $ScriptBackupPath
+          $zipPath = "$ScriptBackupPath.zip"
+          if (-not (Test-Path $inputBak)) { EnqProg 0 "Error: no existe BAK"; EnqLog ("⚠️ No existe el BAK accesible: {0}" -f $inputBak); EnqLog "__DONE_ERR__"; return }
+          $sevenZip = Get-7ZipPath
+          if (-not $sevenZip -or -not (Test-Path $sevenZip)) { EnqProg 0 "Error: no se encontró 7-Zip"; EnqLog "❌ No se encontró 7z.exe. No se puede comprimir."; EnqLog "__DONE_ERR__"; return }
+          try {
+            if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
+            EnqProg 92 "Comprimiendo (ZIP)..."
+            if ($ZipPassword -and $ZipPassword.Trim().Length -gt 0) { & $sevenZip a -tzip -p"$($ZipPassword.Trim())" -mem=AES256 $zipPath $inputBak | Out-Null } else { & $sevenZip a -tzip $zipPath $inputBak | Out-Null }
+            EnqProg 97 "Finalizando compresión..."
+            Start-Sleep -Milliseconds 300
+            if (Test-Path $zipPath) { $zipMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2); EnqProg 99 "ZIP creado. Cerrando..."; EnqLog ("✅ ZIP creado ({0} MB): {1}" -f $zipMB, $zipPath) } else { EnqProg 0 "Error: ZIP no generado"; EnqLog ("❌ Se ejecutó 7-Zip pero NO se generó el ZIP: {0}" -f $zipPath) }
+          } catch { EnqProg 0 "Error al comprimir"; EnqLog ("❌ Error al comprimir: {0}" -f $_.Exception.Message) }
+        }
+        if ($DoCompress) {
+          EnqLog "__DONE_OK__"
+        } else {
+          if ($canSeeFile) { EnqLog "__DONE_OK__" } else { EnqLog "__DONE_WARN__" }
+        }
+
+      } catch {
+        EnqProg 0 "Error"
+        EnqLog ("❌ Error inesperado (worker): {0}" -f $_.Exception.Message)
+        EnqLog "__DONE_ERR__"
+      }
+    }
+    $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace()
+    $rs.ApartmentState = 'MTA'
+    $rs.ThreadOptions = 'ReuseThread'
+    $rs.Open()
+    $ps = [PowerShell]::Create()
+    $ps.Runspace = $rs
+    [void]$ps.AddScript($worker).AddArgument($Server).AddArgument($Database).AddArgument($BackupQuery).AddArgument($ScriptBackupPath).AddArgument($DoCompress).AddArgument($ZipPassword).AddArgument($Credential).AddArgument($LogQueue).AddArgument($ProgressQueue)
+    $null = $ps.BeginInvoke()
+    Write-DzDebug "`t[DEBUG][Start-BackupWorkAsync] Worker lanzado"
+  }
+  $stopwatch = $null
+  $timer = $null
+  $logTimer = [System.Windows.Threading.DispatcherTimer]::new()
+  $logTimer.Interval = [TimeSpan]::FromMilliseconds(200)
+  $script:LogMaxChars = 60000
+  $logTimer.Add_Tick({
+      try {
+        $count = 0
+        $doneThisTick = $false
+        $prependBuffer = New-Object System.Text.StringBuilder
+        while ($count -lt 50) {
+          $line = $null
+          if (-not $logQueue.TryDequeue([ref]$line)) { break }
+          [void]$prependBuffer.AppendLine($line)
+          if ($line -like "*__DONE_OK__*" -or $line -like "*__DONE_WARN__*" -or $line -like "*__DONE_ERR__*") {
+            if ($line -like "*__DONE_OK__*") { $script:LastDoneStatus = "OK" }
+            elseif ($line -like "*__DONE_WARN__*") { $script:LastDoneStatus = "WARN" }
+            else { $script:LastDoneStatus = "ERR" }
+            $doneThisTick = $true
+            Write-DzDebug "`t[DEBUG][UI] Señal DONE recibida: $script:LastDoneStatus"
+            $script:BackupRunning = $false
+            $btnAceptar.IsEnabled = $true
+            $btnAceptar.Content = "Iniciar Respaldo"
+            $txtNombre.IsEnabled = $true
+            $chkComprimir.IsEnabled = $true
+            if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true }
+            $btnAbrirCarpeta.IsEnabled = $true
+            $tmp = $null
+            while ($progressQueue.TryDequeue([ref]$tmp)) { }
+            if ($script:LastDoneStatus -eq "ERR") {
+              Paint-Progress -Percent 0 -Message "Error"
+            } else {
+              Paint-Progress -Percent 100 -Message "Completado"
+            }
+            $script:BackupDone = $true
+            if (-not $script:DonePopupShown) {
+              $script:DonePopupShown = $true
+              if ($script:LastDoneStatus -eq "OK") {
+                Ui-Info "Respaldo finalizado." "Información" $window
+              } elseif ($script:LastDoneStatus -eq "WARN") {
+                Ui-Warn "Respaldo finalizado.`n`nTen en cuenta que a veces marca error de lectura porque es en un servidor (permisos/UNC). El backup pudo haberse generado en el servidor." "Atención" $window
+              } else {
+                Ui-Error "Ocurrió un error durante el respaldo. Revisa el log." "Error" $window
+              }
+            }
+          }
+          $count++
+        }
+        if ($count -gt 0) {
+          $newText = $prependBuffer.ToString()
+          if ($newText.Length -gt 0) {
+            $txtLog.Text = $newText + $txtLog.Text
+            if ($txtLog.Text.Length -gt $script:LogMaxChars) {
+              $txtLog.Text = $txtLog.Text.Substring(0, $script:LogMaxChars)
+            }
+            $txtLog.ScrollToLine(0)  # siempre arriba
+          }
+        }
+
+        if (-not $doneThisTick) {
+          $last = $null
+          while ($true) {
+            $p = $null
+            if (-not $progressQueue.TryDequeue([ref]$p)) { break }
+            $last = $p
+          }
+          if ($last) { Paint-Progress -Percent $last.Percent -Message $last.Message }
+        }
+      } catch { Write-DzDebug "`t[DEBUG][UI][logTimer] ERROR: $($_.Exception.Message)" }
+      if ($script:BackupDone) {
+        $tmpLine = $null
+        $tmpProg = $null
+        if (-not $logQueue.TryPeek([ref]$tmpLine) -and -not $progressQueue.TryPeek([ref]$tmpProg)) { $logTimer.Stop(); $script:BackupDone = $false }
+      }
+    })
+  $logTimer.Start()
+  Write-DzDebug "`t[DEBUG][Show-BackupDialog] logTimer iniciado"
+  $chkComprimir.Add_Checked({
+      Write-DzDebug "`t[DEBUG][UI] chkComprimir CHECKED"
+      try {
+        if (-not (Test-ChocolateyInstalled)) {
+          $msg = @"
+Chocolatey es necesario SOLAMENTE si deseas:
+✓ Comprimir el respaldo (ZIP con contraseña)
+Si solo necesitas crear el respaldo básico (.BAK), NO es necesario instalarlo.
+¿Deseas instalar Chocolatey ahora?
+"@
+          $wantChoco = Ui-Confirm $msg "Chocolatey requerido" $window
+          if (-not $wantChoco) { Ui-Warn "Compresión deshabilitada (Chocolatey no instalado)." "Atención" $window; Disable-CompressionUI; return }
+          $okChoco = Install-Chocolatey
+          if (-not $okChoco -or -not (Test-ChocolateyInstalled)) { Ui-Warn "No se pudo instalar Chocolatey. Compresión deshabilitada." "Atención" $window; Disable-CompressionUI; return }
+        }
+        if (-not (Test-7ZipInstalled)) {
+          $want7z = Ui-Confirm "Para comprimir se requiere 7-Zip. ¿Deseas instalarlo ahora con Chocolatey?" "7-Zip requerido" $window
+          if (-not $want7z) { Ui-Warn "Compresión deshabilitada (7-Zip no instalado)." "Atención" $window; Disable-CompressionUI; return }
+          $ok7z = Install-7ZipWithChoco
+          if (-not $ok7z) { Ui-Warn "No se pudo instalar 7-Zip. Compresión deshabilitada." "Atención" $window; Disable-CompressionUI; return }
+        }
+        $txtPassword.IsEnabled = $true
+        $lblPassword.IsEnabled = $true
+      } catch {
+        Write-DzDebug "`t[DEBUG][UI] Error chkComprimir CHECKED: $($_.Exception.Message)"
+        Ui-Error "Error validando requisitos de compresión: $($_.Exception.Message)" "Error" $window
+        Disable-CompressionUI
+      }
+    })
+  $credential = New-SafeCredential -Username $User -PlainPassword $Password
+  $btnBrowseServerBackupFolder.Add_Click({
+      Write-DzDebug "`t[DEBUG][UI] btnBrowseServerBackupFolder Click"
+      try {
+        if (Get-Command Show-ServerFolderBrowser -ErrorAction SilentlyContinue) {
+          $selected = Show-ServerFolderBrowser -Server $Server -Credential $credential -StartPath $txtServerBackupFolder.Text
+
+          if ($selected) {
+            $txtServerBackupFolder.Text = $selected
+            Add-Log "📁 Carpeta de respaldo cambiada a: $selected"
+            Write-DzDebug "`t[DEBUG][UI] Nueva carpeta seleccionada: $selected"
+          }
+        } else {
+          Ui-Warn "La función 'Show-ServerFolderBrowser' no está disponible en este build.`n`nPuedes escribir la ruta manualmente (es ruta del SERVIDOR SQL).`nEjemplo: C:\Temp\SQLBackups" "Explorador no disponible" $window
+        }
+      } catch {
+        Write-DzDebug "`t[DEBUG][UI] Error en btnBrowseServerBackupFolder: $($_.Exception.Message)"
+        Ui-Error "Error al abrir explorador de carpetas en servidor: $($_.Exception.Message)" "Error" $window
+      }
+    })
+  $chkComprimir.Add_Unchecked({ Write-DzDebug "`t[DEBUG][UI] chkComprimir UNCHECKED"; Disable-CompressionUI })
+  $btnAceptar.Add_Click({
+      if ($script:BackupRunning) { return }
+      $script:DonePopupShown = $false
+      $script:LastDoneStatus = $null
+      $script:BackupDone = $false
+      if ($script:BackupRunning) { return }
+      $script:BackupDone = $false
+      if (-not $logTimer.IsEnabled) { $logTimer.Start() }
+      if (-not $logTimer.IsEnabled) { $logTimer.Start() }
+      try {
+        $btnAceptar.IsEnabled = $false
+        $btnAceptar.Content = "Procesando..."
+        if ([string]::IsNullOrWhiteSpace($txtLog.Text)) {
+          # no hace nada
+        } else {
+          # opción 1: conservar siempre (recomendado)
+          Add-Log "— Iniciando nuevo respaldo (se conserva el log anterior) —"
+          $txtLog.AppendText("`r`n— Iniciando nuevo respaldo —`r`n")
+        }
+        $pbBackup.Value = 0
+        $txtProgress.Text = "Esperando..."
+        Add-Log "Iniciando proceso de backup..."
+        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        $timer = [System.Windows.Threading.DispatcherTimer]::new()
+        $timer.Interval = [TimeSpan]::FromSeconds(1)
+        $timer.Start()
+        Write-DzDebug "`t[DEBUG][UI] Timer iniciado OK"
+        $machinePart = $Server.Split('\')[0]
+        $machineName = $machinePart.Split(',')[0]
+        if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
+        $sameHost = ($env:COMPUTERNAME -ieq $machineName)
+        $backupFileName = $txtNombre.Text
+        $sqlBackupFolder = $txtServerBackupFolder.Text.Trim()
+        if ([string]::IsNullOrWhiteSpace($sqlBackupFolder)) {
+          $sqlBackupFolder = $defaultBackupPath
+          $txtServerBackupFolder.Text = $defaultBackupPath
+        }
+        $sqlBackupPath = Join-Path $sqlBackupFolder $backupFileName
+        if ($sameHost) {
+          $scriptBackupPath = $sqlBackupPath
+        } else {
+          $folderPart = $sqlBackupFolder -replace '^[A-Za-z]:', ''  # Quitar la letra de unidad
+          $scriptBackupPath = "\\$machineName\$($sqlBackupFolder[0])$`$$folderPart\$backupFileName"
+        }
+        Add-Log "Servidor: $Server"
+        Add-Log "Base de datos: $Database"
+        Add-Log "Usuario: $User"
+        Add-Log "Carpeta de respaldo: $sqlBackupFolder"
+        Add-Log "Ruta SQL (donde escribe el motor): $sqlBackupPath"
+        Add-Log "Ruta accesible desde esta PC: $scriptBackupPath"
+        if (-not $backupFileName.ToLower().EndsWith(".bak")) { $backupFileName = "$backupFileName.bak"; $txtNombre.Text = $backupFileName }
+        $invalid = [System.IO.Path]::GetInvalidFileNameChars()
+        if ($backupFileName.IndexOfAny($invalid) -ge 0) { Show-WarnDialog -Message "El nombre contiene caracteres no válidos..." -Title "Nombre inválido" -Owner $window; Reset-BackupUI -ProgressText "Nombre inválido"; return }
+        $scriptBackupExists = $false
+        try {
+          $scriptBackupExists = Test-Path $scriptBackupPath -ErrorAction Stop
+        } catch {
+          Write-DzDebug "`t[DEBUG][UI] No se pudo validar la ruta de respaldo: $scriptBackupPath. $($_.Exception.Message)"
+        }
+        if ($scriptBackupExists) {
+          $choice = Ui-Confirm "Ya existe un respaldo con ese nombre en:`n$scriptBackupPath`n`n¿Deseas sobrescribirlo?" "Archivo existente" $window
+          if (-not $choice) { $timestampsDefault = Get-Date -Format 'yyyyMMdd-HHmmss'; $txtNombre.Text = "$Database-$timestampsDefault.bak"; Add-Log "⚠️ Operación cancelada: el archivo ya existe. Se sugirió un nuevo nombre."; Reset-BackupUI -ProgressText "Cancelado (elige otro nombre y vuelve a intentar)"; return }
+        }
+        if ($sameHost) {
+          if (-not (Test-Path $sqlBackupFolder)) {
+            New-Item -ItemType Directory -Path $sqlBackupFolder -Force | Out-Null
+            Add-Log "✓ Carpeta creada: $sqlBackupFolder"
+          }
+        } else {
+          $uncFolder = "\\$machineName\$($sqlBackupFolder[0])$`$" + ($sqlBackupFolder -replace '^[A-Za-z]:', '')
+          try {
+            if (-not (Test-Path $uncFolder -ErrorAction Stop)) {
+              Add-Log "⚠️ No pude validar la carpeta UNC: $uncFolder (puede ser permisos). SQL intentará escribir en $sqlBackupFolder en el servidor."
+            }
+          } catch {
+            Write-DzDebug "`t[DEBUG][UI] No se pudo validar la carpeta UNC: $uncFolder. $($_.Exception.Message)"
+            Add-Log "⚠️ No pude validar la carpeta UNC: $uncFolder (puede ser permisos). SQL intentará escribir en $sqlBackupFolder en el servidor."
+          }
+        }
+        Add-Log "✓ Credenciales listas"
+        $backupQuery = @"
+BACKUP DATABASE [$Database]
+TO DISK = '$sqlBackupPath'
+WITH CHECKSUM, STATS = 1, FORMAT, INIT
+"@
+        Paint-Progress -Percent 5 -Message "Conectando a SQL Server..."
+        Write-DzDebug "`t[DEBUG][UI] Llamando Start-BackupWorkAsync"
+        Start-BackupWorkAsync -Server $Server -Database $Database -BackupQuery $backupQuery -ScriptBackupPath $scriptBackupPath -DoCompress ($chkComprimir.IsChecked -eq $true) -ZipPassword $txtPassword.Password -Credential $credential -LogQueue $logQueue -ProgressQueue $progressQueue
+      } catch {
+        Write-DzDebug "`t[DEBUG][UI] ERROR btnAceptar: $($_.Exception.Message)"
+        Add-Log "❌ Error: $($_.Exception.Message)"
+        $btnAceptar.IsEnabled = $true
+        $btnAceptar.Content = "Iniciar Respaldo"
+        if ($timer -and $timer.IsEnabled) { $timer.Stop() }
+        if ($stopwatch) { $stopwatch.Stop() }
+      }
+    })
+  $btnAbrirCarpeta.Add_Click({
+      Write-DzDebug "`t[DEBUG][UI] btnAbrirCarpeta Click"
+      $machinePart = $Server.Split('\')[0]
+      $machineName = $machinePart.Split(',')[0]
+      if ($machineName -eq '.') { $machineName = $env:COMPUTERNAME }
+      $sqlBackupFolder = $txtServerBackupFolder.Text.Trim()
+      if ([string]::IsNullOrWhiteSpace($sqlBackupFolder)) {
+        $sqlBackupFolder = $defaultBackupPath
+      }
+      $folderPart = $sqlBackupFolder -replace '^[A-Za-z]:', ''
+      $backupFolder = "\\$machineName\$($sqlBackupFolder[0])$`$$folderPart"
+      if (Test-Path $backupFolder) {
+        Start-Process explorer.exe $backupFolder
+      } else {
+        Ui-Warn "La carpeta de respaldos no existe o no es accesible.`n`nRuta: $backupFolder" "Atención" $window
+      }
+    })
+  $btnCerrar.Add_Click({
+      Write-DzDebug "`t[DEBUG][UI] btnCerrar Click"
+      try { if ($logTimer -and $logTimer.IsEnabled) { $logTimer.Stop() } } catch { }
+      try { if ($timer -and $timer.IsEnabled) { $timer.Stop() } } catch { }
+      try { if ($stopwatch) { $stopwatch.Stop() } } catch { }
+      Safe-CloseWindow -Window $window -Result $false
+    })
+  Write-DzDebug "`t[DEBUG][Show-BackupDialog] Antes de ShowDialog()"
+  $null = $window.ShowDialog()
+  Write-DzDebug "`t[DEBUG][Show-BackupDialog] Después de ShowDialog()"
+}
+function Reset-BackupUI {
+  param([string]$ButtonText = "Iniciar Respaldo", [string]$ProgressText = "Esperando...")
+  $script:BackupRunning = $false
+  $btnAceptar.IsEnabled = $true
+  $btnAceptar.Content = $ButtonText
+  $txtNombre.IsEnabled = $true
+  $chkComprimir.IsEnabled = $true
+  if ($chkComprimir.IsChecked -eq $true) { $txtPassword.IsEnabled = $true; $lblPassword.IsEnabled = $true } else { $txtPassword.IsEnabled = $false; $lblPassword.IsEnabled = $false }
+  $btnAbrirCarpeta.IsEnabled = $true
+  $txtProgress.Text = $ProgressText
 }
 function Show-ServerFolderBrowser {
   [CmdletBinding()]

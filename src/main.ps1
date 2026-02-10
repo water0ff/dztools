@@ -287,6 +287,9 @@ function New-MainForm {
     $global:tvDatabases = $tvDatabases
     $global:tabAddQuery = $tabAddQuery
     $global:txtMessages = $window.FindName("txtMessages")
+    if ($global:txtMessages -and $global:txtMessages.PSObject.Properties['IsReadOnly']) {
+        $global:txtMessages.IsReadOnly = $true
+    }
     $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")
     $global:lblRowCount = $window.FindName("lblRowCount")
     $global:lblConnectionStatus = $lblConnectionStatus
@@ -388,6 +391,12 @@ function New-MainForm {
             })
     }
     $global:txt_AdapterStatus = $txt_AdapterStatus
+
+    @($lblHostname, $lblPort, $txt_IpAdress, $txt_AdapterStatus, $txt_InfoInstrucciones) | ForEach-Object {
+        if ($_ -and $_.PSObject.Properties['IsReadOnly']) {
+            $_.IsReadOnly = $true
+        }
+    }
     Initialize-SystemInfo -LblPort $lblPort -LblIpAddress $txt_IpAdress -LblAdapterStatus $txt_AdapterStatus -ModulesPath $modulesPath
     Load-IniConnectionsToComboBox -Combo $txtServer
     if ($txtServer.Items.Count -eq 1) {

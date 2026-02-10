@@ -1026,7 +1026,6 @@ function Get-MainWindowXaml {
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushColor}"/>
         </Style>
         <Style x:Key="InfoHeaderTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
-            <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="TextAlignment" Value="Center"/>

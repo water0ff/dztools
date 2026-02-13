@@ -896,7 +896,7 @@ function Get-QueryTabTitle {
     }
     if ($Short) {
         if ($Database.Length -gt 7) {
-            $shortDb = "..." + $Database.Substring($Database.Length - 7)
+            $shortDb = "_" + $Database.Substring($Database.Length - 7)
             return "Query$Number ($shortDb)"
         }
     }

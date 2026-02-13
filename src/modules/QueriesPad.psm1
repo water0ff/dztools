@@ -413,6 +413,61 @@ function Clear-ResultTabsKeepMessages {
     }
     return $messagesTabIndex
 }
+function Save-ActiveQueryExecutionState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][System.Windows.Controls.TabControl]$QueryTabControl,
+        [Parameter(Mandatory)][hashtable]$State
+    )
+    $activeTab = Get-ActiveQueryTab -TabControl $QueryTabControl
+    if (-not $activeTab -or -not $activeTab.Tag) { return }
+    $activeTab.Tag | Add-Member -NotePropertyName ExecutionState -NotePropertyValue $State -Force
+}
+function Restore-QueryExecutionState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][System.Windows.Controls.TabControl]$QueryTabControl,
+        [Parameter(Mandatory)][System.Windows.Controls.TabControl]$ResultTabControl,
+        [Parameter()]$MessagesTextBox,
+        [Parameter()]$RowCountLabel
+    )
+    $activeTab = Get-ActiveQueryTab -TabControl $QueryTabControl
+    if (-not $activeTab -or -not $activeTab.Tag -or -not $activeTab.Tag.ExecutionState) {
+        if ($ResultTabControl) { [void](Clear-ResultTabsKeepMessages -TabControl $ResultTabControl) }
+        if ($MessagesTextBox) { $MessagesTextBox.Text = "" }
+        if ($RowCountLabel) { $RowCountLabel.Text = "📊 --" }
+        return
+    }
+    $state = $activeTab.Tag.ExecutionState
+    if ($MessagesTextBox) { $MessagesTextBox.Text = [string]$state.MessagesText }
+    if ($state.ResultSets) {
+        Show-MultipleResultSets -TabControl $ResultTabControl -ResultSets $state.ResultSets
+    } elseif ($state.RowsAffected -ne $null) {
+        [void](Clear-ResultTabsKeepMessages -TabControl $ResultTabControl)
+        $tab = New-Object System.Windows.Controls.TabItem
+        $tab.Header = "📊 Resultados"
+        $text = New-Object System.Windows.Controls.TextBlock
+        $text.Text = "Filas afectadas: $($state.RowsAffected)"
+        $text.Margin = "8"
+        $text.FontSize = 10
+        $tab.Content = $text
+        $ResultTabControl.Items.Insert(0, $tab)
+        $ResultTabControl.SelectedItem = $tab
+    } else {
+        Show-MultipleResultSets -TabControl $ResultTabControl -ResultSets @()
+    }
+    if ($RowCountLabel -and $state.RowCountText) {
+        $RowCountLabel.Text = [string]$state.RowCountText
+    }
+    if ($state.SelectedPane -eq 'Messages') {
+        foreach ($item in $ResultTabControl.Items) {
+            if ($item -is [System.Windows.Controls.TabItem] -and ([string]$item.Header -match 'Mensajes')) {
+                $ResultTabControl.SelectedItem = $item
+                break
+            }
+        }
+    }
+}
 #EnQueriesPad.psm1
 function Execute-QueryCore {
     [CmdletBinding()]
@@ -443,7 +498,7 @@ function Execute-QueryCore {
                 $txtMessages.IsReadOnly = $true
                 $txtMessages.VerticalScrollBarVisibility = "Auto"
                 $txtMessages.FontFamily = "Consolas"
-                $txtMessages.FontSize = 11
+                $txtMessages.FontSize = 10
                 $txtMessages.Background = "Transparent"
                 $txtMessages.BorderThickness = "0"
                 try {
@@ -783,6 +838,27 @@ function Execute-QueryCore {
                     }
                     return
                 }
+                $state = @{
+                    MessagesText = if ($global:txtMessages) { [string]$global:txtMessages.Text } else { "" }
+                    ResultSets = @()
+                    RowsAffected = $null
+                    RowCountText = if ($global:lblRowCount) { [string]$global:lblRowCount.Text } else { "📊 --" }
+                    SelectedPane = "Results"
+                }
+                if ($result.ResultSets -and $result.ResultSets.Count -gt 0) {
+                    $state.ResultSets = $result.ResultSets
+                } elseif ($result -and ($result -is [hashtable]) -and $result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
+                    $state.RowsAffected = [int]$result.RowsAffected
+                }
+                if ($global:tcResults -and $global:tcResults.SelectedItem) {
+                    $selHeader = [string]$global:tcResults.SelectedItem.Header
+                    if ($selHeader -match "Mensajes") { $state.SelectedPane = "Messages" }
+                }
+                try {
+                    Save-ActiveQueryExecutionState -QueryTabControl $Ctx.tcQueries -State $state
+                } catch {
+                    Write-DzDebug "`t[DEBUG][Queries] Error guardando estado visual: $($_.Exception.Message)" Yellow
+                }
                 if ($result.DebugLog -and $global:txtMessages) {
                     try {
                         $dbg = ($result.DebugLog -join "`n")
@@ -793,6 +869,14 @@ function Execute-QueryCore {
                     try { Show-MultipleResultSets -TabControl $global:tcResults -ResultSets $result.ResultSets } catch {
                         if ($global:txtMessages) { $global:txtMessages.Text = "Error mostrando resultados: $($_.Exception.Message)" }
                     }
+                    $state = @{
+                        MessagesText = if ($global:txtMessages) { [string]$global:txtMessages.Text } else { "" }
+                        ResultSets = $result.ResultSets
+                        RowsAffected = $null
+                        RowCountText = if ($global:lblRowCount) { [string]$global:lblRowCount.Text } else { "📊 --" }
+                        SelectedPane = "Results"
+                    }
+                    try { Save-ActiveQueryExecutionState -QueryTabControl $Ctx.tcQueries -State $state } catch {}
                     return
                 }
                 if ($result -and ($result -is [hashtable]) -and $result.ContainsKey('RowsAffected') -and $result.RowsAffected -ne $null) {
@@ -803,7 +887,7 @@ function Execute-QueryCore {
                         $text = New-Object System.Windows.Controls.TextBlock
                         $text.Text = "Filas afectadas: $($result.RowsAffected)"
                         $text.Margin = "10"
-                        $text.FontSize = 14
+                        $text.FontSize = 10
                         $text.FontWeight = "Bold"
                         $tab.Content = $text
                         if ($messagesTabIndex -ge 0) {
@@ -820,10 +904,19 @@ function Execute-QueryCore {
                         $global:txtMessages.Text = "Filas afectadas: $($result.RowsAffected)"
                     }
                     if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas afectadas: $($result.RowsAffected)" }
+                    $state = @{
+                        MessagesText = if ($global:txtMessages) { [string]$global:txtMessages.Text } else { "" }
+                        ResultSets = @()
+                        RowsAffected = [int]$result.RowsAffected
+                        RowCountText = if ($global:lblRowCount) { [string]$global:lblRowCount.Text } else { "📊 --" }
+                        SelectedPane = "Results"
+                    }
+                    try { Save-ActiveQueryExecutionState -QueryTabControl $Ctx.tcQueries -State $state } catch {}
                     return
                 }
                 Show-MultipleResultSets -TabControl $global:tcResults -ResultSets @()
-                if ($global:lblRowCount) { $global:lblRowCount.Text = "Filas: 0" }
+                if ($global:lblRowCount) { $global:lblRowCount.Text = "📊 0" }
+                try { Save-ActiveQueryExecutionState -QueryTabControl $Ctx.tcQueries -State @{ MessagesText = if ($global:txtMessages) { [string]$global:txtMessages.Text } else { "" }; ResultSets = @(); RowsAffected = $null; RowCountText = if ($global:lblRowCount) { [string]$global:lblRowCount.Text } else { "📊 --" }; SelectedPane = "Results" } } catch {}
             } catch {
                 $err = "[UI][QueryDoneTimer ERROR] $($_.Exception.Message)`n$($_.ScriptStackTrace)"
                 if ($global:txtMessages) { $global:txtMessages.Text = $err }
@@ -2108,10 +2201,10 @@ function New-SqlEditor {
 Export-ModuleMember -Function @(
     'Initialize-QueriesConfig', 'Add-QueryToHistory', 'Save-DbUiContext', 'Get-QueryHistory',
     'Clear-QueryHistory', 'Remove-QueriesFromHistory', 'Save-OpenQueryTabs', 'Restore-OpenQueryTabs',
-    'Show-QueryHistoryWindow', 'Execute-QueryUiSafe', 'Export-ResultsUiSafe', 'New-QueryTab',
+    'Save-ActiveQueryExecutionState', 'Restore-QueryExecutionState', 'Show-QueryHistoryWindow', 'Execute-QueryUiSafe', 'Export-ResultsUiSafe', 'New-QueryTab',
     'Set-QueryTabsDatabase', 'Close-OtherQueryTabs', 'Get-ActiveQueryTab', 'Get-ActiveQueryRichTextBox',
     'Set-QueryTextInActiveTab', 'Insert-TextIntoActiveQuery', 'Update-QueryTabHeader',
     'Close-QueryTab', 'Get-SqlEditorPaths', 'Import-AvalonEditAssembly',
     'Get-SqlEditorHighlighting', 'New-SqlEditor', 'Set-SqlEditorText', 'Get-SqlEditorText',
-    'Clear-SqlEditorText', 'Insert-SqlEditorText', 'Get-SqlEditorSelectedText', 'Show-QueryHistoryWindow'
+    'Clear-SqlEditorText', 'Insert-SqlEditorText', 'Get-SqlEditorSelectedText'
 )

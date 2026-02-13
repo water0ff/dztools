@@ -1475,6 +1475,12 @@ function Get-MainWindowXaml {
                             <!-- Pestañas de Queries -->
                             <TabControl Name="tcQueries" Grid.Row="0"
                                         Background="{DynamicResource ControlBg}">
+                                <TabControl.ItemContainerStyle>
+                                    <Style TargetType="{x:Type TabItem}" BasedOn="{StaticResource {x:Type TabItem}}">
+                                        <Setter Property="FontSize" Value="10"/>
+                                        <Setter Property="Padding" Value="8,2"/>
+                                    </Style>
+                                </TabControl.ItemContainerStyle>
                                 <TabItem Header="+" Name="tabAddQuery"
                                         IsEnabled="True" ToolTip="Nueva consulta"/>
                             </TabControl>
@@ -1487,6 +1493,7 @@ function Get-MainWindowXaml {
                                 <TabControl.ItemContainerStyle>
                                     <Style TargetType="{x:Type TabItem}" BasedOn="{StaticResource {x:Type TabItem}}">
                                         <Setter Property="FontSize" Value="10"/>
+                                        <Setter Property="Padding" Value="8,2"/>
                                     </Style>
                                 </TabControl.ItemContainerStyle>
                                 <TabItem Header="📊 Resultados">

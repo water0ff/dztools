@@ -293,6 +293,15 @@ function New-MainForm {
     $global:lblExecutionTimer = $window.FindName("lblExecutionTimer")
     $global:lblRowCount = $window.FindName("lblRowCount")
     $global:lblConnectionStatus = $lblConnectionStatus
+    if ($tcQueries) {
+        $tcQueries.Add_SelectionChanged({
+                try {
+                    Restore-QueryExecutionState -QueryTabControl $global:tcQueries -ResultTabControl $global:tcResults -MessagesTextBox $global:txtMessages -RowCountLabel $global:lblRowCount
+                } catch {
+                    Write-DzDebug "`t[DEBUG][Queries] Error restaurando vista por pestaña: $($_.Exception.Message)" Yellow
+                }
+            })
+    }
     if ($tvDatabases) {
         try {
             Write-Host "`nAplicando estilo al TreeView..." -ForegroundColor Yellow

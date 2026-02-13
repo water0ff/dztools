@@ -18,7 +18,7 @@ function Get-DzUiTheme {
             ButtonSystemBackground = "#FFB000"; ButtonSystemForeground = "#111111"
             ButtonNationalBackground = "#EA5C00"; ButtonNationalForeground = "#111111"
             ConsoleBackground = "#FFFFFF"; ConsoleForeground = "#111111"
-            AccentPrimary = "#1976D2"; AccentSecondary = "#2E7D32"; AccentMuted = "#6B7280"
+            AccentPrimary = "#72a6f4"; AccentSecondary = "#2E7D32"; AccentMuted = "#6B7280"
             UiFontFamily = "Segoe UI"; UiFontSize = 12
             CodeFontFamily = "Consolas"; CodeFontSize = 12
             AccentBlue = "#FFB000"
@@ -55,7 +55,7 @@ function Get-DzUiTheme {
             ButtonSystemBackground = "#FFB000"; ButtonSystemForeground = "#000000"
             ButtonNationalBackground = "#EA5C00"; ButtonNationalForeground = "#000000"
             ConsoleBackground = "#012456"; ConsoleForeground = "#FFFFFF"
-            AccentPrimary = "#2196F3"; AccentSecondary = "#4CAF50"; AccentMuted = "#9CA3AF"
+            AccentPrimary = "#72a6f4"; AccentSecondary = "#4CAF50"; AccentMuted = "#9CA3AF"
             UiFontFamily = "Segoe UI"; UiFontSize = 12
             CodeFontFamily = "Consolas"; CodeFontSize = 12
             AccentBlue = "#FFB000"
@@ -1486,7 +1486,10 @@ function Get-MainWindowXaml {
                                         Background="{DynamicResource ControlBg}">
                                 <TabControl.ItemContainerStyle>
                                     <Style TargetType="{x:Type TabItem}" BasedOn="{StaticResource {x:Type TabItem}}">
-                                        <Setter Property="FontSize" Value="10"/>
+                                    <Setter Property="FontSize" Value="10"/>
+                                    <Setter Property="Padding" Value="6,2"/>
+                                    <Setter Property="Margin" Value="1,0,0,0"/>
+                                    <Setter Property="MinHeight" Value="24"/>
                                     </Style>
                                 </TabControl.ItemContainerStyle>
                                 <TabItem Header="📊 Resultados">
@@ -1495,14 +1498,18 @@ function Get-MainWindowXaml {
                                             FontSize="10"
                                             AutoGenerateColumns="True"
                                             CanUserAddRows="False"
-                                            CanUserDeleteRows="False"/>
+                                            CanUserDeleteRows="False"
+                                            RowHeight="20"
+                                            ColumnHeaderHeight="22"/>
                                 </TabItem>
+
                                 <TabItem Header="💬 Mensajes">
                                     <TextBox Name="txtMessages"
                                             IsReadOnly="True"
                                             VerticalScrollBarVisibility="Auto"
                                             FontFamily="Consolas"
                                             FontSize="10"
+                                            Padding="4,2"
                                             Background="Transparent"
                                             BorderThickness="0"/>
                                 </TabItem>

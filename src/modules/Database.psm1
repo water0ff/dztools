@@ -545,8 +545,12 @@ function Show-MultipleResultSets {
         $iconText = New-Object System.Windows.Controls.TextBlock
         $iconText.Text = "📊"
         $iconText.Margin = "0,0,6,0"
+        $iconText.FontSize = 10
+        $iconText.Margin = "0,0,4,0"
         $titleText = New-Object System.Windows.Controls.TextBlock
         $titleText.Text = "Resultado"
+        $titleText.FontSize = 10
+        $titleText.Margin = "0"
         $titleText.VerticalAlignment = "Center"
         [void]$headerPanel.Children.Add($iconText)
         [void]$headerPanel.Children.Add($titleText)
@@ -609,7 +613,7 @@ function Show-MultipleResultSets {
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::ForegroundProperty, $headerFg)))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty, [System.Windows.HorizontalAlignment]::Center)))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::VerticalContentAlignmentProperty, [System.Windows.VerticalAlignment]::Center)))
-    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 4, 8, 4)))))
+    [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(4, 2, 4, 2)))))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $gridLine)))
     [void]$hdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
     $rowHdrStyle = New-Object System.Windows.Style([System.Windows.Controls.Primitives.DataGridRowHeader])
@@ -621,7 +625,7 @@ function Show-MultipleResultSets {
     [void]$rowHdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
     [void]$rowHdrStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.FrameworkElement]::WidthProperty, [double]::NaN)))
     $cellStyle = New-Object System.Windows.Style([System.Windows.Controls.DataGridCell])
-    [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(8, 2, 8, 2)))))
+    [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::PaddingProperty, (New-Object System.Windows.Thickness(4, 1, 4, 1)))))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderBrushProperty, $gridLine)))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::BorderThicknessProperty, (New-Object System.Windows.Thickness(0, 0, 1, 1)))))
     [void]$cellStyle.Setters.Add((New-Object System.Windows.Setter([System.Windows.Controls.Control]::HorizontalContentAlignmentProperty, [System.Windows.HorizontalAlignment]::Center)))
@@ -647,10 +651,13 @@ function Show-MultipleResultSets {
         #dgResults construyendo la pestaña de resultados:
         $iconText.Text = "📊"
         $iconText.Margin = "0,0,6,0"
+        $iconText.FontSize = 10
+        $iconText.Margin = "0,0,4,0"
         $titleText = New-Object System.Windows.Controls.TextBlock
         $titleText.Text = "Resultado $i ($rowCount filas)"
         $titleText.VerticalAlignment = "Center"
         $titleText.FontSize = 10
+        $titleText.Margin = "0"
         [void]$headerPanel.Children.Add($iconText)
         [void]$headerPanel.Children.Add($titleText)
         $tab.Header = $headerPanel
@@ -672,8 +679,11 @@ function Show-MultipleResultSets {
         $dg.AlternatingRowBackground = $rowAlt
         $dg.BorderBrush = $gridLine
         $dg.BorderThickness = "1"
-        $dg.RowHeight = 26
-        $dg.ColumnHeaderHeight = 28
+        #NUEVOS TAMAÑOS
+        $dg.FontSize = 10
+        $dg.RowHeight = 20
+        $dg.ColumnHeaderHeight = 22
+        $dg.RowHeaderWidth = 38
         $dg.HorizontalScrollBarVisibility = "Auto"
         $dg.VerticalScrollBarVisibility = "Auto"
         $dg.CanUserResizeColumns = $true

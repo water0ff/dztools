@@ -1176,6 +1176,471 @@ function Get-SqlEditorHighlighting {
         return $null
     }
 }
+function Show-FindReplacePanel {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Editor,
+        [switch]$FindOnly  # Nuevo parámetro para ocultar controles de reemplazo
+    )
+
+    # Verificar si ya existe un panel
+    $existingPanel = $Editor.Tag
+    if ($existingPanel -and $existingPanel.FindReplacePanel) {
+        $panel = $existingPanel.FindReplacePanel
+        $panel.Visibility = [System.Windows.Visibility]::Visible
+
+        # Mostrar/ocultar controles de reemplazo según el modo
+        if ($Editor.Tag.StackReplace) {
+            $Editor.Tag.StackReplace.Visibility = if ($FindOnly) {
+                [System.Windows.Visibility]::Collapsed
+            } else {
+                [System.Windows.Visibility]::Visible
+            }
+        }
+        if ($Editor.Tag.StackOptions) {
+            $Editor.Tag.StackOptions.Visibility = if ($FindOnly) {
+                [System.Windows.Visibility]::Collapsed
+            } else {
+                [System.Windows.Visibility]::Visible
+            }
+        }
+        if ($Editor.Tag.StackActions) {
+            $Editor.Tag.StackActions.Visibility = if ($FindOnly) {
+                [System.Windows.Visibility]::Collapsed
+            } else {
+                [System.Windows.Visibility]::Visible
+            }
+        }
+
+        # Enfocar el textbox de búsqueda
+        if ($Editor.Tag.TxtFind) {
+            $Editor.Tag.TxtFind.Focus()
+            $Editor.Tag.TxtFind.SelectAll()
+        }
+        return
+    }
+
+    # Crear el panel integrado
+    $panel = New-Object System.Windows.Controls.Grid
+    $panel.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#F5F5F5")
+    $panel.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
+    $panel.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+    $panel.Margin = New-Object System.Windows.Thickness(0, 5, 5, 0)
+    $panel.Width = 420
+
+    # Efecto de sombra
+    $dropShadow = New-Object System.Windows.Media.Effects.DropShadowEffect
+    $dropShadow.BlurRadius = 10
+    $dropShadow.ShadowDepth = 3
+    $dropShadow.Opacity = 0.3
+    $panel.Effect = $dropShadow
+
+    # Border para el panel
+    $border = New-Object System.Windows.Controls.Border
+    $border.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#CCCCCC")
+    $border.BorderThickness = New-Object System.Windows.Thickness(1)
+    $border.CornerRadius = New-Object System.Windows.CornerRadius(4)
+    $border.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#F5F5F5")
+    $border.Padding = New-Object System.Windows.Thickness(8)
+
+    # Grid interno
+    $innerGrid = New-Object System.Windows.Controls.Grid
+
+    # Definir filas
+    $row1 = New-Object System.Windows.Controls.RowDefinition
+    $row1.Height = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Auto)
+    $row2 = New-Object System.Windows.Controls.RowDefinition
+    $row2.Height = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Auto)
+    $row3 = New-Object System.Windows.Controls.RowDefinition
+    $row3.Height = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Auto)
+    $row4 = New-Object System.Windows.Controls.RowDefinition
+    $row4.Height = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Auto)
+
+    [void]$innerGrid.RowDefinitions.Add($row1)
+    [void]$innerGrid.RowDefinitions.Add($row2)
+    [void]$innerGrid.RowDefinitions.Add($row3)
+    [void]$innerGrid.RowDefinitions.Add($row4)
+
+    # === FILA 1: Buscar ===
+    $stackFind = New-Object System.Windows.Controls.StackPanel
+    $stackFind.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $stackFind.Margin = New-Object System.Windows.Thickness(0, 0, 0, 5)
+    [System.Windows.Controls.Grid]::SetRow($stackFind, 0)
+
+    $lblFind = New-Object System.Windows.Controls.TextBlock
+    $lblFind.Text = "Buscar:"
+    $lblFind.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $lblFind.Margin = New-Object System.Windows.Thickness(0, 0, 8, 0)
+    $lblFind.FontSize = 11
+    $lblFind.Width = 70
+
+    $txtFind = New-Object System.Windows.Controls.TextBox
+    $txtFind.Name = "txtFind"
+    $txtFind.Width = 220
+    $txtFind.Height = 22
+    $txtFind.Padding = New-Object System.Windows.Thickness(4, 2, 4, 2)
+    $txtFind.FontFamily = "Consolas"
+    $txtFind.FontSize = 11
+
+    $btnFindNext = New-Object System.Windows.Controls.Button
+    $btnFindNext.Content = "▼"
+    $btnFindNext.Width = 25
+    $btnFindNext.Height = 22
+    $btnFindNext.Margin = New-Object System.Windows.Thickness(2, 0, 0, 0)
+    $btnFindNext.ToolTip = "Buscar siguiente (F3)"
+    $btnFindNext.FontSize = 10
+
+    $btnFindPrev = New-Object System.Windows.Controls.Button
+    $btnFindPrev.Content = "▲"
+    $btnFindPrev.Width = 25
+    $btnFindPrev.Height = 22
+    $btnFindPrev.Margin = New-Object System.Windows.Thickness(2, 0, 0, 0)
+    $btnFindPrev.ToolTip = "Buscar anterior (Shift+F3)"
+    $btnFindPrev.FontSize = 10
+
+    $btnCloseFindReplace = New-Object System.Windows.Controls.Button
+    $btnCloseFindReplace.Content = "✕"
+    $btnCloseFindReplace.Width = 25
+    $btnCloseFindReplace.Height = 22
+    $btnCloseFindReplace.Margin = New-Object System.Windows.Thickness(2, 0, 0, 0)
+    $btnCloseFindReplace.ToolTip = "Cerrar (Esc)"
+    $btnCloseFindReplace.FontWeight = "Bold"
+    $btnCloseFindReplace.FontSize = 12
+
+    [void]$stackFind.Children.Add($lblFind)
+    [void]$stackFind.Children.Add($txtFind)
+    [void]$stackFind.Children.Add($btnFindNext)
+    [void]$stackFind.Children.Add($btnFindPrev)
+    [void]$stackFind.Children.Add($btnCloseFindReplace)
+
+    # === FILA 2: Reemplazar ===
+    $stackReplace = New-Object System.Windows.Controls.StackPanel
+    $stackReplace.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $stackReplace.Margin = New-Object System.Windows.Thickness(0, 0, 0, 5)
+    [System.Windows.Controls.Grid]::SetRow($stackReplace, 1)
+
+    $lblReplace = New-Object System.Windows.Controls.TextBlock
+    $lblReplace.Text = "Reemplazar:"
+    $lblReplace.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $lblReplace.Margin = New-Object System.Windows.Thickness(0, 0, 8, 0)
+    $lblReplace.FontSize = 11
+    $lblReplace.Width = 70
+
+    $txtReplace = New-Object System.Windows.Controls.TextBox
+    $txtReplace.Name = "txtReplace"
+    $txtReplace.Width = 220
+    $txtReplace.Height = 22
+    $txtReplace.Padding = New-Object System.Windows.Thickness(4, 2, 4, 2)
+    $txtReplace.FontFamily = "Consolas"
+    $txtReplace.FontSize = 11
+
+    $btnReplace = New-Object System.Windows.Controls.Button
+    $btnReplace.Content = "Reemplazar"
+    $btnReplace.Width = 80
+    $btnReplace.Height = 22
+    $btnReplace.Margin = New-Object System.Windows.Thickness(2, 0, 0, 0)
+    $btnReplace.FontSize = 10
+
+    [void]$stackReplace.Children.Add($lblReplace)
+    [void]$stackReplace.Children.Add($txtReplace)
+    [void]$stackReplace.Children.Add($btnReplace)
+
+    # === FILA 3: Opciones ===
+    $stackOptions = New-Object System.Windows.Controls.StackPanel
+    $stackOptions.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $stackOptions.Margin = New-Object System.Windows.Thickness(70, 0, 0, 5)
+    [System.Windows.Controls.Grid]::SetRow($stackOptions, 2)
+
+    $chkMatchCase = New-Object System.Windows.Controls.CheckBox
+    $chkMatchCase.Content = "Aa"
+    $chkMatchCase.ToolTip = "Coincidir mayúsculas/minúsculas"
+    $chkMatchCase.Margin = New-Object System.Windows.Thickness(0, 0, 10, 0)
+    $chkMatchCase.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $chkMatchCase.FontSize = 11
+
+    $chkWholeWord = New-Object System.Windows.Controls.CheckBox
+    $chkWholeWord.Content = "[ ]"
+    $chkWholeWord.ToolTip = "Palabra completa"
+    $chkWholeWord.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $chkWholeWord.FontSize = 11
+    $chkWholeWord.FontFamily = "Consolas"
+
+    [void]$stackOptions.Children.Add($chkMatchCase)
+    [void]$stackOptions.Children.Add($chkWholeWord)
+
+    # === FILA 4: Botones de acción ===
+    $stackActions = New-Object System.Windows.Controls.StackPanel
+    $stackActions.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $stackActions.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+    [System.Windows.Controls.Grid]::SetRow($stackActions, 3)
+
+    $btnReplaceAll = New-Object System.Windows.Controls.Button
+    $btnReplaceAll.Content = "Reemplazar todo"
+    $btnReplaceAll.Width = 110
+    $btnReplaceAll.Height = 22
+    $btnReplaceAll.FontSize = 10
+
+    [void]$stackActions.Children.Add($btnReplaceAll)
+
+    # Agregar todo al grid interno
+    [void]$innerGrid.Children.Add($stackFind)
+    [void]$innerGrid.Children.Add($stackReplace)
+    [void]$innerGrid.Children.Add($stackOptions)
+    [void]$innerGrid.Children.Add($stackActions)
+
+    $border.Child = $innerGrid
+    [void]$panel.Children.Add($border)
+
+    # Aplicar visibilidad según modo
+    if ($FindOnly) {
+        $stackReplace.Visibility = [System.Windows.Visibility]::Collapsed
+        $stackOptions.Visibility = [System.Windows.Visibility]::Collapsed
+        $stackActions.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+
+    # Variables de búsqueda
+    $script:lastSearchText = ""
+    $script:lastSearchOffset = 0
+
+    # Función auxiliar para buscar
+    $findText = {
+        param([bool]$forward = $true, [bool]$wrapAround = $true)
+
+        $searchText = $txtFind.Text
+        if ([string]::IsNullOrWhiteSpace($searchText)) { return $false }
+
+        $text = $Editor.Text
+        $comparison = if ($chkMatchCase.IsChecked) {
+            [System.StringComparison]::Ordinal
+        } else {
+            [System.StringComparison]::OrdinalIgnoreCase
+        }
+
+        if ($searchText -ne $script:lastSearchText) {
+            $script:lastSearchText = $searchText
+            $script:lastSearchOffset = $Editor.CaretOffset
+        }
+
+        $startOffset = if ($forward) {
+            if ($Editor.SelectionLength -gt 0) {
+                $Editor.SelectionStart + $Editor.SelectionLength
+            } else {
+                $script:lastSearchOffset
+            }
+        } else {
+            if ($Editor.SelectionLength -gt 0) {
+                [Math]::Max(0, $Editor.SelectionStart - 1)
+            } else {
+                [Math]::Max(0, $script:lastSearchOffset - 1)
+            }
+        }
+
+        $index = -1
+
+        if ($forward) {
+            $index = $text.IndexOf($searchText, $startOffset, $comparison)
+            if ($index -lt 0 -and $wrapAround -and $startOffset -gt 0) {
+                $index = $text.IndexOf($searchText, 0, $comparison)
+            }
+        } else {
+            $index = $text.LastIndexOf($searchText, $startOffset, $comparison)
+            if ($index -lt 0 -and $wrapAround) {
+                $index = $text.LastIndexOf($searchText, $text.Length - 1, $comparison)
+            }
+        }
+
+        if ($index -ge 0) {
+            if ($chkWholeWord.IsChecked) {
+                $isWholeWord = $true
+                if ($index -gt 0) {
+                    $prevChar = $text[$index - 1]
+                    if ([char]::IsLetterOrDigit($prevChar) -or $prevChar -eq '_') {
+                        $isWholeWord = $false
+                    }
+                }
+                if ($isWholeWord -and ($index + $searchText.Length) -lt $text.Length) {
+                    $nextChar = $text[$index + $searchText.Length]
+                    if ([char]::IsLetterOrDigit($nextChar) -or $nextChar -eq '_') {
+                        $isWholeWord = $false
+                    }
+                }
+
+                if (-not $isWholeWord) {
+                    $script:lastSearchOffset = if ($forward) { $index + 1 } else { $index - 1 }
+                    return & $findText -forward $forward -wrapAround $false
+                }
+            }
+
+            $Editor.Select($index, $searchText.Length)
+            $Editor.CaretOffset = $index
+            $line = $Editor.Document.GetLineByOffset($index)
+            $Editor.ScrollToLine($line.LineNumber)
+
+            $script:lastSearchOffset = $index
+            return $true
+        }
+
+        return $false
+    }.GetNewClosure()
+
+    # Eventos de los botones
+    $btnFindNext.Add_Click({
+            if (-not (& $findText -forward $true)) {
+                [System.Windows.MessageBox]::Show("No se encontró: '$($txtFind.Text)'", "Buscar", "OK", "Information")
+            }
+        }.GetNewClosure())
+
+    $btnFindPrev.Add_Click({
+            if (-not (& $findText -forward $false)) {
+                [System.Windows.MessageBox]::Show("No se encontró: '$($txtFind.Text)'", "Buscar", "OK", "Information")
+            }
+        }.GetNewClosure())
+
+    $btnReplace.Add_Click({
+            $searchText = $txtFind.Text
+            $replaceText = $txtReplace.Text
+
+            if ([string]::IsNullOrWhiteSpace($searchText)) { return }
+
+            $comparison = if ($chkMatchCase.IsChecked) {
+                [System.StringComparison]::Ordinal
+            } else {
+                [System.StringComparison]::OrdinalIgnoreCase
+            }
+
+            $matches = $Editor.SelectionLength -gt 0 -and
+            $Editor.SelectedText.Equals($searchText, $comparison)
+
+            if ($matches) {
+                $Editor.Document.Replace($Editor.SelectionStart, $Editor.SelectionLength, $replaceText)
+                $script:lastSearchOffset = $Editor.SelectionStart + $replaceText.Length
+            }
+
+            & $findText -forward $true
+        }.GetNewClosure())
+
+    $btnReplaceAll.Add_Click({
+            $searchText = $txtFind.Text
+            $replaceText = $txtReplace.Text
+
+            if ([string]::IsNullOrWhiteSpace($searchText)) { return }
+
+            $text = $Editor.Text
+            $count = 0
+            $offset = 0
+
+            $comparison = if ($chkMatchCase.IsChecked) {
+                [System.StringComparison]::Ordinal
+            } else {
+                [System.StringComparison]::OrdinalIgnoreCase
+            }
+
+            $Editor.BeginChange()
+            try {
+                while ($true) {
+                    $index = $text.IndexOf($searchText, $offset, $comparison)
+                    if ($index -lt 0) { break }
+
+                    if ($chkWholeWord.IsChecked) {
+                        $isWholeWord = $true
+                        if ($index -gt 0) {
+                            $prevChar = $text[$index - 1]
+                            if ([char]::IsLetterOrDigit($prevChar) -or $prevChar -eq '_') {
+                                $isWholeWord = $false
+                            }
+                        }
+                        if ($isWholeWord -and ($index + $searchText.Length) -lt $text.Length) {
+                            $nextChar = $text[$index + $searchText.Length]
+                            if ([char]::IsLetterOrDigit($nextChar) -or $nextChar -eq '_') {
+                                $isWholeWord = $false
+                            }
+                        }
+
+                        if (-not $isWholeWord) {
+                            $offset = $index + 1
+                            continue
+                        }
+                    }
+
+                    $Editor.Document.Replace($index, $searchText.Length, $replaceText)
+                    $text = $Editor.Text
+                    $count++
+                    $offset = $index + $replaceText.Length
+                }
+            } finally {
+                $Editor.EndChange()
+            }
+
+            [System.Windows.MessageBox]::Show("Se reemplazaron $count ocurrencia(s)", "Reemplazar todo", "OK", "Information")
+            $script:lastSearchOffset = 0
+            $script:lastSearchText = ""
+        }.GetNewClosure())
+
+    $btnCloseFindReplace.Add_Click({
+            $panel.Visibility = [System.Windows.Visibility]::Collapsed
+            $Editor.Focus()
+        }.GetNewClosure())
+
+    # Enter en txtFind busca siguiente
+    $txtFind.Add_KeyDown({
+            param($s, $e)
+            if ($e.Key -eq [System.Windows.Input.Key]::Enter) {
+                $btnFindNext.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+                $e.Handled = $true
+            }
+            if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                $btnCloseFindReplace.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+                $e.Handled = $true
+            }
+        }.GetNewClosure())
+
+    # Enter en txtReplace reemplaza
+    $txtReplace.Add_KeyDown({
+            param($s, $e)
+            if ($e.Key -eq [System.Windows.Input.Key]::Enter) {
+                $btnReplace.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+                $e.Handled = $true
+            }
+            if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+                $btnCloseFindReplace.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
+                $e.Handled = $true
+            }
+        }.GetNewClosure())
+
+    # Agregar el panel al contenedor del editor
+    $container = $Editor.Parent
+    if ($container -is [System.Windows.Controls.Border]) {
+        $overlayGrid = New-Object System.Windows.Controls.Grid
+
+        $container.Child = $null
+        [void]$overlayGrid.Children.Add($Editor)
+        [void]$overlayGrid.Children.Add($panel)
+
+        $container.Child = $overlayGrid
+    }
+
+    # Guardar referencias en el Tag del editor para acceso desde F3/Shift+F3
+    if (-not $Editor.Tag) {
+        $Editor.Tag = @{}
+    }
+    $Editor.Tag.FindReplacePanel = $panel
+    $Editor.Tag.TxtFind = $txtFind
+    $Editor.Tag.BtnFindNext = $btnFindNext
+    $Editor.Tag.BtnFindPrev = $btnFindPrev
+    $Editor.Tag.StackReplace = $stackReplace
+    $Editor.Tag.StackOptions = $stackOptions
+    $Editor.Tag.StackActions = $stackActions
+
+    # Pre-cargar texto seleccionado
+    if (-not [string]::IsNullOrWhiteSpace($Editor.SelectedText)) {
+        $txtFind.Text = $Editor.SelectedText
+        $script:lastSearchText = $Editor.SelectedText
+        $script:lastSearchOffset = $Editor.SelectionStart
+    }
+
+    $txtFind.Focus()
+    $txtFind.SelectAll()
+}
 function Set-SqlEditorText {
     [CmdletBinding()]
     param(
@@ -2048,59 +2513,98 @@ function New-SqlEditor {
     } catch {
         Write-DzDebug "`t[DEBUG] Error instalando panel de búsqueda: $_" -Color Yellow
     }
-
     $editor.Add_KeyDown({
             param($sender, $e)
-
-            if ($e.Key -eq [System.Windows.Input.Key]::F -and [System.Windows.Input.Keyboard]::Modifiers -eq [System.Windows.Input.ModifierKeys]::Control) {
+            # CTRL + B: Buscar (nuestro panel personalizado)
+            if ($e.Key -eq [System.Windows.Input.Key]::B -and
+                [System.Windows.Input.Keyboard]::Modifiers -eq [System.Windows.Input.ModifierKeys]::Control) {
                 try {
-                    if ($searchPanel) {
-                        $searchPanel.IsReplaceMode = $false
-                        $searchPanel.Open()
-                        if (-not [string]::IsNullOrWhiteSpace($sender.SelectedText)) {
-                            $searchPanel.SearchPattern = $sender.SelectedText
-                        }
-                    }
+                    Show-FindReplacePanel -Editor $sender -FindOnly
                 } catch {
                     Write-DzDebug "`t[DEBUG] Error abriendo panel de búsqueda: $_" -Color Red
                 }
                 $e.Handled = $true
             }
 
-            if ($e.Key -eq [System.Windows.Input.Key]::H -and [System.Windows.Input.Keyboard]::Modifiers -eq [System.Windows.Input.ModifierKeys]::Control) {
+            # CTRL + R: Buscar y Reemplazar (nuestro panel completo)
+            if ($e.Key -eq [System.Windows.Input.Key]::R -and
+                [System.Windows.Input.Keyboard]::Modifiers -eq [System.Windows.Input.ModifierKeys]::Control) {
                 try {
-                    if ($searchPanel) {
-                        $searchPanel.IsReplaceMode = $true
-                        $searchPanel.Open()
-                        if (-not [string]::IsNullOrWhiteSpace($sender.SelectedText)) {
-                            $searchPanel.SearchPattern = $sender.SelectedText
-                        }
-                    }
+                    Show-FindReplacePanel -Editor $sender
                 } catch {
                     Write-DzDebug "`t[DEBUG] Error abriendo panel de reemplazo: $_" -Color Red
                 }
                 $e.Handled = $true
             }
 
-            if ($e.Key -eq [System.Windows.Input.Key]::F3 -and [System.Windows.Input.Keyboard]::Modifiers -eq [System.Windows.Input.ModifierKeys]::Shift) {
+            # F3: Buscar siguiente
+            if ($e.Key -eq [System.Windows.Input.Key]::F3 -and
+                [System.Windows.Input.Keyboard]::Modifiers -eq [System.Windows.Input.ModifierKeys]::None) {
                 try {
-                    if ($searchPanel) { $searchPanel.FindPrevious() }
-                } catch {}
-                $e.Handled = $true
-            } elseif ($e.Key -eq [System.Windows.Input.Key]::F3) {
-                try {
-                    if ($searchPanel) { $searchPanel.FindNext() }
-                } catch {}
+                    if ($sender.Tag -and $sender.Tag.FindReplacePanel) {
+                        $panel = $sender.Tag.FindReplacePanel
+
+                        # Si el panel no está visible, mostrarlo primero
+                        if ($panel.Visibility -ne [System.Windows.Visibility]::Visible) {
+                            Show-FindReplacePanel -Editor $sender -FindOnly
+                        } else {
+                            # Simular click en botón "Buscar siguiente"
+                            if ($sender.Tag.BtnFindNext) {
+                                $sender.Tag.BtnFindNext.RaiseEvent(
+                                    (New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                                )
+                            }
+                        }
+                    } else {
+                        # Primera vez, crear panel
+                        Show-FindReplacePanel -Editor $sender -FindOnly
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG] Error en F3: $_" -Color Red
+                }
                 $e.Handled = $true
             }
 
+            # SHIFT + F3: Buscar anterior
+            if ($e.Key -eq [System.Windows.Input.Key]::F3 -and
+                [System.Windows.Input.Keyboard]::Modifiers -eq [System.Windows.Input.ModifierKeys]::Shift) {
+                try {
+                    if ($sender.Tag -and $sender.Tag.FindReplacePanel) {
+                        $panel = $sender.Tag.FindReplacePanel
+
+                        # Si el panel no está visible, mostrarlo primero
+                        if ($panel.Visibility -ne [System.Windows.Visibility]::Visible) {
+                            Show-FindReplacePanel -Editor $sender -FindOnly
+                        } else {
+                            # Simular click en botón "Buscar anterior"
+                            if ($sender.Tag.BtnFindPrev) {
+                                $sender.Tag.BtnFindPrev.RaiseEvent(
+                                    (New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+                                )
+                            }
+                        }
+                    } else {
+                        # Primera vez, crear panel
+                        Show-FindReplacePanel -Editor $sender -FindOnly
+                    }
+                } catch {
+                    Write-DzDebug "`t[DEBUG] Error en Shift+F3: $_" -Color Red
+                }
+                $e.Handled = $true
+            }
+
+            # ESC: Cerrar panel de búsqueda
             if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
                 try {
-                    if ($searchPanel -and $searchPanel.IsClosed -eq $false) {
-                        $searchPanel.Close()
+                    if ($sender.Tag -and $sender.Tag.FindReplacePanel -and
+                        $sender.Tag.FindReplacePanel.Visibility -eq [System.Windows.Visibility]::Visible) {
+                        $sender.Tag.FindReplacePanel.Visibility = [System.Windows.Visibility]::Collapsed
+                        $sender.Focus()
                         $e.Handled = $true
                     }
-                } catch {}
+                } catch {
+                    Write-DzDebug "`t[DEBUG] Error cerrando panel: $_" -Color Red
+                }
             }
         }.GetNewClosure())
     return $editor
@@ -2113,5 +2617,5 @@ Export-ModuleMember -Function @(
     'Set-QueryTextInActiveTab', 'Insert-TextIntoActiveQuery', 'Update-QueryTabHeader',
     'Close-QueryTab', 'Get-SqlEditorPaths', 'Import-AvalonEditAssembly',
     'Get-SqlEditorHighlighting', 'New-SqlEditor', 'Set-SqlEditorText', 'Get-SqlEditorText',
-    'Clear-SqlEditorText', 'Insert-SqlEditorText', 'Get-SqlEditorSelectedText', 'Show-QueryHistoryWindow'
+    'Clear-SqlEditorText', 'Insert-SqlEditorText', 'Get-SqlEditorSelectedText', 'Show-QueryHistoryWindow', 'Show-FindReplacePanel'
 )

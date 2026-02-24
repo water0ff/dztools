@@ -1337,39 +1337,23 @@ WHERE
         "SR SYNC | Renovar NSPlatformControl"             = @"
 /*  SE RECOMIENDA RESPALDAR LA BASE DE DATOS ANTES DE EJECUTAR ESTA CONSULTA
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-DELETE FROM dbo.nsplatformcontrol;
-UPDATE dbo.grupos
-    SET WorkspaceId = NEWID();
-UPDATE dbo.subgrupos
-    SET WorkspaceId = NEWID();
-UPDATE dbo.gruposmodificadores
-    SET WorkspaceId = NEWID();
-UPDATE dbo.comentarios
-    SET IdComentario = NEWID();
-UPDATE dbo.udsmedida
-    SET WorkspaceId = NEWID();
-UPDATE dbo.productos
-    SET WorkspaceId = NEWID();
-UPDATE dbo.modificadores
-    SET WorkspaceId = NEWID();
-UPDATE dbo.areasrestaurant
-    SET WorkspaceId = NEWID();
-UPDATE dbo.estaciones
-    SET WorkspaceId = NEWID();
-UPDATE dbo.formasdepago
-    SET WorkspaceId = NEWID();
-UPDATE dbo.usuarios
-    SET WorkspaceId = NEWID();
-UPDATE dbo.turnos
-    SET WorkspaceId = NEWID();
-UPDATE dbo.mesas
-    SET WorkspaceId = NEWID();
-UPDATE dbo.gruposmodificadoresproductos
-    SET Id = NEWID();
-UPDATE dbo.gruposmodificadoresproductos
-    SET WorkspaceId = Id;
-UPDATE dbo.declaracioncajero
-    SET WorkspaceId = NEWID();
+DELETE FROM nsplatformcontrol;
+UPDATE grupos                           SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE subgrupos                        SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE gruposmodificadores              SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE comentarios                      SET IdComentario = NEWID() WHERE 1=1;
+UPDATE udsmedida                        SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE productos                        SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE modificadores                    SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE areasrestaurant                  SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE estaciones                       SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE formasdepago                     SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE usuarios                         SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE turnos                           SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE mesas                            SET WorkspaceId = NEWID() WHERE 1=1;
+UPDATE gruposmodificadoresproductos     SET id          = NEWID() WHERE 1=1;
+UPDATE gruposmodificadoresproductos     SET WorkspaceId = Id WHERE 1=1;
+UPDATE dbo.declaracioncajero            SET WorkspaceId = NEWID() WHERE 1=1;
 "@
     }
 }
